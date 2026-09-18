@@ -49,6 +49,7 @@ RUN python3 /tmp/breeder-flow-fix.py
 COPY mypage-state-fix.py /tmp/mypage-state-fix.py
 RUN python3 /tmp/mypage-state-fix.py
 COPY mypage-verify-state-fix.js ./mypage-verify-state-fix.js
+RUN python3 -c "from pathlib import Path; p=Path('operator-breeders.html'); src=Path('operator-admin.html'); p.write_text(src.read_text(encoding='utf-8'),encoding='utf-8') if (not p.exists() and src.exists()) else None"
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
