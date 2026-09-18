@@ -9,6 +9,8 @@ RUN python3 -c "from pathlib import Path; p=Path('breeder-register.html'); s=p.r
 RUN cp /tmp/breeder-register-fix.js ./breeder-register-fix.js
 RUN cp /tmp/auth-return-fix.js ./auth-return-fix.js
 RUN python3 -c "from pathlib import Path; tag='<script src=\\\"/auth-return-fix.js\\\"></script>'; files=['breeder-register.html','login.html','register.html','verify-email.html']; [(lambda p,s: p.write_text(s.replace('</body>',tag+'</body>') if tag not in s else s,encoding='utf-8'))(Path(x),Path(x).read_text(encoding='utf-8')) for x in files if Path(x).exists()]"
+# VERIFY EMAIL DEBUG: report implementation shape without secrets
+RUN python3 -c "from pathlib import Path; s=Path('backend/server.py').read_text(encoding='utf-8'); lines=s.splitlines(); hits=[i for i,x in enumerate(lines) if 'email-verification' in x or 'email_verification' in x or 'verify-email' in x]; print('VERIFY EMAIL DEBUG'); [print('\\n'.join(lines[max(0,i-8):min(len(lines),i+35)])) for i in hits[:8]]"
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
