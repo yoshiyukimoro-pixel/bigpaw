@@ -12,7 +12,7 @@ body=r'''
     if api_key:
         try:
             payload=json.dumps({"from":"onboarding@resend.dev","to":[to_email],"subject":subject,"text":text}).encode("utf-8")
-            req=urllib.request.Request("https://api.resend.com/emails",data=payload,headers={"Authorization":"Bearer "+api_key,"Content-Type":"application/json"},method="POST")
+            req=urllib.request.Request("https://api.resend.com/emails",data=payload,headers={"Authorization":"Bearer "+api_key,"Content-Type":"application/json","User-Agent":"BIGPAW-Mailer/1.0","Accept":"application/json"},method="POST")
             with urllib.request.urlopen(req,timeout=20) as resp:
                 ok=200 <= resp.status < 300
                 print("[BIG PAW] HTTPS mail status:",resp.status,flush=True)
