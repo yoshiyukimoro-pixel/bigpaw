@@ -42,4 +42,4 @@ Path('flow-inspect-public.txt').write_text('\n'.join(out),encoding='utf-8')
 PY
 ENV PORT=8080
 EXPOSE 8080
-CMD ["sh", "-c", "while IFS= read -r line; do echo FLOWDBG:$line; done < flow-inspect-public.txt; exec python3 backend/server.py"]
+CMD ["sh", "-c", "sleep 2; while IFS= read -r line; do echo FLOWDBG:$line >&2; sleep 0.01; done < flow-inspect-public.txt; exec python3 backend/server.py"]
