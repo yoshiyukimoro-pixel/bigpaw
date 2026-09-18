@@ -136,3 +136,17 @@ new="        m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)\n        
 if old not in s: raise SystemExit('final approval auth pattern not found')
 s=s.replace(old,new,1)
 p.write_text(s,encoding='utf-8')
+
+# Add operator navigation and multi-photo upload UI.
+p=Path('operator-admin.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ if 'operator-menu-links' not in s:
+  menu='<div id="operator-menu-links"><h2>運営メニュー</h2><p><a class="btn btn-main" href="/operator-breeders.html">ブリーダー審査</a> <a class="btn btn-main" href="/operator-listings.html">子犬掲載審査</a> <a class="btn btn-sub" href="/index.html">一般公開サイト確認</a></p></div>'
+  s=s.replace('</body>',menu+'</body>')
+  p.write_text(s,encoding='utf-8')
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ s=s.replace('type="file" accept="image/*"','type="file" accept="image/*" multiple')
+ p.write_text(s,encoding='utf-8')
