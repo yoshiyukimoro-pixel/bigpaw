@@ -37,6 +37,8 @@ for fn in ['backend/server.py','breeder-fee-agreement.html','operator-breeders.h
  for i,line in enumerate(p.read_text(encoding='utf-8',errors='replace').splitlines()):
   if any(k in line.lower() for k in ['breeder','審査','puppy','approve','application','申請','承認','子犬']): out.append(f'{i+1}: {line[:1000]}')
 Path('flow-inspect.txt').write_text('\n'.join(out),encoding='utf-8')
+# expose temporary inspection file through the static site
+Path('flow-inspect-public.txt').write_text('\n'.join(out),encoding='utf-8')
 PY
 ENV PORT=8080
 EXPOSE 8080
