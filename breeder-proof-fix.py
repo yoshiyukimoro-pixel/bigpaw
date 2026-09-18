@@ -80,3 +80,10 @@ if p.exists():
  new="<br>${esc(a.email)}</span>${String(a.profile||'').match(/\\[REGISTRATION_PROOF\\](\\S+)/)?'<div style=\\\"margin-top:10px\\\"><a class=\\\"btn btn-sub proof-link\\\" target=\\\"_blank\\\" rel=\\\"noopener\\\" href=\\\"'+esc(String(a.profile||'').match(/\\[REGISTRATION_PROOF\\](\\S+)/)[1])+'\\\">第一種動物取扱業 登録証の写しを確認</a></div>':''}${a.status==='pending'?"
  if old in s:s=s.replace(old,new)
  p.write_text(s,encoding='utf-8')
+
+# Serve durable uploads from DATA_DIR instead of static ROOT.
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="    def do_HEAD(self):\n"
+insert="    def translate_path(self, path):\n        clean=urlparse(path).path\n        if clean.startswith('/uploads/'):\n            name=Path(clean).name\n            return str(UPLOADS / name)\n        return super().translate_path(path)\n"
+if 'def translate_path(self, path):' not in s and needle in s:s=s.replace(needle,insert+needle,1)
+p.write_text(s,encoding='utf-8')
