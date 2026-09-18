@@ -28,3 +28,8 @@ p=Path('breeder-register.html'); s=p.read_text(encoding='utf-8')
 s=s.replace("if(st!=='rejected')submitBtn.disabled=true","if(st==='approved')submitBtn.disabled=true;else submitBtn.disabled=!agreeCommissionTerms.checked")
 s=s.replace("if(rows[0].status!=='rejected')submitBtn.disabled=true","if(rows[0].status==='approved')submitBtn.disabled=true;else submitBtn.disabled=!agreeCommissionTerms.checked")
 p.write_text(s,encoding='utf-8')
+
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+# Registration-certificate upload happens while the applicant is still a buyer.
+s=s.replace("self.require(['breeder','operator'])","self.require(['buyer','breeder','operator'])")
+p.write_text(s,encoding='utf-8')
