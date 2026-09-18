@@ -41,6 +41,7 @@ Path('flow-inspect.txt').write_text('\\n'.join(out),encoding='utf-8')
 PY
 COPY inspect_flow.py /tmp/inspect_flow.py
 RUN python3 /tmp/inspect_flow.py && cp inspection.txt /tmp/inspection.txt
+RUN cat inspection.txt
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
