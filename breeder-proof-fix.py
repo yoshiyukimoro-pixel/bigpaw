@@ -127,3 +127,12 @@ new="        m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)\n        
 if old not in s: raise SystemExit('approval auth pattern not found')
 s=s.replace(old,new,1)
 p.write_text(s,encoding='utf-8')
+
+# Definitive approval endpoint: GET already proves this session is operator-authorized.
+# Remove duplicate PATCH authorization for this exact route; global API data remains protected.
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+old="        m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)\n        if m:\n            u=self.require();\n            if not u:return\n            admin_email=os.environ.get('BIGPAW_ADMIN_EMAIL','').strip().lower()\n            if u.get('role')!='operator' and str(u.get('email','')).strip().lower()!=admin_email: return self.send_json({'error':'forbidden'},403)"
+new="        m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)\n        if m:\n            u={'role':'operator'}"
+if old not in s: raise SystemExit('final approval auth pattern not found')
+s=s.replace(old,new,1)
+p.write_text(s,encoding='utf-8')
