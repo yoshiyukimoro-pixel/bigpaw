@@ -94,3 +94,10 @@ old="        origin=self.headers.get('Origin','').strip(); referer=self.headers.
 new="        origin=self.headers.get('Origin','').strip(); referer=self.headers.get('Referer','').strip()\n        if origin in ('https://www.bigpaw.site','https://bigpaw.site'): return True\n        if referer.startswith('https://www.bigpaw.site/') or referer.startswith('https://bigpaw.site/'): return True"
 if old in s and new not in s:s=s.replace(old,new,1)
 p.write_text(s,encoding='utf-8')
+
+# Exact production origin fix: PUBLIC_BASE_URL may be apex while browser Origin is www.
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+old="        return origin.rstrip('/') == PUBLIC_BASE_URL"
+new="        allowed={PUBLIC_BASE_URL.rstrip('/'),'https://www.bigpaw.site','https://bigpaw.site'}\n        return origin.rstrip('/') in allowed"
+if old in s:s=s.replace(old,new,1)
+p.write_text(s,encoding='utf-8')
