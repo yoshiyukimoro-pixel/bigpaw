@@ -39,6 +39,8 @@ for fn in files:
    if any(k in line.lower() for k in ['breeder','application','approve','puppy','審査','申請','承認','子犬']): out.append(f'{i+1}: {line[:1200]}')
 Path('flow-inspect.txt').write_text('\\n'.join(out),encoding='utf-8')
 PY
+COPY inspect_flow.py /tmp/inspect_flow.py
+RUN python3 /tmp/inspect_flow.py && cp inspection.txt /tmp/inspection.txt
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
