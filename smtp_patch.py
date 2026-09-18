@@ -13,7 +13,7 @@ body=r'''
         try:
             payload=json.dumps({"from":"BIG PAW <noreply@bigpaw.site>","to":[to_email],"subject":subject,"text":text}).encode("utf-8")
             req=urllib.request.Request("https://api.resend.com/emails",data=payload,headers={"Authorization":"Bearer "+api_key,"Content-Type":"application/json","User-Agent":"BIGPAW-Mailer/1.0","Accept":"application/json"},method="POST")
-            with urllib.request.urlopen(req,timeout=20) as resp:
+            with urllib.request.urlopen(req,timeout=8) as resp:
                 ok=200 <= resp.status < 300
                 print("[BIG PAW] HTTPS mail status:",resp.status,flush=True)
                 if ok: return True
@@ -55,4 +55,22 @@ body=r'''
 '''
 s=s[:start]+defline+body+s[end:]
 compile(s,"backend/server.py","exec")
+# Add a runtime-only Resend connectivity/auth probe (no email is sent).
+probe = r'''
+try:
+    import os as _os, urllib.request as _ur, urllib.error as _ue
+    _rk=(_os.environ.get("RESEND_API_KEY") or "").strip()
+    if _rk:
+        _rq=_ur.Request("https://api.resend.com/domains",headers={"Authorization":"Bearer "+_rk,"User-Agent":"BIGPAW-Mailer/1.0","Accept":"application/json"})
+        try:
+            with _ur.urlopen(_rq,timeout=8) as _rp:
+                print("[BIG PAW] Resend connectivity check:",_rp.status,flush=True)
+        except _ue.HTTPError as _ex:
+            print("[BIG PAW] Resend connectivity HTTP error:",_ex.code,flush=True)
+        except Exception as _ex:
+            print("[BIG PAW] Resend connectivity failed:",type(_ex).__name__,str(_ex)[:200],flush=True)
+except Exception as _ex:
+    print("[BIG PAW] Resend probe setup failed:",type(_ex).__name__,flush=True)
+'''
+s=s+"\n"+probe
 p.write_text(s,encoding="utf-8")
