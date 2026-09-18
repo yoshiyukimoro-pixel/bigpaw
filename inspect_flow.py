@@ -16,3 +16,11 @@ if p.exists():
  out.append('=== operator-breeders.html FULL ===')
  for i,line in enumerate(lines): out.append(f'{i+1}: {line[:4000]}')
 Path('inspection.txt').write_text('\n'.join(out),encoding='utf-8')
+
+p=Path('backend/server.py')
+lines=p.read_text(encoding='utf-8',errors='replace').splitlines()
+out.append('=== UPLOAD HANDLER ===')
+for i,line in enumerate(lines):
+ if '/api/uploads' in line or 'UPLOADS' in line or 'stored' in line and 'upload' in line.lower():
+  for j in range(max(0,i-12),min(len(lines),i+45)): out.append(f'{j+1}: {lines[j][:4000]}')
+Path('inspection.txt').write_text('\n'.join(out),encoding='utf-8')
