@@ -54,3 +54,12 @@ p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
 # breeder-proof is an application document, not a puppy upload: never store its tag as puppy_id FK.
 s=s.replace("upid,u['id'],puppy_id or None,original,stored,mime,now()","upid,u['id'],(None if puppy_id=='breeder-proof' else puppy_id or None),original,stored,mime,now()")
 p.write_text(s,encoding='utf-8')
+
+# Render registration proof explicitly in operator breeder review cards.
+p=Path('operator-breeders.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ # The application profile carries the proof marker; turn it into a visible review link after cards render.
+ extra='''<script>(function(){function addProofLinks(){document.querySelectorAll('.card').forEach(function(c){if(c.querySelector('.proof-link'))return;var html=c.innerHTML||\"\";var m=html.match(/\\[REGISTRATION_PROOF\\]([^<\\s]+)/);if(!m)return;var url=m[1].replace(/&amp;/g,\"&\");var row=document.createElement(\"div\");row.style.marginTop=\"12px\";var a=document.createElement(\"a\");a.className=\"btn btn-sub proof-link\";a.target=\"_blank\";a.rel=\"noopener\";a.href=url;a.textContent=\"第一種動物取扱業 登録証の写しを確認\";row.appendChild(a);c.appendChild(row);});}document.addEventListener(\"DOMContentLoaded\",function(){setTimeout(addProofLinks,100);});setInterval(addProofLinks,700);})();</script>'''
+ if 'addProofLinks' not in s:s=s.replace('</body>',extra+'</body>')
+ p.write_text(s,encoding='utf-8')
