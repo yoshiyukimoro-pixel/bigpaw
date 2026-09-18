@@ -87,3 +87,10 @@ needle="    def do_HEAD(self):\n"
 insert="    def translate_path(self, path):\n        clean=urlparse(path).path\n        if clean.startswith('/uploads/'):\n            name=Path(clean).name\n            return str(UPLOADS / name)\n        return super().translate_path(path)\n"
 if 'def translate_path(self, path):' not in s and needle in s:s=s.replace(needle,insert+needle,1)
 p.write_text(s,encoding='utf-8')
+
+# Allow same-site production mutations through Railway proxy even when Origin host normalization differs.
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+old="        origin=self.headers.get('Origin','').strip(); referer=self.headers.get('Referer','').strip()"
+new="        origin=self.headers.get('Origin','').strip(); referer=self.headers.get('Referer','').strip()\n        if origin in ('https://www.bigpaw.site','https://bigpaw.site'): return True\n        if referer.startswith('https://www.bigpaw.site/') or referer.startswith('https://bigpaw.site/'): return True"
+if old in s and new not in s:s=s.replace(old,new,1)
+p.write_text(s,encoding='utf-8')
