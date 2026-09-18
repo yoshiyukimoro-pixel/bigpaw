@@ -35,10 +35,3 @@ s=s.replace("self.require(['breeder','operator'])","self.require(['buyer','breed
 p.write_text(s,encoding='utf-8')
 
 p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
-# Do not make notification email delivery part of the application request response path.
-s=s.replace("send_mail(applicant_email,'BIG PAW 掲載審査申請を受け付けました'","__import__('threading').Thread(target=send_mail,args=(applicant_email,'BIG PAW 掲載審査申請を受け付けました'")
-s=s.replace("send_mail(op_email,'BIG PAW ブリーダー掲載審査申請'","__import__('threading').Thread(target=send_mail,args=(op_email,'BIG PAW ブリーダー掲載審査申請'")
-# Close only the injected thread calls if exact flow patch produced them.
-s=s.replace("BASE_URL+'/breeder-register.html')","BASE_URL+'/breeder-register.html'),daemon=True).start()")
-s=s.replace("BASE_URL+'/operator-breeders.html')","BASE_URL+'/operator-breeders.html'),daemon=True).start()")
-p.write_text(s,encoding='utf-8')
