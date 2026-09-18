@@ -71,3 +71,12 @@ if p.exists():
  script='''<script>(function(){function sync(){var rows=window.__bpProofRows||[];document.querySelectorAll('.card').forEach(function(c){if(c.querySelector('.proof-link'))return;var txt=c.textContent||'';var row=rows.find(function(a){return (a.kennel_name&&txt.indexOf(a.kennel_name)>=0)||(a.registration_no&&txt.indexOf(a.registration_no)>=0)});if(!row)return;var m=(row.profile||'').match(/\\[REGISTRATION_PROOF\\](\\S+)/);if(!m)return;var a=document.createElement('a');a.className='btn btn-sub proof-link';a.target='_blank';a.rel='noopener';a.href=m[1];a.textContent='第一種動物取扱業 登録証の写しを確認';a.style.marginTop='12px';c.appendChild(a);});}var old=window.fetch;window.fetch=async function(){var r=await old.apply(this,arguments);try{var u=String(arguments[0]||'');if(u.indexOf('/api/breeder-applications')>=0&&(!arguments[1]||!arguments[1].method||arguments[1].method==='GET')){var clone=r.clone();clone.json().then(function(x){if(Array.isArray(x)){window.__bpProofRows=x;setTimeout(sync,50)}})}}catch(e){}return r};setInterval(sync,500)})();</script>'''
  if '__bpProofRows' not in s:s=s.replace('</body>',script+'</body>')
  p.write_text(s,encoding='utf-8')
+
+# Patch actual operator template to expose profile marker as a link.
+p=Path('operator-breeders.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ old="<br>${esc(a.email)}</span>${a.status==='pending'?"
+ new="<br>${esc(a.email)}</span>${String(a.profile||'').match(/\\[REGISTRATION_PROOF\\](\\S+)/)?'<div style=\\\"margin-top:10px\\\"><a class=\\\"btn btn-sub proof-link\\\" target=\\\"_blank\\\" rel=\\\"noopener\\\" href=\\\"'+esc(String(a.profile||'').match(/\\[REGISTRATION_PROOF\\](\\S+)/)[1])+'\\\">第一種動物取扱業 登録証の写しを確認</a></div>':''}${a.status==='pending'?"
+ if old in s:s=s.replace(old,new)
+ p.write_text(s,encoding='utf-8')
