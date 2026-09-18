@@ -38,8 +38,8 @@ for fn in ['backend/server.py','breeder-fee-agreement.html','operator-breeders.h
   if any(k in line.lower() for k in ['breeder','審査','puppy','approve','application','申請','承認','子犬']): out.append(f'{i+1}: {line[:1000]}')
 Path('flow-inspect.txt').write_text('\n'.join(out),encoding='utf-8')
 # expose temporary inspection file through the static site
-Path('flow-inspect-public.txt').write_text('\n'.join(out),encoding='utf-8')
+Path('flow-inspect-public.txt').write_text('\n'.join(out),encoding='utf-8')\nPath('backend/flow-inspect-public.txt').write_text('\\n'.join(out),encoding='utf-8')
 PY
 ENV PORT=8080
 EXPOSE 8080
-CMD ["sh", "-c", "sleep 2; while IFS= read -r line; do echo FLOWDBG:$line >&2; sleep 0.01; done < flow-inspect-public.txt; exec python3 backend/server.py"]
+CMD ["python3", "backend/server.py"]
