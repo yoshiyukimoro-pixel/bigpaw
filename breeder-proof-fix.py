@@ -20,3 +20,11 @@ if p.exists():
  extra="""<script>(function(){function add(){document.querySelectorAll('.card').forEach(function(c){var t=c.textContent||'';var m=t.match(/\[REGISTRATION_PROOF\](\S+)/);if(m&&!c.querySelector('.proof-link')){var a=document.createElement('a');a.className='btn btn-sub proof-link';a.target='_blank';a.href=m[1];a.textContent='登録証の写しを確認';c.appendChild(a)}})}setTimeout(add,300);setInterval(add,1500)})();</script>"""
  if 'proof-link' not in s:s=s.replace('</body>',extra+'</body>')
  p.write_text(s,encoding='utf-8')
+
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+s=s.replace("if old and old['status'] in ('pending','approved'):","if old and old['status']=='approved':")
+p.write_text(s,encoding='utf-8')
+p=Path('breeder-register.html'); s=p.read_text(encoding='utf-8')
+s=s.replace("if(st!=='rejected')submitBtn.disabled=true","if(st==='approved')submitBtn.disabled=true")
+s=s.replace("if(rows[0].status!=='rejected')submitBtn.disabled=true","if(rows[0].status==='approved')submitBtn.disabled=true")
+p.write_text(s,encoding='utf-8')
