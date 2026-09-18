@@ -27,6 +27,18 @@ for fn in ['backend/server.py','operator-breeders.html','breeder-puppy-new.html'
   if any(k in line.lower() for k in ['breeder','審査','puppy','approve','application']):
    print(f'{i+1}: {line[:500]}')
 PY
+RUN python3 - <<'PY'
+from pathlib import Path
+files=['backend/server.py','breeder-fee-agreement.html','operator-breeders.html','breeder-puppy-new.html','assets/api.js','assets/workflow.js']
+out=[]
+for fn in files:
+ p=Path(fn)
+ if p.exists():
+  out.append('=== '+fn+' ===')
+  for i,line in enumerate(p.read_text(encoding='utf-8',errors='replace').splitlines()):
+   if any(k in line.lower() for k in ['breeder','application','approve','puppy','審査','申請','承認','子犬']): out.append(f'{i+1}: {line[:1200]}')
+Path('flow-inspect.txt').write_text('\\n'.join(out),encoding='utf-8')
+PY
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
