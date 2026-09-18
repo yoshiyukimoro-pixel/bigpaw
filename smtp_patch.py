@@ -6,14 +6,20 @@ end=s.find("\ndef ", start+1)
 if end < 0: end=len(s)
 defline=s[start:s.find("\n",start)]
 body=r'''
-    import os, smtplib, ssl, json, urllib.request, urllib.error
+    import os, smtplib, ssl, json, urllib.request, urllib.error, socket
     from email.message import EmailMessage
     api_key=(os.environ.get("RESEND_API_KEY") or "").strip()
+    # Prefer IPv4 for Resend from Railway; avoids long IPv6 connect stalls.
+    _orig_getaddrinfo=socket.getaddrinfo
+    def _ipv4_first(*args, **kwargs):
+        _r=_orig_getaddrinfo(*args, **kwargs)
+        return sorted(_r,key=lambda x: 0 if x[0] == socket.AF_INET else 1)
+    socket.getaddrinfo=_ipv4_first
     if api_key:
         try:
             payload=json.dumps({"from":"BIG PAW <noreply@bigpaw.site>","to":[to_email],"subject":subject,"text":text}).encode("utf-8")
             req=urllib.request.Request("https://api.resend.com/emails",data=payload,headers={"Authorization":"Bearer "+api_key,"Content-Type":"application/json","User-Agent":"BIGPAW-Mailer/1.0","Accept":"application/json"},method="POST")
-            with urllib.request.urlopen(req,timeout=8) as resp:
+            with urllib.request.urlopen(req,timeout=10) as resp:
                 ok=200 <= resp.status < 300
                 print("[BIG PAW] HTTPS mail status:",resp.status,flush=True)
                 if ok: return True
