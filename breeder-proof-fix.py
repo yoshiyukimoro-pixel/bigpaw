@@ -43,3 +43,9 @@ end=s.find("            return self.send_json(dict(r),201)",start)
 if start>=0 and end>start:
  s=s[:start]+"            return self.send_json(dict(r),201)\n"+s[end+len("            return self.send_json(dict(r),201)\n"):]
 p.write_text(s,encoding='utf-8')
+
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+# Upload responses must not wait on email or any external network service.
+# Keep application update endpoint simple and deterministic for existing pending applications.
+s=s.replace("            operators=con.execute(\"SELECT email FROM users WHERE role='operator'\").fetchall()\n            con.close()\n            return self.send_json(dict(r),201)","            con.close()\n            return self.send_json(dict(r),201)")
+p.write_text(s,encoding='utf-8')
