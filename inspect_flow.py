@@ -30,3 +30,9 @@ for i,line in enumerate(lines):
  if 'SimpleHTTPRequestHandler' in line or 'translate_path' in line or "'/uploads'" in line or 'UPLOADS /' in line or 'send_head' in line:
   for j in range(max(0,i-10),min(len(lines),i+35)): out.append(f'{j+1}: {lines[j][:4000]}')
 Path('inspection.txt').write_text('\n'.join(out),encoding='utf-8')
+
+p=Path('backend/server.py'); lines=p.read_text(encoding='utf-8',errors='replace').splitlines(); out.append('=== PATCH BREEDER APPLICATION ===');
+for i,line in enumerate(lines):
+ if 'breeder-applications' in line and ('PATCH' in line or 'fullmatch' in line or 'path' in line):
+  for j in range(max(0,i-15),min(len(lines),i+80)): out.append(f'{j+1}: {lines[j][:4000]}')
+Path('inspection.txt').write_text('\n'.join(out),encoding='utf-8')
