@@ -49,3 +49,8 @@ p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
 # Keep application update endpoint simple and deterministic for existing pending applications.
 s=s.replace("            operators=con.execute(\"SELECT email FROM users WHERE role='operator'\").fetchall()\n            con.close()\n            return self.send_json(dict(r),201)","            con.close()\n            return self.send_json(dict(r),201)")
 p.write_text(s,encoding='utf-8')
+
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+# breeder-proof is an application document, not a puppy upload: never store its tag as puppy_id FK.
+s=s.replace("upid,u['id'],puppy_id or None,original,stored,mime,now()","upid,u['id'],(None if puppy_id=='breeder-proof' else puppy_id or None),original,stored,mime,now()")
+p.write_text(s,encoding='utf-8')
