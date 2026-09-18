@@ -35,3 +35,11 @@ s=s.replace("self.require(['breeder','operator'])","self.require(['buyer','breed
 p.write_text(s,encoding='utf-8')
 
 p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+# Application submission must return immediately; notification delivery is non-blocking for this path.
+start=s.find("            send_mail(applicant_email,'BIG PAW 掲載審査申請を受け付けました'")
+end=s.find("            return self.send_json(dict(r),201)",start)
+if start>=0 and end>start:
+ s=s[:start]+"            return self.send_json(dict(r),201)\n"+s[end+len("            return self.send_json(dict(r),201)\n"):]
+p.write_text(s,encoding='utf-8')
