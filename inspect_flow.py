@@ -42,3 +42,9 @@ for i,line in enumerate(lines):
  if 'def do_PATCH' in line:
   for j in range(i,min(len(lines),i+130)): out.append(f'{j+1}: {lines[j][:4000]}')
 Path('inspection.txt').write_text('\n'.join(out),encoding='utf-8')
+
+p=Path('backend/server.py'); lines=p.read_text(encoding='utf-8',errors='replace').splitlines(); out.append('=== MUTATION ORIGIN ===');
+for i,line in enumerate(lines):
+ if 'def mutation_origin_allowed' in line:
+  for j in range(i,min(len(lines),i+45)): out.append(f'{j+1}: {lines[j][:4000]}')
+Path('inspection.txt').write_text('\n'.join(out),encoding='utf-8')
