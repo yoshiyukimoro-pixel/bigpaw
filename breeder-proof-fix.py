@@ -101,3 +101,12 @@ old="        return origin.rstrip('/') == PUBLIC_BASE_URL"
 new="        allowed={PUBLIC_BASE_URL.rstrip('/'),'https://www.bigpaw.site','https://bigpaw.site'}\n        return origin.rstrip('/') in allowed"
 if old in s:s=s.replace(old,new,1)
 p.write_text(s,encoding='utf-8')
+
+# Final runtime-safe origin normalization. This patch runs after all earlier server patches.
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+old="        return origin.rstrip('/') == PUBLIC_BASE_URL"
+new="        from urllib.parse import urlparse as _uo\n        try:\n            oh=(_uo(origin).hostname or '').lower()\n            ph=(_uo(PUBLIC_BASE_URL).hostname or '').lower()\n            if oh.removeprefix('www.') == ph.removeprefix('www.'): return True\n        except Exception: pass\n        return False"
+if old in s: s=s.replace(old,new,1)
+# Fail build rather than ship if the exact production mutation check was not replaced.
+if "return origin.rstrip('/') == PUBLIC_BASE_URL" in s: raise SystemExit('origin patch failed')
+p.write_text(s,encoding='utf-8')
