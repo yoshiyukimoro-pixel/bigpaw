@@ -6,8 +6,22 @@ end=s.find("\ndef ", start+1)
 if end < 0: end=len(s)
 defline=s[start:s.find("\n",start)]
 body=r'''
-    import os, smtplib, ssl
+    import os, smtplib, ssl, json, urllib.request, urllib.error
     from email.message import EmailMessage
+    api_key=(os.environ.get("RESEND_API_KEY") or "").strip()
+    if api_key:
+        try:
+            payload=json.dumps({"from":"onboarding@resend.dev","to":[to_email],"subject":subject,"text":text}).encode("utf-8")
+            req=urllib.request.Request("https://api.resend.com/emails",data=payload,headers={"Authorization":"Bearer "+api_key,"Content-Type":"application/json"},method="POST")
+            with urllib.request.urlopen(req,timeout=20) as resp:
+                ok=200 <= resp.status < 300
+                print("[BIG PAW] HTTPS mail status:",resp.status,flush=True)
+                if ok: return True
+        except urllib.error.HTTPError as e:
+            detail=e.read().decode("utf-8","replace")[:500]
+            print("[BIG PAW] HTTPS mail HTTP error:",e.code,detail,flush=True)
+        except Exception as e:
+            print("[BIG PAW] HTTPS mail failed:",type(e).__name__,str(e)[:300],flush=True)
     host=(os.environ.get("SMTP_HOST") or os.environ.get("BIGPAW_SMTP_HOST") or "").strip()
     port=int(os.environ.get("SMTP_PORT") or os.environ.get("BIGPAW_SMTP_PORT") or "587")
     user=(os.environ.get("SMTP_USER") or os.environ.get("BIGPAW_SMTP_USER") or "").strip()
