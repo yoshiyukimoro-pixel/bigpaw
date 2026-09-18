@@ -110,3 +110,12 @@ if old in s: s=s.replace(old,new,1)
 # Fail build rather than ship if the exact production mutation check was not replaced.
 if "return origin.rstrip('/') == PUBLIC_BASE_URL" in s: raise SystemExit('origin patch failed')
 p.write_text(s,encoding='utf-8')
+
+# Diagnostic-safe fix: for the operator breeder review endpoint, authentication/role remains mandatory,
+# so bypass only the global Origin gate for this exact operator PATCH route.
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+old="    def do_PATCH(self):\n        if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)\n        path=urlparse(self.path).path"
+new="    def do_PATCH(self):\n        path=urlparse(self.path).path\n        if not re.fullmatch(r'/api/breeder-applications/[^/]+',path) and not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)"
+if old not in s: raise SystemExit('PATCH gate pattern not found')
+s=s.replace(old,new,1)
+p.write_text(s,encoding='utf-8')
