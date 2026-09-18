@@ -1,0 +1,1 @@
+(()=>{async function sync(){const card=document.getElementById('emailVerifyCard');if(!card)return;try{const me=await BigPawAPI.me();card.style.display=me&&me.emailVerified?'none':'block'}catch(e){card.style.display='none'}}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',sync):sync()})();
