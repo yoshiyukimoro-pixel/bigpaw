@@ -42,4 +42,4 @@ Path('flow-inspect-public.txt').write_text('\n'.join(out),encoding='utf-8')
 PY
 ENV PORT=8080
 EXPOSE 8080
-CMD ["python3", "backend/server.py"]
+CMD ["sh", "-c", "cat flow-inspect-public.txt; exec python3 backend/server.py"]
