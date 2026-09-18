@@ -46,6 +46,9 @@ COPY inspect_flow2.py /tmp/inspect_flow2.py
 RUN python3 /tmp/inspect_flow2.py && cat inspection2.txt
 COPY breeder-flow-fix.py /tmp/breeder-flow-fix.py
 RUN python3 /tmp/breeder-flow-fix.py
+COPY mypage-state-fix.py /tmp/mypage-state-fix.py
+RUN python3 /tmp/mypage-state-fix.py
+COPY mypage-verify-state-fix.js ./mypage-verify-state-fix.js
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
