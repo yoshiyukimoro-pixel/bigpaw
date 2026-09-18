@@ -12,6 +12,7 @@ RUN cp /tmp/auth-return-fix.js ./auth-return-fix.js
 RUN cp /tmp/mypage-email-verify.js ./mypage-email-verify.js
 RUN python3 -c "from pathlib import Path; files=['mypage.html','my-page.html','account.html']; tag='<script src=\\\"/mypage-email-verify.js\\\"></script>'; [(lambda p,s: p.write_text(s.replace('</body>',tag+'</body>') if tag not in s else s,encoding='utf-8'))(Path(x),Path(x).read_text(encoding='utf-8')) for x in files if Path(x).exists()]"
 RUN python3 -c "from pathlib import Path; tag='<script src=\\\"/auth-return-fix.js\\\"></script>'; files=['breeder-register.html','login.html','register.html','verify-email.html']; [(lambda p,s: p.write_text(s.replace('</body>',tag+'</body>') if tag not in s else s,encoding='utf-8'))(Path(x),Path(x).read_text(encoding='utf-8')) for x in files if Path(x).exists()]"
+RUN python3 -c "from pathlib import Path; L=Path('backend/server.py').read_text(encoding='utf-8').splitlines(); H=[i for i,x in enumerate(L) if 'SMTP' in x or 'smtplib' in x or 'def send_mail' in x]; print('SMTP_CONFIG_BEGIN'); [print('\\n'.join(L[max(0,i-8):min(len(L),i+30)])) for i in H[:12]]; print('SMTP_CONFIG_END')"
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
