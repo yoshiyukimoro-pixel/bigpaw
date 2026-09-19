@@ -348,6 +348,23 @@ import py_compile
 py_compile.compile(str(p), doraise=True)
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+print('=== CONTACT PRIVACY TARGETS ===')
+for term in ["INSERT INTO messages","INSERT INTO inquiries"]:
+    start=0
+    while True:
+        i=s.find(term,start)
+        if i<0: break
+        print('---',term,'---')
+        print(s[max(0,i-2200):i+1800])
+        start=i+len(term)
+import py_compile
+py_compile.compile(str(p), doraise=True)
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
