@@ -136,3 +136,72 @@ if p.exists():
   a=x.find(anchor,pos)
   if a>=0:x=x[:a]+block+x[a:]
  p.write_text(x,encoding='utf-8')
+
+
+# Persistent multi-photo API + existing photo editor.
+p=Path('backend/server.py')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ # GET owned puppy photos.
+ marker="    def do_DELETE(self):"
+ getcode="""        m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            con=db(); puppy=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy: con.close(); return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b or puppy['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
+            rows=con.execute('SELECT id,stored_name,created_at FROM uploads WHERE puppy_id=? ORDER BY created_at,id',(puppy['id'],)).fetchall()
+            out=[{'id':r['id'],'url':'/uploads/'+r['stored_name'],'isMain':('/uploads/'+r['stored_name'])==puppy['image_url']} for r in rows]
+            con.close(); return self.send_json(out)
+"""
+ # insert into do_GET, immediately before do_DELETE marker (same class scope)
+ if marker in x and "/photos',path)" not in x:
+  x=x.replace(marker,getcode+"\n"+marker,1)
+ # DELETE one owned upload.
+ dpos=x.find("    def do_DELETE(self):")
+ anchor="        if path=='/api/me':\n            u=self.require()"
+ photodel="""        m=re.fullmatch(r'/api/puppies/([^/]+)/photos/([^/]+)',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            con=db(); puppy=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy: con.close(); return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b or puppy['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
+            up=con.execute('SELECT * FROM uploads WHERE id=? AND puppy_id=?',(m.group(2),puppy['id'])).fetchone()
+            if not up: con.close(); return self.send_json({'error':'not_found'},404)
+            was_main=puppy['image_url']==('/uploads/'+up['stored_name'])
+            con.execute('DELETE FROM uploads WHERE id=?',(up['id'],))
+            if was_main:
+                nxt=con.execute('SELECT stored_name FROM uploads WHERE puppy_id=? ORDER BY created_at,id LIMIT 1',(puppy['id'],)).fetchone()
+                con.execute('UPDATE puppies SET image_url=? WHERE id=?',(('/uploads/'+nxt['stored_name']) if nxt else '',puppy['id']))
+            con.commit(); con.close()
+            try:(UPLOADS/up['stored_name']).unlink(missing_ok=True)
+            except Exception:pass
+            return self.send_json({'ok':True})
+"""
+ if dpos>=0 and "photos/([^/]+)" not in x[dpos:]:
+  a=x.find(anchor,dpos)
+  if a>=0:x=x[:a]+photodel+x[a:]
+ p.write_text(x,encoding='utf-8')
+
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ # Load all persisted photos after the puppy is loaded.
+ needle="health.checked=!!d.health;"
+ load="""health.checked=!!d.health;
+try{const ps=await BigPawAPI.request('/puppies/'+encodeURIComponent(editId)+'/photos');if(ps&&ps.length){window.persistedPhotos=ps;renderPersistedPhotos();}}catch(e){}"""
+ if needle in x and "window.persistedPhotos=ps" not in x:x=x.replace(needle,load,1)
+ # Existing persistent photo controls.
+ marker="function removeExistingMain(){"
+ code="""function renderPersistedPhotos(){if(!window.persistedPhotos)return;photoPreview.innerHTML=window.persistedPhotos.map((p,i)=>'<div style="border:1px solid #eee;border-radius:14px;padding:8px"><img src="'+p.url+'" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px"><small style="display:block">'+(p.isMain?'メイン写真':'登録済み写真')+'</small><div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">'+(!p.isMain?'<button type="button" onclick="setPersistedMain('+i+')">メインにする</button>':'')+'<button type="button" onclick="deletePersistedPhoto('+i+')">削除</button></div></div>').join('')}
+async function setPersistedMain(i){const p=window.persistedPhotos&&window.persistedPhotos[i];if(!p)return;await BigPawBridge.updatePuppy(editId,{imageUrl:p.url});window.persistedPhotos.forEach(q=>q.isMain=false);p.isMain=true;renderPersistedPhotos()}
+async function deletePersistedPhoto(i){const p=window.persistedPhotos&&window.persistedPhotos[i];if(!p||!confirm('この写真を削除しますか？'))return;try{await BigPawAPI.request('/puppies/'+encodeURIComponent(editId)+'/photos/'+encodeURIComponent(p.id),{method:'DELETE'});window.persistedPhotos.splice(i,1);if(p.isMain&&window.persistedPhotos.length)window.persistedPhotos[0].isMain=true;renderPersistedPhotos()}catch(e){alert('写真を削除できませんでした')}}
+"""
+ if marker in x and "function renderPersistedPhotos()" not in x:x=x.replace(marker,code+marker,1)
+ p.write_text(x,encoding='utf-8')
