@@ -94,6 +94,16 @@ if p.exists():
  if 'bigpaw-force-remove-old-fav' not in s:s=s.replace('</body>',inject+'</body>')
  p.write_text(s,encoding='utf-8')
 PY
+RUN python3 - <<'PY'
+from pathlib import Path
+for fn in ['index.html','home.html']:
+ p=Path(fn)
+ if not p.exists(): continue
+ s=p.read_text(encoding='utf-8',errors='replace')
+ inject=r'''<script id="bigpaw-remove-sample-new-puppies">(()=>{function x(){[...document.querySelectorAll('h1,h2,h3,h4')].forEach(h=>{let t=(h.textContent||'').replace(/\\s/g,'');if(t.includes('新着の子犬')){let sec=h.closest('section');if(sec)sec.remove();else{let p=h.parentElement;if(p)p.remove()}}})}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',x):x();new MutationObserver(x).observe(document.documentElement,{childList:true,subtree:true})})();</script>'''
+ if 'bigpaw-remove-sample-new-puppies' not in s:s=s.replace('</body>',inject+'</body>')
+ p.write_text(s,encoding='utf-8')
+PY
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
