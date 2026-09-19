@@ -123,6 +123,9 @@ RUN python3 /tmp/hide-registration-proof.py
 COPY inspect-breeder-admin.py /tmp/inspect-breeder-admin.py
 RUN python3 /tmp/inspect-breeder-admin.py
 
+COPY operator-breeder-management.py /tmp/operator-breeder-management.py
+RUN python3 /tmp/operator-breeder-management.py
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
