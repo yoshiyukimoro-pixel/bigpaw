@@ -54,6 +54,8 @@ COPY breeder-proof-fix.py /tmp/breeder-proof-fix.py
 RUN python3 /tmp/breeder-proof-fix.py
 COPY admin-seed-fix.py /tmp/admin-seed-fix.py
 RUN python3 /tmp/admin-seed-fix.py
+COPY puppy-editor-fix.py /tmp/puppy-editor-fix.py
+RUN python3 /tmp/puppy-editor-fix.py
 COPY final-inspect.py /tmp/final-inspect.py
 RUN python3 /tmp/final-inspect.py && cat final-inspection.txt
 ENV PORT=8080
