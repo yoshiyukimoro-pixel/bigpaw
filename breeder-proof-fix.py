@@ -205,3 +205,10 @@ if p.exists():
  s=re.sub(r'<button\b[^>]*>募集状況を変更</button>','',s,flags=re.I)
  s=re.sub(r'<button\b[^>]*>価格を変更</button>','',s,flags=re.I)
  p.write_text(s,encoding='utf-8')
+
+# Fix breeder puppy Edit URL: use current card variable d and preserve puppy id.
+p=Path('admin.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ s=s.replace('href="breeder-puppy-new.html?id=\'+p.id+\'"','href="breeder-puppy-new.html?id=\'+encodeURIComponent(d.id)+\'"')
+ p.write_text(s,encoding='utf-8')
