@@ -156,6 +156,9 @@ RUN python3 /tmp/operator-breeder-management-v3.py
 COPY inspect-public-puppy-api.py /tmp/inspect-public-puppy-api.py
 RUN python3 /tmp/inspect-public-puppy-api.py
 
+COPY inspect-public-puppy-routes.py /tmp/inspect-public-puppy-routes.py
+RUN python3 /tmp/inspect-public-puppy-routes.py
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
