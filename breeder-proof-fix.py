@@ -150,3 +150,9 @@ if p.exists():
  s=p.read_text(encoding='utf-8')
  s=s.replace('type="file" accept="image/*"','type="file" accept="image/*" multiple')
  p.write_text(s,encoding='utf-8')
+
+# Approved breeders publish puppies immediately; operator can still moderate listings.
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+old="'pending',now()"
+if old in s: s=s.replace(old,"'approved',now()")
+p.write_text(s,encoding='utf-8')
