@@ -26,3 +26,13 @@ if p.exists():
    i=t.find(needle)
    o.write('\\n### '+needle+' ###\\n')
    o.write(t[max(0,i-2500):i+7000] if i>=0 else 'NOT FOUND')
+
+# Compact route signature inspection (single-line output for Railway logs).
+p=Path('backend/server.py')
+if p.exists():
+ t=p.read_text(encoding='utf-8')
+ needles=['def do_POST','def do_PATCH','def do_DELETE','def do_PUT']
+ parts=[]
+ for n in needles:
+  i=t.find(n); parts.append(n+':'+(t[i:i+14000].replace('\\n',' § ') if i>=0 else 'NOT_FOUND'))
+ print('ROUTEINSPECT|'+'|'.join(parts))
