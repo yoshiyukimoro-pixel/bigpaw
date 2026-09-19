@@ -104,6 +104,15 @@ for fn in ['index.html','home.html']:
  if 'bigpaw-remove-sample-new-puppies' not in s:s=s.replace('</body>',inject+'</body>')
  p.write_text(s,encoding='utf-8')
 PY
+RUN python3 - <<'PY'
+from pathlib import Path
+for fn in ['breed-guide.html','assets/breed-data.js','assets/breed-picker-v6.js']:
+ p=Path(fn)
+ if p.exists():
+  print('BREEDGUIDEFILE|'+fn)
+  print(p.read_text(encoding='utf-8',errors='replace')[:50000])
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
