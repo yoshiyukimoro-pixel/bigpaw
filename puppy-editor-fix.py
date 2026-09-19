@@ -229,3 +229,16 @@ async function applyPhotoAdjust(){const im=document.getElementById('adjustImg'),
 '''
  if marker in x and "function openPhotoAdjust(i)" not in x:x=x.replace(marker,editor+marker,1)
  p.write_text(x,encoding='utf-8')
+
+
+# Fix persisted gallery being overwritten by legacy main-photo render; add real iPhone pinch gesture.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ # Do not overwrite the full persisted gallery with the legacy single main image.
+ x=x.replace("if(d.imageUrl){window.existingMainImage=d.imageUrl;photoPreview.innerHTML='<div id=\"existingMainPhoto\"", "if(d.imageUrl&&!(window.persistedPhotos&&window.persistedPhotos.length)){window.existingMainImage=d.imageUrl;photoPreview.innerHTML='<div id=\"existingMainPhoto\"")
+ # Enhance modal with native two-touch pinch plus one-finger pan.
+ old="const fr=document.getElementById('adjustFrame');fr.addEventListener('pointerdown',adjustDown);fr.addEventListener('pointermove',adjustMove);fr.addEventListener('pointerup',adjustUp);fr.addEventListener('pointercancel',adjustUp);"
+ new="""const fr=document.getElementById('adjustFrame');fr.addEventListener('pointerdown',adjustDown);fr.addEventListener('pointermove',adjustMove);fr.addEventListener('pointerup',adjustUp);fr.addEventListener('pointercancel',adjustUp);let ts=null;fr.addEventListener('touchstart',e=>{e.preventDefault();if(e.touches.length===2){const a=e.touches[0],b=e.touches[1];ts={kind:'pinch',dist:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),scale:adjustScale,x:adjustX,y:adjustY,cx:(a.clientX+b.clientX)/2,cy:(a.clientY+b.clientY)/2}}else if(e.touches.length===1){const a=e.touches[0];ts={kind:'pan',sx:a.clientX,sy:a.clientY,x:adjustX,y:adjustY}}},{passive:false});fr.addEventListener('touchmove',e=>{e.preventDefault();if(!ts)return;if(e.touches.length===2&&ts.kind==='pinch'){const a=e.touches[0],b=e.touches[1],dist=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);adjustScale=Math.max(1,Math.min(4,ts.scale*dist/Math.max(1,ts.dist)));adjustX=ts.x+((a.clientX+b.clientX)/2-ts.cx);adjustY=ts.y+((a.clientY+b.clientY)/2-ts.cy);drawAdjust()}else if(e.touches.length===1&&ts.kind==='pan'){const a=e.touches[0];adjustX=ts.x+a.clientX-ts.sx;adjustY=ts.y+a.clientY-ts.sy;drawAdjust()}},{passive:false});fr.addEventListener('touchend',e=>{if(e.touches.length===0)ts=null},{passive:false});"""
+ if old in x:x=x.replace(old,new,1)
+ p.write_text(x,encoding='utf-8')
