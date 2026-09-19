@@ -466,6 +466,24 @@ py_compile.compile(str(p), doraise=True)
 print('INQUIRY_HEALTH_BILLING_PRIVACY_CHECK_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+print('=== MUTATION AUTHORIZATION INSPECTION ===')
+for term in ["def do_POST", "def do_PATCH", "def do_DELETE", "self.require(['buyer','breeder','operator'])", "if path=='/api/uploads'", "if path=='/api/parent-dogs'", "if path=='/api/breeder/puppies'"]:
+    print('---',term,'---')
+    start=0; hits=0
+    while True:
+        i=s.find(term,start)
+        if i<0: break
+        print(s[max(0,i-1200):i+3200]); hits+=1; start=i+len(term)
+    print('hits=',hits)
+import py_compile
+py_compile.compile(str(p), doraise=True)
+print('MUTATION_AUTH_INSPECTION_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
