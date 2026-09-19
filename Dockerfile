@@ -438,6 +438,34 @@ py_compile.compile(str(p), doraise=True)
 print('INQUIRY_BILLING_INSPECTION_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+# Buyers must not read internal health records; only breeders/operators manage them.
+health_old="if path=='/api/health-records':" + chr(10) + "            u=self.require(['buyer','breeder','operator']);"
+health_new="if path=='/api/health-records':" + chr(10) + "            u=self.require(['breeder','operator']);"
+assert s.count(health_old)>=1, s.count(health_old)
+s=s.replace(health_old,health_new)
+# Billing config contains operator bank/account data and is for breeder billing only.
+bill_old="if path=='/api/breeder/billing-config':" + chr(10) + "            u=self.require(['buyer','breeder','operator'])"
+bill_new="if path=='/api/breeder/billing-config':" + chr(10) + "            u=self.require(['breeder','operator'])"
+assert s.count(bill_old)==1, s.count(bill_old)
+s=s.replace(bill_old,bill_new,1)
+# Breeder-facing inquiry list must not expose buyer email/phone; operator retains full data.
+breeder_anchor="            out=[dict(r) for r in rows]; con.close(); return self.send_json(out)"
+assert s.count(breeder_anchor)==1, s.count(breeder_anchor)
+breeder_new="            out=[dict(r) for r in rows]" + chr(10) + "            if u['role']=='breeder':" + chr(10) + "                for r in out: r['email']=''; r['phone']=''" + chr(10) + "            con.close(); return self.send_json(out)"
+s=s.replace(breeder_anchor,breeder_new,1)
+p.write_text(s,encoding='utf-8')
+assert health_new in s
+assert bill_new in s
+assert "for r in out: r['email']=''; r['phone']=''" in s
+import py_compile
+py_compile.compile(str(p), doraise=True)
+print('INQUIRY_HEALTH_BILLING_PRIVACY_CHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
