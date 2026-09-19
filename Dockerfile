@@ -542,6 +542,22 @@ import py_compile; py_compile.compile(str(p),doraise=True)
 print('PROOF_STATIC_ROUTE_INSPECTION_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+x="u=self.require(['breeder','operator']);"+chr(10)+"            if not u:return"+chr(10)+"            ctype=self.headers.get('Content-Type','')"
+assert x in s
+s=s.replace(x,"u=self.require(['buyer','breeder','operator']);"+chr(10)+"            if not u:return"+chr(10)+"            ctype=self.headers.get('Content-Type','')",1)
+x="if file_part is None: return self.send_json({'error':'file_required'},400)"+chr(10)+"            raw=file_part.get_payload(decode=True) or b''"
+assert x in s
+s=s.replace(x,"if file_part is None: return self.send_json({'error':'file_required'},400)"+chr(10)+"            if u['role']=='buyer' and puppy_id!='breeder-proof': return self.send_json({'error':'forbidden'},403)"+chr(10)+"            raw=file_part.get_payload(decode=True) or b''",1)
+p.write_text(s,encoding='utf-8')
+import py_compile; py_compile.compile(str(p),doraise=True)
+assert "u['role']=='buyer' and puppy_id!='breeder-proof'" in p.read_text(encoding='utf-8')
+print('BREEDER_PROOF_UPLOAD_FLOW_CHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
