@@ -365,6 +365,25 @@ import py_compile
 py_compile.compile(str(p), doraise=True)
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+# Block direct contact details in buyer/breeder inquiry messages and initial inquiry text.
+msg_anchor="            if len(text)>2000: return self.send_json({'error':'message_too_long'},400)"
+msg_new=msg_anchor + chr(10) + "            if u.get('role')!='operator' and public_profile_has_direct_contact(text): return self.send_json({'error':'direct_contact_not_allowed','message':'電話番号・メール・LINE・SNS・外部URLなどの直接連絡先は送信できません。BIGPAW内のメッセージをご利用ください。'},400)"
+assert s.count(msg_anchor)==1, s.count(msg_anchor)
+s=s.replace(msg_anchor,msg_new,1)
+inq_anchor="            body=self.json_body(); puppy_id=str(body.get('puppyId','')); con=db(); p=con.execute"
+inq_new="            body=self.json_body(); puppy_id=str(body.get('puppyId','')); inquiry_message=str(body.get('message','')).strip()" + chr(10) + "            if public_profile_has_direct_contact(inquiry_message): return self.send_json({'error':'direct_contact_not_allowed','message':'問い合わせ本文に電話番号・メール・LINE・SNS・外部URLなどの直接連絡先は記載できません。'},400)" + chr(10) + "            con=db(); p=con.execute"
+assert s.count(inq_anchor)==1, s.count(inq_anchor)
+s=s.replace(inq_anchor,inq_new,1)
+p.write_text(s,encoding='utf-8')
+assert "direct_contact_not_allowed" in s
+import py_compile
+py_compile.compile(str(p), doraise=True)
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
