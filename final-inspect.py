@@ -89,3 +89,15 @@ for fn in ['assets/breed-picker-v6.js','assets/breed-picker-v6-search.js','asset
  if p.exists():
   t=p.read_text(encoding='utf-8')
   print('BREEDDEBUG|'+fn+'|'+t[:30000].replace('\n',' § '))
+
+p=Path('assets/breed-data.js')
+if p.exists():
+ t=p.read_text(encoding='utf-8')
+ for term in ['スタンダードプードル','standard','poodle']:
+  i=t.lower().find(term.lower())
+  print('KEYDEBUG|'+term+'|'+(t[max(0,i-300):i+500] if i>=0 else 'MISSING').replace('\n',' § '))
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ t=p.read_text(encoding='utf-8')
+ for term in ['breedKey','addPuppy','updatePuppy']:
+  i=t.find(term); print('SAVEDEBUG|'+term+'|'+(t[max(0,i-1200):i+2200] if i>=0 else 'MISSING').replace('\n',' § '))
