@@ -21,3 +21,11 @@ if a.exists():
  import re
  x=re.sub(r'<a class="btn btn-main" href="breeder-puppy-new\\.html[^\"]*">編集</a>', '<button class="btn btn-main" type="button" onclick="sessionStorage.setItem(\'bigpawEditPuppyId\',String(d.id));location.href=\'breeder-puppy-new.html?id=\'+encodeURIComponent(d.id)">編集</button>', x)
  a.write_text(x,encoding='utf-8')
+
+# Final fallback: derive selected puppy from dashboard card text if URL/session id is unavailable.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ x=x.replace("let editId=new URLSearchParams(location.search).get('id')||sessionStorage.getItem('bigpawEditPuppyId');","let editId=new URLSearchParams(location.search).get('id')||sessionStorage.getItem('bigpawEditPuppyId');")
+ x=x.replace("const d=ds.find(x=>String(x.id)===String(editId))||ds.find(x=>String(x.id)===String(sessionStorage.getItem('bigpawEditPuppyId')||''));","let d=ds.find(x=>String(x.id)===String(editId))||ds.find(x=>String(x.id)===String(sessionStorage.getItem('bigpawEditPuppyId')||''));if(!d&&ds.length===1)d=ds[0];")
+ p.write_text(x,encoding='utf-8')
