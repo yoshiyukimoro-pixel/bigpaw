@@ -163,3 +163,10 @@ if p.exists():
  s=p.read_text(encoding='utf-8')
  s=s.replace('>状況変更<','>募集状況を変更<').replace('>価格<','>価格を変更<')
  p.write_text(s,encoding='utf-8')
+
+# Add puppy edit entry point on breeder dashboard.
+p=Path('admin.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ s=s.replace('>募集状況を変更</button>','>募集状況を変更</button><button class="btn btn-main" onclick="location.href=\'breeder-puppy-new.html?id=\'+p.id">編集</button>')
+ p.write_text(s,encoding='utf-8')
