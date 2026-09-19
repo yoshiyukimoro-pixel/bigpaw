@@ -113,6 +113,10 @@ for fn in ['breed-guide.html','assets/breed-data.js','assets/breed-picker-v6.js'
   print(p.read_text(encoding='utf-8',errors='replace')[:50000])
 PY
 
+COPY breed-guide-detail.js ./breed-guide-detail.js
+COPY breed-guide-build.py /tmp/breed-guide-build.py
+RUN python3 /tmp/breed-guide-build.py
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
