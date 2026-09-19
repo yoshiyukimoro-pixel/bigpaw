@@ -388,3 +388,36 @@ drawAdjust=function(){const im=document.getElementById('adjustImg');if(im)im.sty
  x=x.replace("Math.max(1,Math.min(4,ts.scale*dist/Math.max(1,ts.dist)))","Math.max(.35,Math.min(4,ts.scale*dist/Math.max(1,ts.dist)))")
  x=x.replace("Math.max(1,Math.min(4,adjustScale+(e.deltaY<0?.1:-.1)))","Math.max(.35,Math.min(4,adjustScale+(e.deltaY<0?.1:-.1)))")
  p.write_text(x,encoding='utf-8')
+
+
+# Approved breeders publish puppies immediately; normalize any legacy pending puppies for approved breeders.
+p=Path('backend/server.py')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ # Normalize legacy rows at startup so already-created listings become public.
+ marker="def db():"
+ # Add helper-independent startup SQL at init location by patching init_db's commit if available.
+ init=x.find("def init_db(")
+ if init>=0:
+  end=x.find("\ndef ",init+1)
+  if end<0:end=len(x)
+  sec=x[init:end]
+  if "legacy approved breeder puppies" not in sec:
+   c=sec.rfind("con.commit()")
+   if c>=0:
+    pos=init+c
+    code="""# legacy approved breeder puppies: approved breeders publish directly
+    con.execute(\"UPDATE puppies SET review_status='approved' WHERE review_status!='approved' AND breeder_id IN (SELECT id FROM breeders WHERE review_status='approved')\")
+    """
+    x=x[:pos]+code+x[pos:]
+ # On puppy creation, if the owning breeder is approved, force puppy approved.
+ post=x.find("    def do_POST(self):")
+ if post>=0 and "approved breeder direct publish" not in x[post:]:
+  needle="con.commit(); con.close(); return self.send_json(puppy_json("
+  a=x.find(needle,post)
+  if a>=0:
+   inject="""# approved breeder direct publish
+            con.execute(\"UPDATE puppies SET review_status='approved' WHERE id=? AND breeder_id IN (SELECT id FROM breeders WHERE review_status='approved')\",(pid,))
+            """
+   x=x[:a]+inject+x[a:]
+ p.write_text(x,encoding='utf-8')
