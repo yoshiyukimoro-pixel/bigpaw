@@ -33,4 +33,28 @@ main.finder{background:#fff!important;color:#222!important}
 '''
  if 'bigpaw-search-white-canvas' not in s:s=s.replace('</head>',white+'</head>',1)
 
+
+ diag='''<script id="bigpaw-render-diagnostic">
+(function(){
+function snap(){
+ try{
+  var pts=[[innerWidth/2,innerHeight/2],[innerWidth/2,Math.min(innerHeight-1,180)],[innerWidth/2,Math.max(0,innerHeight-120)]],out=[];
+  pts.forEach(function(p){
+   out.push(document.elementsFromPoint(p[0],p[1]).slice(0,8).map(function(e){
+    var c=getComputedStyle(e),r=e.getBoundingClientRect();
+    return {t:e.tagName,i:e.id||'',c:(e.className&&String(e.className).slice(0,80))||'',bg:c.backgroundColor,o:c.opacity,f:c.filter,pe:c.pointerEvents,pos:c.position,z:c.zIndex,w:Math.round(r.width),h:Math.round(r.height)}
+   }))
+  });
+  var b=getComputedStyle(document.body),h=getComputedStyle(document.documentElement);
+  var d={v:'renderdiag-1',url:location.href,body:{bg:b.backgroundColor,o:b.opacity,f:b.filter},html:{bg:h.backgroundColor,o:h.opacity,f:h.filter},pts:out};
+  (new Image()).src='/__renderdiag?d='+encodeURIComponent(JSON.stringify(d).slice(0,6000))+'&t='+Date.now()
+ }catch(e){(new Image()).src='/__renderdiag?err='+encodeURIComponent(String(e))}
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(snap,700)});else setTimeout(snap,700);
+window.addEventListener('pageshow',function(){setTimeout(snap,700)})
+})();
+</script>
+'''
+ if 'bigpaw-render-diagnostic' not in s:s=s.replace('</body>',diag+'</body>',1)
+
  p.write_text(s,encoding='utf-8')
