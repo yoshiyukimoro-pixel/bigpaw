@@ -682,6 +682,20 @@ import py_compile; py_compile.compile(str(p),doraise=True)
 print('BUYER_REGISTER_ORIGIN_INSPECTION_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+p=root/'backend/server.py'; t=p.read_text(encoding='utf-8')
+i=t.find('def mutation_origin_allowed')
+assert i>=0, 'mutation_origin_allowed missing'
+print(t[i:i+5000])
+for q in [root/'register.html',root/'assets/api.js']:
+ if q.exists():
+  x=q.read_text(encoding='utf-8'); print('FILE',q.name); print(x[:12000])
+import py_compile; py_compile.compile(str(p),doraise=True)
+print('ORIGIN_FUNCTION_EXACT_CHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
