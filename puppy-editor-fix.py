@@ -70,3 +70,19 @@ function removePhoto(i){selectedPhotos.splice(i,1);syncPhotoInput();renderSelect
 photo.addEventListener('change',()=>{selectedPhotos=[...photo.files].slice(0,10);syncPhotoInput();renderSelectedPhotos()});"""
  if old in x:x=x.replace(old,new)
  p.write_text(x,encoding='utf-8')
+
+# Force-install photo controls independent of the original listener formatting.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ marker="async function initEdit(){"
+ code=r'''let selectedPhotos=[];
+function syncPhotoInput(){const dt=new DataTransfer();selectedPhotos.forEach(f=>dt.items.add(f));photo.files=dt.files}
+function renderSelectedPhotos(){photoPreview.innerHTML=selectedPhotos.map((f,i)=>'<div style="border:1px solid #eee;border-radius:14px;padding:8px"><img src="'+URL.createObjectURL(f)+'" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px"><small style="display:block">'+(i===0?'メイン写真':'写真 '+(i+1))+'</small><div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px"><button type="button" onclick="makeMain('+i+')">メインにする</button><button type="button" onclick="movePhoto('+i+',-1)">←</button><button type="button" onclick="movePhoto('+i+',1)">→</button><button type="button" onclick="removePhoto('+i+')">削除</button></div></div>').join('')}
+function makeMain(i){if(i<0||i>=selectedPhotos.length)return;const f=selectedPhotos.splice(i,1)[0];selectedPhotos.unshift(f);syncPhotoInput();renderSelectedPhotos()}
+function movePhoto(i,n){const j=i+n;if(j<0||j>=selectedPhotos.length)return;[selectedPhotos[i],selectedPhotos[j]]=[selectedPhotos[j],selectedPhotos[i]];syncPhotoInput();renderSelectedPhotos()}
+function removePhoto(i){selectedPhotos.splice(i,1);syncPhotoInput();renderSelectedPhotos()}
+photo.onchange=()=>{selectedPhotos=[...photo.files].slice(0,10);syncPhotoInput();renderSelectedPhotos()};
+'''
+ if marker in x and "function makeMain(i)" not in x:x=x.replace(marker,code+marker,1)
+ p.write_text(x,encoding='utf-8')
