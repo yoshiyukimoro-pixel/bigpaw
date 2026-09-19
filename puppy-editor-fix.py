@@ -434,3 +434,39 @@ if p.exists():
  new2="WHERE p.id=? AND (p.review_status='approved' OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
  x=x.replace(old2,new2)
  p.write_text(x,encoding='utf-8')
+
+
+# Canonicalize breed keys for puppy create/edit so public breed picker matches stored listings.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ marker="async function savePuppy(e){"
+ if marker in x and "function bigpawBreedKey" not in x:
+  helper="""function bigpawBreedKey(name){const a=Array.isArray(window.BIGPAW_BREEDS)?window.BIGPAW_BREEDS:[];const b=a.find(v=>v.ja===name);return b?b.key:({'スタンダードプードル':'standard-poodle','ゴールデンレトリバー':'golden-retriever','ラブラドールレトリバー':'labrador-retriever'}[name]||name)}\n"""
+  x=x.replace(marker,helper+marker,1)
+ # Explicitly send breedKey in both update/create payloads.
+ x=x.replace("status:status.value,breed:breed.value,gender:", "status:status.value,breed:breed.value,breedKey:bigpawBreedKey(breed.value),gender:")
+ x=x.replace("name:color.value+'の'+gender.value,breed:breed.value,gender:", "name:color.value+'の'+gender.value,breed:breed.value,breedKey:bigpawBreedKey(breed.value),gender:")
+ # Ensure breed data is available on editor.
+ if '<script src="assets/breed-data.js"></script>' not in x:
+  x=x.replace('<script src="assets/bridge.js"></script>','<script src="assets/bridge.js"></script><script src="assets/breed-data.js"></script>')
+ p.write_text(x,encoding='utf-8')
+
+# Server-side normalization also repairs existing listings saved with Japanese breed_key.
+p=Path('backend/server.py')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ init=x.find("def init_db(")
+ if init>=0:
+  end=x.find("\ndef ",init+1)
+  if end<0:end=len(x)
+  sec=x[init:end]
+  if "normalize legacy breed keys" not in sec:
+   c=sec.rfind("con.commit()")
+   if c>=0:
+    pos=init+c
+    code="""# normalize legacy breed keys used by public search
+    con.execute(\"UPDATE puppies SET breed_key='standard-poodle' WHERE breed='スタンダードプードル' AND breed_key!='standard-poodle'\")
+    """
+    x=x[:pos]+code+x[pos:]
+ p.write_text(x,encoding='utf-8')
