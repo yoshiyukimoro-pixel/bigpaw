@@ -661,6 +661,27 @@ import py_compile; py_compile.compile(str(root/'backend/server.py'),doraise=True
 print('OPERATOR_BREEDERS_PROOF_CONTEXT_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+p=root/'backend/server.py'; t=p.read_text(encoding='utf-8')
+print('=== BUYER REGISTER ORIGIN INSPECTION ===')
+for term in ['invalid_origin','Invalid Origin','invalid origin','/api/register','register','Origin','allowed_origin','mutation_origin']:
+ print('TERM',term)
+ start=0; n=0
+ while n<8:
+  i=t.find(term,start)
+  if i<0: break
+  print(t[max(0,i-1100):i+2300]); start=i+len(term); n+=1
+for q in root.rglob('*register*'):
+ if q.is_file() and q.suffix.lower() in ('.html','.js'):
+  try: x=q.read_text(encoding='utf-8')
+  except: continue
+  print('REGISTER_FILE',q.relative_to(root)); print(x[:10000])
+import py_compile; py_compile.compile(str(p),doraise=True)
+print('BUYER_REGISTER_ORIGIN_INSPECTION_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
