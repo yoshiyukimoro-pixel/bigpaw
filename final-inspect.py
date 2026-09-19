@@ -82,3 +82,10 @@ if p.exists():
  gs=t.find("    def do_GET(self):"); pe=t.find("    def do_POST(self):",gs); sec=t[gs:pe]
  for needle in ["if path=='/api/puppies'","review_status","status!='成約済み'","breed"]:
   i=sec.find(needle); print("SEARCHVERIFY|"+needle+"|"+(sec[max(0,i-1200):i+5000].replace("\n"," § ") if i>=0 else "MISSING"))
+
+from pathlib import Path
+for fn in ['assets/breed-picker-v6.js','assets/breed-picker-v6-search.js','assets/home.js','search.html','breeder-puppy-new.html']:
+ p=Path(fn)
+ if p.exists():
+  t=p.read_text(encoding='utf-8')
+  print('BREEDDEBUG|'+fn+'|'+t[:30000].replace('\n',' § '))
