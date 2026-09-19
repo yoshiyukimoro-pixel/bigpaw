@@ -346,3 +346,27 @@ ensureAdjustModal=function(){if(document.getElementById('photoAdjustModal'))retu
 '''
  if marker in x and "// Final photo UI overrides." not in x:x=x.replace(marker,override+marker,1)
  p.write_text(x,encoding='utf-8')
+
+
+# Keep the original upload when cropping so adjustment is always reversible.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ marker="// Final photo UI overrides."
+ patch=r'''// Reversible photo adjustment: always edit from the original source.
+const originalPhotoSources=new Map();
+const _openPersistedAdjust=openPersistedAdjust;
+openPersistedAdjust=function(i){const p=window.persistedPhotos&&window.persistedPhotos[i];if(!p)return;ensureAdjustModal();adjustTarget={kind:'saved',i:i};adjustScale=1;adjustX=0;adjustY=0;const src=p.originalUrl||originalPhotoSources.get(p.id)||p.url;originalPhotoSources.set(p.id,src);p.originalUrl=src;document.getElementById('adjustImg').src=src;document.getElementById('photoAdjustModal').style.display='block';drawAdjust()};
+const _openPhotoAdjust=openPhotoAdjust;
+openPhotoAdjust=function(i){const f=selectedPhotos[i];if(!f)return;ensureAdjustModal();if(!f._bigpawOriginal)try{Object.defineProperty(f,'_bigpawOriginal',{value:f,writable:true})}catch(e){}adjustTarget={kind:'new',i:i};adjustScale=1;adjustX=0;adjustY=0;const src=f._bigpawOriginal||f;document.getElementById('adjustImg').src=URL.createObjectURL(src);document.getElementById('photoAdjustModal').style.display='block';drawAdjust()};
+'''
+ if marker in x and "Reversible photo adjustment" not in x:x=x.replace(marker,patch+marker,1)
+ # When replacing a selected file with a crop, preserve its original File reference.
+ old="selectedPhotos[adjustTarget.i]=file;syncPhotoInput();renderSelectedPhotos();closePhotoAdjust();return"
+ new="const prev=selectedPhotos[adjustTarget.i];try{Object.defineProperty(file,'_bigpawOriginal',{value:(prev&&prev._bigpawOriginal)||prev,writable:true})}catch(e){}selectedPhotos[adjustTarget.i]=file;syncPhotoInput();renderSelectedPhotos();closePhotoAdjust();return"
+ if old in x:x=x.replace(old,new,1)
+ # When replacing a persisted upload, retain originalUrl in client state.
+ old2="window.persistedPhotos[adjustTarget.i]={id:up.id,url:up.url,isMain:old.isMain};renderPersistedPhotos();closePhotoAdjust()"
+ new2="window.persistedPhotos[adjustTarget.i]={id:up.id,url:up.url,isMain:old.isMain,originalUrl:old.originalUrl||originalPhotoSources.get(old.id)||old.url};originalPhotoSources.set(up.id,window.persistedPhotos[adjustTarget.i].originalUrl);renderPersistedPhotos();closePhotoAdjust()"
+ if old2 in x:x=x.replace(old2,new2,1)
+ p.write_text(x,encoding='utf-8')
