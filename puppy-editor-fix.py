@@ -370,3 +370,21 @@ openPhotoAdjust=function(i){const f=selectedPhotos[i];if(!f)return;ensureAdjustM
  new2="window.persistedPhotos[adjustTarget.i]={id:up.id,url:up.url,isMain:old.isMain,originalUrl:old.originalUrl||originalPhotoSources.get(old.id)||old.url};originalPhotoSources.set(up.id,window.persistedPhotos[adjustTarget.i].originalUrl);renderPersistedPhotos();closePhotoAdjust()"
  if old2 in x:x=x.replace(old2,new2,1)
  p.write_text(x,encoding='utf-8')
+
+
+# Fix zoom-out: allow the whole source photo to fit inside the square, including letterbox space.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ marker="// Reversible photo adjustment: always edit from the original source."
+ patch=r'''// Allow zooming out below cover-size so the original full image can be restored.
+const _drawAdjustCover=drawAdjust;
+drawAdjust=function(){const im=document.getElementById('adjustImg');if(im)im.style.transform='translate('+adjustX+'px,'+adjustY+'px) scale('+adjustScale+')'};
+'''
+ if marker in x and "Allow zooming out below cover-size" not in x:x=x.replace(marker,patch+marker,1)
+ # Start the editor at 1x but permit pinch down to 0.35x rather than hard-clamping at 1.
+ x=x.replace("Math.max(1,Math.min(4,base.scale*dist/Math.max(1,base.dist)))","Math.max(.35,Math.min(4,base.scale*dist/Math.max(1,base.dist)))")
+ # Old touch implementation may still be used in some builds.
+ x=x.replace("Math.max(1,Math.min(4,ts.scale*dist/Math.max(1,ts.dist)))","Math.max(.35,Math.min(4,ts.scale*dist/Math.max(1,ts.dist)))")
+ x=x.replace("Math.max(1,Math.min(4,adjustScale+(e.deltaY<0?.1:-.1)))","Math.max(.35,Math.min(4,adjustScale+(e.deltaY<0?.1:-.1)))")
+ p.write_text(x,encoding='utf-8')
