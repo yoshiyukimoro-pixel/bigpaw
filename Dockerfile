@@ -174,6 +174,18 @@ RUN python3 /tmp/inspect-inquiry-message-privacy.py
 COPY inspect-online-visit.py /tmp/inspect-online-visit.py
 RUN python3 /tmp/inspect-online-visit.py
 
+RUN python3 - <<'PY'
+from pathlib import Path
+r=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+p=r/'messages.html'
+s=p.read_text(encoding='utf-8')
+s=s.replace('商談・お迎え管理</a>','商談・お迎え管理</a><a id="onlineVisit" class="btn btn-main btn-wide" style="margin-top:10px" href="online-visit.html">📹 オンライン見学</a>')
+s=s.replace("dealLink.href='deal.html?inquiry='+encodeURIComponent(id);","dealLink.href='deal.html?inquiry='+encodeURIComponent(id);onlineVisit.href='online-visit.html?inquiry='+encodeURIComponent(id);")
+p.write_text(s,encoding='utf-8')
+v=r/'online-visit.html'
+v.write_text('''<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>オンライン見学｜BIG PAW</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="topbar">🐾 BIG PAW オンライン見学</div><header class="site-header"><div class="wrap nav"><a class="logo" href="index.html">🐾 BIG PAW</a><a class="btn btn-sub" href="messages.html">戻る</a></div></header><main class="wrap"><section class="section"><div class="card pad"><h1>オンライン見学</h1><p>購入希望者からブリーダーへオンライン見学を申し込み、日時確定後にこの画面から参加します。</p><div class="notice">電話番号・LINE・メールを交換せず、BIG PAW内で見学できる仕組みを準備しています。</div><button class="btn btn-main btn-wide" disabled>ビデオ通話（準備中）</button></div></section></main></body></html>''',encoding='utf-8')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
