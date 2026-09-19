@@ -470,3 +470,25 @@ if p.exists():
     """
     x=x[:pos]+code+x[pos:]
  p.write_text(x,encoding='utf-8')
+
+
+# Temporary startup diagnostic: public-listing fields only, no personal data.
+p=Path('backend/server.py')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ if "BIGPAW_PUBLIC_DIAG" not in x:
+  needle="BIG PAW forced server running on port"
+  i=x.find(needle)
+  if i>=0:
+   line=x.rfind('\n',0,i)+1
+   indent=x[line:i]
+   code=indent+"""try:
+"""+indent+"""    _c=db()
+"""+indent+"""    _rows=_c.execute(\"SELECT p.id,p.breed,p.breed_key,p.review_status,p.status,p.breeder_id,COALESCE(b.review_status,''),COALESCE(b.billing_suspended,0) FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id ORDER BY p.created_at DESC\").fetchall()
+"""+indent+"""    print('BIGPAW_PUBLIC_DIAG|'+repr([tuple(r) for r in _rows]),flush=True)
+"""+indent+"""    _c.close()
+"""+indent+"""except Exception as _e:
+"""+indent+"""    print('BIGPAW_PUBLIC_DIAG_ERROR|'+repr(_e),flush=True)
+"""
+   x=x[:line]+code+x[line:]
+ p.write_text(x,encoding='utf-8')
