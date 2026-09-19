@@ -92,4 +92,23 @@ html,body,main.finder{background:#fff!important}
 '''
  if 'bigpaw-search-layer-reset' not in s:s=s.replace('</head>',nuclear+'</head>',1)
 
+
+ clean='''<style id="bigpaw-search-rebuild">
+html,body{background:#fff!important}
+main.finder{display:block!important;background:#fff!important;opacity:1!important;filter:none!important}
+#bigpawFreshSearch{position:relative;z-index:2147483000;background:#fff;color:#222;min-height:100vh;padding:18px 16px 110px}
+#bigpawFreshSearch .fresh-title{font-size:24px;font-weight:900;margin:0 0 14px}
+#bigpawFreshSearch .fresh-card{border:1px solid #eadfe5;border-radius:16px;background:#fff;overflow:hidden;margin-top:14px;box-shadow:0 4px 16px rgba(0,0,0,.05)}
+#bigpawFreshSearch .fresh-card img{display:block;width:100%;height:260px;object-fit:cover;background:#f8e9ef}
+#bigpawFreshSearch .fresh-body{padding:14px}
+#bigpawFreshSearch .fresh-breed{font-size:18px;font-weight:900}
+#bigpawFreshSearch .fresh-meta{margin-top:5px;color:#6f666b}
+#bigpawFreshSearch .fresh-price{margin-top:8px;font-size:20px;font-weight:900}
+</style>
+<script id="bigpaw-search-rebuild-js">
+(function(){async function build(){var old=document.querySelector('main.finder');if(!old)return;var root=document.createElement('main');root.id='bigpawFreshSearch';root.innerHTML='<h1 class="fresh-title">検索結果</h1><div id="freshCount">読み込み中...</div><div id="freshResults"></div>';old.replaceWith(root);document.querySelectorAll('#bpv6Modal,#bpBreedModal,.breed-picker-overlay,.breed-picker-modal,[data-breed-picker-overlay],.sticky').forEach(function(e){e.remove()});try{var all=await BigPawBridge.puppies();var q=new URLSearchParams(location.search),keys=(q.get('breed')||'').split(',').filter(Boolean);if(keys.length)all=all.filter(function(p){return keys.indexOf(p.breedKey)>=0});document.getElementById('freshCount').textContent=all.length+'頭';var box=document.getElementById('freshResults');box.innerHTML='';all.forEach(function(p){var a=document.createElement('article');a.className='fresh-card';var img=p.imageUrl?'<img src="'+BigPaw.esc(p.imageUrl)+'" alt="">':'<div style="height:220px;display:grid;place-items:center;font-size:72px;background:#f8e9ef">🐩</div>';a.innerHTML=img+'<div class="fresh-body"><div class="fresh-breed">'+BigPaw.esc(p.breed||'')+'｜'+BigPaw.esc(p.gender||'')+'</div><div class="fresh-meta">'+BigPaw.esc(p.color||'')+' ・ '+BigPaw.esc(p.area||'')+'</div><div class="fresh-price">'+BigPaw.currency(p.price)+' <small>税込</small></div></div>';a.onclick=function(){location.href='puppy-detail.html?id='+encodeURIComponent(p.id)};box.appendChild(a)})}catch(e){document.getElementById('freshCount').textContent='読み込みに失敗しました'}}function go(){if(window.BigPawBridge)build();else setTimeout(go,50)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go()})();
+</script>
+'''
+ if 'bigpaw-search-rebuild' not in s:s=s.replace('</body>',clean+'</body>',1)
+
  p.write_text(s,encoding='utf-8')
