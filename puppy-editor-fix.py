@@ -421,3 +421,16 @@ if p.exists():
             """
    x=x[:a]+inject+x[a:]
  p.write_text(x,encoding='utf-8')
+
+
+# Public search: listings owned by an approved breeder are public even if an old puppy review flag stayed pending.
+p=Path('backend/server.py')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ old="WHERE p.review_status='approved' AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
+ new="WHERE (p.review_status='approved' OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
+ x=x.replace(old,new)
+ old2="WHERE p.id=? AND p.review_status='approved' AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
+ new2="WHERE p.id=? AND (p.review_status='approved' OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
+ x=x.replace(old2,new2)
+ p.write_text(x,encoding='utf-8')
