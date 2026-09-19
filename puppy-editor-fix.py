@@ -47,3 +47,11 @@ if p.exists():
  x=x.replace("document.querySelector('.btn-wide').textContent='変更を保存する';","document.querySelector('.btn-wide').textContent='変更を保存する';const db=document.getElementById('deletePuppyBtn');if(db)db.style.display='block';")
  x=x.replace("initEdit();","async function deleteCurrentPuppy(){if(!editId||!confirm('この子犬の掲載を削除しますか？'))return;try{await BigPawAPI.request('/puppies/'+encodeURIComponent(editId),{method:'DELETE'});location.href='admin.html'}catch(e){alert('削除できませんでした')}}\ninitEdit();",1)
  p.write_text(x,encoding='utf-8')
+
+# Improve photo editor UX: clear main/additional slots, replacement preview, and guidance.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ x=x.replace('<b>写真を追加（最大10枚）</b><span class="muted">1枚目がメイン写真です。JPG / PNG / WebP・各8MBまで</span>','<b>写真を編集（最大10枚）</b><span class="muted">1枚目がメイン写真です。写真を選び直すとメイン写真から順に差し替えます。JPG / PNG / WebP・各8MBまで</span>')
+ x=x.replace("'<small>現在のメイン写真</small></div>'","'<small>現在のメイン写真</small></div><div class=\\\"muted\\\" style=\\\"grid-column:1/-1\\\">新しい写真を選ぶとプレビューがここに表示されます。</div>'")
+ p.write_text(x,encoding='utf-8')
