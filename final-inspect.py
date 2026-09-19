@@ -75,3 +75,10 @@ if p.exists():
  gs=t.find("    def do_GET(self):"); pe=t.find("    def do_POST(self):",gs)
  sec=t[gs:pe]
  print("GETVERIFY|photos="+str("/photos',path)" in sec)+"|idx="+str(sec.find("/photos',path)"))+"|"+sec[:4500].replace("\\n"," § "))
+
+p=Path('backend/server.py')
+if p.exists():
+ t=p.read_text(encoding='utf-8')
+ gs=t.find("    def do_GET(self):"); pe=t.find("    def do_POST(self):",gs); sec=t[gs:pe]
+ for needle in ["if path=='/api/puppies'","review_status","status!='成約済み'","breed"]:
+  i=sec.find(needle); print("SEARCHVERIFY|"+needle+"|"+(sec[max(0,i-1200):i+5000].replace("\n"," § ") if i>=0 else "MISSING"))
