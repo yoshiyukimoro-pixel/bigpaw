@@ -57,4 +57,15 @@ window.addEventListener('pageshow',function(){setTimeout(snap,700)})
 '''
  if 'bigpaw-render-diagnostic' not in s:s=s.replace('</body>',diag+'</body>',1)
 
+
+ fix='''<style id="bigpaw-ios-backdrop-fix">
+.site-header{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:#fff!important}
+html,body,main.finder{background:#fff!important}
+</style>
+<script id="bigpaw-ios-backdrop-reset">
+(function(){function x(){var h=document.querySelector('.site-header');if(h){h.style.webkitBackdropFilter='none';h.style.backdropFilter='none';h.style.background='#fff'}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',x);else x();window.addEventListener('pageshow',x)})();
+</script>
+'''
+ if 'bigpaw-ios-backdrop-fix' not in s:s=s.replace('</head>',fix+'</head>',1)
+
  p.write_text(s,encoding='utf-8')
