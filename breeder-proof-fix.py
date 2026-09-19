@@ -195,3 +195,13 @@ if p.exists():
  s=re.sub(r'<button[^>]*onclick="(?:cycleStatus|changePrice)\([^>]*>.*?</button>','',s)
  s=re.sub(r'<button[^>]*onclick="(?:cycleStatus|changePrice)\([^>]*>[\s\S]*?</button>','',s)
  p.write_text(s,encoding='utf-8')
+
+# Force puppy list cards to expose only the Edit action.
+p=Path('admin.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ import re
+ s=re.sub(r'<button\b[^>]*onclick=["\x27][^"\x27]*(?:cycleStatus|changePrice)\([^"\x27]*["\x27][^>]*>[\s\S]*?</button>','',s,flags=re.I)
+ s=re.sub(r'<button\b[^>]*>募集状況を変更</button>','',s,flags=re.I)
+ s=re.sub(r'<button\b[^>]*>価格を変更</button>','',s,flags=re.I)
+ p.write_text(s,encoding='utf-8')
