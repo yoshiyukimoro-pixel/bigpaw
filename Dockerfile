@@ -186,6 +186,33 @@ v=r/'online-visit.html'
 v.write_text('''<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>オンライン見学｜BIG PAW</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="topbar">🐾 BIG PAW オンライン見学</div><header class="site-header"><div class="wrap nav"><a class="logo" href="index.html">🐾 BIG PAW</a><a class="btn btn-sub" href="messages.html">戻る</a></div></header><main class="wrap"><section class="section"><div class="card pad"><h1>オンライン見学</h1><p>購入希望者からブリーダーへオンライン見学を申し込み、日時確定後にこの画面から参加します。</p><div class="notice">電話番号・LINE・メールを交換せず、BIG PAW内で見学できる仕組みを準備しています。</div><button class="btn btn-main btn-wide" disabled>ビデオ通話（準備中）</button></div></section></main></body></html>''',encoding='utf-8')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+anchor="        m=re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)\n        if m:"
+block="""        m=re.fullmatch(r'/api/inquiries/([^/]+)/video-room',path)
+        if m:
+            u=self.require();
+            if not u:return
+            con=db(); qrow=self.inquiry_for_user(con,m.group(1),u)
+            if not qrow: con.close(); return self.send_json({'error':'forbidden_or_not_found'},404)
+            import hashlib
+            room='BIGPAW-'+hashlib.sha256((m.group(1)+'|online-visit').encode()).hexdigest()[:32]
+            con.close(); return self.send_json({'room':room,'inquiryId':m.group(1),'role':u['role']})
+"""
+if "'/api/inquiries/([^/]+)/video-room'" not in s:s=s.replace(anchor,block+anchor,1)
+p.write_text(s,encoding='utf-8')
+PY
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/online-visit.html')
+s=p.read_text(encoding='utf-8')
+s=s.replace('<button class="btn btn-main btn-wide" disabled>ビデオ通話（準備中）</button>','<button id="joinBtn" class="btn btn-main btn-wide" onclick="joinRoom()">カメラを準備して入室</button><div id="room" style="display:none;height:68vh;min-height:480px;margin-top:12px;border-radius:18px;overflow:hidden;background:#111"></div>')
+s=s.replace('</body>','<script src="assets/api.js"></script><script src="https://meet.jit.si/external_api.js"></script><script>async function joinRoom(){try{const q=new URLSearchParams(location.search).get("inquiry");if(!q)throw Error("問い合わせを選択してください");const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/video-room",{credentials:"same-origin"});if(!r.ok)throw Error("このオンライン見学には参加できません");const v=await r.json();joinBtn.style.display="none";room.style.display="block";new JitsiMeetExternalAPI("meet.jit.si",{roomName:v.room,parentNode:room,width:"100%",height:"100%",configOverwrite:{prejoinPageEnabled:true},interfaceConfigOverwrite:{MOBILE_APP_PROMO:false}})}catch(e){alert(e.message||"接続できませんでした")}}</script></body>')
+p.write_text(s,encoding='utf-8')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
