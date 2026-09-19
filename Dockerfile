@@ -526,6 +526,22 @@ py_compile.compile(str(p), doraise=True)
 print('UPLOAD_PROOF_PRIVACY_INSPECTION_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+print('=== PROOF STATIC ROUTE TARGETED INSPECTION ===')
+for term in ["startswith('/uploads/')", "path.startswith('/uploads/')", "UPLOADS /", "registrationProofUrl"]:
+    print('---',term,'---')
+    start=0
+    while True:
+        i=s.find(term,start)
+        if i<0: break
+        print(s[max(0,i-900):i+2200]); start=i+len(term)
+import py_compile; py_compile.compile(str(p),doraise=True)
+print('PROOF_STATIC_ROUTE_INSPECTION_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
