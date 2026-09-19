@@ -150,6 +150,9 @@ RUN python3 /tmp/breeder-register-privacy-ui.py
 COPY inspect-operator-management-v3.py /tmp/inspect-operator-management-v3.py
 RUN python3 /tmp/inspect-operator-management-v3.py
 
+COPY operator-breeder-management-v3.py /tmp/operator-breeder-management-v3.py
+RUN python3 /tmp/operator-breeder-management-v3.py
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
