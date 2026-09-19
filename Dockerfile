@@ -159,6 +159,9 @@ RUN python3 /tmp/inspect-public-puppy-api.py
 COPY inspect-public-puppy-routes.py /tmp/inspect-public-puppy-routes.py
 RUN python3 /tmp/inspect-public-puppy-routes.py
 
+COPY public-puppy-api-privacy.py /tmp/public-puppy-api-privacy.py
+RUN python3 /tmp/public-puppy-api-privacy.py
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
