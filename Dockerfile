@@ -234,6 +234,17 @@ if 'オンライン見学を申し込む' not in s:
 p.write_text(s,encoding='utf-8')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/online-visit.html')
+s=p.read_text(encoding='utf-8')
+if 'confirmOnlineVisit' not in s:
+    s=s.replace('<p id="videoStatus"></p>', '<p id="videoStatus"></p><button id="confirmVideoBtn" type="button" onclick="confirmOnlineVisit()" style="display:none">この日時で承認する</button>',1)
+    js='''async function loadOnlineVisit(){const q=new URLSearchParams(location.search).get("inquiry");if(!q)return;const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/visit",{credentials:"same-origin"});if(!r.ok)return;const v=await r.json();if(!v||!v.id)return;const st=document.getElementById("videoStatus");if(v.transport==="オンライン見学"){document.getElementById("videoDate").value=v.visit_date||"";document.getElementById("videoTime").value=v.visit_time||"";st.textContent=v.status==="confirmed"?"オンライン見学は確定しています。":"オンライン見学の希望日時が届いています。";if(v.status!=="confirmed")document.getElementById("confirmVideoBtn").style.display="inline-block";else document.getElementById("joinBtn").style.display="inline-block";}} async function confirmOnlineVisit(){const q=new URLSearchParams(location.search).get("inquiry"),d=document.getElementById("videoDate").value,t=document.getElementById("videoTime").value;const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/visit",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({date:d,time:t,transport:"オンライン見学",status:"confirmed",faceToFaceConfirmed:false})});if(r.ok){document.getElementById("videoStatus").textContent="オンライン見学を確定しました。";document.getElementById("confirmVideoBtn").style.display="none";document.getElementById("joinBtn").style.display="inline-block"}else alert("承認できませんでした")};window.addEventListener("DOMContentLoaded",loadOnlineVisit);'''
+    s=s.replace('async function requestOnlineVisit()',js+'\\nasync function requestOnlineVisit()',1)
+p.write_text(s,encoding='utf-8')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
