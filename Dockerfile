@@ -245,6 +245,22 @@ if 'confirmOnlineVisit' not in s:
 p.write_text(s,encoding='utf-8')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+old="""m=re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)\n        if m:\n            u=self.require()"""
+new="""m=re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)\n        if m:\n            u=self.require()"""
+# Harden POST visit: only breeder/operator may confirm; buyer may only propose.
+needle="body=self.json_body(); con=db(); qrow=self.inquiry_for_user(con,m.group(1),u)"
+guard="body=self.json_body(); con=db(); qrow=self.inquiry_for_user(con,m.group(1),u)\n            if body.get('status') == 'confirmed' and u.get('role') not in ('breeder','operator'):\n                con.close(); return self.send_json({'error':'breeder_only_confirmation'},403)"
+if needle in s and 'breeder_only_confirmation' not in s:
+    # target the visit POST occurrence nearest the route by replacing last occurrence
+    pos=s.rfind(needle)
+    if pos>=0:s=s[:pos]+s[pos:].replace(needle,guard,1)
+p.write_text(s,encoding='utf-8')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
