@@ -186,3 +186,12 @@ if p.exists():
  s=re.sub(r'<button[^>]*onclick="cycleStatus\([^>]*>.*?</button>','',s)
  s=re.sub(r'<button[^>]*onclick="changePrice\([^>]*>.*?</button>','',s)
  p.write_text(s,encoding='utf-8')
+
+# Puppy list: keep only the Edit action. Price/status are edited inside the editor.
+p=Path('admin.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ import re
+ s=re.sub(r'<button[^>]*onclick="(?:cycleStatus|changePrice)\([^>]*>.*?</button>','',s)
+ s=re.sub(r'<button[^>]*onclick="(?:cycleStatus|changePrice)\([^>]*>[\s\S]*?</button>','',s)
+ p.write_text(s,encoding='utf-8')
