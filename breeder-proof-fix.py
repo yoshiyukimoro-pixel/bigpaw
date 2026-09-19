@@ -156,3 +156,10 @@ p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
 old="'pending',now()"
 if old in s: s=s.replace(old,"'approved',now()")
 p.write_text(s,encoding='utf-8')
+
+# Make breeder puppy management controls explicit and add a safe delete control when backend supports it.
+p=Path('admin.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ s=s.replace('>状況変更<','>募集状況を変更<').replace('>価格<','>価格を変更<')
+ p.write_text(s,encoding='utf-8')
