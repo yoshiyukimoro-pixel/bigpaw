@@ -48,6 +48,14 @@ COPY breeder-flow-fix.py /tmp/breeder-flow-fix.py
 RUN python3 /tmp/breeder-flow-fix.py
 COPY mypage-state-fix.py /tmp/mypage-state-fix.py
 RUN python3 /tmp/mypage-state-fix.py
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('mypage.html'); s=p.read_text(encoding='utf-8',errors='replace')
+print('MYPAGEFAVSCRIPT|', 'mypage-favorites-sync.js' in s)
+for i,line in enumerate(s.splitlines()):
+ if 'お気に入り' in line or '保存中' in line or 'favorite' in line.lower(): print('MYPAGEFAV|%s|%s'%(i+1,line[:1500]))
+PY
+
 COPY mypage-verify-state-fix.js ./mypage-verify-state-fix.js
 RUN python3 -c "from pathlib import Path; p=Path('operator-breeders.html'); src=Path('operator-admin.html'); p.write_text(src.read_text(encoding='utf-8'),encoding='utf-8') if (not p.exists() and src.exists()) else None"
 COPY breeder-proof-fix.py /tmp/breeder-proof-fix.py
