@@ -58,6 +58,7 @@ COPY puppy-editor-fix.py /tmp/puppy-editor-fix.py
 RUN python3 /tmp/puppy-editor-fix.py
 COPY search-ui-fix.py /tmp/search-ui-fix.py
 RUN python3 /tmp/search-ui-fix.py
+RUN python3 -c "from pathlib import Path; s=Path('search.html').read_text(encoding='utf-8'); print('SEARCHLAYERS|'+ ' || '.join([x.strip().replace(chr(10),' ') for x in s.split('<') if any(k in x.lower() for k in ['position:fixed','position: fixed','overlay','modal','backdrop','opacity'])][:80]))"
 COPY final-inspect.py /tmp/final-inspect.py
 RUN python3 /tmp/final-inspect.py && cat final-inspection.txt && cat delete-inspection.txt
 ENV PORT=8080
