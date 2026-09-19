@@ -646,6 +646,21 @@ import py_compile; py_compile.compile(str(root/'backend/server.py'),doraise=True
 print('OPERATOR_PROOF_UI_TARGET_CHECK_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+p=root/'operator-breeders.html'; t=p.read_text(encoding='utf-8')
+print('=== OPERATOR BREEDERS PROOF CONTEXT ===')
+for term in ['REGISTRATION_PROOF','breeder-applications']:
+ start=0
+ while True:
+  i=t.find(term,start)
+  if i<0: break
+  print(t[max(0,i-1200):i+2600]); start=i+len(term)
+import py_compile; py_compile.compile(str(root/'backend/server.py'),doraise=True)
+print('OPERATOR_BREEDERS_PROOF_CONTEXT_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
