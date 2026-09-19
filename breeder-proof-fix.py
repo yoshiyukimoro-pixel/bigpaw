@@ -170,3 +170,10 @@ if p.exists():
  s=p.read_text(encoding='utf-8')
  s=s.replace('>募集状況を変更</button>','>募集状況を変更</button><button class="btn btn-main" onclick="location.href=\'breeder-puppy-new.html?id=\'+p.id">編集</button>')
  p.write_text(s,encoding='utf-8')
+
+# Make the Edit control a real link so it works reliably on mobile.
+p=Path('admin.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ s=s.replace('<button class="btn btn-main" onclick="location.href=\'breeder-puppy-new.html?id=\'+p.id">編集</button>','<a class="btn btn-main" href="breeder-puppy-new.html?id=\'+p.id+\'">編集</a>')
+ p.write_text(s,encoding='utf-8')
