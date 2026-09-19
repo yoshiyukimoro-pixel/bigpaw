@@ -101,3 +101,9 @@ if p.exists():
  t=p.read_text(encoding='utf-8')
  for term in ['breedKey','addPuppy','updatePuppy']:
   i=t.find(term); print('SAVEDEBUG|'+term+'|'+(t[max(0,i-1200):i+2200] if i>=0 else 'MISSING').replace('\n',' § '))
+
+p=Path('backend/server.py')
+if p.exists():
+ t=p.read_text(encoding='utf-8')
+ for term in ["def init_db(","forced server running"]:
+  i=t.find(term); print('RUNTIMEDIAGLOC|'+term+'|'+(t[Math.max?0:0] if False else (t[max(0,i-1500):i+2500] if i>=0 else 'MISSING')).replace('\\n',' § '))
