@@ -242,3 +242,40 @@ if p.exists():
  new="""const fr=document.getElementById('adjustFrame');fr.addEventListener('pointerdown',adjustDown);fr.addEventListener('pointermove',adjustMove);fr.addEventListener('pointerup',adjustUp);fr.addEventListener('pointercancel',adjustUp);let ts=null;fr.addEventListener('touchstart',e=>{e.preventDefault();if(e.touches.length===2){const a=e.touches[0],b=e.touches[1];ts={kind:'pinch',dist:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),scale:adjustScale,x:adjustX,y:adjustY,cx:(a.clientX+b.clientX)/2,cy:(a.clientY+b.clientY)/2}}else if(e.touches.length===1){const a=e.touches[0];ts={kind:'pan',sx:a.clientX,sy:a.clientY,x:adjustX,y:adjustY}}},{passive:false});fr.addEventListener('touchmove',e=>{e.preventDefault();if(!ts)return;if(e.touches.length===2&&ts.kind==='pinch'){const a=e.touches[0],b=e.touches[1],dist=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);adjustScale=Math.max(1,Math.min(4,ts.scale*dist/Math.max(1,ts.dist)));adjustX=ts.x+((a.clientX+b.clientX)/2-ts.cx);adjustY=ts.y+((a.clientY+b.clientY)/2-ts.cy);drawAdjust()}else if(e.touches.length===1&&ts.kind==='pan'){const a=e.touches[0];adjustX=ts.x+a.clientX-ts.sx;adjustY=ts.y+a.clientY-ts.sy;drawAdjust()}},{passive:false});fr.addEventListener('touchend',e=>{if(e.touches.length===0)ts=null},{passive:false});"""
  if old in x:x=x.replace(old,new,1)
  p.write_text(x,encoding='utf-8')
+
+
+# Correct photo GET route placement inside do_GET and force gallery render after legacy main preview.
+p=Path('backend/server.py')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ bad="""        m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            con=db(); puppy=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy: con.close(); return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b or puppy['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
+            rows=con.execute('SELECT id,stored_name,created_at FROM uploads WHERE puppy_id=? ORDER BY created_at,id',(puppy['id'],)).fetchall()
+            out=[{'id':r['id'],'url':'/uploads/'+r['stored_name'],'isMain':('/uploads/'+r['stored_name'])==puppy['image_url']} for r in rows]
+            con.close(); return self.send_json(out)
+
+"""
+ # remove unreachable copy before do_DELETE
+ d=x.find("    def do_DELETE(self):")
+ b=x.rfind(bad,0,d)
+ if b>=0:x=x[:b]+x[b+len(bad):]
+ # place route in do_GET before its final not_found, specifically before do_POST.
+ gs=x.find("    def do_GET(self):"); pe=x.find("    def do_POST(self):",gs)
+ if gs>=0 and pe>gs and "/photos',path)" not in x[gs:pe]:
+  nf=x.rfind("        return self.send_json({'error':'not_found'},404)",gs,pe)
+  if nf>=0:x=x[:nf]+bad+x[nf:]
+ p.write_text(x,encoding='utf-8')
+
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ legacy="""if(d.imageUrl)photoPreview.innerHTML='<div><img src=\\"'+d.imageUrl+'\\" style=\\"width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:14px\\"><small>現在のメイン写真</small></div>';"""
+ if legacy in x:x=x.replace(legacy,"if(d.imageUrl&&!(window.persistedPhotos&&window.persistedPhotos.length))photoPreview.innerHTML='<div><img src=\\\"'+d.imageUrl+'\\\" style=\\\"width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:14px\\\"><small>現在のメイン写真</small></div>';if(window.persistedPhotos&&window.persistedPhotos.length)renderPersistedPhotos();",1)
+ p.write_text(x,encoding='utf-8')
