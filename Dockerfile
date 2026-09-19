@@ -725,6 +725,18 @@ import py_compile; py_compile.compile(str(p),doraise=True)
 print('PROOF_FINAL_PRECHECK_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'backend/server.py'; t=p.read_text(encoding='utf-8')
+old="host=='bigpaw.site' or host.endswith('.bigpaw.site')"
+new="host=='bigpaw.site' or host.endswith('.bigpaw.site') or host=='bigpaw-site-production.up.railway.app'"
+assert old in t, 'registration origin host anchor missing'
+t=t.replace(old,new,1); p.write_text(t,encoding='utf-8')
+import py_compile; py_compile.compile(str(p),doraise=True)
+x=p.read_text(encoding='utf-8'); assert new in x; assert "o.scheme=='https'" in x and "o.port in (None,443)" in x
+print('REGISTRATION_LINE_ORIGIN_FIX_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
