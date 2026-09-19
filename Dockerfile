@@ -57,7 +57,7 @@ RUN python3 /tmp/admin-seed-fix.py
 COPY puppy-editor-fix.py /tmp/puppy-editor-fix.py
 RUN python3 /tmp/puppy-editor-fix.py
 COPY final-inspect.py /tmp/final-inspect.py
-RUN python3 /tmp/final-inspect.py && cat final-inspection.txt
+RUN python3 /tmp/final-inspect.py && cat final-inspection.txt && cat delete-inspection.txt
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
