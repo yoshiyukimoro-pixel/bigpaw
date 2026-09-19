@@ -36,3 +36,17 @@ if p.exists():
  for n in needles:
   i=t.find(n); parts.append(n+':'+(t[i:i+14000].replace('\\n',' § ') if i>=0 else 'NOT_FOUND'))
  print('ROUTEINSPECT|'+'|'.join(parts))
+
+# Compact upload/photo API inspection.
+p=Path('backend/server.py')
+if p.exists():
+ t=p.read_text(encoding='utf-8')
+ hits=[]
+ for needle in ["/api/uploads","INSERT INTO uploads","SELECT * FROM uploads","SELECT stored_name FROM uploads","def puppy_json"]:
+  start=0
+  while True:
+   i=t.find(needle,start)
+   if i<0:break
+   hits.append(t[max(0,i-700):i+1800].replace("\\n"," § "))
+   start=i+len(needle)
+ print("PHOTOINSPECT|"+" || ".join(hits[:12]))
