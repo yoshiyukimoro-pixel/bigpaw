@@ -22,4 +22,15 @@ main.finder,.filter-card,.result-grid,.result-card,.sticky{opacity:1!important;v
 '''
  if 'bigpaw-search-ios-visibility' not in s:s=s.replace('</body>',hard+'</body>',1)
 
+
+ # Search page only: neutral white canvas and normal contrast.
+ white='''<style id="bigpaw-search-white-canvas">
+html,body{background:#fff!important;color:#222!important}
+main.finder{background:#fff!important;color:#222!important}
+.filter-card,.result-card{background:#fff!important;color:#222!important}
+.result-card *{opacity:1!important;visibility:visible!important}
+</style>
+'''
+ if 'bigpaw-search-white-canvas' not in s:s=s.replace('</head>',white+'</head>',1)
+
  p.write_text(s,encoding='utf-8')
