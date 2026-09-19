@@ -28,3 +28,8 @@ if p.exists():
 </script>'''
  if 'bigpaw-detail-data-rescue' not in s:s=s.replace(marker,rescue+marker,1)
  p.write_text(s,encoding='utf-8')
+
+# Hide duplicate legacy favorite control; real favorite control is rendered with the gallery.
+s=s.replace('</style>','#bigpawRealDetail ~ * [data-action="favorite"],#bigpawRealDetail ~ * .favorite-btn{display:none!important}</style>') if '</style>' in s else s
+# Robustly remove/hide legacy button by its visible label at runtime.
+s=s.replace('</body>',r'''<script>(()=>{function hideDup(){const all=[...document.querySelectorAll('button,a')];const fav=all.filter(e=>(e.textContent||'').replace(/\\s/g,'').includes('お気に入りに保存'));if(fav.length>1)fav.slice(1).forEach(e=>e.style.display='none')}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',hideDup):hideDup();setTimeout(hideDup,300)})();</script></body>''')
