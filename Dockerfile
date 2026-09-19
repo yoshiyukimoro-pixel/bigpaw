@@ -60,6 +60,7 @@ COPY search-ui-fix.py /tmp/search-ui-fix.py
 RUN python3 /tmp/search-ui-fix.py
 RUN python3 -c "from pathlib import Path; s=Path('search.html').read_text(encoding='utf-8'); print('SEARCHLAYERS|'+ ' || '.join([x.strip().replace(chr(10),' ') for x in s.split('<') if any(k in x.lower() for k in ['position:fixed','position: fixed','overlay','modal','backdrop','opacity'])][:80]))"
 RUN python3 -c "from pathlib import Path; files=[Path('search.html')]+list(Path('assets').glob('*.js'))+list(Path('assets').glob('*.css')); terms=['position:fixed','position: fixed','inset:0','inset: 0','rgba(255','opacity:','backdrop','overlay','modal','loading']; [(print('LAYERJS|'+str(p)+'|'+term+'|'+t[max(0,i-350):i+900].replace(chr(10),' '))) for p in files if p.exists() for t in [p.read_text(encoding='utf-8',errors='ignore')] for term in terms for i in [t.lower().find(term)] if i>=0]"
+RUN python3 -c "from pathlib import Path; files=[Path('search.html')]+list(Path('assets').glob('*.js'))+list(Path('assets').glob('*.css')); terms=['result-card','result-grid','filter-card','finder','filter:','visibility:','disabled','aria-disabled','classlist.add','style.opacity']; [(print('CARDSTATE|'+str(p)+'|'+term+'|'+t[max(0,i-500):i+1400].replace(chr(10),' '))) for p in files if p.exists() for t in [p.read_text(encoding='utf-8',errors='ignore')] for term in terms for i in [t.lower().find(term)] if i>=0]"
 COPY final-inspect.py /tmp/final-inspect.py
 RUN python3 /tmp/final-inspect.py && cat final-inspection.txt && cat delete-inspection.txt
 ENV PORT=8080
