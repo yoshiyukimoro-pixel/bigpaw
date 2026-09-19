@@ -31,5 +31,5 @@ if p.exists():
 
 # Hide duplicate legacy favorite control; real favorite control is rendered with the gallery.
 s=s.replace('</style>','#bigpawRealDetail ~ * [data-action="favorite"],#bigpawRealDetail ~ * .favorite-btn{display:none!important}</style>') if '</style>' in s else s
-# Robustly remove/hide legacy button by its visible label at runtime.
-s=s.replace('</body>',r'''<script>(()=>{function hideDup(){const all=[...document.querySelectorAll('button,a')];const fav=all.filter(e=>(e.textContent||'').replace(/\\s/g,'').includes('お気に入りに保存'));if(fav.length>1)fav.slice(1).forEach(e=>e.style.display='none')}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',hideDup):hideDup();setTimeout(hideDup,300)})();</script></body>''')
+# Remove the obsolete legacy favorite control. The new #bigpawFavButton is the only favorite control.
+s=s.replace('</body>',r'''<script id="bigpaw-remove-legacy-favorite">(()=>{function clean(){document.querySelectorAll('button,a').forEach(e=>{if(e.id==='bigpawFavButton')return;const t=(e.textContent||'').replace(/\\s/g,'');if(t.includes('お気に入りに保存')||t.includes('お気に入り保存済み'))e.remove()})}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',clean):clean();new MutationObserver(clean).observe(document.body,{childList:true,subtree:true});setTimeout(clean,100);setTimeout(clean,500)})();</script></body>''')
