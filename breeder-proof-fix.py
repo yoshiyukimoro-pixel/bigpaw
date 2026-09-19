@@ -212,3 +212,11 @@ if p.exists():
  s=p.read_text(encoding='utf-8')
  s=s.replace('href="breeder-puppy-new.html?id=\'+p.id+\'"','href="breeder-puppy-new.html?id=\'+encodeURIComponent(d.id)+\'"')
  p.write_text(s,encoding='utf-8')
+
+# Definitive edit-link repair after all earlier transforms.
+p=Path('admin.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ import re
+ s=re.sub(r'<a class="btn btn-main" href="breeder-puppy-new\\.html[^\"]*">編集</a>', '<a class="btn btn-main" href="breeder-puppy-new.html?id=${encodeURIComponent(d.id)}">編集</a>', s)
+ p.write_text(s,encoding='utf-8')
