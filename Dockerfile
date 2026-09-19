@@ -165,6 +165,9 @@ RUN python3 /tmp/public-puppy-api-privacy.py
 COPY inspect-breeder-profile-input.py /tmp/inspect-breeder-profile-input.py
 RUN python3 /tmp/inspect-breeder-profile-input.py
 
+COPY breeder-public-profile-validation.py /tmp/breeder-public-profile-validation.py
+RUN python3 /tmp/breeder-public-profile-validation.py
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
