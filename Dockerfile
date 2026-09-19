@@ -401,6 +401,25 @@ import py_compile
 py_compile.compile(str(p), doraise=True)
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+# Favorites must use the already-sanitized public puppy serializer.
+fav_old="return self.send_json([puppy_json(r) for r in rows])" + chr(10) + "        if path=='/api/inquiries':"
+fav_new="return self.send_json([public_puppy_json(r) for r in rows])" + chr(10) + "        if path=='/api/inquiries':"
+if fav_old in s:
+    assert s.count(fav_old)==1, s.count(fav_old)
+    s=s.replace(fav_old,fav_new,1)
+else:
+    assert fav_new in s, 'favorites serializer anchor missing'
+p.write_text(s,encoding='utf-8')
+assert fav_new in s
+import py_compile
+py_compile.compile(str(p), doraise=True)
+print('FAVORITES_PRIVACY_CHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
