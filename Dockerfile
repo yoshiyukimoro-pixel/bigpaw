@@ -76,6 +76,16 @@ COPY final-inspect.py /tmp/final-inspect.py
 RUN python3 /tmp/final-inspect.py && cat final-inspection.txt && cat delete-inspection.txt
 COPY detail-gallery-fix.py /tmp/detail-gallery-fix.py
 RUN python3 /tmp/detail-gallery-fix.py
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('puppy-detail.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8',errors='replace')
+ # Force-remove any legacy favorite controls after all build-time patches.
+ inject=r'''<style id="bigpaw-force-hide-old-fav">button:not(#bigpawFavButton)[data-action="favorite"],a:not(#bigpawFavButton)[data-action="favorite"],.favorite-btn:not(#bigpawFavButton){display:none!important}</style><script id="bigpaw-force-remove-old-fav">(()=>{function x(){[...document.querySelectorAll('button,a')].forEach(e=>{if(e.id==='bigpawFavButton')return;let t=(e.textContent||'').replace(/\\s/g,'');if(t.includes('お気に入りに保存')||t.includes('お気に入り保存済み'))e.remove()})}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',x):x();new MutationObserver(x).observe(document.documentElement,{childList:true,subtree:true});setInterval(x,1000)})();</script>'''
+ if 'bigpaw-force-remove-old-fav' not in s:s=s.replace('</body>',inject+'</body>')
+ p.write_text(s,encoding='utf-8')
+PY
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
