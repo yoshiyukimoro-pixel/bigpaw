@@ -1,5 +1,5 @@
 from pathlib import Path
-spec={'backend/server.py':[(700,880),(1080,1120),(1438,1470)],'breeder-register.html':[(1,220)],'admin.html':[(1,220)],'mypage.html':[(1,220)],'assets/bridge.js':[(1,180)]}
+spec={'backend/server.py':[(700,880),(1080,1120),(1438,1470),(1,2200)],'breeder-register.html':[(1,220)],'admin.html':[(1,220)],'mypage.html':[(1,220)],'assets/bridge.js':[(1,180)]}
 out=[]
 for fn,ranges in spec.items():
  p=Path(fn)
