@@ -126,6 +126,9 @@ RUN python3 /tmp/inspect-breeder-admin.py
 COPY operator-breeder-management.py /tmp/operator-breeder-management.py
 RUN python3 /tmp/operator-breeder-management.py
 
+COPY operator-breeder-management-v2.py /tmp/operator-breeder-management-v2.py
+RUN python3 /tmp/operator-breeder-management-v2.py
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
