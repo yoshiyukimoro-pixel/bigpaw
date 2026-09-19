@@ -591,6 +591,32 @@ import py_compile; py_compile.compile(str(p),doraise=True)
 print('OPERATOR_PROOF_REVIEW_INSPECTION_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+anchor="        if path=='/api/operator/listings':"
+assert anchor in s, 'operator route anchor missing'
+route="""        m=re.fullmatch(r'/api/operator/breeder-proof/([^/]+)',path)
+        if m:
+            u=self.require(['operator'])
+            if not u:return
+            con=db(); row=con.execute('SELECT stored_name,mime FROM uploads WHERE id=? AND puppy_id IS NULL',(m.group(1),)).fetchone(); con.close()
+            if not row:return self.send_json({'error':'not_found'},404)
+            fp=UPLOADS / row['stored_name']
+            if not fp.exists():return self.send_json({'error':'not_found'},404)
+            raw=fp.read_bytes(); self.send_response(200); self.send_header('Content-Type',row['mime'] or 'application/octet-stream'); self.send_header('Content-Length',str(len(raw))); self.send_header('Cache-Control','private, no-store'); self.end_headers(); self.wfile.write(raw); return
+"""
+s=s.replace(anchor,route+anchor,1)
+p.write_text(s,encoding='utf-8')
+import py_compile; py_compile.compile(str(p),doraise=True)
+q=p.read_text(encoding='utf-8')
+assert "'/api/operator/breeder-proof/([^/]+)'" in q
+assert "self.require(['operator'])" in q
+assert "Cache-Control','private, no-store'" in q
+print('OPERATOR_PRIVATE_PROOF_ROUTE_CHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
