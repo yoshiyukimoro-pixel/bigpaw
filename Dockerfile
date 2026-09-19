@@ -141,6 +141,9 @@ RUN python3 /tmp/inspect-public-breeder-api.py
 COPY public-breeder-api-privacy.py /tmp/public-breeder-api-privacy.py
 RUN python3 /tmp/public-breeder-api-privacy.py
 
+COPY inspect-breeder-register-privacy.py /tmp/inspect-breeder-register-privacy.py
+RUN python3 /tmp/inspect-breeder-register-privacy.py
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
