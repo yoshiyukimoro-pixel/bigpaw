@@ -271,6 +271,16 @@ if needle in s and 'online_visit_not_confirmed' not in s:s=s.replace(needle,guar
 p.write_text(s,encoding='utf-8')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+needle="if not vr or vr['status'] != 'confirmed' or vr['transport'] != 'オンライン見学':\n        con.close(); return self.send_json({'error':'online_visit_not_confirmed'},403)"
+guard="""if not vr or vr['status'] != 'confirmed' or vr['transport'] != 'オンライン見学':\n        con.close(); return self.send_json({'error':'online_visit_not_confirmed'},403)\n    # Room opens 30 minutes before and closes 2 hours after the scheduled JST time.\n    from datetime import datetime, timedelta, timezone\n    full=con.execute(\"SELECT visit_date,visit_time FROM visits WHERE inquiry_id=?\",(m.group(1),)).fetchone()\n    try:\n        scheduled=datetime.strptime((full['visit_date'] or '')+' '+(full['visit_time'] or ''),'%Y-%m-%d %H:%M').replace(tzinfo=timezone(timedelta(hours=9)))\n        current=datetime.now(timezone(timedelta(hours=9)))\n        if current < scheduled-timedelta(minutes=30) or current > scheduled+timedelta(hours=2):\n            con.close(); return self.send_json({'error':'outside_online_visit_window'},403)\n    except Exception:\n        con.close(); return self.send_json({'error':'invalid_online_visit_time'},403)"""
+if needle in s and 'outside_online_visit_window' not in s:s=s.replace(needle,guard,1)
+p.write_text(s,encoding='utf-8')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
