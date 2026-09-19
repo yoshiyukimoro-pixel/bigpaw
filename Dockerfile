@@ -171,6 +171,9 @@ RUN python3 /tmp/breeder-public-profile-validation.py
 COPY inspect-inquiry-message-privacy.py /tmp/inspect-inquiry-message-privacy.py
 RUN python3 /tmp/inspect-inquiry-message-privacy.py
 
+COPY inspect-online-visit.py /tmp/inspect-online-visit.py
+RUN python3 /tmp/inspect-online-visit.py
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
