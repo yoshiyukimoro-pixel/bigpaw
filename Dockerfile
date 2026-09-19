@@ -574,6 +574,23 @@ assert "__not_public__" in q
 print('PRIVATE_PROOF_STATIC_CHECK_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+print('=== OPERATOR PROOF REVIEW INSPECTION ===')
+for term in ["breeder-applications", "registration_proof", "REGISTRATION_PROOF", "profile"]:
+    print('---',term,'---')
+    start=0; hits=0
+    while True:
+        i=s.find(term,start)
+        if i<0: break
+        print(s[max(0,i-1000):i+2600]); hits+=1; start=i+len(term)
+    print('hits=',hits)
+import py_compile; py_compile.compile(str(p),doraise=True)
+print('OPERATOR_PROOF_REVIEW_INSPECTION_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
