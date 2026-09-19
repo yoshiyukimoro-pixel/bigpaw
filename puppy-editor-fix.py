@@ -306,3 +306,29 @@ if p.exists():
    end=x.find("\\n",pathline)+1
    x=x[:end]+route+x[end:]
  p.write_text(x,encoding='utf-8')
+
+
+# Insert gallery GET after do_GET's actual combined parsed/path assignment.
+p=Path('backend/server.py')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ route="""        m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            con=db(); puppy=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy: con.close(); return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b or puppy['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
+            rows=con.execute('SELECT id,stored_name,created_at FROM uploads WHERE puppy_id=? ORDER BY created_at,id',(puppy['id'],)).fetchall()
+            out=[{'id':r['id'],'url':'/uploads/'+r['stored_name'],'isMain':('/uploads/'+r['stored_name'])==puppy['image_url']} for r in rows]
+            con.close(); return self.send_json(out)
+"""
+ gs=x.find("    def do_GET(self):"); pe=x.find("    def do_POST(self):",gs)
+ if gs>=0 and pe>gs and "/photos',path)" not in x[gs:pe]:
+  needle="        parsed=urlparse(self.path); path=parsed.path; q=parse_qs(parsed.query)\n"
+  a=x.find(needle,gs,pe)
+  if a>=0:
+   a+=len(needle);x=x[:a]+route+x[a:]
+ p.write_text(x,encoding='utf-8')
