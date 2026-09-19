@@ -162,6 +162,9 @@ RUN python3 /tmp/inspect-public-puppy-routes.py
 COPY public-puppy-api-privacy.py /tmp/public-puppy-api-privacy.py
 RUN python3 /tmp/public-puppy-api-privacy.py
 
+COPY inspect-breeder-profile-input.py /tmp/inspect-breeder-profile-input.py
+RUN python3 /tmp/inspect-breeder-profile-input.py
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
