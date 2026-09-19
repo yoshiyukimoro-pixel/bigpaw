@@ -205,3 +205,27 @@ async function deletePersistedPhoto(i){const p=window.persistedPhotos&&window.pe
 """
  if marker in x and "function renderPersistedPhotos()" not in x:x=x.replace(marker,code+marker,1)
  p.write_text(x,encoding='utf-8')
+
+
+# Replace confusing reorder arrows with touch-friendly photo crop/position editor.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ # Newly selected photos: remove arrows, add adjustment.
+ x=x.replace('<button type="button" onclick="movePhoto(\'+i+\',-1)">←</button><button type="button" onclick="movePhoto(\'+i+\',1)">→</button>','<button type="button" onclick="openPhotoAdjust(i)">写真を調整</button>')
+ # Persistent photos: add adjustment button.
+ x=x.replace("(!p.isMain?'<button type=\"button\" onclick=\"setPersistedMain('+i+')\">メインにする</button>':'')+'<button type=\"button\" onclick=\"deletePersistedPhoto('+i+')\">削除</button>'","(!p.isMain?'<button type=\"button\" onclick=\"setPersistedMain('+i+')\">メインにする</button>':'')+'<button type=\"button\" onclick=\"openPersistedAdjust('+i+')\">写真を調整</button><button type=\"button\" onclick=\"deletePersistedPhoto('+i+')\">削除</button>'")
+ marker="function makeMain(i){"
+ editor=r'''let adjustTarget=null,adjustScale=1,adjustX=0,adjustY=0,adjustStart=null;
+function ensureAdjustModal(){if(document.getElementById('photoAdjustModal'))return;document.body.insertAdjacentHTML('beforeend','<div id="photoAdjustModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;padding:20px"><div style="max-width:520px;margin:5vh auto;background:white;border-radius:16px;padding:14px"><b>写真を調整</b><div id="adjustFrame" style="margin-top:12px;width:100%;aspect-ratio:1/1;overflow:hidden;background:#eee;touch-action:none;position:relative"><img id="adjustImg" style="width:100%;height:100%;object-fit:cover;transform-origin:center;user-select:none;-webkit-user-drag:none"></div><div style="margin-top:10px">2本指で拡大・縮小、1本指で上下左右に移動できます。</div><div style="display:flex;gap:8px;margin-top:12px"><button type="button" onclick="closePhotoAdjust()">キャンセル</button><button type="button" onclick="applyPhotoAdjust()">決定</button></div></div></div>');const fr=document.getElementById('adjustFrame');fr.addEventListener('pointerdown',adjustDown);fr.addEventListener('pointermove',adjustMove);fr.addEventListener('pointerup',adjustUp);fr.addEventListener('pointercancel',adjustUp);fr.addEventListener('wheel',e=>{e.preventDefault();adjustScale=Math.max(1,Math.min(4,adjustScale+(e.deltaY<0?.1:-.1)));drawAdjust()},{passive:false});}
+function drawAdjust(){const im=document.getElementById('adjustImg');if(im)im.style.transform='translate('+adjustX+'px,'+adjustY+'px) scale('+adjustScale+')'}
+function openPhotoAdjust(i){const f=selectedPhotos[i];if(!f)return;ensureAdjustModal();adjustTarget={kind:'new',i:i};adjustScale=1;adjustX=0;adjustY=0;document.getElementById('adjustImg').src=URL.createObjectURL(f);document.getElementById('photoAdjustModal').style.display='block';drawAdjust()}
+function openPersistedAdjust(i){const p=window.persistedPhotos&&window.persistedPhotos[i];if(!p)return;ensureAdjustModal();adjustTarget={kind:'saved',i:i};adjustScale=1;adjustX=0;adjustY=0;document.getElementById('adjustImg').src=p.url;document.getElementById('photoAdjustModal').style.display='block';drawAdjust()}
+function closePhotoAdjust(){const m=document.getElementById('photoAdjustModal');if(m)m.style.display='none';adjustTarget=null}
+function adjustDown(e){e.currentTarget.setPointerCapture(e.pointerId);adjustStart={x:e.clientX,y:e.clientY,ox:adjustX,oy:adjustY}}
+function adjustMove(e){if(!adjustStart)return;adjustX=adjustStart.ox+e.clientX-adjustStart.x;adjustY=adjustStart.oy+e.clientY-adjustStart.y;drawAdjust()}
+function adjustUp(){adjustStart=null}
+async function applyPhotoAdjust(){const im=document.getElementById('adjustImg'),fr=document.getElementById('adjustFrame');if(!adjustTarget||!im.complete)return;const size=1000,c=document.createElement('canvas');c.width=c.height=size;const ctx=c.getContext('2d');const iw=im.naturalWidth,ih=im.naturalHeight,base=Math.max(size/iw,size/ih),sc=base*adjustScale,w=iw*sc,h=ih*sc;ctx.drawImage(im,(size-w)/2+adjustX*(size/fr.clientWidth),(size-h)/2+adjustY*(size/fr.clientWidth),w,h);const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.92));const file=new File([blob],'adjusted-'+Date.now()+'.jpg',{type:'image/jpeg'});if(adjustTarget.kind==='new'){selectedPhotos[adjustTarget.i]=file;syncPhotoInput();renderSelectedPhotos();closePhotoAdjust();return}try{const old=window.persistedPhotos[adjustTarget.i];const up=await BigPawBridge.upload(file,editId);if(old.isMain&&up.url)await BigPawBridge.updatePuppy(editId,{imageUrl:up.url});await BigPawAPI.request('/puppies/'+encodeURIComponent(editId)+'/photos/'+encodeURIComponent(old.id),{method:'DELETE'});window.persistedPhotos[adjustTarget.i]={id:up.id,url:up.url,isMain:old.isMain};renderPersistedPhotos();closePhotoAdjust()}catch(e){alert('写真の調整を保存できませんでした')}}
+'''
+ if marker in x and "function openPhotoAdjust(i)" not in x:x=x.replace(marker,editor+marker,1)
+ p.write_text(x,encoding='utf-8')
