@@ -484,6 +484,30 @@ py_compile.compile(str(p), doraise=True)
 print('MUTATION_AUTH_INSPECTION_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+# Internal breeder puppy and parent-dog collections are never buyer-readable.
+for route in ['/api/breeder/puppies','/api/parent-dogs']:
+    old="if path=='"+route+"':" + chr(10) + "            u=self.require(['buyer','breeder','operator']);"
+    new="if path=='"+route+"':" + chr(10) + "            u=self.require(['breeder','operator']);"
+    assert s.count(old)>=1, (route,s.count(old))
+    s=s.replace(old,new)
+# Generic upload endpoint: buyer may upload only when explicitly bound to their own inquiry flow later; current breeder-proof/puppy upload is internal.
+upload_old="if path=='/api/uploads':" + chr(10) + "            u=self.require(['buyer','breeder','operator']);"
+upload_new="if path=='/api/uploads':" + chr(10) + "            u=self.require(['breeder','operator']);"
+assert s.count(upload_old)==1, s.count(upload_old)
+s=s.replace(upload_old,upload_new,1)
+p.write_text(s,encoding='utf-8')
+for route in ['/api/breeder/puppies','/api/parent-dogs']:
+    assert ("if path=='"+route+"':" + chr(10) + "            u=self.require(['breeder','operator']);") in s
+assert upload_new in s
+import py_compile
+py_compile.compile(str(p), doraise=True)
+print('INTERNAL_MUTATION_AUTH_CHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
