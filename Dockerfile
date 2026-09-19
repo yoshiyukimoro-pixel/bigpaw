@@ -300,17 +300,17 @@ from pathlib import Path
 p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
 s=p.read_text(encoding='utf-8')
 # Buyers must never receive or edit internal breeder records.
-old="""if path=='/api/breeder-profile':\n            u=self.require(['buyer','breeder','operator']);"""
-new="""if path=='/api/breeder-profile':\n            u=self.require(['breeder','operator']);"""
+old="""if path=='/api/breeder-profile':
+            u=self.require(['buyer','breeder','operator']);"""
+new="""if path=='/api/breeder-profile':
+            u=self.require(['breeder','operator']);"""
 s=s.replace(old,new)
 # Favorites returned to buyers must use the public puppy serializer.
-s=s.replace("return self.send_json([puppy_json(r) for r in rows])\n        if path=='/api/inquiries':", "return self.send_json([public_puppy_json(r) for r in rows])\n        if path=='/api/inquiries':",1)
+s=s.replace("return self.send_json([puppy_json(r) for r in rows])\\n        if path=='/api/inquiries':", "return self.send_json([public_puppy_json(r) for r in rows])\\n        if path=='/api/inquiries':",1)
 # Buyer inquiry list must not expose the real kennel/breeder name.
 oldq="SELECT i.*,p.name puppy_name,p.breeder_name,p.price puppy_price FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE buyer_id=? ORDER BY i.created_at DESC"
-newq=\"SELECT i.*,p.name puppy_name,(CASE WHEN COALESCE(p.area,'')<>'' THEN p.area||'のBIGPAW認定ブリーダー' ELSE 'BIGPAW認定ブリーダー' END) breeder_name,p.price puppy_price FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE buyer_id=? ORDER BY i.created_at DESC\"
+newq="""SELECT i.*,p.name puppy_name,(CASE WHEN COALESCE(p.area,'')<>'' THEN p.area||'のBIGPAW認定ブリーダー' ELSE 'BIGPAW認定ブリーダー' END) breeder_name,p.price puppy_price FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE buyer_id=? ORDER BY i.created_at DESC"""
 s=s.replace(oldq,newq)
-# POST breeder profile is breeder/operator only as well.
-# There are two route occurrences; replacement above intentionally applies globally.
 p.write_text(s,encoding='utf-8')
 PY
 
