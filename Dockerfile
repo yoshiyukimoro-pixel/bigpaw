@@ -420,6 +420,24 @@ py_compile.compile(str(p), doraise=True)
 print('FAVORITES_PRIVACY_CHECK_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+print('=== INQUIRY + BILLING PRIVACY INSPECTION ===')
+for term in ["if path=='/api/inquiries'", "if path=='/api/breeder/billing-config'", "body.get('phone'", "body.get('email'"]:
+    print('---',term,'---')
+    start=0; hits=0
+    while True:
+        i=s.find(term,start)
+        if i<0: break
+        print(s[max(0,i-1600):i+3000]); hits+=1; start=i+len(term)
+    print('hits=',hits)
+import py_compile
+py_compile.compile(str(p), doraise=True)
+print('INQUIRY_BILLING_INSPECTION_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
