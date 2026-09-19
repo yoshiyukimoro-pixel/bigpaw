@@ -50,3 +50,10 @@ if p.exists():
    hits.append(t[max(0,i-700):i+1800].replace("\\n"," § "))
    start=i+len(needle)
  print("PHOTOINSPECT|"+" || ".join(hits[:12]))
+
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ t=p.read_text(encoding='utf-8')
+ for needle in ["window.persistedPhotos=ps","if(d.imageUrl)","renderPersistedPhotos","photoPreview.innerHTML"]:
+  i=t.find(needle)
+  print("UIEXACT|"+needle+"|"+(t[max(0,i-600):i+1800].replace("\\n"," § ") if i>=0 else "MISSING"))
