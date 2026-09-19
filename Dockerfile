@@ -306,14 +306,10 @@ new="""if path=='/api/breeder-profile':
             u=self.require(['breeder','operator']);"""
 s=s.replace(old,new)
 s=s.replace("return self.send_json([puppy_json(r) for r in rows])\\n        if path=='/api/inquiries':", "return self.send_json([public_puppy_json(r) for r in rows])\\n        if path=='/api/inquiries':",1)
-# Keep SQL unchanged and sanitize the buyer-facing breeder name after rows are fetched.
 needle="rows=con.execute('SELECT i.*,p.name puppy_name,p.breeder_name,p.price puppy_price FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE buyer_id=? ORDER BY i.created_at DESC',(u['id'],)).fetchall()"
-replacement=needle+"\\n                rows=[dict(r) for r in rows]\\n                for r in rows: r['breeder_name']=((r.get('area') or '')+'のBIGPAW認定ブリーダー') if r.get('area') else 'BIGPAW認定ブリーダー'"
-# Do not risk rewriting SQL quoting; if area is unavailable, use a neutral alias.
-replacement=needle+"\\n                rows=[dict(r) for r in rows]\\n                for r in rows: r['breeder_name']='BIGPAW認定ブリーダー'"
+replacement=needle + chr(10) + "                rows=[dict(r) for r in rows]" + chr(10) + "                for r in rows: r['breeder_name']='BIGPAW認定ブリーダー'"
 s=s.replace(needle,replacement)
 p.write_text(s,encoding='utf-8')
-# Compile the final file after it has been written.
 import py_compile
 py_compile.compile(str(p), doraise=True)
 PY
