@@ -279,3 +279,30 @@ if p.exists():
  legacy="""if(d.imageUrl)photoPreview.innerHTML='<div><img src=\\"'+d.imageUrl+'\\" style=\\"width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:14px\\"><small>現在のメイン写真</small></div>';"""
  if legacy in x:x=x.replace(legacy,"if(d.imageUrl&&!(window.persistedPhotos&&window.persistedPhotos.length))photoPreview.innerHTML='<div><img src=\\\"'+d.imageUrl+'\\\" style=\\\"width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:14px\\\"><small>現在のメイン写真</small></div>';if(window.persistedPhotos&&window.persistedPhotos.length)renderPersistedPhotos();",1)
  p.write_text(x,encoding='utf-8')
+
+
+# Definitive insertion of photo GET route at the top of do_GET (before any early return).
+p=Path('backend/server.py')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ route="""        m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            con=db(); puppy=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy: con.close(); return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b or puppy['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
+            rows=con.execute('SELECT id,stored_name,created_at FROM uploads WHERE puppy_id=? ORDER BY created_at,id',(puppy['id'],)).fetchall()
+            out=[{'id':r['id'],'url':'/uploads/'+r['stored_name'],'isMain':('/uploads/'+r['stored_name'])==puppy['image_url']} for r in rows]
+            con.close(); return self.send_json(out)
+"""
+ gs=x.find("    def do_GET(self):")
+ pe=x.find("    def do_POST(self):",gs)
+ if gs>=0 and pe>gs and "/photos',path)" not in x[gs:pe]:
+  pathline=x.find("        path=urlparse(self.path).path",gs,pe)
+  if pathline>=0:
+   end=x.find("\\n",pathline)+1
+   x=x[:end]+route+x[end:]
+ p.write_text(x,encoding='utf-8')
