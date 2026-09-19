@@ -78,4 +78,18 @@ html,body,main.finder{background:#fff!important}
 '''
  if 'bigpaw-kill-hidden-native-select' not in s:s=s.replace('</head>',kill+'</head>',1)
 
+
+ nuclear='''<style id="bigpaw-search-layer-reset">
+#bpv6Modal,#bpBreedModal,.breed-picker-overlay,.breed-picker-modal,[data-breed-picker-overlay]{display:none!important}
+.result-grid{position:relative!important;z-index:2147482000!important;background:#fff!important;isolation:isolate!important}
+.result-card{position:relative!important;z-index:2147482001!important;background:#fff!important;opacity:1!important;filter:none!important;mix-blend-mode:normal!important}
+.result-card,.result-card *{visibility:visible!important;opacity:1!important;filter:none!important}
+.sticky{z-index:2147483002!important}
+</style>
+<script id="bigpaw-search-layer-reset-js">
+(function(){function r(){document.querySelectorAll('#bpv6Modal,#bpBreedModal,.breed-picker-overlay,.breed-picker-modal,[data-breed-picker-overlay]').forEach(function(e){e.remove()});var g=document.querySelector('.result-grid');if(g){g.style.setProperty('z-index','2147482000','important');g.style.setProperty('position','relative','important')}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(r,0)});else setTimeout(r,0);window.addEventListener('pageshow',r)})();
+</script>
+'''
+ if 'bigpaw-search-layer-reset' not in s:s=s.replace('</head>',nuclear+'</head>',1)
+
  p.write_text(s,encoding='utf-8')
