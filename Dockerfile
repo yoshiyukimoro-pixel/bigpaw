@@ -508,6 +508,24 @@ py_compile.compile(str(p), doraise=True)
 print('INTERNAL_MUTATION_AUTH_CHECK_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+print('=== UPLOAD PROOF PRIVACY INSPECTION ===')
+for term in ["if path=='/api/uploads'", "UPLOADS", "registrationProofUrl", "[REGISTRATION_PROOF]", "'/uploads/'", '"/uploads/']:
+    print('---',term,'---')
+    start=0; hits=0
+    while True:
+        i=s.find(term,start)
+        if i<0: break
+        print(s[max(0,i-1800):i+4200]); hits+=1; start=i+len(term)
+    print('hits=',hits)
+import py_compile
+py_compile.compile(str(p), doraise=True)
+print('UPLOAD_PROOF_PRIVACY_INSPECTION_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
