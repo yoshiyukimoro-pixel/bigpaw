@@ -261,6 +261,16 @@ if needle in s and 'breeder_only_confirmation' not in s:
 p.write_text(s,encoding='utf-8')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+needle="import hashlib\n    room='BIGPAW-'"
+guard="""vr=con.execute(\"SELECT status,transport FROM visits WHERE inquiry_id=?\",(m.group(1),)).fetchone()\n    if not vr or vr['status'] != 'confirmed' or vr['transport'] != 'オンライン見学':\n        con.close(); return self.send_json({'error':'online_visit_not_confirmed'},403)\n    import hashlib\n    room='BIGPAW-'"""
+if needle in s and 'online_visit_not_confirmed' not in s:s=s.replace(needle,guard,1)
+p.write_text(s,encoding='utf-8')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
