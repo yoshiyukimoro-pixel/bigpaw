@@ -47,7 +47,14 @@ RUN python3 /tmp/inspect_flow2.py && cat inspection2.txt
 COPY breeder-flow-fix.py /tmp/breeder-flow-fix.py
 RUN python3 /tmp/breeder-flow-fix.py
 COPY mypage-state-fix.py /tmp/mypage-state-fix.py
-RUN python3 /tmp/mypage-state-fix.py
+RUN python3 /tmp/mypage-state-fix.py\nRUN python3 - <<'PY'
+from pathlib import Path
+p=Path('mypage.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8',errors='replace')
+ s=s.replace('掲載審査のお申し込みにはメール認証が必要です。','お問い合わせ・見学のお申し込みにはメール認証が必要です。')
+ p.write_text(s,encoding='utf-8')
+PY
 RUN python3 - <<'PY'
 from pathlib import Path
 p=Path('mypage.html'); s=p.read_text(encoding='utf-8',errors='replace')
