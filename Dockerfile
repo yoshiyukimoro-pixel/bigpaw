@@ -329,6 +329,25 @@ for term in ["INSERT INTO messages","INSERT INTO inquiries","/api/breeder-applic
         start=i+len(term)
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+# Critical: breeder application review must require an authenticated operator and normal origin validation.
+s=s.replace("if not re.fullmatch(r'/api/breeder-applications/[^/]+',path) and not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)", "if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)")
+s=s.replace("m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)\\n        if m:\\n            u={'role':'operator'}", "m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)\\n        if m:\\n            u=self.require(['operator'])\\n            if not u:return")
+# Internal breeder-management endpoints are not buyer APIs.
+s=s.replace("if path=='/api/breeder/puppies':\\n            u=self.require(['buyer','breeder','operator']);", "if path=='/api/breeder/puppies':\\n            u=self.require(['breeder','operator']);")
+s=s.replace("if path=='/api/parent-dogs':\\n            u=self.require(['buyer','breeder','operator']);", "if path=='/api/parent-dogs':\\n            u=self.require(['breeder','operator']);")
+s=s.replace("if path=='/api/health-records':\\n            u=self.require(['buyer','breeder','operator']);", "if path=='/api/health-records':\\n            u=self.require(['breeder','operator']);")
+p.write_text(s,encoding='utf-8')
+# Mandatory pre-production checks for every code change.
+assert "u={'role':'operator'}" not in s[s.find("m=re.fullmatch(r'/api/breeder-applications/"):s.find("m=re.fullmatch(r'/api/breeder-applications/")+500]
+assert "u=self.require(['operator'])" in s[s.find("m=re.fullmatch(r'/api/breeder-applications/"):s.find("m=re.fullmatch(r'/api/breeder-applications/")+500]
+import py_compile
+py_compile.compile(str(p), doraise=True)
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
