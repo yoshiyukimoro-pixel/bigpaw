@@ -281,6 +281,20 @@ if needle in s and 'outside_online_visit_window' not in s:s=s.replace(needle,gua
 p.write_text(s,encoding='utf-8')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+for term in ['/api/breeder-profile','/api/favorites','breeder_name','breeder-applications','def inquiry_for_user']:
+ print('\\n=== SECURITY INSPECT',term,'===')
+ start=0
+ while True:
+  i=s.find(term,start)
+  if i<0: break
+  print(s[max(0,i-900):i+1800])
+  start=i+len(term)
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
