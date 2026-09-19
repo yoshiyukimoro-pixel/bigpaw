@@ -68,4 +68,14 @@ html,body,main.finder{background:#fff!important}
 '''
  if 'bigpaw-ios-backdrop-fix' not in s:s=s.replace('</head>',fix+'</head>',1)
 
+
+ kill='''<style id="bigpaw-kill-hidden-native-select">
+#fBreed{display:none!important;opacity:1!important;position:static!important;width:auto!important;height:auto!important}
+</style>
+<script id="bigpaw-kill-select-layer">
+(function(){function k(){var s=document.getElementById('fBreed');if(s){s.style.setProperty('display','none','important');s.style.setProperty('opacity','1','important');s.style.setProperty('pointer-events','none','important');s.style.setProperty('position','static','important');s.blur&&s.blur()}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',k);else k();window.addEventListener('pageshow',k)})();
+</script>
+'''
+ if 'bigpaw-kill-hidden-native-select' not in s:s=s.replace('</head>',kill+'</head>',1)
+
  p.write_text(s,encoding='utf-8')
