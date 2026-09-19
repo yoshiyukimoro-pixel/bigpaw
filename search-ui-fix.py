@@ -10,4 +10,16 @@ if p.exists():
  # Clear stale open-state classes/inline overlays on page show (including Safari bfcache).
  js='''<script id="bigpaw-search-overlay-reset">\n(function(){function reset(){document.body.classList.remove('breed-picker-open','modal-open','no-scroll');document.querySelectorAll('.breed-picker-overlay,.breed-picker-modal,[data-breed-picker-overlay],#bpv6Modal,#bpBreedModal').forEach(function(e){e.style.display='none';e.style.pointerEvents='none';e.style.opacity='0'})}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',reset);else reset();window.addEventListener('pageshow',reset)})();\n</script>\n'''
  if 'bigpaw-search-overlay-reset' not in s:s=s.replace('</body>',js+'</body>',1)
+
+ # iOS Safari/bfcache hard reset: search content itself must always render fully opaque and interactive.
+ hard='''<style id="bigpaw-search-ios-visibility">
+html,body{opacity:1!important;visibility:visible!important;filter:none!important}
+main.finder,.filter-card,.result-grid,.result-card,.sticky{opacity:1!important;visibility:visible!important;filter:none!important;pointer-events:auto!important}
+</style>
+<script id="bigpaw-search-ios-reset">
+(function(){function hardReset(){var a=[document.documentElement,document.body,document.querySelector('main.finder'),document.querySelector('.filter-card'),document.querySelector('.result-grid')];a.forEach(function(e){if(!e)return;e.style.opacity='1';e.style.visibility='visible';e.style.filter='none';e.style.pointerEvents='auto'});document.querySelectorAll('.result-card').forEach(function(e){e.style.opacity='1';e.style.visibility='visible';e.style.filter='none';e.style.pointerEvents='auto'})}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',hardReset);else hardReset();window.addEventListener('pageshow',hardReset);window.addEventListener('focus',hardReset)})();
+</script>
+'''
+ if 'bigpaw-search-ios-visibility' not in s:s=s.replace('</body>',hard+'</body>',1)
+
  p.write_text(s,encoding='utf-8')
