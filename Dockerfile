@@ -305,17 +305,17 @@ old="""if path=='/api/breeder-profile':
 new="""if path=='/api/breeder-profile':
             u=self.require(['breeder','operator']);"""
 s=s.replace(old,new)
-# Favorites returned to buyers must use the public puppy serializer.
 s=s.replace("return self.send_json([puppy_json(r) for r in rows])\\n        if path=='/api/inquiries':", "return self.send_json([public_puppy_json(r) for r in rows])\\n        if path=='/api/inquiries':",1)
-# Buyer inquiry list must not expose the real kennel/breeder name.
-oldq="SELECT i.*,p.name puppy_name,p.breeder_name,p.price puppy_price FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE buyer_id=? ORDER BY i.created_at DESC"
-newq="SELECT i.*,p.name puppy_name,(CASE WHEN COALESCE(p.area,CHAR(39)||CHAR(39))<>CHAR(39)||CHAR(39) THEN p.area||'のBIGPAW認定ブリーダー' ELSE 'BIGPAW認定ブリーダー' END) breeder_name,p.price puppy_price FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE buyer_id=? ORDER BY i.created_at DESC"
-s=s.replace(oldq,newq)
-
-# Fail the image build before deployment if patched server.py is not valid Python.
+# Keep SQL unchanged and sanitize the buyer-facing breeder name after rows are fetched.
+needle="rows=con.execute('SELECT i.*,p.name puppy_name,p.breeder_name,p.price puppy_price FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE buyer_id=? ORDER BY i.created_at DESC',(u['id'],)).fetchall()"
+replacement=needle+"\\n                rows=[dict(r) for r in rows]\\n                for r in rows: r['breeder_name']=((r.get('area') or '')+'のBIGPAW認定ブリーダー') if r.get('area') else 'BIGPAW認定ブリーダー'"
+# Do not risk rewriting SQL quoting; if area is unavailable, use a neutral alias.
+replacement=needle+"\\n                rows=[dict(r) for r in rows]\\n                for r in rows: r['breeder_name']='BIGPAW認定ブリーダー'"
+s=s.replace(needle,replacement)
+p.write_text(s,encoding='utf-8')
+# Compile the final file after it has been written.
 import py_compile
 py_compile.compile(str(p), doraise=True)
-p.write_text(s,encoding='utf-8')
 PY
 
 ENV PORT=8080
