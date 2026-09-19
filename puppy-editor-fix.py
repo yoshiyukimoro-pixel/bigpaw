@@ -29,3 +29,11 @@ if p.exists():
  x=x.replace("let editId=new URLSearchParams(location.search).get('id')||sessionStorage.getItem('bigpawEditPuppyId');","let editId=new URLSearchParams(location.search).get('id')||sessionStorage.getItem('bigpawEditPuppyId');")
  x=x.replace("const d=ds.find(x=>String(x.id)===String(editId))||ds.find(x=>String(x.id)===String(sessionStorage.getItem('bigpawEditPuppyId')||''));","let d=ds.find(x=>String(x.id)===String(editId))||ds.find(x=>String(x.id)===String(sessionStorage.getItem('bigpawEditPuppyId')||''));if(!d&&ds.length===1)d=ds[0];")
  p.write_text(x,encoding='utf-8')
+
+# Correct the literal broken anchor produced by the original dashboard template.
+a=Path('admin.html')
+if a.exists():
+ x=a.read_text(encoding='utf-8')
+ x=x.replace('href="breeder-puppy-new.html?id=\'+encodeURIComponent(d.id)+\'"','href="breeder-puppy-new.html?id=${encodeURIComponent(d.id)}"')
+ x=x.replace('href="breeder-puppy-new.html?id=\'+p.id+\'"','href="breeder-puppy-new.html?id=${encodeURIComponent(d.id)}"')
+ a.write_text(x,encoding='utf-8')
