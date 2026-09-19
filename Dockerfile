@@ -65,6 +65,8 @@ RUN python3 -c "from pathlib import Path; files=[Path('search.html')]+list(Path(
 RUN python3 -c "from pathlib import Path; files=[Path('search.html')]+list(Path('assets').glob('*.css'))+list(Path('assets').glob('*.js')); terms=['::before','::after','position:absolute','z-index:','rgba(255,255,255','opacity:0.','opacity: 0.']; [(print('MASKTRACE|'+str(p)+'|'+term+'|'+t[max(0,i-900):i+2200].replace(chr(10),' '))) for p in files if p.exists() for t in [p.read_text(encoding='utf-8',errors='ignore')] for term in terms for i in [t.lower().find(term.lower())] if i>=0]"
 COPY final-inspect.py /tmp/final-inspect.py
 RUN python3 /tmp/final-inspect.py && cat final-inspection.txt && cat delete-inspection.txt
+COPY detail-gallery-fix.py /tmp/detail-gallery-fix.py
+RUN python3 /tmp/detail-gallery-fix.py
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
