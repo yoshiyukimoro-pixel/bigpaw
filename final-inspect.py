@@ -68,3 +68,10 @@ if p.exists():
  t=p.read_text(encoding='utf-8')
  i=t.find("m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)")
  print("PHOTOROUTELOC|"+t[max(0,i-1800):i+2600].replace("\\n"," § "))
+
+p=Path('backend/server.py')
+if p.exists():
+ t=p.read_text(encoding='utf-8')
+ gs=t.find("    def do_GET(self):"); pe=t.find("    def do_POST(self):",gs)
+ sec=t[gs:pe]
+ print("GETVERIFY|photos="+str("/photos',path)" in sec)+"|idx="+str(sec.find("/photos',path)"))+"|"+sec[:4500].replace("\\n"," § "))
