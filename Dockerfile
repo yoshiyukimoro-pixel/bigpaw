@@ -558,6 +558,22 @@ assert "u['role']=='buyer' and puppy_id!='breeder-proof'" in p.read_text(encodin
 print('BREEDER_PROOF_UPLOAD_FLOW_CHECK_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
+s=p.read_text(encoding='utf-8')
+x="if clean.startswith('/uploads/'):"+chr(10)+"            name=Path(clean).name"+chr(10)+"            return str(UPLOADS / name)"
+assert x in s, 'public uploads route anchor missing'
+y="if clean.startswith('/uploads/'):"+chr(10)+"            name=Path(clean).name"+chr(10)+"            con=db(); hidden=con.execute('SELECT 1 FROM uploads WHERE stored_name=? AND puppy_id IS NULL LIMIT 1',(name,)).fetchone(); con.close()"+chr(10)+"            if hidden: return str(ROOT / '__not_public__')"+chr(10)+"            return str(UPLOADS / name)"
+s=s.replace(x,y,1)
+p.write_text(s,encoding='utf-8')
+import py_compile; py_compile.compile(str(p),doraise=True)
+q=p.read_text(encoding='utf-8')
+assert "hidden=con.execute('SELECT 1 FROM uploads WHERE stored_name=? AND puppy_id IS NULL LIMIT 1'" in q
+assert "__not_public__" in q
+print('PRIVATE_PROOF_STATIC_CHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
