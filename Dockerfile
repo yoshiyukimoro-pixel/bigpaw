@@ -335,7 +335,7 @@ p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
 s=p.read_text(encoding='utf-8')
 # Critical: breeder application review must require an authenticated operator and normal origin validation.
 s=s.replace("if not re.fullmatch(r'/api/breeder-applications/[^/]+',path) and not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)", "if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)")
-s=s.replace("m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)\\n        if m:\\n            u={'role':'operator'}", "m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)\\n        if m:\\n            u=self.require(['operator'])\\n            if not u:return")
+s=s.replace("m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)" + chr(10) + "        if m:" + chr(10) + "            u={'role':'operator'}", "m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)" + chr(10) + "        if m:" + chr(10) + "            u=self.require(['operator'])" + chr(10) + "            if not u:return")
 # Internal breeder-management endpoints are not buyer APIs.
 s=s.replace("if path=='/api/breeder/puppies':\\n            u=self.require(['buyer','breeder','operator']);", "if path=='/api/breeder/puppies':\\n            u=self.require(['breeder','operator']);")
 s=s.replace("if path=='/api/parent-dogs':\\n            u=self.require(['buyer','breeder','operator']);", "if path=='/api/parent-dogs':\\n            u=self.require(['breeder','operator']);")
