@@ -634,6 +634,18 @@ import py_compile; py_compile.compile(str(root/'backend/server.py'),doraise=True
 print('OPERATOR_APPLICATION_UI_INSPECTION_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+for name in ['operator-admin.html','operator-breeders.html','operator-breeder-applications.html']:
+ p=root/name
+ if p.exists():
+  t=p.read_text(encoding='utf-8')
+  print('TARGET',name,'LEN',len(t),'apps',t.count('breeder-applications'),'proof',t.count('REGISTRATION_PROOF'))
+import py_compile; py_compile.compile(str(root/'backend/server.py'),doraise=True)
+print('OPERATOR_PROOF_UI_TARGET_CHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
