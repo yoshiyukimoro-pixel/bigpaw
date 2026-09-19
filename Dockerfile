@@ -223,6 +223,17 @@ if old in s:s=s.replace(old,new)
 p.write_text(s,encoding='utf-8')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/online-visit.html')
+s=p.read_text(encoding='utf-8')
+if 'オンライン見学を申し込む' not in s:
+    s=s.replace('<button id="joinBtn"', '<div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px"><h2>オンライン見学の日時</h2><p>購入希望者から希望日時を送り、ブリーダーが確認して確定します。</p><label>希望日 <input id="videoDate" type="date"></label> <label>希望時間 <input id="videoTime" type="time"></label><button type="button" onclick="requestOnlineVisit()">オンライン見学を申し込む</button><p id="videoStatus"></p></div><button id="joinBtn"',1)
+    js='async function requestOnlineVisit(){const q=new URLSearchParams(location.search).get("inquiry"),d=document.getElementById("videoDate").value,t=document.getElementById("videoTime").value;if(!q||!d||!t){alert("希望日と時間を選んでください");return}const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/visit",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({date:d,time:t,transport:"オンライン見学",status:"proposed",faceToFaceConfirmed:false})});document.getElementById("videoStatus").textContent=r.ok?"オンライン見学を申し込みました。ブリーダーの確認をお待ちください。":"申し込みを送信できませんでした。"}'
+    s=s.replace('async function joinRoom()',js+'\\nasync function joinRoom()',1)
+p.write_text(s,encoding='utf-8')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
