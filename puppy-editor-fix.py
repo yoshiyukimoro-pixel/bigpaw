@@ -86,3 +86,18 @@ photo.onchange=()=>{selectedPhotos=[...photo.files].slice(0,10);syncPhotoInput()
 '''
  if marker in x and "function makeMain(i)" not in x:x=x.replace(marker,code+marker,1)
  p.write_text(x,encoding='utf-8')
+
+# Existing-photo editor: show registered main photo with replace/remove controls.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ old="if(d.imageUrl)photoPreview.innerHTML='<div><img src=\\\"'+d.imageUrl+'\\\" style=\\\"width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:14px\\\"><small>現在のメイン写真</small></div><div class=\\\"muted\\\" style=\\\"grid-column:1/-1\\\">新しい写真を選ぶとプレビューがここに表示されます。</div>';"
+ new="""if(d.imageUrl){window.existingMainImage=d.imageUrl;photoPreview.innerHTML='<div id="existingMainPhoto" style="border:1px solid #eee;border-radius:14px;padding:8px"><img src="'+d.imageUrl+'" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px"><small style="display:block">現在のメイン写真</small><button type="button" onclick="removeExistingMain()" style="margin-top:6px">この写真を削除</button></div><div class="muted" style="grid-column:1/-1">新しい写真を選ぶと、選んだ1枚目をメイン写真として差し替えできます。</div>';}"""
+ if old in x:x=x.replace(old,new)
+ marker="async function initEdit(){"
+ helper="""function removeExistingMain(){if(!confirm('現在のメイン写真を削除しますか？'))return;window.existingMainImage='';const e=document.getElementById('existingMainPhoto');if(e)e.remove();window.removeExistingMainRequested=true;}\n"""
+ if marker in x and "function removeExistingMain()" not in x:x=x.replace(marker,helper+marker,1)
+ # Persist clearing the current main photo when no replacement was selected.
+ needle="let puppy=editId?await BigPawBridge.updatePuppy(editId,{"
+ if needle in x:x=x.replace(needle,"if(editId&&window.removeExistingMainRequested&&photo.files.length===0)await BigPawBridge.updatePuppy(editId,{imageUrl:''});\nlet puppy=editId?await BigPawBridge.updatePuppy(editId,{",1)
+ p.write_text(x,encoding='utf-8')
