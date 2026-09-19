@@ -712,6 +712,19 @@ assert "if not origin: return True" in x
 print('BUYER_REGISTRATION_ORIGIN_FIX_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'backend/server.py'; t=p.read_text(encoding='utf-8')
+print('=== PROOF ROUTE AND OPERATOR UI FINAL PRECHECK ===')
+for term in ["/api/operator/breeder-proof/", "if path=='/api/breeder-applications':"]:
+ i=t.find(term); assert i>=0, term+' missing'; print(t[max(0,i-1400):i+4200])
+q=root/'operator-breeders.html'; assert q.exists(); x=q.read_text(encoding='utf-8')
+for term in ['REGISTRATION_PROOF','breeder-applications']:
+ i=x.find(term); assert i>=0, term+' UI missing'; print(x[max(0,i-1800):i+4500])
+import py_compile; py_compile.compile(str(p),doraise=True)
+print('PROOF_FINAL_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
