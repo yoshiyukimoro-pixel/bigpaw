@@ -37,3 +37,13 @@ if a.exists():
  x=x.replace('href="breeder-puppy-new.html?id=\'+encodeURIComponent(d.id)+\'"','href="breeder-puppy-new.html?id=${encodeURIComponent(d.id)}"')
  x=x.replace('href="breeder-puppy-new.html?id=\'+p.id+\'"','href="breeder-puppy-new.html?id=${encodeURIComponent(d.id)}"')
  a.write_text(x,encoding='utf-8')
+
+# Polish edit-mode labels and add delete control in the editor.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ x=x.replace("document.querySelector('h1').textContent='子犬情報を編集';editOnly.style.display='block';","document.querySelector('h1').textContent='子犬情報を編集';const bc=document.querySelector('.breadcrumb');if(bc)bc.innerHTML='<a href=\"admin.html\">管理画面</a> ＞ 子犬情報を編集';editOnly.style.display='block';")
+ x=x.replace("<button class=\"btn btn-main btn-wide\">この内容で掲載する</button>","<button class=\"btn btn-main btn-wide\">この内容で掲載する</button><button id=\"deletePuppyBtn\" type=\"button\" class=\"btn btn-sub btn-wide\" style=\"display:none;margin-top:10px\" onclick=\"deleteCurrentPuppy()\">この子犬の掲載を削除</button>")
+ x=x.replace("document.querySelector('.btn-wide').textContent='変更を保存する';","document.querySelector('.btn-wide').textContent='変更を保存する';const db=document.getElementById('deletePuppyBtn');if(db)db.style.display='block';")
+ x=x.replace("initEdit();","async function deleteCurrentPuppy(){if(!editId||!confirm('この子犬の掲載を削除しますか？'))return;try{await BigPawAPI.request('/puppies/'+encodeURIComponent(editId),{method:'DELETE'});location.href='admin.html'}catch(e){alert('削除できませんでした')}}\ninitEdit();",1)
+ p.write_text(x,encoding='utf-8')
