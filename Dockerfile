@@ -617,6 +617,23 @@ assert "Cache-Control','private, no-store'" in q
 print('OPERATOR_PRIVATE_PROOF_ROUTE_CHECK_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+print('=== OPERATOR APPLICATION UI INSPECTION ===')
+for p in root.rglob('*'):
+    if not p.is_file() or p.suffix.lower() not in ('.html','.js'): continue
+    try: t=p.read_text(encoding='utf-8')
+    except: continue
+    if '/api/breeder-applications' in t or 'REGISTRATION_PROOF' in t or '掲載審査' in t:
+        print('FILE',p.relative_to(root))
+        for term in ['/api/breeder-applications','REGISTRATION_PROOF','掲載審査']:
+            i=t.find(term)
+            if i>=0: print(t[max(0,i-1400):i+3200])
+import py_compile; py_compile.compile(str(root/'backend/server.py'),doraise=True)
+print('OPERATOR_APPLICATION_UI_INSPECTION_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
