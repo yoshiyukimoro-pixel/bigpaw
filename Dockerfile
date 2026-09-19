@@ -213,6 +213,16 @@ s=s.replace('</body>','<script src="assets/api.js"></script><script src="https:/
 p.write_text(s,encoding='utf-8')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/online-visit.html')
+s=p.read_text(encoding='utf-8')
+old='new JitsiMeetExternalAPI("meet.jit.si",{roomName:v.room,parentNode:room,width:"100%",height:"100%",configOverwrite:{prejoinPageEnabled:true},interfaceConfigOverwrite:{MOBILE_APP_PROMO:false}})'
+new='''const api=new JitsiMeetExternalAPI("meet.jit.si",{roomName:v.room,parentNode:room,width:"100%",height:"100%",configOverwrite:{prejoinPageEnabled:true,startWithAudioMuted:false,startWithVideoMuted:false},interfaceConfigOverwrite:{MOBILE_APP_PROMO:false}});api.addListener("videoConferenceJoined",()=>{console.log("BIGPAW_VIDEO_JOINED")});api.addListener("cameraError",e=>{alert("カメラを利用できません。ブラウザのカメラ許可を確認してください。")});api.addListener("micError",e=>{alert("マイクを利用できません。ブラウザのマイク許可を確認してください。")});api.addListener("readyToClose",()=>{location.href="messages.html?inquiry="+encodeURIComponent(q)})'''
+if old in s:s=s.replace(old,new)
+p.write_text(s,encoding='utf-8')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
