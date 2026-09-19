@@ -309,8 +309,12 @@ s=s.replace(old,new)
 s=s.replace("return self.send_json([puppy_json(r) for r in rows])\\n        if path=='/api/inquiries':", "return self.send_json([public_puppy_json(r) for r in rows])\\n        if path=='/api/inquiries':",1)
 # Buyer inquiry list must not expose the real kennel/breeder name.
 oldq="SELECT i.*,p.name puppy_name,p.breeder_name,p.price puppy_price FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE buyer_id=? ORDER BY i.created_at DESC"
-newq="""SELECT i.*,p.name puppy_name,(CASE WHEN COALESCE(p.area,'')<>'' THEN p.area||'のBIGPAW認定ブリーダー' ELSE 'BIGPAW認定ブリーダー' END) breeder_name,p.price puppy_price FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE buyer_id=? ORDER BY i.created_at DESC"""
+newq="SELECT i.*,p.name puppy_name,(CASE WHEN COALESCE(p.area,CHAR(39)||CHAR(39))<>CHAR(39)||CHAR(39) THEN p.area||'のBIGPAW認定ブリーダー' ELSE 'BIGPAW認定ブリーダー' END) breeder_name,p.price puppy_price FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE buyer_id=? ORDER BY i.created_at DESC"
 s=s.replace(oldq,newq)
+
+# Fail the image build before deployment if patched server.py is not valid Python.
+import py_compile
+py_compile.compile(str(p), doraise=True)
 p.write_text(s,encoding='utf-8')
 PY
 
