@@ -101,3 +101,38 @@ if p.exists():
  needle="let puppy=editId?await BigPawBridge.updatePuppy(editId,{"
  if needle in x:x=x.replace(needle,"if(editId&&window.removeExistingMainRequested&&photo.files.length===0)await BigPawBridge.updatePuppy(editId,{imageUrl:''});\nlet puppy=editId?await BigPawBridge.updatePuppy(editId,{",1)
  p.write_text(x,encoding='utf-8')
+
+# Add authenticated owner-only puppy DELETE endpoint.
+p=Path('backend/server.py')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ anchor="        if path=='/api/me':\n            u=self.require()"
+ block="""        m=re.fullmatch(r'/api/puppies/([^/]+)',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            con=db(); puppy=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy: con.close(); return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b or puppy['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
+            # Do not hard-delete a puppy already referenced by a transaction.
+            if con.execute('SELECT 1 FROM inquiries WHERE puppy_id=? LIMIT 1',(puppy['id'],)).fetchone() or con.execute('SELECT 1 FROM deals WHERE puppy_id=? LIMIT 1',(puppy['id'],)).fetchone():
+                con.close(); return self.send_json({'error':'puppy_has_transactions','message':'問い合わせ・取引履歴があるため削除できません。非公開に変更してください。'},409)
+            uploads=con.execute('SELECT stored_name FROM uploads WHERE puppy_id=?',(puppy['id'],)).fetchall()
+            con.execute('DELETE FROM uploads WHERE puppy_id=?',(puppy['id'],))
+            con.execute('DELETE FROM favorites WHERE puppy_id=?',(puppy['id'],))
+            con.execute('DELETE FROM puppies WHERE id=?',(puppy['id'],))
+            audit(con,u['id'],'puppy_deleted','puppy',puppy['id'])
+            con.commit(); con.close()
+            for row in uploads:
+                try:(UPLOADS / row['stored_name']).unlink(missing_ok=True)
+                except Exception:pass
+            return self.send_json({'ok':True})
+"""
+ # insert only into do_DELETE section, before /api/me
+ pos=x.find("    def do_DELETE(self):")
+ if pos>=0 and "puppy_has_transactions" not in x[pos:x.find("    def do_PATCH",pos)]:
+  a=x.find(anchor,pos)
+  if a>=0:x=x[:a]+block+x[a:]
+ p.write_text(x,encoding='utf-8')
