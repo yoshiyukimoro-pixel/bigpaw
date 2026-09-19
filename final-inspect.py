@@ -57,3 +57,14 @@ if p.exists():
  for needle in ["window.persistedPhotos=ps","if(d.imageUrl)","renderPersistedPhotos","photoPreview.innerHTML"]:
   i=t.find(needle)
   print("UIEXACT|"+needle+"|"+(t[max(0,i-600):i+1800].replace("\\n"," § ") if i>=0 else "MISSING"))
+
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ t=p.read_text(encoding='utf-8')
+ i=t.find("async function initEdit")
+ print("EDITFULL|"+t[i:i+7000].replace("\\n"," § "))
+p=Path('backend/server.py')
+if p.exists():
+ t=p.read_text(encoding='utf-8')
+ i=t.find("m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)")
+ print("PHOTOROUTELOC|"+t[max(0,i-1800):i+2600].replace("\\n"," § "))
