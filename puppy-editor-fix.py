@@ -55,3 +55,18 @@ if p.exists():
  x=x.replace('<b>写真を追加（最大10枚）</b><span class="muted">1枚目がメイン写真です。JPG / PNG / WebP・各8MBまで</span>','<b>写真を編集（最大10枚）</b><span class="muted">1枚目がメイン写真です。写真を選び直すとメイン写真から順に差し替えます。JPG / PNG / WebP・各8MBまで</span>')
  x=x.replace("'<small>現在のメイン写真</small></div>'","'<small>現在のメイン写真</small></div><div class=\\\"muted\\\" style=\\\"grid-column:1/-1\\\">新しい写真を選ぶとプレビューがここに表示されます。</div>'")
  p.write_text(x,encoding='utf-8')
+
+# Add client-side photo ordering/main selection/removal for newly selected photos.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ old="photo.addEventListener('change',()=>{photoPreview.innerHTML=[...photo.files].slice(0,10).map((f,i)=>'<div><img src=\\\"'+URL.createObjectURL(f)+'\\\" style=\\\"width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:14px\\\"><small>'+(i===0?'メイン写真':'写真 '+(i+1))+'</small></div>').join('')});"
+ new="""let selectedPhotos=[];
+function syncPhotoInput(){const dt=new DataTransfer();selectedPhotos.forEach(f=>dt.items.add(f));photo.files=dt.files}
+function renderSelectedPhotos(){photoPreview.innerHTML=selectedPhotos.map((f,i)=>'<div style="border:1px solid #eee;border-radius:14px;padding:8px"><img src="'+URL.createObjectURL(f)+'" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px"><small style="display:block">'+(i===0?'メイン写真':'写真 '+(i+1))+'</small><div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px"><button type="button" class="btn btn-sub" onclick="makeMain('+i+')">メインにする</button><button type="button" class="btn btn-sub" onclick="movePhoto('+i+',-1)">←</button><button type="button" class="btn btn-sub" onclick="movePhoto('+i+',1)">→</button><button type="button" class="btn btn-sub" onclick="removePhoto('+i+')">削除</button></div></div>').join('')}
+function makeMain(i){const f=selectedPhotos.splice(i,1)[0];selectedPhotos.unshift(f);syncPhotoInput();renderSelectedPhotos()}
+function movePhoto(i,n){const j=i+n;if(j<0||j>=selectedPhotos.length)return;[selectedPhotos[i],selectedPhotos[j]]=[selectedPhotos[j],selectedPhotos[i]];syncPhotoInput();renderSelectedPhotos()}
+function removePhoto(i){selectedPhotos.splice(i,1);syncPhotoInput();renderSelectedPhotos()}
+photo.addEventListener('change',()=>{selectedPhotos=[...photo.files].slice(0,10);syncPhotoInput();renderSelectedPhotos()});"""
+ if old in x:x=x.replace(old,new)
+ p.write_text(x,encoding='utf-8')
