@@ -1098,6 +1098,36 @@ assert "body.get('status') == 'confirmed' and u.get('role') not in ('breeder','o
 print('ONLINE_VISIT_BREEDER_UI_PRECHECK_OK')
 PY
 
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
+# Current page calls /api/me only inside the pending-visit branch; confirmed/other state can therefore keep buyer copy for breeders.
+assert 'const me=await fetch("/api/me"' in s and 'visitTitle' in s
+# Apply breeder copy immediately on page load, independent of visit status.
+js='''<script id="breederVisitView">
+(async()=>{try{
+ const r=await fetch("/api/me",{credentials:"same-origin"});if(!r.ok)return;
+ const z=await r.json(),u=z.user||z||{},role=u.role||z.role;
+ if(role!=="breeder"&&role!=="operator")return;
+ const t=document.getElementById("visitTitle"),lead=document.getElementById("visitLead"),dt=document.getElementById("visitDateTitle"),dl=document.getElementById("visitDateLead"),req=document.getElementById("requestVideoBtn"),cf=document.getElementById("confirmVideoBtn");
+ if(t)t.textContent="オンライン見学の申込み確認";
+ if(lead)lead.textContent="購入希望者からオンライン見学の申込みが届いています。希望日時を確認して確定してください。";
+ if(dt)dt.textContent="購入希望者の希望日時";
+ if(dl)dl.textContent="購入希望者から届いた希望日時です。内容を確認して見学日時を確定してください。";
+ if(req)req.style.display="none";
+ if(cf)cf.textContent="この日時で見学を確定する";
+}catch(e){console.error("breeder visit view",e)}})();
+</script>'''
+assert '</body>' in s
+if 'breederVisitView' not in s:s=s.replace('</body>',js+'</body>',1)
+p.write_text(s,encoding='utf-8'); x=p.read_text(encoding='utf-8')
+assert 'breederVisitView' in x and 'オンライン見学の申込み確認' in x and 'req.style.display="none"' in x
+srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True)
+print('BREEDER_VISIT_VIEW_ALWAYS_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
