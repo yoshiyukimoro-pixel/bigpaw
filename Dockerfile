@@ -1444,3 +1444,6 @@ CMD ["python3", "backend/server.py"]
 # Rebuild puppy detail page cleanly after all legacy patches
 COPY puppy-detail-v2-build.py /tmp/puppy-detail-v2-build.py
 RUN python3 /tmp/puppy-detail-v2-build.py
+
+# Temporary startup trace: inserted after __future__ import so syntax remains valid
+RUN python3 -c "from pathlib import Path; p=Path('backend/server.py'); s=p.read_text(encoding='utf-8'); k='from __future__ import annotations'; d='\\nimport faulthandler\\nfaulthandler.enable()\\nfaulthandler.dump_traceback_later(20, repeat=True)\\n'; assert k in s; p.write_text(s.replace(k,k+d,1),encoding='utf-8')"
