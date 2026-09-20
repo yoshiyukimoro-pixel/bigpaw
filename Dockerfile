@@ -1128,6 +1128,30 @@ srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True)
 print('BREEDER_VISIT_VIEW_ALWAYS_PRECHECK_OK')
 PY
 
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
+# Inspect exact current controls and status logic before changing.
+assert 'id="confirmVideoBtn"' in s and 'id="joinBtn"' in s
+assert '日時確定後、この画面からオンライン見学に参加できます。' in s
+assert 'breederVisitView' in s
+# Give the informational note an id so breeder mode can hide it.
+s=s.replace('<div class="note">日時確定後、この画面からオンライン見学に参加できます。</div>','<div class="note" id="buyerJoinNote">日時確定後、この画面からオンライン見学に参加できます。</div>',1)
+# In breeder mode always expose confirmation when the visit is not confirmed; hide buyer-only note.
+needle='if(req)req.style.display="none";\n if(cf)cf.textContent="この日時で見学を確定する";'
+assert needle in s
+repl='if(req)req.style.display="none";\n const note=document.getElementById("buyerJoinNote");if(note)note.style.display="none";\n if(cf){cf.textContent="この日時で見学を確定する";const q=new URLSearchParams(location.search).get("inquiry");if(q){const vr=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/visit",{credentials:"same-origin"});if(vr.ok){const vv=await vr.json();cf.style.display=(vv.status==="confirmed"?"none":"inline-block")}}}'
+s=s.replace(needle,repl,1)
+p.write_text(s,encoding='utf-8'); x=p.read_text(encoding='utf-8')
+assert 'id="buyerJoinNote"' in x and 'note.style.display="none"' in x
+assert 'cf.style.display=(vv.status==="confirmed"?"none":"inline-block")' in x
+srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True); b=srv.read_text(encoding='utf-8')
+assert "body.get('status') == 'confirmed' and u.get('role') not in ('breeder','operator')" in b
+print('BREEDER_CONFIRM_BUTTON_NOTE_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
