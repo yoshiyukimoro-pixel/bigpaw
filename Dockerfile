@@ -1216,6 +1216,38 @@ for q in ['Join in browser','同時に入室する必要はありません','PIN
     assert q in x
 print('ONLINE_VISIT_CONFIRM_EMAIL_GUIDE_OK')
 PY
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+# Inspect actual favorites page and backend endpoint before patching.
+pages=[p for p in [root/'favorites.html',root/'favorite.html',root/'mypage-favorites.html'] if p.exists()]
+assert pages, 'favorites page not found'
+p=pages[0]; s=p.read_text(encoding='utf-8')
+print('FAVORITES_PAGE',p.name)
+assert 'お気に入り' in s
+srv=root/'backend/server.py'; b=srv.read_text(encoding='utf-8'); assert "if path=='/api/favorites':" in b
+# Server favorites are authoritative for a logged-in user; render them instead of relying only on browser-local ids.
+js='''<script id="serverFavoritesRender">
+(async()=>{try{
+ const r=await fetch("/api/favorites",{credentials:"same-origin"});if(!r.ok)return;
+ const a=await r.json();if(!Array.isArray(a)||!a.length)return;
+ const empty=[...document.querySelectorAll("body *")].find(e=>e.children.length===0&&e.textContent.trim()==="まだお気に入りはありません");
+ if(empty){const box=empty.closest("section,article,.card,.panel,div");if(box)box.style.display="none";}
+ let host=document.getElementById("serverFavoriteList");
+ if(!host){host=document.createElement("div");host.id="serverFavoriteList";host.style.cssText="display:grid;gap:16px;margin:20px 0";const main=document.querySelector("main")||document.body;main.appendChild(host);}
+ host.innerHTML=a.map(x=>{const id=String(x.id||x.puppy_id||"");const name=x.name||x.title||"子犬";const img=(x.images&&x.images[0])||x.image||x.image_url||"";return '<a href="/puppy-detail.html?id='+encodeURIComponent(id)+'" style="display:block;text-decoration:none;color:inherit;border:1px solid #ead7e1;border-radius:22px;padding:14px;background:#fff">'+(img?'<img src="'+img+'" alt="" style="width:100%;max-height:320px;object-fit:cover;border-radius:16px">':'')+'<div style="font-weight:700;font-size:20px;margin-top:10px">'+name+'</div></a>'}).join("");
+}catch(e){console.error("favorites render",e)}})();
+</script>'''
+assert '</body>' in s
+if 'serverFavoritesRender' not in s:s=s.replace('</body>',js+'</body>',1)
+p.write_text(s,encoding='utf-8'); x=p.read_text(encoding='utf-8')
+assert 'fetch("/api/favorites"' in x and 'serverFavoriteList' in x and 'まだお気に入りはありません' in x
+py_compile.compile(str(srv),doraise=True)
+print('FAVORITES_PAGE_SERVER_SYNC_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
