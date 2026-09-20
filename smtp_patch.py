@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 p=Path("backend/server.py")
 s=p.read_text(encoding="utf-8")
 start=s.index("def send_mail(")
@@ -60,6 +61,29 @@ body=r'''
         return False
 '''
 s=s[:start]+defline+body+s[end:]
+
+# Force all generated email/login verification links to use the public production domain.
+# Railway runs the app internally on 127.0.0.1:8080, but links sent to users must be https://bigpaw.site/...
+public="https://bigpaw.site"
+repls={
+    "http://127.0.0.1:8080": public,
+    "http://localhost:8080": public,
+    "http://0.0.0.0:8080": public,
+    'f"http://127.0.0.1:{PORT}"': '"'+public+'"',
+    "f'http://127.0.0.1:{PORT}'": '"'+public+'"',
+    'f"http://localhost:{PORT}"': '"'+public+'"',
+    "f'http://localhost:{PORT}'": '"'+public+'"',
+}
+for a,b in repls.items():
+    s=s.replace(a,b)
+s=re.sub(r"http://127\.0\.0\.1:\\d+", public, s)
+s=re.sub(r"http://localhost:\\d+", public, s)
+s=re.sub(r"http://0\.0\.0\.0:\\d+", public, s)
+# If the app has a configurable base URL, set its production fallback to the public domain.
+s=s.replace("os.environ.get('BIGPAW_BASE_URL','')", "(os.environ.get('BIGPAW_BASE_URL') or 'https://bigpaw.site')")
+s=s.replace('os.environ.get("BIGPAW_BASE_URL","")', '(os.environ.get("BIGPAW_BASE_URL") or "https://bigpaw.site")')
+s=s.replace("os.environ.get('PUBLIC_BASE_URL','')", "(os.environ.get('PUBLIC_BASE_URL') or 'https://bigpaw.site')")
+s=s.replace('os.environ.get("PUBLIC_BASE_URL","")', '(os.environ.get("PUBLIC_BASE_URL") or "https://bigpaw.site")')
 compile(s,"backend/server.py","exec")
 # Add a runtime-only Resend connectivity/auth probe (no email is sent).
 probe = r'''
