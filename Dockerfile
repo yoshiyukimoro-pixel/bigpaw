@@ -1077,6 +1077,27 @@ if 'buyerProfileAutofill' not in s:s=s.replace('</body>',js+'</body>',1)
 h.write_text(s,encoding='utf-8'); x=h.read_text(encoding='utf-8'); assert 'buyerProfileAutofill' in x and '/api/me' in x
 srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True)
 print('INQUIRY_ACCOUNT_AUTOFILL_OK')
-PYENV PORT=8080
+PY
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
+assert '購入希望者からブリーダーへオンライン見学を申し込み' in s
+assert '購入希望者から希望日時を送り、ブリーダーが確認して確定します。' in s
+assert 'id="requestVideoBtn"' in s and 'id="confirmVideoBtn"' in s
+s=s.replace('<h1>オンライン見学</h1><p>購入希望者からブリーダーへオンライン見学を申し込み、日時確定後にこの画面から参加します。</p>','<h1 id="visitTitle">オンライン見学</h1><p id="visitLead">購入希望者からブリーダーへオンライン見学を申し込み、日時確定後にこの画面から参加します。</p>',1)
+s=s.replace('<h2>オンライン見学の日時</h2><p>購入希望者から希望日時を送り、ブリーダーが確認して確定します。</p>','<h2 id="visitDateTitle">オンライン見学の日時</h2><p id="visitDateLead">購入希望者から希望日時を送り、ブリーダーが確認して確定します。</p>',1)
+needle='if(role==="breeder"||role==="operator"){st.textContent="オンライン見学の希望日時が届いています。";document.getElementById("confirmVideoBtn").style.display="inline-block";document.getElementById("requestVideoBtn").style.display="none"}'
+assert needle in s
+repl='if(role==="breeder"||role==="operator"){document.getElementById("visitTitle").textContent="オンライン見学の申込み確認";document.getElementById("visitLead").textContent="購入希望者からオンライン見学の申込みが届いています。希望日時を確認して確定してください。";document.getElementById("visitDateTitle").textContent="購入希望者の希望日時";document.getElementById("visitDateLead").textContent="購入希望者から届いた希望日時です。内容を確認して見学日時を確定してください。";st.textContent="購入希望者からオンライン見学の希望日時が届いています。";document.getElementById("confirmVideoBtn").textContent="この日時で見学を確定する";document.getElementById("confirmVideoBtn").style.display="inline-block";document.getElementById("requestVideoBtn").style.display="none";document.getElementById("videoDate").disabled=true;document.getElementById("videoTime").disabled=true}'
+s=s.replace(needle,repl,1); p.write_text(s,encoding='utf-8'); x=p.read_text(encoding='utf-8')
+assert 'オンライン見学の申込み確認' in x and '購入希望者の希望日時' in x and 'この日時で見学を確定する' in x
+srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True); b=srv.read_text(encoding='utf-8')
+assert "body.get('status') == 'confirmed' and u.get('role') not in ('breeder','operator')" in b
+print('ONLINE_VISIT_BREEDER_UI_PRECHECK_OK')
+PY
+
+ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
