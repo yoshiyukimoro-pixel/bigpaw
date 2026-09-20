@@ -737,6 +737,72 @@ x=p.read_text(encoding='utf-8'); assert new in x; assert "o.scheme=='https'" in 
 print('REGISTRATION_LINE_ORIGIN_FIX_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+import re, py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+p=root/'backend/server.py'; t=p.read_text(encoding='utf-8')
+pat=r"(?ms)^        m=re\.fullmatch\(r'/api/operator/breeder-proof/\(\[\^/\]\+\)',path\).*?(?=^        (?:m=|if path==))"
+m=re.search(pat,t); assert m, 'existing proof route missing'
+old=m.group(0); assert "SELECT stored_name,mime FROM uploads WHERE id=? AND puppy_id IS NULL" in old, 'unexpected proof route'
+new="""        m=re.fullmatch(r'/api/operator/breeder-proof/([^/]+)',path)
+        if m:
+            u=self.require(['operator']);
+            if not u:return
+            con=db(); app=con.execute("SELECT id,user_id,profile FROM breeder_applications WHERE id=?",(m.group(1),)).fetchone()
+            if not app:
+                con.close(); return self.send_json({'error':'not_found'},404)
+            mm=re.search(r'\\[REGISTRATION_PROOF\\](/uploads/[^\\s]+)',str(app['profile'] or ''))
+            if not mm:
+                con.close(); return self.send_json({'error':'proof_not_found'},404)
+            stored=Path(urlparse(mm.group(1)).path).name
+            up=con.execute("SELECT stored_name,mime FROM uploads WHERE user_id=? AND stored_name=? AND puppy_id IS NULL",(app['user_id'],stored)).fetchone(); con.close()
+            if not up or not str(up['mime'] or '').lower().startswith('image/'): return self.send_json({'error':'proof_not_found'},404)
+            fp=UPLOADS/up['stored_name']
+            if not fp.exists(): return self.send_json({'error':'proof_not_found'},404)
+            data=fp.read_bytes(); self.send_response(200); self.send_header('Content-Type',up['mime']); self.send_header('Content-Length',str(len(data))); self.send_header('Cache-Control','private, no-store'); self.send_header('X-Content-Type-Options','nosniff'); self.end_headers(); self.wfile.write(data); return
+"""
+t=t.replace(old,new,1)
+anchor="if path=='/api/breeder-applications':"; i=t.find(anchor); assert i>=0
+j=t.find("return self.send_json([dict(r) for r in rows])",i); assert j>=0 and j<i+5000, 'raw application response missing'
+raw="return self.send_json([dict(r) for r in rows])"
+safe="""out=[]
+            for r in rows:
+                d=dict(r); prof=str(d.get('profile') or '')
+                has=bool(re.search(r'\\[REGISTRATION_PROOF\\]/uploads/[^\\s]+',prof))
+                d['profile']=re.sub(r'\\n?\\[REGISTRATION_PROOF\\]/uploads/[^\\s]+','',prof).strip()
+                d['has_registration_proof']=has
+                d['registration_proof_url']=('/api/operator/breeder-proof/'+str(d['id'])) if has else None
+                out.append(d)
+            return self.send_json(out)"""
+t=t[:j]+safe+t[j+len(raw):]
+p.write_text(t,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+x=p.read_text(encoding='utf-8')
+assert "SELECT id,user_id,profile FROM breeder_applications WHERE id=?" in x
+assert "X-Content-Type-Options','nosniff'" in x
+assert 'registration_proof_url' in x
+assert "SELECT stored_name,mime FROM uploads WHERE id=? AND puppy_id IS NULL" not in x
+q=root/'operator-breeders.html'; s=q.read_text(encoding='utf-8')
+# Replace direct profile-marker link expression in the main card.
+start=s.find("${String(a.profile||'').match(/\\[REGISTRATION_PROOF")
+if start>=0:
+    end=s.find("${a.status==='pending'?",start); assert end>start
+    repl="${a.registration_proof_url?'<div style=\\\"margin-top:10px\\\"><a class=\\\"btn btn-sub proof-link\\\" target=\\\"_blank\\\" rel=\\\"noopener\\\" href=\\\"'+esc(a.registration_proof_url)+'\\\">第一種動物取扱業 登録証の写しを確認</a></div>':''}"
+    s=s[:start]+repl+s[end:]
+# Remove three legacy proof-scraping scripts.
+for key in ['function add(){document.querySelectorAll', 'function addProofLinks(){', 'function sync(){var rows=window.__bpProofRows']:
+    k=s.find(key)
+    if k>=0:
+        a=s.rfind('<script>',0,k); b=s.find('</script>',k); assert a>=0 and b>=0; s=s[:a]+s[b+9:]
+q.write_text(s,encoding='utf-8')
+u=q.read_text(encoding='utf-8')
+assert 'registration_proof_url' in u
+assert '[REGISTRATION_PROOF]' not in u
+assert '__bpProofRows' not in u
+py_compile.compile(str(p),doraise=True)
+print('OPERATOR_PROOF_SECURE_FINAL_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
