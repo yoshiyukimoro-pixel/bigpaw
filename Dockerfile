@@ -920,6 +920,22 @@ s=s.replace(old,new,1); p.write_text(s,encoding='utf-8'); x=p.read_text(encoding
 print('ONLINE_VISIT_ROLE_UI_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'backend/server.py'; s=p.read_text(encoding='utf-8')
+# Inquiry submissions can come from the same official Railway host used by iPhone/LINE navigation.
+i=s.find("if path=='/api/inquiries':",s.find('def do_POST')); assert i>=0
+chunk=s[i:i+4500]; assert 'mutation_origin_allowed' not in chunk or 'invalid_origin' not in chunk, 'unexpected inquiry-specific origin branch; inspect before patch'
+# Global mutation-origin validation already trusts only BIGPAW HTTPS hosts + exact production Railway host.
+assert "host=='bigpaw.site' or host.endswith('.bigpaw.site') or host=='bigpaw-site-production.up.railway.app'" in s
+# Ensure the inquiry page reports the actual API error instead of the generic alert.
+h=root/'inquiry.html'; x=h.read_text(encoding='utf-8'); assert '送信できませんでした' in x
+x=x.replace('alert("送信できませんでした")','alert((j&&j.message)||((j&&j.error)==="invalid_origin"?"ページを再読み込みして、もう一度送信してください。":"送信できませんでした"))') if 'alert("送信できませんでした")' in x else x
+h.write_text(x,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('INQUIRY_403_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
