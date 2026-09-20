@@ -1300,6 +1300,37 @@ srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
 print('FAVORITES_BREED_LABEL_PRECHECK_OK')
 PY
 
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile,re
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+# Inspect likely puppy detail files after all earlier patches have run.
+cands=[p for p in root.glob('*.html') if 'detail' in p.name.lower() or 'puppy' in p.name.lower()]
+hits=[]
+for p in cands:
+    t=p.read_text(encoding='utf-8',errors='ignore')
+    if 'この子について' in t: hits.append((p,t))
+assert hits, 'puppy detail page with この子について not found'
+p,s=hits[0]; print('PUPPY_DESCRIPTION_PAGE',p.name)
+# Preserve breeder-entered newlines visually; do not alter stored text.
+css='''<style id="puppyDescriptionLinebreaks">
+#puppyDescription,.puppy-description,[data-puppy-description],.description-text,.puppy-about p,.about-puppy p{white-space:pre-line}
+</style>'''
+assert '</head>' in s
+if 'puppyDescriptionLinebreaks' not in s:s=s.replace('</head>',css+'</head>',1)
+# Also identify the rendered description text at runtime and apply pre-line without changing its contents.
+js='''<script id="puppyDescriptionLinebreakRuntime">
+document.addEventListener("DOMContentLoaded",()=>{const h=[...document.querySelectorAll("h1,h2,h3,h4")].find(e=>e.textContent.includes("この子について"));if(!h)return;const box=h.closest("section,article,.card,div");if(!box)return;[...box.querySelectorAll("p,div")].forEach(e=>{if(e!==h&&e.textContent.trim()&&!e.querySelector("h1,h2,h3,h4"))e.style.whiteSpace="pre-line"})});
+</script>'''
+assert '</body>' in s
+if 'puppyDescriptionLinebreakRuntime' not in s:s=s.replace('</body>',js+'</body>',1)
+p.write_text(s,encoding='utf-8');x=p.read_text(encoding='utf-8')
+assert 'white-space:pre-line' in x and 'puppyDescriptionLinebreakRuntime' in x
+srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
+print('PUPPY_DESCRIPTION_LINEBREAK_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
