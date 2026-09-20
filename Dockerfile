@@ -977,6 +977,34 @@ srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True); b=srv.r
 assert "if path=='/api/inquiries':" in b and "re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)" in b
 print('INQUIRY_VISIT_TYPE_PRECHECK_OK')
 PY
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import re,py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); h=root/'inquiry.html'; s=h.read_text(encoding='utf-8')
+# Inspect exact date inputs first; require two visit-date fields before modifying.
+dates=list(re.finditer(r'<input\b[^>]*type=["'']date["''][^>]*>',s,re.I))
+assert len(dates)>=2, 'two preferred-date inputs not found'
+# Add one time field immediately after each of the first two preferred dates.
+for n,m in reversed(list(enumerate(dates[:2],start=1))):
+    tag=m.group(0)
+    # derive form field name from the date input where possible
+    nm=re.search(r'name=["'']([^"'']+)["'']',tag,re.I)
+    base=nm.group(1) if nm else ('preferredDate'+str(n))
+    time_name=re.sub(r'date','time',base,flags=re.I)
+    if time_name==base: time_name=base+'Time'
+    ident='preferredTime'+str(n)
+    add='<label style="display:block;margin-top:10px">第'+str(n)+'希望時間<input id="'+ident+'" name="'+time_name+'" type="time"></label>'
+    s=s[:m.end()]+add+s[m.end():]
+h.write_text(s,encoding='utf-8')
+x=h.read_text(encoding='utf-8')
+assert x.count('type="time"')>=2 and '第1希望時間' in x and '第2希望時間' in x
+# Existing submit code serializes form fields; verify it uses FormData or named fields before release.
+assert ('FormData' in x or 'preferredTime1' in x), 'form submission mechanism not compatible'
+srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True); b=srv.read_text(encoding='utf-8'); assert "if path=='/api/inquiries':" in b
+print('INQUIRY_PREFERRED_TIME_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
