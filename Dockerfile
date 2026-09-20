@@ -830,6 +830,27 @@ assert 'JitsiMeetExternalAPI==="undefined"' in x
 print('ONLINE_VISIT_MOBILE_ENTRY_FIX_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
+assert 'async function joinRoom()' in s and 'JitsiMeetExternalAPI' in s, 'online visit join code missing'
+old='''async function joinRoom(){try{const q=new URLSearchParams(location.search).get("inquiry");if(!q)throw Error("問い合わせを選択してください");const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/video-room",{credentials:"same-origin"});if(!r.ok)throw Error("このオンライン見学には参加できません");const v=await r.json();joinBtn.style.display="none";room.style.display="block";'''
+new='''async function joinRoom(){try{const q=new URLSearchParams(location.search).get("inquiry");if(!q)throw Error("問い合わせを選択してください");const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/video-room",{credentials:"same-origin"});const v=await r.json().catch(()=>({}));if(!r.ok)throw Error(v.message||({online_visit_not_confirmed:"ブリーダーの日時承認後に入室できます。",outside_online_visit_window:"入室できるのは予約時刻の30分前から2時間後までです。",invalid_online_visit_time:"オンライン見学の日時を確認してください。"}[v.error])||"このオンライン見学には参加できません");if(typeof window.JitsiMeetExternalAPI!=="function"){location.href="https://meet.jit.si/"+encodeURIComponent(v.room);return}joinBtn.style.display="none";room.style.display="block";'''
+assert old in s, 'joinRoom anchor changed'
+s=s.replace(old,new,1)
+# Remove the misleading preparation notice now that the feature is live.
+s=s.replace('電話番号・LINE・メールを交換せず、BIG PAW内で見学できる仕組みを準備しています。','電話番号・LINE・メールを交換せず、オンライン見学できます。')
+p.write_text(s,encoding='utf-8')
+# Verify backend gate and frontend fallback before build may continue.
+b=(root/'backend/server.py').read_text(encoding='utf-8')
+assert "online_visit_not_confirmed" in b and "outside_online_visit_window" in b
+assert 'https://meet.jit.si/' in p.read_text(encoding='utf-8')
+py_compile.compile(str(root/'backend/server.py'),doraise=True)
+print('ONLINE_VISIT_JOIN_FIX_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
