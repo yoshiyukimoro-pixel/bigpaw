@@ -1248,6 +1248,39 @@ py_compile.compile(str(srv),doraise=True)
 print('FAVORITES_PAGE_SERVER_SYNC_PRECHECK_OK')
 PY
 
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile,re
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'favorites.html'; s=p.read_text(encoding='utf-8')
+# Inspect existing page logic. The API is returning 200; reconcile browser-saved favorite IDs when server list is empty.
+assert 'serverFavoritesRender' in s and '/api/favorites' in s
+js='''<script id="favoriteLocalFallback">
+(async()=>{try{
+ const parse=v=>{try{const a=JSON.parse(v||"[]");return Array.isArray(a)?a.map(String):[]}catch(e){return[]}};
+ let ids=[];try{ids=ids.concat(parse(localStorage.getItem("bigpaw_favorites")))}catch(e){}
+ try{ids=ids.concat(parse(sessionStorage.getItem("bigpaw_favorites")))}catch(e){}
+ try{const m=document.cookie.match(/(?:^|; )bigpaw_favorites=([^;]*)/);if(m)ids=ids.concat(parse(decodeURIComponent(m[1])))}catch(e){}
+ ids=[...new Set(ids)].filter(Boolean);if(!ids.length)return;
+ const r=await fetch("/api/favorites",{credentials:"same-origin"});const server=r.ok?await r.json():[];
+ if(Array.isArray(server)&&server.length)return;
+ const puppies=[];
+ for(const id of ids){try{const pr=await fetch("/api/puppies/"+encodeURIComponent(id),{credentials:"same-origin"});if(pr.ok)puppies.push(await pr.json())}catch(e){}}
+ if(!puppies.length)return;
+ const empty=[...document.querySelectorAll("body *")].find(e=>e.children.length===0&&e.textContent.trim()==="まだお気に入りはありません");
+ if(empty){const box=empty.closest("section,article,.card,.panel,div");if(box)box.style.display="none";}
+ let host=document.getElementById("serverFavoriteList");if(!host){host=document.createElement("div");host.id="serverFavoriteList";host.style.cssText="display:grid;gap:16px;margin:20px";(document.querySelector("main")||document.body).appendChild(host)}
+ host.innerHTML=puppies.map(x=>{const id=String(x.id||x.puppy_id||"");const name=x.name||x.title||"子犬";const imgs=x.images||[];const img=(Array.isArray(imgs)?imgs[0]:"")||x.image||x.image_url||"";return '<a href="/puppy-detail.html?id='+encodeURIComponent(id)+'" style="display:block;text-decoration:none;color:inherit;border:1px solid #ead7e1;border-radius:22px;padding:14px;background:#fff">'+(img?'<img src="'+img+'" alt="" style="width:100%;max-height:320px;object-fit:cover;border-radius:16px">':'')+'<div style="font-weight:700;font-size:20px;margin-top:10px">'+name+'</div></a>'}).join("");
+}catch(e){console.error("favorite fallback",e)}})();
+</script>'''
+assert '</body>' in s
+if 'favoriteLocalFallback' not in s:s=s.replace('</body>',js+'</body>',1)
+p.write_text(s,encoding='utf-8');x=p.read_text(encoding='utf-8')
+assert 'favoriteLocalFallback' in x and 'bigpaw_favorites' in x and '/api/puppies/' in x
+srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
+print('FAVORITES_LOCAL_RECONCILE_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
