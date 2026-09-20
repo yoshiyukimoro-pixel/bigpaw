@@ -1171,6 +1171,47 @@ srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True)
 print('BREEDER_CONFIRM_VISIBLE_PRECHECK_OK')
 PY
 
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile,re
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'backend/server.py'; s=p.read_text(encoding='utf-8')
+# Inspect the exact confirmation-email helper before modifying.
+i=s.find('def online_visit_email('); assert i>=0
+chunk=s[i:i+5000]; assert '【BIG PAW】オンライン見学の日時が確定しました' in chunk
+# Replace only the confirmed-mail body assignment with clear participation instructions.
+m=re.search(r"(else:\s*\n\s*subject='【BIG PAW】オンライン見学の日時が確定しました'\s*\n\s*body=)([^\n]+)",chunk)
+assert m, 'confirmed mail body assignment not found'
+new_body="""f'''オンライン見学の日時が確定しました。
+
+【確定日時】
+{visit_date} {visit_time}
+
+【当日の参加方法】
+1. 開始時刻になりましたらBIG PAWへログインしてください。
+2. 確定したオンライン見学画面を開き、「カメラを準備して入室」を押してください。
+3. Jitsi Meetの画面が表示されたら、青い「Join in browser」を押してください。
+4. カメラとマイクの使用を許可すると入室できます。
+5. 相手がまだ入室していない場合は、そのまま画面を開いてお待ちください。相手が同じルームへ入室すると、映像と音声がつながり会話できます。
+
+※購入希望者様・ブリーダー双方が同じ手順で入室します。
+※同時に入室する必要はありません。先に入った方はそのままお待ちください。
+※画面に表示される海外の電話番号へ電話をかける必要はありません。
+※PINコードの入力も必要ありません。
+※Jitsi Meetアプリのインストールは不要です。「Join in browser」からブラウザで参加できます。
+
+BIG PAW
+https://www.bigpaw.site/'''"""
+newchunk=chunk[:m.start(2)]+new_body+chunk[m.end(2):]
+s=s[:i]+newchunk+s[i+len(chunk):]
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+x=p.read_text(encoding='utf-8')
+for q in ['Join in browser','同時に入室する必要はありません','PINコードの入力も必要ありません','海外の電話番号へ電話をかける必要はありません']:
+    assert q in x
+assert '【BIG PAW】オンライン見学の日時が確定しました' in x
+print('ONLINE_VISIT_CONFIRM_EMAIL_GUIDE_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
