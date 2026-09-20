@@ -1281,6 +1281,25 @@ srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
 print('FAVORITES_LOCAL_RECONCILE_PRECHECK_OK')
 PY
 
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'favorites.html'; s=p.read_text(encoding='utf-8')
+# Exact existing renderers must be present before changing their labels.
+assert 'serverFavoritesRender' in s and 'favoriteLocalFallback' in s
+old='const name=x.name||x.title||"子犬";'
+assert s.count(old)>=2
+# Build a clearer label: breed / color + sex. Preserve existing title only when breed data is unavailable.
+new='const breed=x.breed||x.breed_name||x.breedName||"";const color=x.color||x.coat_color||x.coatColor||"";const rawSex=x.sex||x.gender||"";const sex=/male|男|♂/i.test(rawSex)?"男の子":(/female|女|♀/i.test(rawSex)?"女の子":rawSex);const detail=[color,sex].filter(Boolean).join("の");const name=breed?(breed+(detail?" / "+detail:"")):(x.name||x.title||detail||"子犬");'
+s=s.replace(old,new)
+p.write_text(s,encoding='utf-8');x=p.read_text(encoding='utf-8')
+assert x.count('const breed=x.breed||x.breed_name||x.breedName||"";')>=2
+assert 'breed+(detail?" / "+detail:"")' in x
+srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
+print('FAVORITES_BREED_LABEL_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
