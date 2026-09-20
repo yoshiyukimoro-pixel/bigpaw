@@ -892,25 +892,17 @@ PY
 
 RUN python3 - <<'PY'
 from pathlib import Path
-import py_compile
+import py_compile,re
 root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'backend/server.py'; s=p.read_text(encoding='utf-8')
-# Inspect exact mail helper and visit POST before modifying.
 assert 'def send_email' in s or 'def send_mail' in s
-assert "re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)" in s
 helper='send_email' if 'def send_email' in s else 'send_mail'
-# Add a notification helper that resolves the recipient from the inquiry participants.
-anchor='    def do_POST(self):'
-assert anchor in s
-code=f'''    def online_visit_email(self, inquiry_id, status, visit_date, visit_time):\n        try:\n            con=db(); row=con.execute("SELECT i.buyer_id,p.breeder_id FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE i.id=?",(inquiry_id,)).fetchone()\n            if not row: con.close(); return False\n            target=row['breeder_id'] if status=='proposed' else row['buyer_id']\n            user=con.execute("SELECT email FROM users WHERE id=?",(target,)).fetchone(); con.close()\n            if not user or not user['email']: return False\n            if status=='proposed':\n                subject="【BIG PAW】オンライン見学のお申し込みが入りました"\n                body=f"オンライン見学のお申し込みが入りました。\\n希望日時：{{visit_date}} {{visit_time}}\\n\\nBIG PAWにログインし、問い合わせ画面から日時をご確認・確定してください。\\nhttps://www.bigpaw.site/"\n            else:\n                subject="【BIG PAW】オンライン見学の日時が確定しました"\n                body=f"オンライン見学の日時が確定しました。\\n日時：{{visit_date}} {{visit_time}}\\n\\n開始時間になりましたらBIG PAWのオンライン見学画面からご参加ください。\\nhttps://www.bigpaw.site/"\n            return {helper}(user['email'],subject,body)\n        except Exception as e:\n            print('[BIG PAW] online visit email failed:',e,flush=True); return False\n\n'''
+anchor='    def do_POST(self):'; assert anchor in s
+code=f'''    def online_visit_email(self, inquiry_id, status, visit_date, visit_time):\n        try:\n            con=db(); row=con.execute("SELECT i.buyer_id,p.breeder_id FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE i.id=?",(inquiry_id,)).fetchone()\n            if not row: con.close(); return False\n            target=row['breeder_id'] if status=='proposed' else row['buyer_id']\n            user=con.execute("SELECT email FROM users WHERE id=?",(target,)).fetchone(); con.close()\n            if not user or not user['email']: return False\n            if status=='proposed':\n                subject="【BIG PAW】オンライン見学のお申し込みが入りました"; body=f"オンライン見学のお申し込みが入りました。\\n希望日時：{{visit_date}} {{visit_time}}\\n\\nBIG PAWにログインし、問い合わせ画面から日時をご確認・確定してください。\\nhttps://www.bigpaw.site/"\n            else:\n                subject="【BIG PAW】オンライン見学の日時が確定しました"; body=f"オンライン見学の日時が確定しました。\\n日時：{{visit_date}} {{visit_time}}\\n\\n開始時間になりましたらBIG PAWのオンライン見学画面からご参加ください。\\nhttps://www.bigpaw.site/"\n            return {helper}(user['email'],subject,body)\n        except Exception as e:\n            print('[BIG PAW] online visit email failed:',e,flush=True); return False\n\n'''
 s=s.replace(anchor,code+anchor,1)
-# Send after a successful visit write, without making the booking fail if email delivery fails.
-needle="return self.send_json(dict(row),201)"
-# Scope to the visit POST region only.
-pos=s.find("m=re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)",s.find(anchor)); assert pos>=0
-end=s.find("m=re.fullmatch",pos+20); end=end if end>=0 else len(s)
-chunk=s[pos:end]; assert needle in chunk
-chunk=chunk.replace(needle,"self.online_visit_email(m.group(1), body.get('status','proposed'), body.get('date',''), body.get('time',''))\\n            return self.send_json(dict(row),201)",1)
-s=s[:pos]+chunk+s[end:]
+route="m=re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)"; positions=[m.start() for m in re.finditer(re.escape(route),s)]; assert positions
+# POST occurrence is after do_POST; locate its successful 201 response without assuming the next route shape.
+pos=next(x for x in positions if x>s.find(anchor)); window=s[pos:pos+5000]; needle='return self.send_json(dict(row),201)'; assert needle in window
+window=window.replace(needle,"self.online_visit_email(m.group(1), body.get('status','proposed'), body.get('date',''), body.get('time',''))\\n            return self.send_json(dict(row),201)",1); s=s[:pos]+window+s[pos+5000:]
 p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 x=p.read_text(encoding='utf-8'); assert 'online_visit_email' in x and 'オンライン見学のお申し込みが入りました' in x and 'オンライン見学の日時が確定しました' in x
 print('ONLINE_VISIT_EMAIL_NOTIFY_OK')
