@@ -1150,6 +1150,27 @@ assert 'buyerJoinNote' in x and 'cf.style.display=(vv.status==="confirmed"?"none
 srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True)
 print('BREEDER_CONFIRM_BUTTON_NOTE_PRECHECK_OK')
 PY
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile,re
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
+assert 'id="confirmVideoBtn"' in s and 'id="joinBtn"' in s and 'breederVisitView' in s
+# The previous logic hid confirm when stored status was already "confirmed"; legacy route can mark inquiries/visits confirmed too early.
+# For breeder review, keep the confirmation action visible until the breeder explicitly presses it in this browser session.
+old='cf.style.display=(vv.status==="confirmed"?"none":"inline-block")'
+assert old in s
+s=s.replace(old,'cf.style.display="inline-block"',1)
+# Ensure buyer-only participation note is hidden for breeder even if wrapper-id patch misses due to markup changes.
+anchor='if(req)req.style.display="none";'
+assert anchor in s
+s=s.replace(anchor,anchor+'document.querySelectorAll(".note").forEach(e=>{if(e.textContent.includes("日時確定後"))e.style.display="none"});',1)
+p.write_text(s,encoding='utf-8'); x=p.read_text(encoding='utf-8')
+assert 'cf.style.display="inline-block"' in x and 'includes("日時確定後")' in x
+srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True)
+print('BREEDER_CONFIRM_VISIBLE_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
