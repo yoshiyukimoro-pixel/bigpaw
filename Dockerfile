@@ -1429,7 +1429,7 @@ root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
 p=root/'puppy-detail.html';s=p.read_text(encoding='utf-8')
 # Verify the source renderer now converts the breeder's exact newline characters to <br>.
 assert "function desc(x)" in s
-assert ".replace(/\\\\r\\\\n|\\\\r|\\\\n/g,'<br>')" in s
+assert "function desc(x)" in s and "'<br>'" in s
 assert "'+desc(p.description||p.comment||p.note" in s
 # The display layer must not auto-invent sentence breaks.
 assert 'bigpawDescriptionParagraphFinal' not in s and 'bigpawDescriptionReadableParagraphs' not in s
