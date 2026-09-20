@@ -1050,6 +1050,40 @@ assert 'self.online_visit_email(m.group(1)' in x
 print('ONLINE_VISIT_BREEDER_EMAIL_FIX_OK')
 PY
 
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import re,py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); h=root/'inquiry.html'; s=h.read_text(encoding='utf-8')
+# Inspect current form + /api/me usage before modifying.
+assert '<form' in s.lower() and '/api/inquiries' in s
+inputs={}
+for m in re.finditer(r'<input\b[^>]*>',s,re.I):
+    tag=m.group(0)
+    nm=re.search(r'(?:name|id)=["'']([^"'']+)["'']',tag,re.I)
+    if nm: inputs[nm.group(1)]=tag
+print('INQUIRY_FIELDS',sorted(inputs))
+# Add safe autofill from authenticated account. Keep fields editable, but registered values become defaults.
+js='''<script id="buyerProfileAutofill">
+(async()=>{try{
+ const r=await fetch("/api/me",{credentials:"same-origin"}); if(!r.ok)return;
+ const z=await r.json(); const u=z.user||z||{};
+ const pick=(keys)=>{for(const k of keys){const el=document.querySelector('[name="'+k+'"],#'+k);if(el)return el}return null};
+ const set=(el,v)=>{if(el&&!el.value&&v)el.value=v};
+ const full=[u.last,u.first].filter(Boolean).join(" ").trim()||u.name||"";
+ set(pick(["name","buyerName","fullName"]),full);
+ set(pick(["phone","tel","telephone"]),u.phone||u.tel||"");
+ set(pick(["email","mail"]),u.email||"");
+}catch(e){console.error("buyer autofill",e)}})();
+</script>'''
+assert '</body>' in s
+if 'buyerProfileAutofill' not in s:s=s.replace('</body>',js+'</body>',1)
+h.write_text(s,encoding='utf-8')
+x=h.read_text(encoding='utf-8'); assert 'buyerProfileAutofill' in x and 'u.phone||u.tel' in x and 'u.email' in x
+srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True); b=srv.read_text(encoding='utf-8'); assert "if path=='/api/inquiries':" in b
+print('INQUIRY_ACCOUNT_AUTOFILL_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
