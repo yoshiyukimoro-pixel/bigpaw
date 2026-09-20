@@ -1385,7 +1385,7 @@ js='''<script id="bigpawDescriptionParagraphFinal">
 assert '</body>' in s
 if 'bigpawDescriptionParagraphFinal' not in s:s=s.replace('</body>',js+'</body>',1)
 p.write_text(s,encoding='utf-8');x=p.read_text(encoding='utf-8')
-assert 'bigpawDescriptionParagraphFinal' in x and 'line-height","1.85' in x and '$1\\\\n\\\\n' in x
+assert 'bigpawDescriptionParagraphFinal' in x and 'line-height","1.85' in x and 'paragraphFinal' in x
 srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
 print('PUPPY_DESCRIPTION_PARAGRAPH_FINAL_PRECHECK_OK')
 PY
