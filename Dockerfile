@@ -805,26 +805,7 @@ PY
 
 
 
-RUN python3 - <<'PY'
-from pathlib import Path
-import py_compile
-root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
-p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
-assert 'async function joinRoom()' in s and 'JitsiMeetExternalAPI' in s, 'online visit join code missing'
-old='''async function joinRoom(){try{const q=new URLSearchParams(location.search).get("inquiry");if(!q)throw Error("問い合わせを選択してください");const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/video-room",{credentials:"same-origin"});if(!r.ok)throw Error("このオンライン見学には参加できません");const v=await r.json();joinBtn.style.display="none";room.style.display="block";'''
-new='''async function joinRoom(){try{const q=new URLSearchParams(location.search).get("inquiry");if(!q)throw Error("問い合わせを選択してください");const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/video-room",{credentials:"same-origin"});const v=await r.json().catch(()=>({}));if(!r.ok)throw Error(v.message||({online_visit_not_confirmed:"ブリーダーの日時承認後に入室できます。",outside_online_visit_window:"入室できるのは予約時刻の30分前から2時間後までです。",invalid_online_visit_time:"オンライン見学の日時を確認してください。"}[v.error])||"このオンライン見学には参加できません");if(typeof window.JitsiMeetExternalAPI!=="function"){location.href="https://meet.jit.si/"+encodeURIComponent(v.room);return}joinBtn.style.display="none";room.style.display="block";'''
-assert old in s, 'joinRoom anchor changed'
-s=s.replace(old,new,1)
-# Remove the misleading preparation notice now that the feature is live.
-s=s.replace('電話番号・LINE・メールを交換せず、BIG PAW内で見学できる仕組みを準備しています。','電話番号・LINE・メールを交換せず、オンライン見学できます。')
-p.write_text(s,encoding='utf-8')
-# Verify backend gate and frontend fallback before build may continue.
-b=(root/'backend/server.py').read_text(encoding='utf-8')
-assert "online_visit_not_confirmed" in b and "outside_online_visit_window" in b
-assert 'https://meet.jit.si/' in p.read_text(encoding='utf-8')
-py_compile.compile(str(root/'backend/server.py'),doraise=True)
-print('ONLINE_VISIT_JOIN_FIX_OK')
-PY
+
 
 RUN python3 - <<'PY'
 from pathlib import Path
@@ -832,18 +813,18 @@ import py_compile
 root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
 p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
 assert 'async function joinRoom()' in s and 'JitsiMeetExternalAPI' in s
-old='if(!r.ok)throw Error("このオンライン見学には参加できません");const v=await r.json();'
-new='const v=await r.json().catch(()=>({}));if(!r.ok)throw Error(({online_visit_not_confirmed:"ブリーダーの日時承認後に入室できます。",outside_online_visit_window:"入室できるのは予約時刻の30分前から2時間後までです。",invalid_online_visit_time:"オンライン見学の日時を確認してください。"}[v.error])||"このオンライン見学には参加できません");'
-assert old in s, 'join error anchor missing'; s=s.replace(old,new,1)
-old2='joinBtn.style.display="none";room.style.display="block";const api=new JitsiMeetExternalAPI'
-new2='if(typeof window.JitsiMeetExternalAPI!=="function"){location.href="https://meet.jit.si/"+encodeURIComponent(v.room);return}joinBtn.style.display="none";room.style.display="block";const api=new JitsiMeetExternalAPI'
-assert old2 in s, 'jitsi anchor missing'; s=s.replace(old2,new2,1)
+needle='if(!r.ok)throw Error("このオンライン見学には参加できません");const v=await r.json();'
+assert needle in s, 'current join response anchor missing'
+s=s.replace(needle,'const v=await r.json().catch(()=>({}));if(!r.ok)throw Error(({online_visit_not_confirmed:"ブリーダーの日時承認後に入室できます。",outside_online_visit_window:"入室できるのは予約時刻の30分前から2時間後までです。",invalid_online_visit_time:"オンライン見学の日時を確認してください。"}[v.error])||"このオンライン見学には参加できません");',1)
+needle2='const api=new JitsiMeetExternalAPI("meet.jit.si",'
+assert needle2 in s, 'Jitsi constructor anchor missing'
+s=s.replace(needle2,'if(typeof window.JitsiMeetExternalAPI!=="function"){location.href="https://meet.jit.si/"+encodeURIComponent(v.room);return}const api=new JitsiMeetExternalAPI("meet.jit.si",',1)
 s=s.replace('電話番号・LINE・メールを交換せず、BIG PAW内で見学できる仕組みを準備しています。','電話番号・LINE・メールを交換せず、オンライン見学できます。')
 p.write_text(s,encoding='utf-8')
 srv=(root/'backend/server.py').read_text(encoding='utf-8'); assert 'online_visit_not_confirmed' in srv and 'outside_online_visit_window' in srv
 py_compile.compile(str(root/'backend/server.py'),doraise=True)
 x=p.read_text(encoding='utf-8'); assert 'https://meet.jit.si/' in x and 'ブリーダーの日時承認後に入室できます。' in x
-print('ONLINE_VISIT_JOIN_FIX_V2_OK')
+print('ONLINE_VISIT_JOIN_FINAL_OK')
 PY
 
 ENV PORT=8080
