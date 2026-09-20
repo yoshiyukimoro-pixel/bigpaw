@@ -1439,8 +1439,11 @@ PY
 
 ENV PORT=8080
 EXPOSE 8080
-CMD ["sh", "-c", "exec python3 backend/server.py"]
+CMD ["python3", "backend/server.py"]
 
+# Rebuild puppy detail page cleanly after all legacy patches
+COPY puppy-detail-v2-build.py /tmp/puppy-detail-v2-build.py
+RUN python3 /tmp/puppy-detail-v2-build.py
 
 # Fix server startup indentation: launch block must not be inside diagnostics exception
 RUN python3 - <<'PY'
