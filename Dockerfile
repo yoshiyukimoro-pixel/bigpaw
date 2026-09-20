@@ -1444,15 +1444,3 @@ CMD ["python3", "backend/server.py"]
 # Rebuild puppy detail page cleanly after all legacy patches
 COPY puppy-detail-v2-build.py /tmp/puppy-detail-v2-build.py
 RUN python3 /tmp/puppy-detail-v2-build.py
-
-# Temporary startup traceback diagnostic
-RUN python3 - <<'PY'
-from pathlib import Path
-p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
-s=p.read_text(encoding='utf-8')
-marker='# BIGPAW_STARTUP_TRACE_DIAG'
-if marker not in s:
-    s=marker+"\nimport faulthandler\nfaulthandler.enable()\nfaulthandler.dump_traceback_later(30, repeat=True)\n"+s
-    p.write_text(s,encoding='utf-8')
-print('STARTUP_TRACE_DIAG_INSTALLED')
-PY
