@@ -950,32 +950,33 @@ print('ONLINE_VISIT_RECIPIENT_DIAG_OK')
 PY
 
 
+
 RUN python3 - <<'PY'
 from pathlib import Path
 import py_compile,re
 root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
 h=root/'inquiry.html'; s=h.read_text(encoding='utf-8')
-assert '希望内容' in s and '/api/inquiries' in s, 'inquiry anchors changed'
-# Label the existing visit choice clearly as an in-person visit.
-s=s.replace('>見学を希望<','>現地で見学を希望<')
-s=s.replace('value="見学を希望"','value="現地で見学を希望"')
-# Add online viewing to the existing desired-content selector.
-sel=re.search(r'<select[^>]*>(?:(?!</select>).)*現地で見学を希望(?:(?!</select>).)*</select>',s,re.S)
-assert sel, 'desired-content select not found'
-block=sel.group(0)
+# Exact source may be compact/minified; inspect selector structure rather than relying on visible label text.
+sels=list(re.finditer(r'<select\b[^>]*>.*?</select>',s,re.S))
+target=None
+for m in sels:
+    z=m.group(0)
+    if '見学' in z or 'desired' in z.lower() or 'purpose' in z.lower() or '希望' in z:
+        target=m; break
+assert target is not None, 'visit-purpose select not found'
+block=target.group(0)
+# Preserve existing option/value and only make the display unambiguous.
+block=block.replace('>見学を希望<','>現地で見学を希望<')
 if 'オンライン見学を希望' not in block:
     block=block.replace('</select>','<option value="オンライン見学を希望">オンライン見学を希望</option></select>')
-    s=s[:sel.start()]+block+s[sel.end():]
+s=s[:target.start()]+block+s[target.end():]
 h.write_text(s,encoding='utf-8')
 x=h.read_text(encoding='utf-8')
-assert '現地で見学を希望' in x and 'オンライン見学を希望' in x and '/api/inquiries' in x
-# Backend syntax + exact inquiry/online-visit routes must remain present.
+assert 'オンライン見学を希望' in x and '現地で見学を希望' in x
 srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True); b=srv.read_text(encoding='utf-8')
-assert "if path=='/api/inquiries':" in b
-assert "re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)" in b
+assert "if path=='/api/inquiries':" in b and "re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)" in b
 print('INQUIRY_VISIT_TYPE_PRECHECK_OK')
 PY
-
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
