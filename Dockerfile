@@ -1445,5 +1445,5 @@ CMD ["python3", "backend/server.py"]
 COPY puppy-detail-v2-build.py /tmp/puppy-detail-v2-build.py
 RUN python3 /tmp/puppy-detail-v2-build.py
 
-# Temporary startup trace: inserted after __future__ import so syntax remains valid
-RUN python3 -c "from pathlib import Path; p=Path('backend/server.py'); s=p.read_text(encoding='utf-8'); k='from __future__ import annotations'; d='\\nimport faulthandler\\nfaulthandler.enable()\\nfaulthandler.dump_traceback_later(20, repeat=True)\\n'; assert k in s; p.write_text(s.replace(k,k+d,1),encoding='utf-8')"
+# Build-time startup inspection only (does not change application code)
+RUN python3 -c "from pathlib import Path; s=Path('backend/server.py').read_text(encoding='utf-8').splitlines(); hits=[i for i,x in enumerate(s) if 'Resend connectivity check' in x]; print('STARTUP_CONTEXT_BEGIN'); [print(f'{j+1}: {s[j]}') for i in hits for j in range(max(0,i-20),min(len(s),i+61))]; print('STARTUP_CONTEXT_END')"
