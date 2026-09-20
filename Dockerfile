@@ -810,21 +810,18 @@ PY
 
 
 
+
 RUN python3 - <<'PY'
 from pathlib import Path
 import py_compile
 root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
 assert 'async function joinRoom()' in s and 'JitsiMeetExternalAPI' in s
-# Keep the existing working join implementation; add only a safe external fallback helper and clearer live wording.
-s=s.replace('電話番号・LINE・メールを交換せず、BIG PAW内で見学できる仕組みを準備しています。','電話番号・LINE・メールを交換せず、オンライン見学できます。')
-if 'function openVideoFallback' not in s:
-    s=s.replace('async function joinRoom()','function openVideoFallback(roomName){location.assign("https://meet.jit.si/"+encodeURIComponent(roomName))}\nasync function joinRoom()',1)
+if 'function openVideoFallback' not in s: s=s.replace('async function joinRoom()','function openVideoFallback(roomName){location.assign("https://meet.jit.si/"+encodeURIComponent(roomName))}\nasync function joinRoom()',1)
 p.write_text(s,encoding='utf-8')
 srv=(root/'backend/server.py').read_text(encoding='utf-8'); py_compile.compile(str(root/'backend/server.py'),doraise=True)
-x=p.read_text(encoding='utf-8')
-assert 'online_visit_not_confirmed' in srv and 'outside_online_visit_window' in srv
-assert 'function openVideoFallback' in x and 'https://meet.jit.si/' in x
-print('ONLINE_VISIT_SAFE_PATCH_OK')
+x=p.read_text(encoding='utf-8'); assert 'function openVideoFallback' in x and 'https://meet.jit.si/' in x
+assert '/video-room' in srv and '見学確定' in srv
+print('ONLINE_VISIT_SAFE_PATCH_V2_OK')
 PY
 
 ENV PORT=8080
