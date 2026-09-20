@@ -1440,3 +1440,7 @@ PY
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
+
+# Rebuild puppy detail page cleanly after all legacy patches
+COPY puppy-detail-v2-build.py /tmp/puppy-detail-v2-build.py
+RUN python3 /tmp/puppy-detail-v2-build.py
