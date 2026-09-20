@@ -907,6 +907,19 @@ x=p.read_text(encoding='utf-8'); assert 'self.online_visit_email(m.group(1)' in 
 print('ONLINE_VISIT_EMAIL_NOTIFY_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
+# Buyer must never be shown breeder confirmation controls.
+assert 'confirmVideoBtn' in s and 'loadOnlineVisit' in s
+# Resolve role from the authenticated inquiry video-room-independent session API.
+old='if(v.status==="confirmed"){st.textContent="オンライン見学は確定しています。";document.getElementById("joinBtn").style.display="block"}else{st.textContent="オンライン見学の希望日時が届いています。";document.getElementById("confirmVideoBtn").style.display="inline-block"}'
+assert old in s
+new='if(v.status==="confirmed"){st.textContent="オンライン見学は確定しています。";document.getElementById("joinBtn").style.display="block"}else{const me=await fetch("/api/me",{credentials:"same-origin"}).then(r=>r.ok?r.json():null).catch(()=>null);const role=me&&(me.role||(me.user&&me.user.role));if(role==="breeder"||role==="operator"){st.textContent="オンライン見学の希望日時が届いています。";document.getElementById("confirmVideoBtn").style.display="inline-block";document.getElementById("requestVideoBtn").style.display="none"}else{st.textContent="オンライン見学を申し込みました。ブリーダーの確認をお待ちください。";document.getElementById("confirmVideoBtn").style.display="none"}}'
+s=s.replace(old,new,1); p.write_text(s,encoding='utf-8'); x=p.read_text(encoding='utf-8'); assert 'role==="breeder"||role==="operator"' in x and 'ブリーダーの確認をお待ちください' in x
+print('ONLINE_VISIT_ROLE_UI_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
