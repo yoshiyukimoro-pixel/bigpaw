@@ -824,6 +824,23 @@ assert '/video-room' in srv and '見学確定' in srv
 print('ONLINE_VISIT_SAFE_PATCH_V2_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
+assert 'onclick="requestOnlineVisit()"' in s and 'async function requestOnlineVisit()' in s
+# Make the request button explicit and make every outcome visible on the page.
+s=s.replace('<button type="button" onclick="requestOnlineVisit()">オンライン見学を申し込む</button>','<button id="requestVideoBtn" type="button" onclick="requestOnlineVisit()">オンライン見学を申し込む</button>',1)
+old='async function requestOnlineVisit(){const q=new URLSearchParams(location.search).get("inquiry"),d=document.getElementById("videoDate").value,t=document.getElementById("videoTime").value;if(!q||!d||!t){alert("希望日と時間を選んでください");return}const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/visit",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({date:d,time:t,transport:"オンライン見学",status:"proposed",faceToFaceConfirmed:false})});document.getElementById("videoStatus").textContent=r.ok?"オンライン見学を申し込みました。ブリーダーの確認をお待ちください。":"申し込みを送信できませんでした。"}'
+assert old in s, 'requestOnlineVisit exact source changed'
+new='async function requestOnlineVisit(){const st=document.getElementById("videoStatus"),btn=document.getElementById("requestVideoBtn"),q=new URLSearchParams(location.search).get("inquiry"),d=document.getElementById("videoDate").value,t=document.getElementById("videoTime").value;if(!q){st.textContent="問い合わせ画面からオンライン見学を開いてください。";return}if(!d||!t){st.textContent="希望日と時間を選んでください。";return}btn.disabled=true;st.textContent="申し込みを送信しています…";try{const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/visit",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({date:d,time:t,transport:"オンライン見学",status:"proposed",faceToFaceConfirmed:false})});let e={};try{e=await r.json()}catch(_){ }if(!r.ok)throw Error(e.message||e.error||"送信エラー");st.textContent="オンライン見学を申し込みました。ブリーダーの確認をお待ちください。"}catch(e){st.textContent="申し込みを送信できませんでした。"+(e&&e.message?"（"+e.message+"）":"")}finally{btn.disabled=false}}'
+s=s.replace(old,new,1); p.write_text(s,encoding='utf-8')
+srv=(root/'backend/server.py').read_text(encoding='utf-8'); py_compile.compile(str(root/'backend/server.py'),doraise=True)
+x=p.read_text(encoding='utf-8'); assert 'id="requestVideoBtn"' in x and '申し込みを送信しています…' in x and 'btn.disabled=false' in x
+assert "re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)" in srv
+print('ONLINE_VISIT_REQUEST_BUTTON_FIX_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
