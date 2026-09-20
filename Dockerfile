@@ -1027,6 +1027,29 @@ assert 'INQUIRY_403_REASON' in p.read_text(encoding='utf-8')
 print('INQUIRY_403_DIAG_OK')
 PY
 
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'backend/server.py'; s=p.read_text(encoding='utf-8')
+# Fix breeder recipient mapping: puppies.breeder_id references breeders.id, not users.id.
+old="target=row['breeder_id'] if status=='proposed' else row['buyer_id']; user=con.execute(\"SELECT email FROM users WHERE id=?\",(target,)).fetchone(); con.close()"
+assert old in s, 'online visit recipient source changed'
+new="""if status=='proposed':
+                user=con.execute(\"SELECT u.email FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?\",(row['breeder_id'],)).fetchone()
+            else:
+                user=con.execute(\"SELECT email FROM users WHERE id=?\",(row['buyer_id'],)).fetchone()
+            con.close()"""
+s=s.replace(old,new,1)
+# Remove temporary PII recipient diagnostic now that cause is identified.
+s=s.replace("            print('[BIG PAW] ONLINE_VISIT_RECIPIENT status='+str(status)+' email='+str(user['email']),flush=True)\n","",1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+x=p.read_text(encoding='utf-8')
+assert 'JOIN users u ON u.id=b.user_id' in x and 'ONLINE_VISIT_RECIPIENT status=' not in x
+assert 'self.online_visit_email(m.group(1)' in x
+print('ONLINE_VISIT_BREEDER_EMAIL_FIX_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
