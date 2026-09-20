@@ -1439,7 +1439,7 @@ PY
 
 ENV PORT=8080
 EXPOSE 8080
-CMD ["python3", "backend/server.py"]
+CMD ["sh", "-c", "exec python3 backend/server.py"]
 
 
 # Fix server startup indentation: launch block must not be inside diagnostics exception
