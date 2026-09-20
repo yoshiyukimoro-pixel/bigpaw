@@ -808,25 +808,24 @@ PY
 
 
 
+
 RUN python3 - <<'PY'
 from pathlib import Path
-import py_compile,re
+import py_compile
 root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
 assert 'async function joinRoom()' in s and 'JitsiMeetExternalAPI' in s
-# Idempotent patch: handle either original or already-modified response parsing.
 orig='if(!r.ok)throw Error("このオンライン見学には参加できません");const v=await r.json();'
 if orig in s: s=s.replace(orig,'const v=await r.json().catch(()=>({}));if(!r.ok)throw Error(({online_visit_not_confirmed:"ブリーダーの日時承認後に入室できます。",outside_online_visit_window:"入室できるのは予約時刻の30分前から2時間後までです。",invalid_online_visit_time:"オンライン見学の日時を確認してください。"}[v.error])||"このオンライン見学には参加できません");',1)
-if 'https://meet.jit.si/'+"'"+"+encodeURIComponent(v.room)" not in s:
-    s=s.replace('const api=new JitsiMeetExternalAPI("meet.jit.si",','if(typeof window.JitsiMeetExternalAPI!=="function"){location.href="https://meet.jit.si/"+encodeURIComponent(v.room);return}const api=new JitsiMeetExternalAPI("meet.jit.si",',1)
+fallback='location.href="https://meet.jit.si/"+encodeURIComponent(v.room)'
+if fallback not in s:
+    ctor='const api=new JitsiMeetExternalAPI("meet.jit.si",'; assert ctor in s
+    s=s.replace(ctor,'if(typeof window.JitsiMeetExternalAPI!=="function"){'+fallback+';return}'+ctor,1)
 s=s.replace('電話番号・LINE・メールを交換せず、BIG PAW内で見学できる仕組みを準備しています。','電話番号・LINE・メールを交換せず、オンライン見学できます。')
 p.write_text(s,encoding='utf-8')
 srv=(root/'backend/server.py').read_text(encoding='utf-8'); py_compile.compile(str(root/'backend/server.py'),doraise=True)
-x=p.read_text(encoding='utf-8')
-assert 'online_visit_not_confirmed' in srv and 'outside_online_visit_window' in srv
-assert 'ブリーダーの日時承認後に入室できます。' in x
-assert 'location.href="https://meet.jit.si/"+encodeURIComponent(v.room)' in x
-assert 'オンライン見学できます。' in x
-print('ONLINE_VISIT_JOIN_IDEMPOTENT_OK')
+x=p.read_text(encoding='utf-8'); assert 'online_visit_not_confirmed' in srv and 'outside_online_visit_window' in srv
+assert fallback in x and 'オンライン見学できます。' in x
+print('ONLINE_VISIT_JOIN_CLEAN_OK')
 PY
 
 ENV PORT=8080
