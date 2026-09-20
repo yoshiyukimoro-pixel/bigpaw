@@ -876,6 +876,20 @@ srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True); ss=srv.
 print('ONLINE_VISIT_CLEAN_REBUILD_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'messages.html'; s=p.read_text(encoding='utf-8')
+assert 'onlineVisit' in s and '</body>' in s
+# Breeder-visible online-visit request notice on the inquiry/message screen.
+js='''<script>\n(async()=>{try{const q=new URLSearchParams(location.search).get("inquiry");if(!q)return;const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/visit",{credentials:"same-origin"});if(!r.ok)return;const v=await r.json();if(!v||v.transport!=="オンライン見学"||v.status==="confirmed")return;const a=document.getElementById("onlineVisit");if(!a)return;const box=document.createElement("div");box.id="onlineVisitRequestNotice";box.className="notice";box.style.marginTop="12px";box.innerHTML="<strong>📹 オンライン見学の申込みがあります</strong><br>希望日時："+String(v.visit_date||"")+" "+String(v.visit_time||"")+"<br><span style=\\"font-size:.92em\\">下の『オンライン見学』から確認・確定してください。</span>";a.parentNode.insertBefore(box,a);a.textContent="📹 オンライン見学を確認・確定する"}catch(e){console.error("online visit notice",e)}})();\n</script>'''
+if 'onlineVisitRequestNotice' not in s:s=s.replace('</body>',js+'</body>',1)
+p.write_text(s,encoding='utf-8')
+x=p.read_text(encoding='utf-8'); assert 'onlineVisitRequestNotice' in x and '/visit' in x and 'オンライン見学の申込みがあります' in x
+srv=root/'backend/server.py'; py_compile.compile(str(srv),doraise=True); ss=srv.read_text(encoding='utf-8'); assert "re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)" in ss
+print('BREEDER_ONLINE_VISIT_NOTICE_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
