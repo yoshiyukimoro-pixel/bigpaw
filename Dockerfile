@@ -1445,5 +1445,13 @@ CMD ["python3", "backend/server.py"]
 COPY puppy-detail-v2-build.py /tmp/puppy-detail-v2-build.py
 RUN python3 /tmp/puppy-detail-v2-build.py
 
-# Build-time startup inspection only (does not change application code)
-RUN python3 -c "from pathlib import Path; s=Path('backend/server.py').read_text(encoding='utf-8').splitlines(); hits=[i for i,x in enumerate(s) if 'Resend connectivity check' in x]; print('STARTUP_CONTEXT_BEGIN'); [print(f'{j+1}: {s[j]}') for i in hits for j in range(max(0,i-20),min(len(s),i+61))]; print('STARTUP_CONTEXT_END')"
+# Fix server startup indentation: launch block must not be inside diagnostics exception
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('backend/server.py')
+s=p.read_text(encoding='utf-8')
+old="""except Exception as _e:\n    print('BIGPAW_PUBLIC_DIAG_ERROR|'+repr(_e),flush=True)\n    print(f'BIG PAW v1.0 server running on port {port} ({APP_ENV})')\n    if not IS_PRODUCTION:\n        print('Buyer   : demo@bigpaw.jp / demo1234')\n        print('Breeder : dog44@bigpaw.jp / demo1234')\n        print('Operator: admin@bigpaw.jp / admin1234')\n    ThreadingHTTPServer(('0.0.0.0',port),Handler).serve_forever()\n"""
+new="""except Exception as _e:\n    print('BIGPAW_PUBLIC_DIAG_ERROR|'+repr(_e),flush=True)\nprint(f'BIG PAW v1.0 server running on port {port} ({APP_ENV})')\nif not IS_PRODUCTION:\n    print('Buyer   : demo@bigpaw.jp / demo1234')\n    print('Breeder : dog44@bigpaw.jp / demo1234')\n    print('Operator: admin@bigpaw.jp / admin1234')\nThreadingHTTPServer(('0.0.0.0',port),Handler).serve_forever()\n"""
+assert old in s, 'startup block not found'
+p.write_text(s.replace(old,new,1),encoding='utf-8')
+PY
