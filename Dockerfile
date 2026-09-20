@@ -841,6 +841,21 @@ assert "re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)" in srv
 print('ONLINE_VISIT_REQUEST_BUTTON_FIX_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'online-visit.html'; s=p.read_text(encoding='utf-8')
+assert 'id="requestVideoBtn"' in s and 'async function requestOnlineVisit()' in s
+# Safari-safe binding: do not depend on inline onclick; bind after DOM is ready and surface JS errors.
+s=s.replace(' id="requestVideoBtn" type="button" onclick="requestOnlineVisit()"',' id="requestVideoBtn" type="button"',1)
+hook='''\nwindow.addEventListener("DOMContentLoaded",()=>{const b=document.getElementById("requestVideoBtn");if(b)b.addEventListener("click",()=>{const st=document.getElementById("videoStatus");if(st)st.textContent="申し込みを送信しています…";Promise.resolve(requestOnlineVisit()).catch(e=>{if(st)st.textContent="申し込み処理でエラーが発生しました。ページを再読み込みしてください。"})})});\n'''
+idx=s.rfind('</script>'); assert idx>=0, 'script closing tag missing'; s=s[:idx]+hook+s[idx:]
+p.write_text(s,encoding='utf-8')
+srv=(root/'backend/server.py').read_text(encoding='utf-8'); py_compile.compile(str(root/'backend/server.py'),doraise=True)
+x=p.read_text(encoding='utf-8'); assert 'addEventListener("click"' in x and '申し込みを送信しています…' in x
+print('ONLINE_VISIT_SAFARI_CLICK_FIX_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
