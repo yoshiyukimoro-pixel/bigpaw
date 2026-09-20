@@ -1421,6 +1421,22 @@ srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
 print('PUPPY_EXACT_ENTER_LINEBREAKS_PRECHECK_OK')
 PY
 
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+p=root/'puppy-detail.html';s=p.read_text(encoding='utf-8')
+# Verify the source renderer now converts the breeder's exact newline characters to <br>.
+assert "function desc(x)" in s
+assert ".replace(/\\\\r\\\\n|\\\\r|\\\\n/g,'<br>')" in s
+assert "'+desc(p.description||p.comment||p.note" in s
+# The display layer must not auto-invent sentence breaks.
+assert 'bigpawDescriptionParagraphFinal' not in s and 'bigpawDescriptionReadableParagraphs' not in s
+py_compile.compile(str(root/'backend/server.py'),doraise=True)
+print('PUPPY_EXACT_NEWLINE_BR_RENDER_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
