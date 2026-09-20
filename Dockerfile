@@ -1352,6 +1352,46 @@ assert 'bigpawAboutTextLinebreakFix' in x and 'bigpawAboutTextLinebreakRuntime' 
 srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
 print('PUPPY_ABOUT_EXACT_LINEBREAK_PRECHECK_OK')
 PY
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'backend/server.py'; s=p.read_text(encoding='utf-8')
+# Diagnose/fix at the data layer: existing description may have had line breaks stripped before display.
+# Add paragraph formatting to public puppy serialization without altering DB text.
+needle="def public_puppy("
+i=s.find(needle); assert i>=0, 'public_puppy serializer not found'
+j=s.find('\n    def ',i+5)
+if j<0:j=min(len(s),i+12000)
+chunk=s[i:j]
+# Existing public puppy payload must include description/profile-like text.
+assert 'description' in chunk or 'comment' in chunk or 'note' in chunk
+# Add a display-only formatter that inserts readable breaks at sentence/emoji campaign boundaries when stored text is one long line.
+helper='''\n    def format_puppy_description(self, text):\n        import re\n        t=str(text or '').replace('\\\\r\\\\n','\\\\n').replace('\\\\r','\\\\n')\n        if '\\\\n' in t:\n            return t\n        # Older saved descriptions may already have lost their Enter characters. Add conservative paragraph breaks for display only.\n        t=re.sub(r'([。！？!?])\\\\s*', r'\\\\1\\\\n', t)\n        t=re.sub(r'(―{3,}|—{3,}|ー{5,})\\\\s*', r'\\\\1\\\\n', t)\n        return t.strip()\n'''
+# Insert helper before serializer if not already present.
+if 'def format_puppy_description' not in s:
+    s=s[:i]+helper+s[i:]
+    i=s.find(needle);j=s.find('\n    def ',i+5);chunk=s[i:j if j>i else i+12000]
+# Patch returned dictionary/object description values in serializer.
+patterns=["'description': p.get('description')","'description':p.get('description')","'description': r['description']","'description':r['description']"]
+changed=False
+for old in patterns:
+    if old in s:
+        expr=old.split(':',1)[1]
+        s=s.replace(old,old.split(':',1)[0]+': self.format_puppy_description('+expr.strip()+')')
+        changed=True
+# If serializer copies dict then strips fields, format the dict key before return.
+if not changed:
+    ret='return d'
+    k=s.find(ret,i,j if j>i else i+12000)
+    assert k>=0, 'description return shape not recognized'
+    inject="if d.get('description') is not None: d['description']=self.format_puppy_description(d.get('description'))\n        "
+    s=s[:k]+inject+s[k:]
+p.write_text(s,encoding='utf-8');py_compile.compile(str(p),doraise=True)
+x=p.read_text(encoding='utf-8');assert 'def format_puppy_description' in x and "re.sub(r'([。！？!?])" in x
+print('PUPPY_DESCRIPTION_DATA_FORMAT_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
