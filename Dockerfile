@@ -1389,6 +1389,38 @@ assert 'bigpawDescriptionParagraphFinal' in x and 'line-height","1.85' in x and 
 srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
 print('PUPPY_DESCRIPTION_PARAGRAPH_FINAL_PRECHECK_OK')
 PY
+
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package');p=root/'puppy-detail.html';s=p.read_text(encoding='utf-8')
+# The requested behavior is exact: preserve every Enter/newline entered by the breeder, including blank lines.
+assert 'bigpawDetailMore' in s and 'この子について' in s
+# Remove the automatic sentence/keyword paragraph formatting added as fallback; it must not rewrite author formatting.
+start=s.find('<script id="bigpawDescriptionReadableParagraphs">')
+if start>=0:
+    end=s.find('</script>',start); assert end>=0
+    s=s[:start]+s[end+9:]
+start=s.find('<script id="bigpawDescriptionParagraphFinal">')
+if start>=0:
+    end=s.find('</script>',start); assert end>=0
+    s=s[:start]+s[end+9:]
+# Exact display rule for the dynamically rendered "この子について" paragraph.
+css='<style id="bigpawExactAuthorLinebreaks">#bigpawDetailMore .detailsection:first-child p{white-space:pre-wrap!important;line-height:1.7!important}</style>'
+assert '</head>' in s
+if 'bigpawExactAuthorLinebreaks' not in s:s=s.replace('</head>',css+'</head>',1)
+js='''<script id="bigpawExactAuthorLinebreakRuntime">
+(()=>{function fix(){const more=document.getElementById("bigpawDetailMore");if(!more)return;const sec=[...more.querySelectorAll(".detailsection")].find(x=>x.querySelector("h2")?.textContent.trim()==="この子について");const p=sec&&sec.querySelector("p");if(!p)return;p.style.setProperty("white-space","pre-wrap","important");p.style.setProperty("line-height","1.7","important")}new MutationObserver(fix).observe(document.body,{childList:true,subtree:true});document.readyState==="loading"?document.addEventListener("DOMContentLoaded",fix):fix();setTimeout(fix,300);setTimeout(fix,1000)})();
+</script>'''
+assert '</body>' in s
+if 'bigpawExactAuthorLinebreakRuntime' not in s:s=s.replace('</body>',js+'</body>',1)
+p.write_text(s,encoding='utf-8');x=p.read_text(encoding='utf-8')
+assert 'bigpawExactAuthorLinebreaks' in x and 'white-space:pre-wrap!important' in x
+assert 'bigpawDescriptionParagraphFinal' not in x and 'bigpawDescriptionReadableParagraphs' not in x
+srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
+print('PUPPY_EXACT_ENTER_LINEBREAKS_PRECHECK_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
