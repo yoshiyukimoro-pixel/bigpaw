@@ -1372,29 +1372,23 @@ srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
 print('PUPPY_DESCRIPTION_READABLE_FINAL_PRECHECK_OK')
 PY
 
+
 RUN python3 - <<'PY'
 from pathlib import Path
 import py_compile
 root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package');p=root/'puppy-detail.html';s=p.read_text(encoding='utf-8')
-assert 'bigpawDescriptionReadableParagraphs' in s and 'bigpawDetailMore' in s
-# Replace the previous one-line-per-sentence fallback with real readable paragraph spacing.
-old='t=t.replace(/([。！？!?])\\\\s*/g,"$1\\\\n").replace(/(―{3,}|—{3,}|ー{5,})\\\\s*/g,"$1\\\\n")'
-assert old in s
-new='t=t.replace(/(🎉[^🎉]{1,80}🎉)/g,"$1\\\\n\\\\n").replace(/(―{3,}|—{3,}|ー{5,})\\\\s*/g,"$1\\\\n\\\\n").replace(/([。！？!?])(?=\\\\s*(?:この子|パパ|ママ|血統|性格|兄弟|たくさん|穏やか|優しい|マズル))/g,"$1\\\\n\\\\n")'
-s=s.replace(old,new,1)
-# Existing genuine newlines get visible paragraph spacing too: normalize single line breaks to blank lines at display time.
-needle='if(!/[\\\\r\\\\n]/.test(t)){'
-assert needle in s
-# Keep genuine author formatting; CSS line-height plus pre-wrap makes blank lines clearly visible.
-css='<style id="bigpawAboutParagraphSpacing">#bigpawDetailMore .detailsection:first-child p{white-space:pre-wrap!important;line-height:1.85!important}</style>'
-assert '</head>' in s
-if 'bigpawAboutParagraphSpacing' not in s:s=s.replace('</head>',css+'</head>',1)
+assert 'bigpawDescriptionReadableParagraphs' in s and 'bigpawDetailMore' in s and 'この子について' in s
+# Add a final runtime pass after the existing renderer. It creates visible paragraph gaps without changing stored data.
+js='''<script id="bigpawDescriptionParagraphFinal">
+(()=>{function format(){const more=document.getElementById("bigpawDetailMore");if(!more)return;const sec=[...more.querySelectorAll(".detailsection")].find(x=>x.querySelector("h2")?.textContent.trim()==="この子について");const p=sec&&sec.querySelector("p");if(!p||p.dataset.paragraphFinal)return;let t=p.textContent||"";if(!/\\n\\s*\\n/.test(t)){t=t.replace(/(🎉[^🎉]{1,100}🎉)\\s*/g,"$1\\n\\n").replace(/(―{3,}|—{3,}|ー{5,})\\s*/g,"$1\\n\\n").replace(/([。！？!?])\\s*(?=(?:この子|パパ|ママ|血統|性格|兄弟|たくさん|穏やか|優しい|マズル))/g,"$1\\n\\n")}p.textContent=t;p.style.setProperty("white-space","pre-wrap","important");p.style.setProperty("line-height","1.85","important");p.dataset.paragraphFinal="1"}new MutationObserver(format).observe(document.body,{childList:true,subtree:true});document.readyState==="loading"?document.addEventListener("DOMContentLoaded",format):format();setTimeout(format,400);setTimeout(format,1200)})();
+</script>'''
+assert '</body>' in s
+if 'bigpawDescriptionParagraphFinal' not in s:s=s.replace('</body>',js+'</body>',1)
 p.write_text(s,encoding='utf-8');x=p.read_text(encoding='utf-8')
-assert 'bigpawAboutParagraphSpacing' in x and 'line-height:1.85!important' in x and '"$1\\\\n\\\\n"' in x
+assert 'bigpawDescriptionParagraphFinal' in x and 'line-height","1.85' in x and '$1\\\\n\\\\n' in x
 srv=root/'backend/server.py';py_compile.compile(str(srv),doraise=True)
-print('PUPPY_DESCRIPTION_PARAGRAPH_SPACING_PRECHECK_OK')
+print('PUPPY_DESCRIPTION_PARAGRAPH_FINAL_PRECHECK_OK')
 PY
-
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
