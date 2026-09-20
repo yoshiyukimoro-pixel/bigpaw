@@ -936,6 +936,19 @@ h.write_text(x,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('INQUIRY_403_PRECHECK_OK')
 PY
 
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'backend/server.py'; s=p.read_text(encoding='utf-8')
+# Temporary diagnostic for the user's test: log the actual online-visit recipient.
+needle="if not user or not user['email']: return False\n            subject=\"【BIG PAW】オンライン見学のお申し込みが入りました\""
+assert needle in s
+repl="if not user or not user['email']: return False\n            print('[BIG PAW] ONLINE_VISIT_RECIPIENT status='+str(status)+' email='+str(user['email']),flush=True)\n            subject=\"【BIG PAW】オンライン見学のお申し込みが入りました\""
+s=s.replace(needle,repl,1); p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+x=p.read_text(encoding='utf-8'); assert 'ONLINE_VISIT_RECIPIENT' in x
+print('ONLINE_VISIT_RECIPIENT_DIAG_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
