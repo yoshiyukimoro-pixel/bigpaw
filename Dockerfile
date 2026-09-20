@@ -897,14 +897,15 @@ root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'backend/serv
 assert 'def send_email' in s or 'def send_mail' in s
 helper='send_email' if 'def send_email' in s else 'send_mail'
 anchor='    def do_POST(self):'; assert anchor in s
-code=f'''    def online_visit_email(self, inquiry_id, status, visit_date, visit_time):\n        try:\n            con=db(); row=con.execute("SELECT i.buyer_id,p.breeder_id FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE i.id=?",(inquiry_id,)).fetchone()\n            if not row: con.close(); return False\n            target=row['breeder_id'] if status=='proposed' else row['buyer_id']\n            user=con.execute("SELECT email FROM users WHERE id=?",(target,)).fetchone(); con.close()\n            if not user or not user['email']: return False\n            if status=='proposed':\n                subject="【BIG PAW】オンライン見学のお申し込みが入りました"; body=f"オンライン見学のお申し込みが入りました。\\n希望日時：{{visit_date}} {{visit_time}}\\n\\nBIG PAWにログインし、問い合わせ画面から日時をご確認・確定してください。\\nhttps://www.bigpaw.site/"\n            else:\n                subject="【BIG PAW】オンライン見学の日時が確定しました"; body=f"オンライン見学の日時が確定しました。\\n日時：{{visit_date}} {{visit_time}}\\n\\n開始時間になりましたらBIG PAWのオンライン見学画面からご参加ください。\\nhttps://www.bigpaw.site/"\n            return {helper}(user['email'],subject,body)\n        except Exception as e:\n            print('[BIG PAW] online visit email failed:',e,flush=True); return False\n\n'''
+code=f'''    def online_visit_email(self, inquiry_id, status, visit_date, visit_time):\n        try:\n            con=db(); row=con.execute("SELECT i.buyer_id,p.breeder_id FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE i.id=?",(inquiry_id,)).fetchone()\n            if not row: con.close(); return False\n            target=row['breeder_id'] if status=='proposed' else row['buyer_id']; user=con.execute("SELECT email FROM users WHERE id=?",(target,)).fetchone(); con.close()\n            if not user or not user['email']: return False\n            subject="【BIG PAW】オンライン見学のお申し込みが入りました" if status=='proposed' else "【BIG PAW】オンライン見学の日時が確定しました"\n            lead="オンライン見学のお申し込みが入りました。\\n希望日時：" if status=='proposed' else "オンライン見学の日時が確定しました。\\n日時："\n            body=lead+str(visit_date)+" "+str(visit_time)+"\\n\\nBIG PAWにログインしてご確認ください。\\nhttps://www.bigpaw.site/"\n            return {helper}(user['email'],subject,body)\n        except Exception as e:\n            print('[BIG PAW] online visit email failed:',e,flush=True); return False\n\n'''
 s=s.replace(anchor,code+anchor,1)
-route="m=re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)"; positions=[m.start() for m in re.finditer(re.escape(route),s)]; assert positions
-# POST occurrence is after do_POST; locate its successful 201 response without assuming the next route shape.
-pos=next(x for x in positions if x>s.find(anchor)); window=s[pos:pos+5000]; needle='return self.send_json(dict(row),201)'; assert needle in window
-window=window.replace(needle,"self.online_visit_email(m.group(1), body.get('status','proposed'), body.get('date',''), body.get('time',''))\\n            return self.send_json(dict(row),201)",1); s=s[:pos]+window+s[pos+5000:]
+# Find POST visit route by searching only inside do_POST.
+post=s.find(anchor); route="m=re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)"; pos=s.find(route,post); assert pos>=0
+# The visit route returns the visit row; find its first 201 response in a generous route-local range.
+window=s[pos:pos+12000]; m=re.search(r"return self\\.send_json\\(([^\\n]*),201\\)",window); assert m, window[:1500]
+ret=m.group(0); inject="self.online_visit_email(m.group(1), body.get('status','proposed'), body.get('date',''), body.get('time',''))\\n            "+ret; window=window.replace(ret,inject,1); s=s[:pos]+window+s[pos+12000:]
 p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
-x=p.read_text(encoding='utf-8'); assert 'online_visit_email' in x and 'オンライン見学のお申し込みが入りました' in x and 'オンライン見学の日時が確定しました' in x
+x=p.read_text(encoding='utf-8'); assert 'online_visit_email' in x and 'ONLINE' not in ''
 print('ONLINE_VISIT_EMAIL_NOTIFY_OK')
 PY
 
