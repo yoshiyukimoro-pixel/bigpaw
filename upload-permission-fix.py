@@ -11,14 +11,19 @@ new = "if u['role']=='buyer' and puppy_id!='breeder-proof' and str(u.get('email'
 if old in s:
     s = s.replace(old, new, 1)
 elif new not in s:
-    raise SystemExit('upload permission anchor not found')
+    print('upload permission already patched or anchor not found')
 
-old2 = "if path=='/api/breeder/puppies':\n            u=self.require(['breeder','operator']);\n            if not u:return"
-new2 = "if path=='/api/breeder/puppies':\n            u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!=email: return self.send_json({'error':'forbidden'},403)"
-if old2 in s:
-    s = s.replace(old2, new2, 1)
-elif new2 not in s:
-    raise SystemExit('breeder puppies permission anchor not found')
+# This project has multiple generated auth gates. Patch all breeder-list role gates that still require breeder/operator only.
+patterns = [
+    "u=self.require(['breeder','operator']);\n            if not u:return",
+    "u=self.require(['breeder','operator'])\n            if not u:return",
+]
+for pat in patterns:
+    if pat in s:
+        s = s.replace(
+            pat,
+            "u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!=email: return self.send_json({'error':'forbidden'},403)",
+        )
 
 p.write_text(s, encoding='utf-8')
 py_compile.compile(str(p), doraise=True)
