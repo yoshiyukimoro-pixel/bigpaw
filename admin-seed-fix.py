@@ -10,6 +10,7 @@ if needle in s:
 helper = """
 # BIGPAW breeder account recovery: treat selected emails as breeder without asking them to re-apply.
 BIGPAW_BREEDER_EMAILS = {e.strip().lower() for e in os.environ.get('BIGPAW_BREEDER_EMAILS','').split(',') if e.strip()}
+BIGPAW_BREEDER_EMAILS.add('yoshiyukimoro@gmail.com')
 def bigpaw_recovered_role(user):
     try:
         if user and str(user.get('email','')).strip().lower() in BIGPAW_BREEDER_EMAILS:
