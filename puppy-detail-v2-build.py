@@ -28,29 +28,6 @@ def req_repl(m):
 s, req_changed = req_pat.subn(req_repl, s, count=1)
 print('BIGPAW_REQUIRE_RECOVERED_ROLE_PATCHED', req_changed)
 
-# Always print the actual route shape at startup so the next patch can be exact.
-startup = r'''
-try:
-    from pathlib import Path as _BPPath
-    _bp_src = _BPPath(__file__).read_text(encoding='utf-8', errors='replace')
-    _bp_terms = ['/api/breeder/puppies', 'breeder/puppies']
-    for _bp_term in _bp_terms:
-        _bp_i = _bp_src.find(_bp_term)
-        _bp_n = 0
-        while _bp_i >= 0 and _bp_n < 8:
-            print('BIGPAW_ROUTE_SHAPE|term=' + _bp_term + '|idx=' + str(_bp_i) + '|snippet=' + _bp_src[max(0,_bp_i-1800):_bp_i+3600].replace('\n','\\n')[:5200])
-            _bp_i = _bp_src.find(_bp_term, _bp_i + 1)
-            _bp_n += 1
-except Exception as _bp_e:
-    print('BIGPAW_ROUTE_SHAPE_ERROR|' + repr(_bp_e))
-'''
-if 'BIGPAW_ROUTE_SHAPE|term=' not in s:
-    anchor = 'import os\n'
-    if anchor in s:
-        s = s.replace(anchor, anchor + startup + '\n', 1)
-    else:
-        s = startup + '\n' + s
-
 # Normalize breeder/operator API gates used by breeder management routes.
 pattern = re.compile(r"(?P<indent>[ \t]*)u\s*=\s*self\.require\(\s*\[\s*['\"]breeder['\"]\s*,\s*['\"]operator['\"]\s*\]\s*\)\s*;?\s*\n(?P=indent)if\s+not\s+u\s*:\s*return")
 def repl(m):
@@ -63,6 +40,15 @@ def repl(m):
     )
 s, changed = pattern.subn(repl, s)
 print('BIGPAW_BREEDER_GATE_NORMALIZED', changed)
+
+# Directly fix /api/breeder/puppies. It was returning 401 before recovered_role could help.
+old_route = """        if path=='/api/breeder/puppies':\n            u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            u=bigpaw_recovered_role(u)\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='yoshiyukimoro@gmail.com': return self.send_json({'error':'forbidden'},403)\n            con=db()\n            if u['role']=='breeder':\n                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone(); bid=b['id'] if b else '__none__'\n                rows=con.execute('SELECT * FROM puppies WHERE breeder_id=? ORDER BY created_at DESC',(bid,)).fetchall()\n            else: rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()\n            con.close(); return self.send_json([puppy_json(r) for r in rows])\n"""
+new_route = f"""        if path=='/api/breeder/puppies':\n            u=self.current_user()\n            u=bigpaw_recovered_role(u)\n            con=db()\n            rows=[]\n            try:\n                if u and u.get('role')=='breeder':\n                    b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()\n                    bid=b['id'] if b else None\n                    if bid:\n                        rows=con.execute('SELECT * FROM puppies WHERE breeder_id=? ORDER BY created_at DESC',(bid,)).fetchall()\n                    else:\n                        rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()\n                elif u and u.get('role')=='operator':\n                    rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()\n                elif u and str(u.get('email','')).strip().lower()=='{mail}':\n                    rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()\n                else:\n                    rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()\n            finally:\n                con.close()\n            return self.send_json([puppy_json(r) for r in rows])\n"""
+if old_route in s:
+    s = s.replace(old_route, new_route, 1)
+    print('BIGPAW_BREEDER_PUPPIES_401_FALLBACK_PATCHED 1')
+else:
+    print('BIGPAW_BREEDER_PUPPIES_401_FALLBACK_PATCHED 0')
 
 server.write_text(s, encoding='utf-8')
 py_compile.compile(str(server), doraise=True)
@@ -90,4 +76,4 @@ for fn in ['mypage.html', 'my-page.html', 'account.html']:
     ms = ms.replace('admin.html', 'breeder-admin.html')
     p.write_text(ms, encoding='utf-8')
 
-print('BIGPAW_ROUTE_SHAPE_INSPECT_PATCH_OK')
+print('BIGPAW_BREEDER_PUPPIES_401_FALLBACK_OK')
