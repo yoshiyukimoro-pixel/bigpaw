@@ -28,12 +28,14 @@ if 'BIGPAW_BREEDER_EMAILS' not in s:
     else:
         s = s.replace('import os', 'import os\n' + helper, 1)
 
-# Normalize the central session/role response where possible.
-if 'bigpaw_recovered_role(u)' not in s:
-    s = s.replace('return u', 'u=bigpaw_recovered_role(u)\n        return u', 1)
-
-# Make /api/me show breeder too.
+# Make /api/me show breeder for the recovered Gmail account.
 if 'bigpaw_recovered_role(dict(u))' not in s:
     s = s.replace('return self.send_json(dict(u))', 'return self.send_json(bigpaw_recovered_role(dict(u)))')
+
+# Let role checks treat the recovered Gmail account as breeder too.
+needle_req = "if roles and u['role'] not in roles: return None"
+repl_req = "u=bigpaw_recovered_role(u)\n        if roles and u['role'] not in roles: return None"
+if needle_req in s and repl_req not in s:
+    s=s.replace(needle_req,repl_req,1)
 
 p.write_text(s,encoding='utf-8')
