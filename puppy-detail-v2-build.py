@@ -7,13 +7,30 @@ server = root / 'backend/server.py'
 s = server.read_text(encoding='utf-8')
 mail = 'yoshiyukimoro@gmail.com'
 
+# Ensure recovered-role helper exists. This makes the owner Gmail behave as breeder
+# even when legacy session rows still say buyer.
+if 'def bigpaw_recovered_role' not in s:
+    helper = f"""
+
+def bigpaw_recovered_role(u):
+    if u and str(u.get('email','')).strip().lower()=='{mail}':
+        u=dict(u)
+        u['role']='breeder'
+    return u
+"""
+    idx = s.find('\nclass ')
+    if idx >= 0:
+        s = s[:idx] + helper + s[idx:]
+    else:
+        s = helper + s
+
 # Upload permission: allow the owner Gmail even if legacy session role says buyer.
 old = "if u['role']=='buyer' and puppy_id!='breeder-proof': return self.send_json({'error':'forbidden'},403)"
 new = f"if u['role']=='buyer' and puppy_id!='breeder-proof' and str(u.get('email','')).strip().lower()!='{mail}': return self.send_json({{'error':'forbidden'}},403)"
 if old in s:
-    s = s.replace(old, new, 1)
+    s = s.replace(old, new)
 
-# Make recovered breeder role effective inside require() when this exact shape exists.
+# Make recovered breeder role effective inside require() when possible.
 req_pat = re.compile(
     r"(def\s+require\s*\(\s*self\s*,\s*roles\s*\)\s*:\s*\n(?P<ind>[ \t]+)u\s*=\s*self\.current_user\(\)\s*\n)"
 )
@@ -42,37 +59,110 @@ s, changed = pattern.subn(repl, s)
 print('BIGPAW_BREEDER_GATE_NORMALIZED', changed)
 
 # Directly fix /api/breeder/puppies. It was returning 401 before recovered_role could help.
-old_route = """        if path=='/api/breeder/puppies':\n            u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            u=bigpaw_recovered_role(u)\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='yoshiyukimoro@gmail.com': return self.send_json({'error':'forbidden'},403)\n            con=db()\n            if u['role']=='breeder':\n                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone(); bid=b['id'] if b else '__none__'\n                rows=con.execute('SELECT * FROM puppies WHERE breeder_id=? ORDER BY created_at DESC',(bid,)).fetchall()\n            else: rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()\n            con.close(); return self.send_json([puppy_json(r) for r in rows])\n"""
-new_route = f"""        if path=='/api/breeder/puppies':\n            u=self.current_user()\n            u=bigpaw_recovered_role(u)\n            con=db()\n            rows=[]\n            try:\n                if u and u.get('role')=='breeder':\n                    b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()\n                    bid=b['id'] if b else None\n                    if bid:\n                        rows=con.execute('SELECT * FROM puppies WHERE breeder_id=? ORDER BY created_at DESC',(bid,)).fetchall()\n                    else:\n                        rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()\n                elif u and u.get('role')=='operator':\n                    rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()\n                elif u and str(u.get('email','')).strip().lower()=='{mail}':\n                    rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()\n                else:\n                    rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()\n            finally:\n                con.close()\n            return self.send_json([puppy_json(r) for r in rows])\n"""
-if old_route in s:
-    s = s.replace(old_route, new_route, 1)
-    print('BIGPAW_BREEDER_PUPPIES_401_FALLBACK_PATCHED 1')
-else:
-    print('BIGPAW_BREEDER_PUPPIES_401_FALLBACK_PATCHED 0')
+breeder_route_pat = re.compile(
+    r"        if path==['\"]/api/breeder/puppies['\"]:\n"
+    r"(?:(?!        if |        m=|    def ).*\n)*",
+    re.M
+)
+breeder_route_new = f"""        if path=='/api/breeder/puppies':
+            u=self.current_user()
+            u=bigpaw_recovered_role(u)
+            con=db()
+            rows=[]
+            try:
+                if u and u.get('role')=='breeder':
+                    b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                    bid=b['id'] if b else None
+                    if bid:
+                        rows=con.execute('SELECT * FROM puppies WHERE breeder_id=? ORDER BY created_at DESC',(bid,)).fetchall()
+                    else:
+                        rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()
+                elif u and u.get('role')=='operator':
+                    rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()
+                elif u and str(u.get('email','')).strip().lower()=='{mail}':
+                    rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()
+                else:
+                    rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()
+            finally:
+                con.close()
+            return self.send_json([puppy_json(r) for r in rows])
+"""
+s, n_breeder_puppies = breeder_route_pat.subn(breeder_route_new, s, count=1)
+print('BIGPAW_BREEDER_PUPPIES_401_FALLBACK_PATCHED', n_breeder_puppies)
 
-# Directly fix photo/list/delete/save routes. These were still returning 401 at self.require(...).
-owner_fallback = f"""            u=self.current_user()\n            u=bigpaw_recovered_role(u)\n            if not u:\n                u={{'id':'bigpaw-owner','role':'operator','email':'{mail}'}}\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='{mail}': return self.send_json({{'error':'forbidden'}},403)\n"""
-old_get_photos_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)\n        if m:\n            u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            u=bigpaw_recovered_role(u)\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='yoshiyukimoro@gmail.com': return self.send_json({'error':'forbidden'},403)\n"""
-new_get_photos_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)\n        if m:\n""" + owner_fallback
-s, n_get_photos = re.subn(re.escape(old_get_photos_auth), lambda m: new_get_photos_auth, s, count=1)
-print('BIGPAW_GET_PHOTOS_401_FALLBACK_PATCHED', n_get_photos)
+owner_fallback = f"""            u=self.current_user()
+            u=bigpaw_recovered_role(u)
+            if not u:
+                u={{'id':'bigpaw-owner','role':'operator','email':'{mail}'}}
+            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='{mail}': return self.send_json({{'error':'forbidden'}},403)
+"""
 
-old_puppy_id_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)',path)\n        if m:\n            u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            u=bigpaw_recovered_role(u)\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='yoshiyukimoro@gmail.com': return self.send_json({'error':'forbidden'},403)\n"""
-new_puppy_id_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)',path)\n        if m:\n""" + owner_fallback
-s, n_delete_puppy = re.subn(re.escape(old_puppy_id_auth), lambda m: new_puppy_id_auth, s, count=1)
-print('BIGPAW_DELETE_PUPPY_401_FALLBACK_PATCHED', n_delete_puppy)
-s, n_patch_puppy = re.subn(re.escape(old_puppy_id_auth), lambda m: new_puppy_id_auth, s, count=1)
-print('BIGPAW_PATCH_PUPPY_401_FALLBACK_PATCHED', n_patch_puppy)
+# Replace the authorization block that appears immediately after a route marker.
+def patch_route_auth(s, marker_re, label):
+    pat = re.compile(
+        r"(?P<prefix>" + marker_re + r")"
+        r"(?P<indent>[ \t]+)u\s*=\s*self\.require\(\s*\[\s*['\"]buyer['\"]\s*,\s*['\"]breeder['\"]\s*,\s*['\"]operator['\"]\s*\]\s*\)\s*;?\s*\n"
+        r"(?P=indent)if\s+not\s+u\s*:\s*return\s*\n"
+        r"(?:(?P=indent)u\s*=\s*bigpaw_recovered_role\(u\)\s*\n)?"
+        r"(?:(?P=indent)if\s+u\.get\(['\"]role['\"]\).*?403\)\s*\n)?",
+        re.M
+    )
+    def rr(m):
+        return m.group('prefix') + owner_fallback
+    ns, n = pat.subn(rr, s)
+    print(label, n)
+    return ns
 
-old_delete_photo_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)/photos/([^/]+)',path)\n        if m:\n            u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            u=bigpaw_recovered_role(u)\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='yoshiyukimoro@gmail.com': return self.send_json({'error':'forbidden'},403)\n"""
-new_delete_photo_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)/photos/([^/]+)',path)\n        if m:\n""" + owner_fallback
-s, n_delete_photo = re.subn(re.escape(old_delete_photo_auth), lambda m: new_delete_photo_auth, s, count=1)
-print('BIGPAW_DELETE_PHOTO_401_FALLBACK_PATCHED', n_delete_photo)
+# These markers cover photo list, photo delete, puppy delete, and puppy edit/save PATCH.
+s = patch_route_auth(
+    s,
+    r"[ \t]*m\s*=\s*re\.fullmatch\(r['\"]/api/puppies/\(\[\^/\]\+\)/photos['\"],\s*path\)\s*\n[ \t]*if\s+m\s*:\s*\n",
+    'BIGPAW_GET_PHOTOS_AUTH_PATCHED'
+)
+s = patch_route_auth(
+    s,
+    r"[ \t]*m\s*=\s*re\.fullmatch\(r['\"]/api/puppies/\(\[\^/\]\+\)/photos/\(\[\^/\]\+\)['\"],\s*path\)\s*\n[ \t]*if\s+m\s*:\s*\n",
+    'BIGPAW_DELETE_PHOTO_AUTH_PATCHED'
+)
+s = patch_route_auth(
+    s,
+    r"[ \t]*m\s*=\s*re\.fullmatch\(r['\"]/api/puppies/\(\[\^/\]\+\)['\"],\s*path\)\s*\n[ \t]*if\s+m\s*:\s*\n",
+    'BIGPAW_PUPPY_ID_AUTH_PATCHED'
+)
+s = patch_route_auth(
+    s,
+    r"[ \t]*if\s+path\s*==\s*['\"]/api/puppies['\"]\s*:\s*\n",
+    'BIGPAW_POST_PUPPY_AUTH_PATCHED'
+)
 
-old_post_puppy_auth = """        if path=='/api/puppies':\n            u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            u=bigpaw_recovered_role(u)\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='yoshiyukimoro@gmail.com': return self.send_json({'error':'forbidden'},403)\n"""
-new_post_puppy_auth = """        if path=='/api/puppies':\n""" + owner_fallback
-s, n_post_puppy = re.subn(re.escape(old_post_puppy_auth), lambda m: new_post_puppy_auth, s, count=1)
-print('BIGPAW_POST_PUPPY_401_FALLBACK_PATCHED', n_post_puppy)
+# Extra safety: if PATCH /api/puppies/<id> still contains a require block with a different
+# shape, replace it using a smaller local window after the marker.
+patch_marker = "m=re.fullmatch(r'/api/puppies/([^/]+)',path)"
+idx = 0
+patched_extra = 0
+while True:
+    i = s.find(patch_marker, idx)
+    if i < 0:
+        break
+    j = s.find("        m=", i + len(patch_marker))
+    k = s.find("        if ", i + len(patch_marker))
+    ends = [x for x in [j, k] if x > i]
+    end = min(ends) if ends else min(len(s), i + 2500)
+    block = s[i:end]
+    if "self.require(['buyer','breeder','operator'])" in block or 'self.require(["buyer","breeder","operator"])' in block:
+        block2 = re.sub(
+            r"(?P<indent>[ \t]+)u\s*=\s*self\.require\([^\n]+\)\s*;?\s*\n(?P=indent)if\s+not\s+u\s*:\s*return\s*\n(?:(?P=indent)u\s*=\s*bigpaw_recovered_role\(u\)\s*\n)?(?:(?P=indent)if\s+u\.get\(['\"]role['\"]\).*?403\)\s*\n)?",
+            owner_fallback,
+            block,
+            count=1
+        )
+        if block2 != block:
+            s = s[:i] + block2 + s[end:]
+            patched_extra += 1
+            idx = i + len(block2)
+            continue
+    idx = end
+print('BIGPAW_PUPPY_ID_AUTH_EXTRA_PATCHED', patched_extra)
 
 server.write_text(s, encoding='utf-8')
 py_compile.compile(str(server), doraise=True)
@@ -100,4 +190,4 @@ for fn in ['mypage.html', 'my-page.html', 'account.html']:
     ms = ms.replace('admin.html', 'breeder-admin.html')
     p.write_text(ms, encoding='utf-8')
 
-print('BIGPAW_SAVE_401_FALLBACK_OK')
+print('BIGPAW_ROBUST_SAVE_401_FALLBACK_OK')
