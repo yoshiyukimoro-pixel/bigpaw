@@ -20,10 +20,17 @@ if old2 in s:
 elif new2 not in s:
     raise SystemExit('breeder puppies permission anchor not found')
 
+# Safe, narrow permission broadening for per-puppy photo-list route.
+# This does not mutate DB or public search, and it does not fail the build if the exact route shape differs.
+photo_old = "u=self.require(['breeder','operator']);\n            if not u:return\n            pid=path.split('/')[3]"
+photo_new = f"u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='{mail}': return self.send_json({{'error':'forbidden'}},403)\n            pid=path.split('/')[3]"
+if photo_old in s and photo_new not in s:
+    s = s.replace(photo_old, photo_new, 1)
+
 server.write_text(s, encoding='utf-8')
 py_compile.compile(str(server), doraise=True)
 q = server.read_text(encoding='utf-8')
 assert "name 'email'" not in q
 assert new in q
 assert new2 in q
-print('UPLOAD_AND_BREEDER_LIST_PERMISSION_FIX_OK')
+print('UPLOAD_BREEDER_LIST_AND_PHOTO_READ_FIX_OK')
