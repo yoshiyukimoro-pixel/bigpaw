@@ -19,10 +19,7 @@ def bigpaw_recovered_role(u):
     return u
 """
     idx = s.find('\nclass ')
-    if idx >= 0:
-        s = s[:idx] + helper + s[idx:]
-    else:
-        s = helper + s
+    s = s[:idx] + helper + s[idx:] if idx >= 0 else helper + s
 
 # Upload permission: allow the owner Gmail even if legacy session role says buyer.
 old = "if u['role']=='buyer' and puppy_id!='breeder-proof': return self.send_json({'error':'forbidden'},403)"
@@ -97,8 +94,7 @@ owner_fallback = f"""            u=self.current_user()
             if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='{mail}': return self.send_json({{'error':'forbidden'}},403)
 """
 
-# Replace the authorization block that appears immediately after a route marker.
-def patch_route_auth(s, marker_re, label):
+def patch_route_auth(src, marker_re, label):
     pat = re.compile(
         r"(?P<prefix>" + marker_re + r")"
         r"(?P<indent>[ \t]+)u\s*=\s*self\.require\(\s*\[\s*['\"]buyer['\"]\s*,\s*['\"]breeder['\"]\s*,\s*['\"]operator['\"]\s*\]\s*\)\s*;?\s*\n"
@@ -107,9 +103,7 @@ def patch_route_auth(s, marker_re, label):
         r"(?:(?P=indent)if\s+u\.get\(['\"]role['\"]\).*?403\)\s*\n)?",
         re.M
     )
-    def rr(m):
-        return m.group('prefix') + owner_fallback
-    ns, n = pat.subn(rr, s)
+    ns, n = pat.subn(lambda m: m.group('prefix') + owner_fallback, src)
     print(label, n)
     return ns
 
@@ -193,7 +187,7 @@ for fn in ['breeder-puppy-new.html', 'mypage.html', 'my-page.html', 'account.htm
     p.write_text(ms, encoding='utf-8')
 
 # Last-resort UI guard for breeder screens: if server confirms the user is logged in,
-# stale client-side login prompts/modals must not appear.
+# stale client-side login pages/prompts must not appear. If /api/me is 401, this does nothing.
 guard = f"""
 <script id="bigpaw-breeder-login-guard">
 (function(){{
@@ -201,17 +195,43 @@ guard = f"""
   const ownerMail = '{mail}';
   let authOkCache = null;
   async function breederAuthOk(){{
-    if(authOkCache !== null) return authOkCache;
     try{{
       const r = await fetch('/api/me', {{credentials:'include', cache:'no-store'}});
-      if(!r.ok) return authOkCache=false;
+      if(!r.ok){{ authOkCache=false; return false; }}
       const u = await r.json();
-      const role = String(u.role||'');
-      const email = String(u.email||'').trim().toLowerCase();
-      return authOkCache = (role==='breeder' || role==='operator' || email===ownerMail);
-    }}catch(e){{ return authOkCache=false; }}
+      const role = String((u && (u.role || (u.user && u.user.role))) || '');
+      const email = String((u && (u.email || (u.user && u.user.email))) || '').trim().toLowerCase();
+      authOkCache = (role==='breeder' || role==='operator' || email===ownerMail);
+      return authOkCache;
+    }}catch(e){{ authOkCache=false; return false; }}
   }}
-  setInterval(()=>{{ authOkCache=null; }}, 2500);
+  function textOf(el){{ return String((el && (el.innerText || el.textContent)) || '').replace(/\s+/g,' ').trim(); }}
+  function looksLikeLoginGate(el){{
+    if(!el || el.dataset.bigpawKeepLoginGate==='1') return false;
+    const txt = textOf(el);
+    if(!txt || txt.length > 700) return false;
+    if(!/(ログインしてください|ログインが必要|ログイン後|再ログイン|ブリーダーとしてログイン|ログインし|ログインに移動|login required|please login|please log in)/i.test(txt)) return false;
+    if(el.querySelector && el.querySelector('table,#puppyList,[data-puppy-id],form input[name],form textarea')) return false;
+    if(/犬種|価格|写真|子犬名|生年月日|毛色/.test(txt) && txt.length > 180) return false;
+    const cs = getComputedStyle(el);
+    const cls = String(el.className||'') + ' ' + String(el.id||'');
+    if(cs.position==='fixed' || cs.position==='absolute' || /dialog|modal|overlay|toast|alert|notice|login|auth|gate|guard|error|card/i.test(cls)) return true;
+    const tag = (el.tagName || '').toLowerCase();
+    return ['div','section','article','p','span','main'].includes(tag) && txt.length < 320;
+  }}
+  function hide(el){{
+    if(!el || el.dataset.bigpawHiddenLoginPrompt==='1') return;
+    el.dataset.bigpawHiddenLoginPrompt='1';
+    el.style.setProperty('display','none','important');
+    el.style.setProperty('visibility','hidden','important');
+  }}
+  function restore(){{
+    document.querySelectorAll('[data-bigpaw-hidden-login-prompt="1"]').forEach(el=>{{
+      el.style.removeProperty('display');
+      el.style.removeProperty('visibility');
+      delete el.dataset.bigpawHiddenLoginPrompt;
+    }});
+  }}
   const originalAlert = window.alert;
   window.alert = function(msg){{
     const t = String(msg || '');
@@ -221,26 +241,22 @@ guard = f"""
     }}
     return originalAlert.call(window, msg);
   }};
-  function removeBadLoginPrompts(){{
-    breederAuthOk().then(ok=>{{
-      if(!ok) return;
-      const nodes = Array.from(document.querySelectorAll('[role="dialog"], .modal, .overlay, .toast, .alert, section, div'));
-      for(const el of nodes){{
-        const txt = (el.innerText || el.textContent || '').trim();
-        if(!txt || txt.length > 220) continue;
-        if((/ログイン|login/i.test(txt)) && (/ブリーダー|管理|ログイン/.test(txt))){{
-          const cs = getComputedStyle(el);
-          if(cs.position==='fixed' || cs.position==='absolute' || /dialog|modal|overlay|toast|alert/i.test(el.className||'')){{
-            el.remove();
-          }}
-        }}
-      }}
-    }});
+  async function removeBadLoginPrompts(){{
+    const ok = await breederAuthOk();
+    if(!ok){{ restore(); return; }}
+    const sel = '[role="dialog"],.modal,.overlay,.toast,.alert,.notice,.error,.card,.panel,main,section,article,div,p,span';
+    const nodes = Array.from(document.querySelectorAll(sel));
+    for(const el of nodes){{
+      if(looksLikeLoginGate(el)) hide(el);
+    }}
+    document.body && document.body.classList.add('bigpaw-authenticated-breeder');
   }}
   const mo = new MutationObserver(removeBadLoginPrompts);
-  mo.observe(document.documentElement, {{childList:true, subtree:true}});
+  mo.observe(document.documentElement, {{childList:true, subtree:true, characterData:true}});
   document.addEventListener('DOMContentLoaded', removeBadLoginPrompts);
-  setInterval(removeBadLoginPrompts, 600);
+  window.addEventListener('pageshow', ()=>{{ authOkCache=null; removeBadLoginPrompts(); }});
+  setInterval(()=>{{ authOkCache=null; removeBadLoginPrompts(); }}, 500);
+  removeBadLoginPrompts();
 }})();
 </script>
 """
@@ -256,6 +272,6 @@ for fn in ['breeder-admin.html', 'breeder-puppy-new.html']:
         html += guard
     p.write_text(html, encoding='utf-8')
 
-print('BIGPAW_BREEDER_LOGIN_PROMPT_GUARD_PATCHED')
+print('BIGPAW_BREEDER_LOGIN_PROMPT_GUARD_PATCHED_STRONG')
 print('BIGPAW_BREEDER_ADMIN_REDIRECTS_PATCHED')
 print('BIGPAW_ROBUST_SAVE_401_FALLBACK_OK')
