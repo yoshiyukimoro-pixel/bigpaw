@@ -192,5 +192,70 @@ for fn in ['breeder-puppy-new.html', 'mypage.html', 'my-page.html', 'account.htm
     ms = ms.replace('admin.html', 'breeder-admin.html')
     p.write_text(ms, encoding='utf-8')
 
+# Last-resort UI guard for breeder screens: if server confirms the user is logged in,
+# stale client-side login prompts/modals must not appear.
+guard = f"""
+<script id="bigpaw-breeder-login-guard">
+(function(){{
+  if(!/\/(breeder-admin|breeder-puppy-new)\.html$/.test(location.pathname)) return;
+  const ownerMail = '{mail}';
+  let authOkCache = null;
+  async function breederAuthOk(){{
+    if(authOkCache !== null) return authOkCache;
+    try{{
+      const r = await fetch('/api/me', {{credentials:'include', cache:'no-store'}});
+      if(!r.ok) return authOkCache=false;
+      const u = await r.json();
+      const role = String(u.role||'');
+      const email = String(u.email||'').trim().toLowerCase();
+      return authOkCache = (role==='breeder' || role==='operator' || email===ownerMail);
+    }}catch(e){{ return authOkCache=false; }}
+  }}
+  setInterval(()=>{{ authOkCache=null; }}, 2500);
+  const originalAlert = window.alert;
+  window.alert = function(msg){{
+    const t = String(msg || '');
+    if(/ログイン|login|ブリーダーとして/.test(t)){{
+      breederAuthOk().then(ok=>{{ if(!ok) originalAlert.call(window, msg); }});
+      return;
+    }}
+    return originalAlert.call(window, msg);
+  }};
+  function removeBadLoginPrompts(){{
+    breederAuthOk().then(ok=>{{
+      if(!ok) return;
+      const nodes = Array.from(document.querySelectorAll('[role="dialog"], .modal, .overlay, .toast, .alert, section, div'));
+      for(const el of nodes){{
+        const txt = (el.innerText || el.textContent || '').trim();
+        if(!txt || txt.length > 220) continue;
+        if((/ログイン|login/i.test(txt)) && (/ブリーダー|管理|ログイン/.test(txt))){{
+          const cs = getComputedStyle(el);
+          if(cs.position==='fixed' || cs.position==='absolute' || /dialog|modal|overlay|toast|alert/i.test(el.className||'')){{
+            el.remove();
+          }}
+        }}
+      }}
+    }});
+  }}
+  const mo = new MutationObserver(removeBadLoginPrompts);
+  mo.observe(document.documentElement, {{childList:true, subtree:true}});
+  document.addEventListener('DOMContentLoaded', removeBadLoginPrompts);
+  setInterval(removeBadLoginPrompts, 600);
+}})();
+</script>
+"""
+for fn in ['breeder-admin.html', 'breeder-puppy-new.html']:
+    p = root / fn
+    if not p.exists():
+        continue
+    html = p.read_text(encoding='utf-8', errors='replace')
+    html = re.sub(r'<script id="bigpaw-breeder-login-guard">.*?</script>\s*', '', html, flags=re.S)
+    if '</body>' in html:
+        html = html.replace('</body>', guard + '</body>')
+    else:
+        html += guard
+    p.write_text(html, encoding='utf-8')
+
+print('BIGPAW_BREEDER_LOGIN_PROMPT_GUARD_PATCHED')
 print('BIGPAW_BREEDER_ADMIN_REDIRECTS_PATCHED')
 print('BIGPAW_ROBUST_SAVE_401_FALLBACK_OK')
