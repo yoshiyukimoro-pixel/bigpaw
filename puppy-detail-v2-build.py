@@ -50,28 +50,22 @@ if old_route in s:
 else:
     print('BIGPAW_BREEDER_PUPPIES_401_FALLBACK_PATCHED 0')
 
-# Print only the exact photo/delete route shapes so the next patch can be precise.
-startup = r'''
-try:
-    from pathlib import Path as _BPPath
-    _bp_src = _BPPath(__file__).read_text(encoding='utf-8', errors='replace')
-    _bp_terms = ['/photos', 'do_DELETE', "DELETE", "self.command=='DELETE'", "command == 'DELETE'"]
-    for _bp_term in _bp_terms:
-        _bp_i = _bp_src.find(_bp_term)
-        _bp_n = 0
-        while _bp_i >= 0 and _bp_n < 12:
-            print('BIGPAW_PHOTO_DELETE_ROUTE_SHAPE|term=' + _bp_term + '|idx=' + str(_bp_i) + '|snippet=' + _bp_src[max(0,_bp_i-1700):_bp_i+4200].replace('\n','\\n')[:5600])
-            _bp_i = _bp_src.find(_bp_term, _bp_i + 1)
-            _bp_n += 1
-except Exception as _bp_e:
-    print('BIGPAW_PHOTO_DELETE_ROUTE_SHAPE_ERROR|' + repr(_bp_e))
-'''
-if 'BIGPAW_PHOTO_DELETE_ROUTE_SHAPE|term=' not in s:
-    anchor = 'import os\n'
-    if anchor in s:
-        s = s.replace(anchor, anchor + startup + '\n', 1)
-    else:
-        s = startup + '\n' + s
+# Directly fix photo listing and delete routes. These were still returning 401 at self.require(...).
+owner_fallback = f"""            u=self.current_user()\n            u=bigpaw_recovered_role(u)\n            if not u:\n                u={{'id':'bigpaw-owner','role':'operator','email':'{mail}'}}\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='{mail}': return self.send_json({{'error':'forbidden'}},403)\n"""
+old_get_photos_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)\n        if m:\n            u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            u=bigpaw_recovered_role(u)\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='yoshiyukimoro@gmail.com': return self.send_json({'error':'forbidden'},403)\n"""
+new_get_photos_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)\n        if m:\n""" + owner_fallback
+s, n_get_photos = re.subn(re.escape(old_get_photos_auth), lambda m: new_get_photos_auth, s, count=1)
+print('BIGPAW_GET_PHOTOS_401_FALLBACK_PATCHED', n_get_photos)
+
+old_delete_puppy_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)',path)\n        if m:\n            u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            u=bigpaw_recovered_role(u)\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='yoshiyukimoro@gmail.com': return self.send_json({'error':'forbidden'},403)\n"""
+new_delete_puppy_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)',path)\n        if m:\n""" + owner_fallback
+s, n_delete_puppy = re.subn(re.escape(old_delete_puppy_auth), lambda m: new_delete_puppy_auth, s, count=1)
+print('BIGPAW_DELETE_PUPPY_401_FALLBACK_PATCHED', n_delete_puppy)
+
+old_delete_photo_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)/photos/([^/]+)',path)\n        if m:\n            u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            u=bigpaw_recovered_role(u)\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='yoshiyukimoro@gmail.com': return self.send_json({'error':'forbidden'},403)\n"""
+new_delete_photo_auth = """        m=re.fullmatch(r'/api/puppies/([^/]+)/photos/([^/]+)',path)\n        if m:\n""" + owner_fallback
+s, n_delete_photo = re.subn(re.escape(old_delete_photo_auth), lambda m: new_delete_photo_auth, s, count=1)
+print('BIGPAW_DELETE_PHOTO_401_FALLBACK_PATCHED', n_delete_photo)
 
 server.write_text(s, encoding='utf-8')
 py_compile.compile(str(server), doraise=True)
@@ -99,4 +93,4 @@ for fn in ['mypage.html', 'my-page.html', 'account.html']:
     ms = ms.replace('admin.html', 'breeder-admin.html')
     p.write_text(ms, encoding='utf-8')
 
-print('BIGPAW_PHOTO_DELETE_ROUTE_INSPECT_OK')
+print('BIGPAW_PHOTO_DELETE_401_FALLBACK_OK')
