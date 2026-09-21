@@ -50,6 +50,29 @@ if old_route in s:
 else:
     print('BIGPAW_BREEDER_PUPPIES_401_FALLBACK_PATCHED 0')
 
+# Print only the exact photo/delete route shapes so the next patch can be precise.
+startup = r'''
+try:
+    from pathlib import Path as _BPPath
+    _bp_src = _BPPath(__file__).read_text(encoding='utf-8', errors='replace')
+    _bp_terms = ['/photos', 'do_DELETE', "DELETE", "self.command=='DELETE'", "command == 'DELETE'"]
+    for _bp_term in _bp_terms:
+        _bp_i = _bp_src.find(_bp_term)
+        _bp_n = 0
+        while _bp_i >= 0 and _bp_n < 12:
+            print('BIGPAW_PHOTO_DELETE_ROUTE_SHAPE|term=' + _bp_term + '|idx=' + str(_bp_i) + '|snippet=' + _bp_src[max(0,_bp_i-1700):_bp_i+4200].replace('\n','\\n')[:5600])
+            _bp_i = _bp_src.find(_bp_term, _bp_i + 1)
+            _bp_n += 1
+except Exception as _bp_e:
+    print('BIGPAW_PHOTO_DELETE_ROUTE_SHAPE_ERROR|' + repr(_bp_e))
+'''
+if 'BIGPAW_PHOTO_DELETE_ROUTE_SHAPE|term=' not in s:
+    anchor = 'import os\n'
+    if anchor in s:
+        s = s.replace(anchor, anchor + startup + '\n', 1)
+    else:
+        s = startup + '\n' + s
+
 server.write_text(s, encoding='utf-8')
 py_compile.compile(str(server), doraise=True)
 q = server.read_text(encoding='utf-8')
@@ -76,4 +99,4 @@ for fn in ['mypage.html', 'my-page.html', 'account.html']:
     ms = ms.replace('admin.html', 'breeder-admin.html')
     p.write_text(ms, encoding='utf-8')
 
-print('BIGPAW_BREEDER_PUPPIES_401_FALLBACK_OK')
+print('BIGPAW_PHOTO_DELETE_ROUTE_INSPECT_OK')
