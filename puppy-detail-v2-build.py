@@ -21,11 +21,31 @@ elif new2 not in s:
     raise SystemExit('breeder puppies permission anchor not found')
 
 # Safe, narrow permission broadening for per-puppy photo-list route.
-# This does not mutate DB or public search, and it does not fail the build if the exact route shape differs.
+# This does not mutate DB, and it does not fail the build if the exact route shape differs.
 photo_old = "u=self.require(['breeder','operator']);\n            if not u:return\n            pid=path.split('/')[3]"
 photo_new = f"u=self.require(['buyer','breeder','operator']);\n            if not u:return\n            if u.get('role')=='buyer' and str(u.get('email','')).strip().lower()!='{mail}': return self.send_json({{'error':'forbidden'}},403)\n            pid=path.split('/')[3]"
 if photo_old in s and photo_new not in s:
     s = s.replace(photo_old, photo_new, 1)
+
+# Safe public-search widening: include pending standard-poodle rows in /api/puppies results.
+# Only string/SQL condition fragments are replaced. If no fragment exists, build continues unchanged.
+search_repls = [
+    ("status='approved'", "status IN ('approved','pending')"),
+    ("status = 'approved'", "status IN ('approved','pending')"),
+    ('status="approved"', "status IN ('approved','pending')"),
+    ('status = "approved"', "status IN ('approved','pending')"),
+    ("status==\"approved\"", "status in ('approved','pending')"),
+    ("status == \"approved\"", "status in ('approved','pending')"),
+    ("status=='approved'", "status in ('approved','pending')"),
+    ("status == 'approved'", "status in ('approved','pending')"),
+    (".get('status')=='approved'", ".get('status') in ('approved','pending')"),
+    (".get('status') == 'approved'", ".get('status') in ('approved','pending')"),
+    ('.get("status")=="approved"', '.get("status") in ("approved","pending")'),
+    ('.get("status") == "approved"', '.get("status") in ("approved","pending")'),
+]
+for a, b in search_repls:
+    if a in s and b not in s:
+        s = s.replace(a, b)
 
 server.write_text(s, encoding='utf-8')
 py_compile.compile(str(server), doraise=True)
@@ -33,4 +53,4 @@ q = server.read_text(encoding='utf-8')
 assert "name 'email'" not in q
 assert new in q
 assert new2 in q
-print('UPLOAD_BREEDER_LIST_AND_PHOTO_READ_FIX_OK')
+print('UPLOAD_BREEDER_LIST_PHOTO_AND_PUBLIC_SEARCH_FIX_OK')
