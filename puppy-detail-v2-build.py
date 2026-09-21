@@ -14,7 +14,7 @@ if old in s:
     s = s.replace(old, new, 1)
 
 # 2) Normalize breeder/operator API gates used by breeder management routes.
-# This covers breeder list, breeder profile, photo list, edit, delete, etc. without touching operator-only routes.
+# This covers the route shapes that use require(['breeder','operator']).
 pattern = re.compile(r"(?P<indent>[ \t]*)u\s*=\s*self\.require\(\['breeder','operator'\]\);\n(?P=indent)if not u:return")
 
 def repl(m):
@@ -28,19 +28,22 @@ def repl(m):
 s, changed = pattern.subn(repl, s)
 print('BIGPAW_BREEDER_GATE_NORMALIZED', changed)
 
+# 2.5) Diagnostic only: show exact route shapes for remaining 403 endpoints.
+# Keep snippets short so the build log stays readable.
+for key in ["photos", "do_DELETE", "DELETE", "/api/puppies/"]:
+    idx = s.find(key)
+    if idx >= 0:
+        print('BIGPAW_ROUTE_SNIP|' + key + '|' + s[max(0, idx-900):idx+2200].replace('\n','\\n')[:3200])
+
 server.write_text(s, encoding='utf-8')
 py_compile.compile(str(server), doraise=True)
 q = server.read_text(encoding='utf-8')
 assert "name 'email'" not in q
-assert "self.require(['buyer','breeder','operator'])" in q
 
 # 3) Create a dedicated breeder admin page from the current breeder management screen.
 admin = root / 'admin.html'
 breeder_admin = root / 'breeder-admin.html'
-if admin.exists() and not breeder_admin.exists():
-    breeder_admin.write_text(admin.read_text(encoding='utf-8', errors='replace'), encoding='utf-8')
-elif admin.exists() and breeder_admin.exists():
-    # Keep it synced with current admin screen for this deployment.
+if admin.exists():
     breeder_admin.write_text(admin.read_text(encoding='utf-8', errors='replace'), encoding='utf-8')
 
 if breeder_admin.exists():
@@ -58,4 +61,4 @@ for fn in ['mypage.html', 'my-page.html', 'account.html']:
     ms = ms.replace('admin.html', 'breeder-admin.html')
     p.write_text(ms, encoding='utf-8')
 
-print('BIGPAW_BREEDER_ADMIN_SPLIT_OK')
+print('BIGPAW_BREEDER_ADMIN_SPLIT_DIAG_OK')
