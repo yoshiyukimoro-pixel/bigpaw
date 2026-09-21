@@ -179,10 +179,12 @@ if breeder_admin.exists():
     bs = breeder_admin.read_text(encoding='utf-8', errors='replace')
     bs = bs.replace('管理', 'ブリーダー管理', 1)
     bs = bs.replace('掲載管理', 'ブリーダー掲載管理')
+    bs = bs.replace('admin.html', 'breeder-admin.html')
     breeder_admin.write_text(bs, encoding='utf-8')
 
-# Send breeder users from mypage to breeder-admin.html, not generic admin.html.
-for fn in ['mypage.html', 'my-page.html', 'account.html']:
+# Keep breeder workflow on breeder-admin.html. The generic admin.html is for operator/admin
+# screens and can trigger incorrect login-required messages for breeder users.
+for fn in ['breeder-puppy-new.html', 'mypage.html', 'my-page.html', 'account.html']:
     p = root / fn
     if not p.exists():
         continue
@@ -190,4 +192,5 @@ for fn in ['mypage.html', 'my-page.html', 'account.html']:
     ms = ms.replace('admin.html', 'breeder-admin.html')
     p.write_text(ms, encoding='utf-8')
 
+print('BIGPAW_BREEDER_ADMIN_REDIRECTS_PATCHED')
 print('BIGPAW_ROBUST_SAVE_401_FALLBACK_OK')
