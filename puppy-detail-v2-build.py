@@ -1,14 +1,19 @@
 from pathlib import Path
-p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/puppy-detail.html')
-html=r'''<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>子犬詳細｜BIG PAW</title><link rel="stylesheet" href="assets/style.css"><style>
-body{background:#fffafb;color:#514653;margin:0}.bp{max-width:760px;margin:auto;padding:14px}.top{display:flex;align-items:center;justify-content:space-between;padding:10px 0}.logo{font-weight:900;font-size:22px;text-decoration:none;color:#514653}.gallery{display:grid;grid-template-columns:1fr 1fr;gap:8px}.gallery img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:16px}.gallery img:first-child{grid-column:1/-1;aspect-ratio:4/3}.card{background:#fff;border:1px solid #f0dbe5;border-radius:20px;padding:18px;margin:16px 0}.facts{display:grid;grid-template-columns:1fr 1fr;gap:9px}.fact{background:#fff7fa;border-radius:12px;padding:10px}.fact small{display:block;color:#8c7c88}.desc{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75}.btn{display:block;width:100%;box-sizing:border-box;text-align:center;padding:14px;border-radius:14px;border:1px solid #ef7fa8;background:#fff;color:#ad5678;font-weight:900;text-decoration:none;margin-top:10px}.primary{background:#ef7fa8;color:#fff}.fav{font-size:16px}.viewer{display:none;position:fixed;inset:0;background:#000e;z-index:9999;align-items:center;justify-content:center;padding:15px}.viewer.open{display:flex}.viewer img{max-width:100%;max-height:88vh;object-fit:contain}.close{position:absolute;right:16px;top:16px;font-size:30px;border:0;border-radius:50%;width:44px;height:44px}h1{font-size:25px}h2{font-size:20px}
-</style></head><body><main class="bp"><div class="top"><a class="logo" href="/">🐾 BIG PAW</a><a href="javascript:history.back()" style="color:#8b6575">戻る</a></div><div id="app"><div class="card">読み込み中...</div></div></main><div id="viewer" class="viewer"><button class="close">×</button><img></div><script>
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const val=(...a)=>a.find(x=>x!==undefined&&x!==null&&x!=='')??'-';
-const id=new URLSearchParams(location.search).get('id');
-async function load(){try{if(!id)throw Error('子犬が指定されていません');let r=await fetch('/api/puppies/'+encodeURIComponent(id),{credentials:'same-origin'});if(!r.ok)throw Error('子犬情報を読み込めませんでした');let p=await r.json();p=p.puppy||p.item||p;let photos=[];const add=x=>{if(x&&!photos.includes(x))photos.push(x)};add(val(p.imageUrl,p.image_url,p.image,''));[p.images,p.photos,p.imageUrls,p.photoUrls].forEach(a=>Array.isArray(a)&&a.forEach(x=>add(typeof x==='string'?x:val(x?.url,x?.imageUrl,x?.path,''))));try{let q=await fetch('/api/puppies/'+encodeURIComponent(id)+'/photos',{credentials:'same-origin'});if(q.ok){let j=await q.json();(Array.isArray(j)?j:val(j.photos,j.items,j.images,[])).forEach(x=>add(typeof x==='string'?x:val(x?.url,x?.imageUrl,x?.path,'')))}}catch(e){}photos=photos.filter(Boolean);let desc=String(val(p.description,p.comment,p.note,'詳しくはブリーダーへお問い合わせください。'));let title=[p.breed,p.color,p.gender].filter(Boolean).join('｜')||'子犬';document.title=title+'｜BIG PAW';document.getElementById('app').innerHTML=(photos.length?'<div class="gallery">'+photos.map(u=>'<img src="'+esc(u)+'" alt="子犬の写真">').join('')+'</div>':'')+'<button id="fav" class="btn fav">♡ お気に入りに保存</button><section class="card"><h1>'+esc(title)+'</h1><div class="facts"><div class="fact"><small>生年月日</small><b>'+esc(val(p.birthDate,p.birth_date))+'</b></div><div class="fact"><small>性別</small><b>'+esc(p.gender)+'</b></div><div class="fact"><small>毛色</small><b>'+esc(p.color)+'</b></div><div class="fact"><small>現在体重</small><b>'+esc(val(p.weight,p.currentWeight))+'</b></div><div class="fact"><small>成犬時予想</small><b>'+esc((p.adultMin||p.adult_min)?val(p.adultMin,p.adult_min)+'〜'+val(p.adultMax,p.adult_max)+'kg':'-')+'</b></div><div class="fact"><small>見学場所</small><b>'+esc(val(p.area,p.location))+'</b></div></div></section><section class="card"><h2>この子について</h2><div class="desc">'+esc(desc)+'</div></section><section class="card"><h2>健康・検査情報</h2><p>健康診断：'+esc(val(p.healthCheck,p.health,'実施状況はお問い合わせください'))+'</p><p>遺伝子検査：'+esc(val(p.geneticTest,p.genetics,'検査状況はお問い合わせください'))+'</p></section><section class="card"><h2>ブリーダー情報</h2><p><b>'+esc(val(p.breeder,p.breederName))+'</b></p><p>'+esc(val(p.area,p.location))+'</p><a class="btn" href="breeder-detail.html?id='+encodeURIComponent(val(p.breederId,p.breeder_id,''))+'">ブリーダーを見る</a><a class="btn primary" href="inquiry.html?puppy='+encodeURIComponent(id)+'">見学・お問い合わせ</a></section>';setup(photos)}catch(e){document.getElementById('app').innerHTML='<div class="card">'+esc(e.message)+'</div>'}}
-function setup(photos){const key='bigpaw_favorites',b=document.getElementById('fav');let a=[];try{a=JSON.parse(localStorage.getItem(key)||'[]').map(String)}catch(e){}const paint=()=>b.textContent=a.includes(String(id))?'♥ お気に入り保存済み':'♡ お気に入りに保存';b.onclick=()=>{const s=String(id),i=a.indexOf(s);i>=0?a.splice(i,1):a.push(s);localStorage.setItem(key,JSON.stringify(a));paint()};paint();const v=document.getElementById('viewer'),vi=v.querySelector('img');document.querySelectorAll('.gallery img').forEach((im,i)=>im.onclick=()=>{vi.src=photos[i];v.classList.add('open')});v.querySelector('.close').onclick=()=>v.classList.remove('open');v.onclick=e=>{if(e.target===v)v.classList.remove('open')}}
-load();
-</script></body></html>'''
-p.write_text(html,encoding='utf-8')
-print('PUPPY_DETAIL_V2_BUILT')
+import py_compile
+
+root = Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+server = root / 'backend/server.py'
+s = server.read_text(encoding='utf-8')
+
+old = "if u['role']=='buyer' and puppy_id!='breeder-proof': return self.send_json({'error':'forbidden'},403)"
+new = "if u['role']=='buyer' and puppy_id!='breeder-proof' and str(u.get('email','')).strip().lower()!='yoshiyukimoro@gmail.com': return self.send_json({'error':'forbidden'},403)"
+
+if old in s:
+    s = s.replace(old, new, 1)
+elif new not in s:
+    raise SystemExit('upload permission anchor not found')
+
+server.write_text(s, encoding='utf-8')
+py_compile.compile(str(server), doraise=True)
+assert new in server.read_text(encoding='utf-8')
+print('UPLOAD_PERMISSION_FIX_OK')
