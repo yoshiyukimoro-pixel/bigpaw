@@ -1518,3 +1518,5 @@ if 'BREEDER_ROLE_BACKFILL_OK' not in s:s=s.replace(needle,insert+needle,1)
 p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('BREEDER_ROLE_BACKFILL_PATCH_OK')
 PY
+
+# Trigger a fresh Railway build after builder scheduling failures.
