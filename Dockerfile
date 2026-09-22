@@ -1549,4 +1549,18 @@ p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('BREEDER_LINK_DIAG_PATCH_OK')
 PY
 
+
+# Safe production identity/linkage diagnostic. Counts only; no emails, IDs, names, or tokens.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="print(f'BIG PAW v1.0 server running on port {port} ({APP_ENV})')"
+insert="""# Diagnose production role/profile linkage without exposing personal data.\ntry:\n    if IS_PRODUCTION:\n        _lc=db()\n        _all_users=_lc.execute(\"SELECT COUNT(*) AS n FROM users\").fetchone()['n']\n        _buyers=_lc.execute(\"SELECT COUNT(*) AS n FROM users WHERE role='buyer'\").fetchone()['n']\n        _role_breeders=_lc.execute(\"SELECT COUNT(*) AS n FROM users WHERE role='breeder'\").fetchone()['n']\n        _profiles=_lc.execute(\"SELECT COUNT(*) AS n FROM breeders\").fetchone()['n']\n        _linked=_lc.execute(\"SELECT COUNT(*) AS n FROM breeders b JOIN users u ON u.id=b.user_id\").fetchone()['n']\n        _buyer_profiles=_lc.execute(\"SELECT COUNT(*) AS n FROM breeders b JOIN users u ON u.id=b.user_id WHERE u.role='buyer'\").fetchone()['n']\n        _breeder_missing_profile=_lc.execute(\"SELECT COUNT(*) AS n FROM users u WHERE u.role='breeder' AND NOT EXISTS (SELECT 1 FROM breeders b WHERE b.user_id=u.id)\").fetchone()['n']\n        _orphan_profiles=_lc.execute(\"SELECT COUNT(*) AS n FROM breeders b LEFT JOIN users u ON u.id=b.user_id WHERE u.id IS NULL\").fetchone()['n']\n        _lc.close()\n        print('ROLE_PROFILE_DIAG|users='+str(_all_users)+'|buyers='+str(_buyers)+'|breeder_roles='+str(_role_breeders)+'|profiles='+str(_profiles)+'|linked='+str(_linked)+'|buyer_profiles='+str(_buyer_profiles)+'|breeder_missing_profile='+str(_breeder_missing_profile)+'|orphan_profiles='+str(_orphan_profiles),flush=True)\nexcept Exception as _le:\n    print('ROLE_PROFILE_DIAG_ERROR|'+type(_le).__name__,flush=True)\n"""
+assert needle in s
+if 'ROLE_PROFILE_DIAG|' not in s:s=s.replace(needle,insert+needle,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('ROLE_PROFILE_DIAG_PATCH_OK')
+PY
+
 # Trigger a fresh Railway build after builder scheduling failures.
