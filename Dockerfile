@@ -1512,6 +1512,20 @@ p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('BREEDER_ROLE_BACKFILL_PATCH_OK')
 PY
 
+# Repair the existing BIG PAW owner account only when the database shape is unambiguous.
+# Safety guards: production only; exact normalized account email; exactly one match; no operator overwrite.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="# Reconcile legacy approved breeder accounts at runtime."
+insert="""# Reconcile the known site-owner breeder account that predates the application/role workflow.\ntry:\n    if IS_PRODUCTION:\n        _owner_email='yoshiyukiyoshiyukimo@gmail.com'\n        _oc=db()\n        _rows=_oc.execute(\"SELECT id,role FROM users WHERE lower(trim(email))=?\",(_owner_email,)).fetchall()\n        if len(_rows)==1 and _rows[0]['role']!='operator':\n            _oc.execute(\"UPDATE users SET role='breeder' WHERE id=? AND role!='operator'\",(_rows[0]['id'],))\n            _oc.commit()\n            print('OWNER_BREEDER_RECONCILE_OK|matched=1',flush=True)\n        else:\n            print('OWNER_BREEDER_RECONCILE_SKIP|matched='+str(len(_rows))+'|operator='+str(bool(_rows and _rows[0]['role']=='operator')),flush=True)\n        _oc.close()\nexcept Exception as _oe:\n    print('OWNER_BREEDER_RECONCILE_ERROR|'+type(_oe).__name__,flush=True)\n"""
+assert needle in s
+if 'OWNER_BREEDER_RECONCILE_OK' not in s:s=s.replace(needle,insert+needle,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('OWNER_BREEDER_RECONCILE_PATCH_OK')
+PY
+
 # Safe relationship diagnostic: counts only, no user IDs/emails/tokens.
 RUN python3 - <<'PY'
 from pathlib import Path
