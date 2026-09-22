@@ -29,6 +29,16 @@ if old2 not in s: raise SystemExit('review target not found')
 s=s.replace(old2,new2,1)
 p.write_text(s,encoding='utf-8')
 
+# Backfill legacy accounts: approved breeder applications created before role promotion existed.
+p=Path('backend/server.py')
+s=p.read_text(encoding='utf-8')
+anchor="con.execute('PRAGMA foreign_keys=ON')"
+backfill="""\n        try:\n            con.execute(\"UPDATE users SET role='breeder' WHERE role!='operator' AND id IN (SELECT user_id FROM breeder_applications WHERE status='approved')\")\n            con.commit()\n        except Exception as e:\n            print('BREEDER_ROLE_BACKFILL_SKIP',repr(e))\n"""
+if 'BREEDER_ROLE_BACKFILL_SKIP' not in s:
+    if anchor not in s: raise SystemExit('db init anchor not found')
+    s=s.replace(anchor,anchor+backfill,1)
+p.write_text(s,encoding='utf-8')
+
 p=Path('breeder-register.html'); s=p.read_text(encoding='utf-8')
 s=s.replace("current.textContent='現在の申請状況：'+({pending:'審査中',approved:'承認済み',rejected:'差し戻し'}[rows[0].status]||rows[0].status)+(rows[0].review_note?'｜'+rows[0].review_note:'');if(rows[0].status!=='rejected')submitBtn.disabled=true",
 """const st=rows[0].status;current.innerHTML=st==='pending'?'<b>掲載審査申請済み・審査中</b><br>審査が完了するとメールでお知らせします。':st==='approved'?'<b>掲載審査が承認されました。</b><br><a class="btn btn-main" style="margin-top:10px" href="breeder-puppy-new.html">子犬を登録する</a>':('<b>申請内容をご確認ください。</b>'+(rows[0].review_note?'<br>'+rows[0].review_note:''));if(st!=='rejected')submitBtn.disabled=true""")
