@@ -1467,29 +1467,6 @@ p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('UPLOAD_PERSISTED_ROLE_GATE_OK')
 PY
 
-# Final auth normalization: approved breeder applications are authoritative for protected breeder routes.
-RUN python3 - <<'PY'
-from pathlib import Path
-import py_compile
-p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
-needle="def require(self,roles):"
-i=s.find(needle); assert i>=0
-j=s.find(chr(10)+'    def ',i+len(needle)); assert j>i
-block=s[i:j]
-# Refresh an authenticated user's role from users + approved breeder application before role rejection.
-anchor="if not u or u['role'] not in roles:"
-assert anchor in block
-repl="""if u and u['role'] not in roles and ('breeder' in roles or 'operator' in roles):
-            _rc=db(); _rr=_rc.execute(\"SELECT u.role AS role, EXISTS(SELECT 1 FROM breeder_applications b WHERE b.user_id=u.id AND b.status='approved') AS approved FROM users u WHERE u.id=?\",(u['id'],)).fetchone(); _rc.close()
-            if _rr and (_rr['role'] in ('breeder','operator') or _rr['approved']):
-                u=dict(u); u['role']='operator' if _rr['role']=='operator' else 'breeder'
-        if not u or u['role'] not in roles:"""
-block2=block.replace(anchor,repl,1)
-s=s[:i]+block2+s[j:]
-p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
-print('APPROVED_BREEDER_REQUIRE_AUTH_OK')
-PY
-
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
