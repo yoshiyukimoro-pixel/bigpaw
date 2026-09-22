@@ -84,6 +84,8 @@ COPY final-inspect.py /tmp/final-inspect.py
 RUN python3 /tmp/final-inspect.py && cat final-inspection.txt && cat delete-inspection.txt
 COPY detail-gallery-fix.py /tmp/detail-gallery-fix.py
 RUN python3 /tmp/detail-gallery-fix.py
+COPY photo-auth-fix.py /tmp/photo-auth-fix.py
+RUN python3 /tmp/photo-auth-fix.py
 RUN python3 - <<'PY'
 from pathlib import Path
 p=Path('puppy-detail.html')
