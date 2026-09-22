@@ -1467,26 +1467,7 @@ p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('UPLOAD_PERSISTED_ROLE_GATE_OK')
 PY
 
-# Temporary upload 403 branch diagnostics (no sensitive values).
-RUN python3 - <<'PY'
-from pathlib import Path
-import py_compile
-p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
-i=s.find("if path=='/api/uploads':",s.find('def do_POST')); assert i>=0
-j=s.find("if path==",i+30); j=j if j>i else min(len(s),i+7000)
-block=s[i:j]
-# Mark every explicit forbidden return in this route so the exact branch is visible in deploy logs.
-needle="return self.send_json({'error':'forbidden'},403)"
-count=block.count(needle); assert count>=1
-n=0
-while needle in block:
-    n+=1
-    block=block.replace(needle,"print('UPLOAD_403_BRANCH_%d',flush=True); "%n+needle,1)
-s=s[:i]+block+s[j:]
-p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
-print('UPLOAD_403_DIAG_PATCHED',count)
-PY
-
+# Upload 403 diagnostics removed: diagnose from runtime HTTP/auth logs instead.
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
