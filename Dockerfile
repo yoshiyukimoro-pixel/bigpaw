@@ -1504,7 +1504,7 @@ RUN python3 - <<'PY'
 from pathlib import Path
 import py_compile
 p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
-needle="# Reconcile legacy approved breeder accounts at runtime."
+needle="try:\n    _con=db()\n    _con.execute(\"UPDATE users SET role='breeder' WHERE role!='operator' AND id IN (SELECT user_id FROM breeder_applications WHERE status='approved')\")"
 insert="""# Restore the legacy DOG44 breeder profile only when the owner match is unique and no breeder profile exists.
 try:
     if IS_PRODUCTION:
