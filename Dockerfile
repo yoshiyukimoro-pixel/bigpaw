@@ -1467,6 +1467,18 @@ p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('UPLOAD_PERSISTED_ROLE_GATE_OK')
 PY
 
+# Safe runtime upload auth diagnostic: role names only, no user IDs/emails/tokens.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="            if _ur and _ur['role'] in ('breeder','operator'): u=dict(u); u['role']=_ur['role']"
+repl=needle+"\\n            print('UPLOAD_AUTH_STATE|effective_role='+str(u.get('role'))+'|persisted_role='+str(_ur['role'] if _ur else None),flush=True)"
+assert needle in s
+s=s.replace(needle,repl,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('UPLOAD_AUTH_DIAG_PATCH_OK')
+PY
 # Upload 403 diagnostics removed: diagnose from runtime HTTP/auth logs instead.
 ENV PORT=8080
 EXPOSE 8080
