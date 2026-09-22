@@ -24,14 +24,15 @@
   if(p.endsWith('/login.html')){
     loggedInBreeder().then(ok=>{
       if(ok){
-        const next=sessionStorage.getItem('bigpaw_last_breeder_page') || 'breeder-admin.html';
+        const next=sessionStorage.getItem('bigpaw_last_breeder_page') || 'breeder-register.html';
+        if(next==='breeder-admin.html') sessionStorage.removeItem('bigpaw_last_breeder_page');
         location.replace(next);
       }
     });
     return;
   }
 
-  if(p.endsWith('/breeder-admin.html') || p.endsWith('/breeder-puppy-new.html')){
+  if(p.endsWith('/breeder-puppy-new.html')){
     sessionStorage.setItem('bigpaw_last_breeder_page', location.pathname.replace(/^\//,''));
   }
 })();
