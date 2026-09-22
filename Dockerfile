@@ -1454,6 +1454,19 @@ p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('UPLOAD_FRESH_ROLE_AUTH_PATCH_OK')
 PY
 
+# Final upload gate: authenticate normally, then authorize against persisted role so stale session roles cannot block approved breeders.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+old="if path=='/api/uploads':"+chr(10)+"            u=self.require(['buyer','breeder','operator']);"+chr(10)+"            if not u:return"
+new="if path=='/api/uploads':"+chr(10)+"            u=self.require(['buyer','breeder','operator']);"+chr(10)+"            if not u:return"+chr(10)+"            _uc=db(); _ur=_uc.execute('SELECT role FROM users WHERE id=?',(u['id'],)).fetchone(); _uc.close()"+chr(10)+"            if _ur and _ur['role'] in ('breeder','operator'): u=dict(u); u['role']=_ur['role']"
+assert old in s
+s=s.replace(old,new,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('UPLOAD_PERSISTED_ROLE_GATE_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
