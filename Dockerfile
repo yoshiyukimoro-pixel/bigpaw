@@ -1499,6 +1499,39 @@ assert old in s, 'startup block not found'
 p.write_text(s.replace(old,new,1),encoding='utf-8')
 PY
 
+# Create the missing DOG44 breeder profile only for the uniquely reconciled production owner.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="# Reconcile legacy approved breeder accounts at runtime."
+insert="""# Restore the legacy DOG44 breeder profile only when the owner match is unique and no breeder profile exists.
+try:
+    if IS_PRODUCTION:
+        _pc=db()
+        _ou=_pc.execute("SELECT id,role FROM users WHERE lower(trim(email))=?",('yoshiyukimoro@gmail.com',)).fetchall()
+        _pn=_pc.execute("SELECT COUNT(*) AS n FROM breeders").fetchone()['n']
+        if len(_ou)==1 and _ou[0]['role']=='breeder' and _pn==0:
+            import uuid as _uuid
+            _bid='b_'+_uuid.uuid4().hex[:12]
+            _cols=[r['name'] for r in _pc.execute("PRAGMA table_info(breeders)").fetchall()]
+            _vals={'id':_bid,'user_id':_ou[0]['id'],'kennel_name':'DOG44'}
+            _use=[k for k in ('id','user_id','kennel_name') if k in _cols]
+            if all(k in _use for k in ('id','user_id','kennel_name')):
+                _pc.execute("INSERT INTO breeders ("+','.join(_use)+") VALUES ("+','.join('?' for _ in _use)+")",tuple(_vals[k] for k in _use))
+                _pc.commit(); print('OWNER_BREEDER_PROFILE_OK|created=1',flush=True)
+            else: print('OWNER_BREEDER_PROFILE_SKIP|schema',flush=True)
+        else: print('OWNER_BREEDER_PROFILE_SKIP|owners='+str(len(_ou))+'|profiles='+str(_pn),flush=True)
+        _pc.close()
+except Exception as _pe:
+    print('OWNER_BREEDER_PROFILE_ERROR|'+type(_pe).__name__,flush=True)
+"""
+assert needle in s
+if 'OWNER_BREEDER_PROFILE_OK' not in s:s=s.replace(needle,insert+needle,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('OWNER_BREEDER_PROFILE_PATCH_OK')
+PY
+
 # Backfill roles for breeder applications approved before role promotion was added.
 RUN python3 - <<'PY'
 from pathlib import Path
