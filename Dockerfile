@@ -1473,7 +1473,7 @@ from pathlib import Path
 import py_compile
 p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
 needle="            if _ur and _ur['role'] in ('breeder','operator'): u=dict(u); u['role']=_ur['role']"
-repl=needle+"\\n            print('UPLOAD_AUTH_STATE|effective_role='+str(u.get('role'))+'|persisted_role='+str(_ur['role'] if _ur else None),flush=True)"
+repl=needle+"\n            print('UPLOAD_AUTH_STATE|effective_role='+str(u.get('role'))+'|persisted_role='+str(_ur['role'] if _ur else None),flush=True)"
 assert needle in s
 s=s.replace(needle,repl,1)
 p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
