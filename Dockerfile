@@ -1512,4 +1512,27 @@ p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('BREEDER_ROLE_BACKFILL_PATCH_OK')
 PY
 
+# Safe relationship diagnostic: counts only, no user IDs/emails/tokens.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="print('BREEDER_ROLE_BACKFILL_OK',flush=True)"
+repl="""print('BREEDER_ROLE_BACKFILL_OK',flush=True)
+    try:
+        _d=db()
+        _approved=_d.execute("SELECT COUNT(*) AS n FROM breeder_applications WHERE status='approved'").fetchone()['n']
+        _approved_users=_d.execute("SELECT COUNT(DISTINCT user_id) AS n FROM breeder_applications WHERE status='approved'").fetchone()['n']
+        _breeders=_d.execute("SELECT COUNT(*) AS n FROM users WHERE role='breeder'").fetchone()['n']
+        _approved_breeders=_d.execute("SELECT COUNT(DISTINCT b.user_id) AS n FROM breeder_applications b JOIN users u ON u.id=b.user_id WHERE b.status='approved' AND u.role='breeder'").fetchone()['n']
+        _d.close()
+        print('BREEDER_LINK_DIAG|approved='+str(_approved)+'|approved_users='+str(_approved_users)+'|breeders='+str(_breeders)+'|approved_breeders='+str(_approved_breeders),flush=True)
+    except Exception as _de:
+        print('BREEDER_LINK_DIAG_ERROR|'+type(_de).__name__,flush=True)"""
+assert needle in s
+s=s.replace(needle,repl,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('BREEDER_LINK_DIAG_PATCH_OK')
+PY
+
 # Trigger a fresh Railway build after builder scheduling failures.
