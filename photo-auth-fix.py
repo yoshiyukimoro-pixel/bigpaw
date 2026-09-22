@@ -21,3 +21,5 @@ if i >= 0:
 p.write_text(s, encoding='utf-8')
 py_compile.compile(str(p), doraise=True)
 print('BIGPAW_PHOTO_AUTH_FIX_OK')
+
+# BIGPAW deploy trigger 2026-09-22: ensure Railway rebuilds photo authorization fix.
