@@ -13,7 +13,10 @@ new="""con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=
 if old not in s: raise SystemExit('apply target not found')
 s=s.replace(old,new,1)
 old2="con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=?',(a['id'],)).fetchone(); con.close(); return self.send_json(dict(r))"
-new2="""con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=?',(a['id'],)).fetchone()
+new2="""if status=='approved':
+                con.execute("UPDATE users SET role='breeder' WHERE id=? AND role!='operator'",(a['user_id'],))
+                con.commit()
+            con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=?',(a['id'],)).fetchone()
             applicant=con.execute('SELECT email FROM users WHERE id=?',(a['user_id'],)).fetchone()
             con.close()
             if applicant:
