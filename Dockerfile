@@ -1439,6 +1439,21 @@ py_compile.compile(str(root/'backend/server.py'),doraise=True)
 print('PUPPY_EXACT_NEWLINE_BR_RENDER_PRECHECK_OK')
 PY
 
+# Normalize upload authorization against the persisted user role after legacy breeder migration.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="if u['role']=='buyer' and puppy_id!='breeder-proof': return self.send_json({'error':'forbidden'},403)"
+repl="""if u['role']=='buyer' and puppy_id!='breeder-proof':
+                _c=db(); _fresh=_c.execute('SELECT role FROM users WHERE id=?',(u['id'],)).fetchone(); _c.close()
+                if not _fresh or _fresh['role'] not in ('breeder','operator'): return self.send_json({'error':'forbidden'},403)"""
+assert needle in s
+s=s.replace(needle,repl,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('UPLOAD_FRESH_ROLE_AUTH_PATCH_OK')
+PY
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
