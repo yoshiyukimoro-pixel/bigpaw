@@ -1439,19 +1439,6 @@ py_compile.compile(str(root/'backend/server.py'),doraise=True)
 print('PUPPY_EXACT_NEWLINE_BR_RENDER_PRECHECK_OK')
 PY
 
-# Backfill roles for breeder applications approved before role promotion was added.
-RUN python3 - <<'PY'
-from pathlib import Path
-import py_compile
-p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
-needle="print(f'BIG PAW v1.0 server running on port {port} ({APP_ENV})')"
-insert="""# Reconcile legacy approved breeder accounts at runtime.\ntry:\n    _con=db()\n    _con.execute(\"UPDATE users SET role='breeder' WHERE role!='operator' AND id IN (SELECT user_id FROM breeder_applications WHERE status='approved')\")\n    _con.commit(); _con.close()\n    print('BREEDER_ROLE_BACKFILL_OK',flush=True)\nexcept Exception as _e:\n    print('BREEDER_ROLE_BACKFILL_ERROR|'+repr(_e),flush=True)\n"""
-assert needle in s
-if 'BREEDER_ROLE_BACKFILL_OK' not in s:s=s.replace(needle,insert+needle,1)
-p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
-print('BREEDER_ROLE_BACKFILL_PATCH_OK')
-PY
-
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
@@ -1469,4 +1456,17 @@ old="""except Exception as _e:\n    print('BIGPAW_PUBLIC_DIAG_ERROR|'+repr(_e),f
 new="""except Exception as _e:\n    print('BIGPAW_PUBLIC_DIAG_ERROR|'+repr(_e),flush=True)\nprint(f'BIG PAW v1.0 server running on port {port} ({APP_ENV})')\nif not IS_PRODUCTION:\n    print('Buyer   : demo@bigpaw.jp / demo1234')\n    print('Breeder : dog44@bigpaw.jp / demo1234')\n    print('Operator: admin@bigpaw.jp / admin1234')\nThreadingHTTPServer(('0.0.0.0',port),Handler).serve_forever()\n"""
 assert old in s, 'startup block not found'
 p.write_text(s.replace(old,new,1),encoding='utf-8')
+PY
+
+# Backfill roles for breeder applications approved before role promotion was added.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="print(f'BIG PAW v1.0 server running on port {port} ({APP_ENV})')"
+insert="""# Reconcile legacy approved breeder accounts at runtime.\ntry:\n    _con=db()\n    _con.execute(\"UPDATE users SET role='breeder' WHERE role!='operator' AND id IN (SELECT user_id FROM breeder_applications WHERE status='approved')\")\n    _con.commit(); _con.close()\n    print('BREEDER_ROLE_BACKFILL_OK',flush=True)\nexcept Exception as _e:\n    print('BREEDER_ROLE_BACKFILL_ERROR|'+repr(_e),flush=True)\n"""
+assert needle in s
+if 'BREEDER_ROLE_BACKFILL_OK' not in s:s=s.replace(needle,insert+needle,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('BREEDER_ROLE_BACKFILL_PATCH_OK')
 PY
