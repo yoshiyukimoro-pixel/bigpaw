@@ -516,3 +516,13 @@ if p.exists():
  x=x.replace("const ctx=canvas.getContext('2d');ctx.drawImage(", "const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(")
  x=x.replace("const ctx=c.getContext('2d');ctx.drawImage(", "const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(")
  p.write_text(x,encoding='utf-8')
+
+
+# Definitive white export background for the actual applyPhotoAdjust canvas signature.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ needle="const ctx=c.getContext('2d');const iw=im.naturalWidth"
+ repl="const ctx=c.getContext('2d');ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#ffffff';ctx.fillRect(0,0,c.width,c.height);ctx.restore();const iw=im.naturalWidth"
+ x=x.replace(needle,repl)
+ p.write_text(x,encoding='utf-8')
