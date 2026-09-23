@@ -506,3 +506,13 @@ if p.exists():
  repl="document.querySelector('.btn-wide').textContent='変更内容を保存する';const notes=[...document.querySelectorAll('p,.muted,.notice')];notes.forEach(n=>{if((n.textContent||'').includes('保存後はBIG PAW運営の掲載審査へ進み'))n.textContent='変更内容を保存します。公開状態は現在の掲載設定を引き継ぎます。'});"
  x=x.replace(marker,repl)
  p.write_text(x,encoding='utf-8')
+
+
+# Photo adjustment output: use white letterbox background instead of black/transparent fill.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ # The crop/export canvas must be painted before drawing the adjusted source image.
+ x=x.replace("const ctx=canvas.getContext('2d');ctx.drawImage(", "const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(")
+ x=x.replace("const ctx=c.getContext('2d');ctx.drawImage(", "const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(")
+ p.write_text(x,encoding='utf-8')
