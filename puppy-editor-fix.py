@@ -580,3 +580,58 @@ if p.exists():
  if hook in x and "adjustZoom');if(zr)" not in x:
   x=x.replace(hook,"const fr=document.getElementById('adjustFrame'),zr=document.getElementById('adjustZoom');if(zr)zr.addEventListener('input',e=>{adjustScale=Math.max(1,Math.min(4,Number(e.target.value)||1));drawAdjust()});",1)
  p.write_text(x,encoding='utf-8')
+
+
+# FINAL photo editor override: fixed bright square crop, dark outside mask, min cover zoom.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ final=r'''
+<script id="bigpaw-final-photo-editor">
+(function(){
+ let active=false, target=null, scale=1, ox=0, oy=0, srcUrl='', pointers=new Map(), pinch=null;
+ function el(id){return document.getElementById(id)}
+ function ensure(){
+   let m=el('bpCropModal'); if(m)return m;
+   document.body.insertAdjacentHTML('beforeend', \`<div id="bpCropModal" style="display:none;position:fixed;inset:0;z-index:2147483647;background:#111;color:#fff;overflow:hidden">
+    <div style="height:58px;background:#fff;color:#443b48;display:flex;align-items:center;justify-content:space-between;padding:0 14px;box-sizing:border-box">
+      <button id="bpCropBack" type="button" style="border:0;background:none;font-size:17px">‹ 戻る</button><b>画像の編集</b>
+      <button id="bpCropApply" type="button" style="border:0;border-radius:22px;background:#ef7da7;color:#fff;font-weight:700;padding:10px 18px">適用</button>
+    </div>
+    <div id="bpStage" style="position:relative;width:100%;height:min(72vh,650px);overflow:hidden;touch-action:none;background:#111">
+      <img id="bpCropImg" draggable="false" style="position:absolute;left:50%;top:50%;transform-origin:center center;user-select:none;-webkit-user-drag:none;max-width:none">
+      <div id="bpShadeTop" style="position:absolute;background:rgba(0,0,0,.58);pointer-events:none"></div>
+      <div id="bpShadeLeft" style="position:absolute;background:rgba(0,0,0,.58);pointer-events:none"></div>
+      <div id="bpShadeRight" style="position:absolute;background:rgba(0,0,0,.58);pointer-events:none"></div>
+      <div id="bpShadeBottom" style="position:absolute;background:rgba(0,0,0,.58);pointer-events:none"></div>
+      <div id="bpCropBox" style="position:absolute;border:2px solid #fff;box-sizing:border-box;pointer-events:none;box-shadow:0 0 0 1px rgba(255,255,255,.2)"></div>
+    </div>
+    <div style="padding:18px 22px;background:#111">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span>初期値</span><span>最大</span></div>
+      <input id="bpZoom" type="range" min="1" max="4" step=".01" value="1" style="width:100%;accent-color:#ef7da7">
+    </div>
+   </div>\`);
+   m=el('bpCropModal'); el('bpCropBack').onclick=close; el('bpCropApply').onclick=apply;
+   el('bpZoom').oninput=e=>{scale=Math.max(1,Math.min(4,+e.target.value||1));clamp();draw()};
+   const st=el('bpStage');
+   st.addEventListener('pointerdown',e=>{e.preventDefault();st.setPointerCapture?.(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===1)pinch={kind:'pan',x:e.clientX,y:e.clientY,ox,oy};if(pointers.size===2){let a=[...pointers.values()];pinch={kind:'pinch',dist:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),scale,ox,oy}}});
+   st.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;e.preventDefault();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});let a=[...pointers.values()];if(a.length===1&&pinch?.kind==='pan'){ox=pinch.ox+a[0].x-pinch.x;oy=pinch.oy+a[0].y-pinch.y}else if(a.length===2){let d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);if(pinch?.kind!=='pinch')pinch={kind:'pinch',dist:d,scale,ox,oy};scale=Math.max(1,Math.min(4,pinch.scale*d/Math.max(1,pinch.dist)))}clamp();draw()});
+   const up=e=>{pointers.delete(e.pointerId);pinch=null;if(pointers.size===1){let a=[...pointers.values()][0];pinch={kind:'pan',x:a.x,y:a.y,ox,oy}}}; st.addEventListener('pointerup',up);st.addEventListener('pointercancel',up);
+   window.addEventListener('resize',()=>{if(active){layout();clamp();draw()}});
+   return m;
+ }
+ function layout(){const st=el('bpStage'),w=st.clientWidth,h=st.clientHeight,s=Math.min(w-36,h-36);const l=(w-s)/2,t=(h-s)/2,b=el('bpCropBox');Object.assign(b.style,{left:l+'px',top:t+'px',width:s+'px',height:s+'px'});Object.assign(el('bpShadeTop').style,{left:'0',top:'0',width:'100%',height:t+'px'});Object.assign(el('bpShadeBottom').style,{left:'0',top:(t+s)+'px',width:'100%',height:Math.max(0,h-t-s)+'px'});Object.assign(el('bpShadeLeft').style,{left:'0',top:t+'px',width:l+'px',height:s+'px'});Object.assign(el('bpShadeRight').style,{left:(l+s)+'px',top:t+'px',width:Math.max(0,w-l-s)+'px',height:s+'px'})}
+ function dims(){const im=el('bpCropImg'),b=el('bpCropBox'),bw=b.clientWidth,bh=b.clientHeight,iw=im.naturalWidth||bw,ih=im.naturalHeight||bh,base=Math.max(bw/iw,bh/ih);return{bw,bh,iw,ih,base,rw:iw*base*scale,rh:ih*base*scale}}
+ function clamp(){const d=dims();ox=Math.max(-(d.rw-d.bw)/2,Math.min((d.rw-d.bw)/2,ox));oy=Math.max(-(d.rh-d.bh)/2,Math.min((d.rh-d.bh)/2,oy))}
+ function draw(){const im=el('bpCropImg'),d=dims();im.style.width=(d.iw*d.base)+'px';im.style.height=(d.ih*d.base)+'px';im.style.transform='translate(calc(-50% + '+ox+'px),calc(-50% + '+oy+'px)) scale('+scale+')';el('bpZoom').value=scale}
+ function open(kind,i,src){ensure();active=true;target={kind,i};scale=1;ox=0;oy=0;srcUrl=src;const im=el('bpCropImg');im.onload=()=>{layout();clamp();draw()};im.src=src;el('bpCropModal').style.display='block';document.body.style.overflow='hidden'}
+ function close(){active=false;el('bpCropModal').style.display='none';document.body.style.overflow=''}
+ async function apply(){const im=el('bpCropImg'),d=dims(),size=1000,c=document.createElement('canvas');c.width=size;c.height=size;const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,size,size);const sx=d.bw/d.rw,sy=d.bh/d.rh;const srcW=im.naturalWidth/scale,srcH=im.naturalHeight/scale;const cx=im.naturalWidth/2-(ox/(d.base*scale)),cy=im.naturalHeight/2-(oy/(d.base*scale));ctx.drawImage(im,cx-srcW/2,cy-srcH/2,srcW,srcH,0,0,size,size);c.toBlob(async blob=>{if(!blob)return;const file=new File([blob],'puppy-adjusted.jpg',{type:'image/jpeg'});try{if(target.kind==='new'){const prev=selectedPhotos[target.i];try{Object.defineProperty(file,'_bigpawOriginal',{value:(prev&&prev._bigpawOriginal)||prev,writable:true})}catch(e){}selectedPhotos[target.i]=file;syncPhotoInput();renderSelectedPhotos();close()}else{const old=window.persistedPhotos[target.i],fd=new FormData();fd.append('photo',file);const up=await fetch('/api/puppies/'+encodeURIComponent(new URLSearchParams(location.search).get('id'))+'/photos',{method:'POST',body:fd}).then(r=>r.json());if(!up||!up.id)throw Error('upload');window.persistedPhotos[target.i]={id:up.id,url:up.url,isMain:old.isMain,originalUrl:old.originalUrl||old.url};await fetch('/api/puppies/'+encodeURIComponent(new URLSearchParams(location.search).get('id'))+'/photos/'+encodeURIComponent(old.id),{method:'DELETE'});renderPersistedPhotos();close()}}catch(e){alert('写真の保存に失敗しました。')}} ,'image/jpeg',.92)}
+ window.openPhotoAdjust=function(i){const f=selectedPhotos[i];if(!f)return;const original=f._bigpawOriginal||f;open('new',i,URL.createObjectURL(original))};
+ window.openPersistedAdjust=function(i){const p=window.persistedPhotos&&window.persistedPhotos[i];if(!p)return;open('saved',i,p.originalUrl||p.url)};
+})();
+</script>
+'''
+ if 'id="bigpaw-final-photo-editor"' not in x:
+  x=x.replace('</body>',final+'</body>')
+ p.write_text(x,encoding='utf-8')
