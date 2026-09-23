@@ -1463,35 +1463,15 @@ p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('UPLOAD_FRESH_ROLE_AUTH_PATCH_OK')
 PY
 
-# Ensure normal breeder approval creates the breeder profile atomically enough for all downstream breeder APIs.
+# Inspect the exact final breeder-application PATCH route before changing approval behavior.
 RUN python3 - <<'PY'
 from pathlib import Path
-import py_compile
-p=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/backend/server.py')
-s=p.read_text(encoding='utf-8')
-route="m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)"
-i=s.find(route,s.find('def do_PATCH'))
-assert i>=0, 'breeder application PATCH route missing'
-j=s.find("\n        ",i+len(route))
-chunk=s[i:i+7000]
-# Locate the approval status update in this route and augment only the approved branch.
-needle="con.execute(\"UPDATE users SET role='breeder' WHERE id=?\",(app['user_id'],))"
-assert needle in chunk, 'approval role promotion missing'
-insert=needle+"""\n                existing=con.execute('SELECT id FROM breeders WHERE user_id=?',(app['user_id'],)).fetchone()
-                if not existing:
-                    import uuid
-                    profile={}
-                    try: profile=json.loads(app['profile'] or '{}') if str(app['profile'] or '').lstrip().startswith('{') else {}
-                    except Exception: profile={}
-                    cols=[r['name'] for r in con.execute('PRAGMA table_info(breeders)').fetchall()]
-                    vals={'id':'b_'+uuid.uuid4().hex[:12],'user_id':app['user_id'],'kennel_name':profile.get('kennel_name') or profile.get('kennelName') or app['kennel_name'] or 'ブリーダー','prefecture':profile.get('prefecture') or app['prefecture'] or '未設定'}
-                    use=[k for k in ('id','user_id','kennel_name','prefecture') if k in cols]
-                    if all(k in use for k in ('id','user_id','kennel_name','prefecture')):
-                        con.execute('INSERT INTO breeders ('+','.join(use)+') VALUES ('+','.join('?' for _ in use)+')',tuple(vals[k] for k in use))"""
-s=s[:i]+chunk.replace(needle,insert,1)+s[i+len(chunk):]
-p.write_text(s,encoding='utf-8')
-py_compile.compile(str(p),doraise=True)
-print('BREEDER_APPROVAL_PROFILE_CREATE_OK')
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+i=s.find("m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)",s.find('def do_PATCH'))
+assert i>=0
+print('BREEDER_APPROVAL_ROUTE_BEGIN')
+print(s[i:i+9000])
+print('BREEDER_APPROVAL_ROUTE_END')
 PY
 
 # Final upload gate: authenticate normally, then authorize against persisted role so stale session roles cannot block approved breeders.
