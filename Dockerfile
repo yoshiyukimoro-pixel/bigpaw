@@ -32,6 +32,17 @@ for fn in ['login.html','backend/server.py']:
 PY
 
 
+# Keep operator/admin pages visually distinct even if later CSS or JS rewrites body styles.
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('operator-admin.html')
+if p.exists():
+ s=p.read_text(encoding='utf-8')
+ force='''<style id="bigpaw-operator-theme-lock">html,body{background:#fffbea!important;background-color:#fffbea!important}body::before{background:#fffbea!important}</style><script id="bigpaw-operator-theme-lock-js">(()=>{const c='#fffbea';function lock(){document.documentElement.style.setProperty('background',c,'important');document.body&&document.body.style.setProperty('background',c,'important');document.body&&document.body.style.setProperty('background-color',c,'important');document.body&&document.body.classList.add('bigpaw-operator-theme')}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',lock):lock();new MutationObserver(lock).observe(document.documentElement,{attributes:true,childList:true,subtree:true,attributeFilter:['style','class']});})();</script>'''
+ if 'bigpaw-operator-theme-lock' not in s:s=s.replace('</body>',force+'</body>')
+ p.write_text(s,encoding='utf-8')
+PY
+
 COPY mypage-email-verify.js /tmp/mypage-email-verify.js
 COPY smtp_patch.py /tmp/smtp_patch.py
 RUN python3 -c "from pathlib import Path; p=Path('breeder-register.html'); s=p.read_text(encoding='utf-8'); tag='<script src=\"/breeder-register-fix.js\"></script>'; p.write_text(s.replace('</body>',tag+'</body>') if tag not in s else s,encoding='utf-8')"
