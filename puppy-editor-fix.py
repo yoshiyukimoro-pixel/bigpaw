@@ -539,3 +539,24 @@ if p.exists():
  x=x.replace("Math.max(.35,Math.min(4,", "Math.max(1,Math.min(4,")
  x=x.replace("Math.max(0.35,Math.min(4,", "Math.max(1,Math.min(4,")
  p.write_text(x,encoding='utf-8')
+
+
+# BIG PAW fixed-square crop editor: fixed publication frame, zoom slider, bounded pan, apply.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ # Restyle the existing modal without changing upload/storage behavior.
+ x=x.replace(
+ '<div id="photoAdjustModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;padding:20px"><div style="max-width:520px;margin:5vh auto;background:white;border-radius:16px;padding:14px"><b>写真を調整</b><div id="adjustFrame" style="margin-top:12px;width:100%;aspect-ratio:1/1;overflow:hidden;background:#eee;touch-action:none;position:relative"><img id="adjustImg" style="width:100%;height:100%;object-fit:cover;transform-origin:center;user-select:none;-webkit-user-drag:none"></div><div style="margin-top:10px">2本指で拡大・縮小、1本指で上下左右に移動できます。</div><div style="display:flex;gap:8px;margin-top:12px"><button type="button" onclick="closePhotoAdjust()">キャンセル</button><button type="button" onclick="applyPhotoAdjust()">決定</button></div></div></div>',
+ '<div id="photoAdjustModal" style="display:none;position:fixed;inset:0;background:#111;z-index:9999;overflow:auto"><div style="max-width:560px;margin:0 auto;min-height:100%;background:#111;color:white"><div style="height:64px;background:white;color:#4d4053;display:flex;align-items:center;justify-content:space-between;padding:0 16px"><button type="button" onclick="closePhotoAdjust()" style="border:0;background:transparent;font-size:18px">‹ 戻る</button><b>画像の編集</b><button type="button" onclick="applyPhotoAdjust()" style="border:0;border-radius:24px;background:#ef7da7;color:white;font-weight:700;padding:11px 20px">適用</button></div><div style="padding:20px 18px 8px"><div id="adjustFrame" style="width:100%;aspect-ratio:1/1;overflow:hidden;background:#222;touch-action:none;position:relative;border:2px solid white"><img id="adjustImg" style="width:100%;height:100%;object-fit:cover;transform-origin:center;user-select:none;-webkit-user-drag:none"></div><div style="margin-top:22px;font-size:14px;color:#ddd">掲載枠は正方形です。写真を移動・拡大して表示位置を調整してください。</div><div style="margin-top:14px;border:1px solid #777;border-radius:14px;padding:14px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span>初期値</span><span>最大</span></div><input id="adjustZoom" type="range" min="1" max="4" step="0.01" value="1" style="width:100%;accent-color:#ef7da7"></div></div></div></div>'
+ )
+ # Add slider hookup after frame creation.
+ x=x.replace("const fr=document.getElementById('adjustFrame');fr.addEventListener('pointerdown'", "const fr=document.getElementById('adjustFrame'),zr=document.getElementById('adjustZoom');if(zr)zr.addEventListener('input',e=>{adjustScale=Math.max(1,Math.min(4,Number(e.target.value)||1));clampAdjust();drawAdjust()});fr.addEventListener('pointerdown'")
+ # Clamp pan so the fixed square frame is always fully covered.
+ x=x.replace("function drawAdjust(){const im=document.getElementById('adjustImg');if(im)im.style.transform='translate('+adjustX+'px,'+adjustY+'px) scale('+adjustScale+')'}",
+ """function clampAdjust(){const fr=document.getElementById('adjustFrame'),im=document.getElementById('adjustImg');if(!fr||!im)return;const fw=fr.clientWidth,fh=fr.clientHeight;if(!fw||!fh)return;const iw=im.naturalWidth||fw,ih=im.naturalHeight||fh,cover=Math.max(fw/iw,fh/ih),rw=iw*cover*adjustScale,rh=ih*cover*adjustScale,maxX=Math.max(0,(rw-fw)/2),maxY=Math.max(0,(rh-fh)/2);adjustX=Math.max(-maxX,Math.min(maxX,adjustX));adjustY=Math.max(-maxY,Math.min(maxY,adjustY))}
+function drawAdjust(){clampAdjust();const im=document.getElementById('adjustImg'),zr=document.getElementById('adjustZoom');if(im)im.style.transform='translate('+adjustX+'px,'+adjustY+'px) scale('+adjustScale+')';if(zr&&document.activeElement!==zr)zr.value=adjustScale}""")
+ # Ensure loaded image is clamped after dimensions become known.
+ x=x.replace("document.getElementById('adjustImg').src=URL.createObjectURL(f);document.getElementById('photoAdjustModal').style.display='block';drawAdjust()", "const ai=document.getElementById('adjustImg');ai.onload=()=>{clampAdjust();drawAdjust()};ai.src=URL.createObjectURL(f);document.getElementById('photoAdjustModal').style.display='block';drawAdjust()")
+ x=x.replace("document.getElementById('adjustImg').src=p.url;document.getElementById('photoAdjustModal').style.display='block';drawAdjust()", "const ai=document.getElementById('adjustImg');ai.onload=()=>{clampAdjust();drawAdjust()};ai.src=p.url;document.getElementById('photoAdjustModal').style.display='block';drawAdjust()")
+ p.write_text(x,encoding='utf-8')
