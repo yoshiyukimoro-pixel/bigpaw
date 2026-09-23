@@ -1036,23 +1036,7 @@ print('INQUIRY_PREFERRED_TIME_PRECHECK_OK')
 PY
 
 
-RUN python3 - <<'PY'
-from pathlib import Path
-import py_compile
-root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package'); p=root/'backend/server.py'; s=p.read_text(encoding='utf-8')
-# Exact inspection: inquiry POST is currently reaching a 403 before creation.
-i=s.find("if path=='/api/inquiries':",s.find('def do_POST')); assert i>=0
-chunk=s[i:i+5000]
-print('INQUIRY_POST_SOURCE_BEGIN'); print(chunk); print('INQUIRY_POST_SOURCE_END')
-# Add temporary reason logging to every 403 return in this exact route only.
-lines=chunk.splitlines(True); out=[]
-for line in lines:
-    if 'return self.send_json' in line and ',403)' in line:
-        indent=line[:len(line)-len(line.lstrip())]
-    out.append(line)
-new=''.join(out); assert new!=chunk, 'no inquiry 403 branch found'
-s=s[:i]+new+s[i+len(chunk):]; p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
-PY
+
 
 
 RUN python3 - <<'PY'
