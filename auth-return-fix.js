@@ -1,38 +1,37 @@
 (()=>{
-  const K='bigpaw_breeder_return';
   const p=location.pathname;
-  const ownerMail='yoshiyukimoro@gmail.com';
+  const LAST='bigpaw_last_breeder_page';
 
-  if(p.endsWith('/breeder-register.html')){
-    sessionStorage.setItem(K,'1');
-    return;
-  }
+  // Login page must remain visible until the user explicitly submits the form.
+  // The page's own doLogin() handles authentication and role-based navigation.
+  if(p.endsWith('/login.html')) return;
 
-  async function loggedInBreeder(){
+  async function currentRole(){
     try{
       const r=await fetch('/api/me',{credentials:'include',cache:'no-store'});
-      if(!r.ok) return false;
+      if(!r.ok) return '';
       const u=await r.json();
-      const role=String(u.role||'');
-      const email=String(u.email||'').trim().toLowerCase();
-      return role==='breeder' || role==='operator' || email===ownerMail;
-    }catch(e){
-      return false;
-    }
+      return String(u.role||'');
+    }catch(e){ return ''; }
   }
 
-  if(p.endsWith('/login.html')){
-    loggedInBreeder().then(ok=>{
-      if(ok){
-        const next=sessionStorage.getItem('bigpaw_last_breeder_page') || 'breeder-register.html';
-        if(next==='breeder-admin.html') sessionStorage.removeItem('bigpaw_last_breeder_page');
-        location.replace(next);
+  const protectedBreederPages = [
+    '/breeder-puppy-new.html',
+    '/breeder-register.html',
+    '/breeder-inquiries.html',
+    '/breeder-billing.html',
+    '/breeder-deal-report.html'
+  ];
+
+  if(protectedBreederPages.some(x=>p.endsWith(x))){
+    const target=location.pathname+location.search;
+    currentRole().then(role=>{
+      if(role==='breeder' || role==='operator'){
+        sessionStorage.setItem(LAST,target);
+        return;
       }
+      sessionStorage.setItem(LAST,target);
+      location.replace('/login.html');
     });
-    return;
-  }
-
-  if(p.endsWith('/breeder-puppy-new.html')){
-    sessionStorage.setItem('bigpaw_last_breeder_page', location.pathname.replace(/^\//,''));
   }
 })();
