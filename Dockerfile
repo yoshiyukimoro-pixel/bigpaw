@@ -101,6 +101,17 @@ COPY admin-seed-fix.py /tmp/admin-seed-fix.py
 RUN python3 /tmp/admin-seed-fix.py
 COPY puppy-editor-fix.py /tmp/puppy-editor-fix.py
 RUN python3 /tmp/puppy-editor-fix.py
+RUN python3 - <<'PY'
+from pathlib import Path
+p=Path('breeder-puppy-new.html')
+if not p.exists(): raise SystemExit('PHOTO_EDITOR_VERIFY: breeder-puppy-new.html missing')
+s=p.read_text(encoding='utf-8',errors='replace')
+required=['bigpaw-final-photo-editor','bpCropModal','bpCropBox','bpShadeTop','bpZoom','画像の編集']
+missing=[x for x in required if x not in s]
+print('PHOTO_EDITOR_VERIFY|size='+str(len(s))+'|final='+str('bigpaw-final-photo-editor' in s)+'|modal='+str('bpCropModal' in s)+'|zoom='+str('bpZoom' in s),flush=True)
+if missing: raise SystemExit('PHOTO_EDITOR_VERIFY FAILED missing: '+','.join(missing))
+print('PHOTO_EDITOR_VERIFY_OK',flush=True)
+PY
 COPY search-ui-fix.py /tmp/search-ui-fix.py
 RUN python3 /tmp/search-ui-fix.py
 RUN python3 -c "from pathlib import Path; s=Path('search.html').read_text(encoding='utf-8'); print('SEARCHLAYERS|'+ ' || '.join([x.strip().replace(chr(10),' ') for x in s.split('<') if any(k in x.lower() for k in ['position:fixed','position: fixed','overlay','modal','backdrop','opacity'])][:80]))"
