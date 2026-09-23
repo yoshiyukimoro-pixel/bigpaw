@@ -1499,6 +1499,32 @@ assert old in s, 'startup block not found'
 p.write_text(s.replace(old,new,1),encoding='utf-8')
 PY
 
+# Safe build-time auth inspection: source structure only, no credentials or database rows.
+RUN python3 - <<'PY'
+from pathlib import Path
+import re
+root=Path('/app/BIG_PAW_v1.0_FINAL3_domain_ready_package')
+for fn in ['login.html','backend/server.py']:
+ p=root/fn
+ if not p.exists():
+  print('AUTH_INSPECT_MISSING|'+fn); continue
+ s=p.read_text(encoding='utf-8',errors='replace')
+ print('AUTH_INSPECT_FILE|'+fn)
+ if fn=='login.html':
+  for i,line in enumerate(s.splitlines(),1):
+   if any(k in line.lower() for k in ['form','login','fetch(','location','password','email','submit']):
+    safe=re.sub(r'([\w.+-]+)@([\w.-]+)','[email]',line)
+    print('AUTH_LOGIN|'+str(i)+'|'+safe[:1200])
+ else:
+  lines=s.splitlines()
+  for i,line in enumerate(lines):
+   low=line.lower()
+   if any(k in low for k in ["'/api/login'","\"/api/login\"","'/api/me'","\"/api/me\"",'def require(','set-cookie','session']):
+    for j in range(max(0,i-4),min(len(lines),i+24)):
+     safe=re.sub(r'([\w.+-]+)@([\w.-]+)','[email]',lines[j])
+     print('AUTH_SERVER|'+str(j+1)+'|'+safe[:1200])
+PY
+
 # One-time safe schema diagnostic for breeder profile repair. Logs column metadata only, never row data.
 RUN python3 - <<'PY'
 from pathlib import Path
