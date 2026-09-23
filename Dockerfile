@@ -117,7 +117,7 @@ from pathlib import Path
 p=Path('breeder-puppy-new.html')
 if not p.exists(): raise SystemExit('PHOTO_EDITOR_VERIFY: breeder-puppy-new.html missing')
 s=p.read_text(encoding='utf-8',errors='replace')
-required=['bigpaw-final-photo-editor','bpCropModal','bpCropBox','bpShadeTop','bpZoom','画像の編集']
+required=['bigpaw-final-photo-editor','bpCropModal','bpBox','bpTop','bpZoom','画像の編集']
 missing=[x for x in required if x not in s]
 print('PHOTO_EDITOR_VERIFY|size='+str(len(s))+'|final='+str('bigpaw-final-photo-editor' in s)+'|modal='+str('bpCropModal' in s)+'|zoom='+str('bpZoom' in s),flush=True)
 if missing: raise SystemExit('PHOTO_EDITOR_VERIFY FAILED missing: '+','.join(missing))
