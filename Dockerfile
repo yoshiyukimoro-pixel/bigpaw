@@ -1666,4 +1666,27 @@ p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('ROLE_PROFILE_DIAG_PATCH_OK')
 PY
 
+
+# Safe auth-role diagnostic: counts and effective role only; no emails, IDs, passwords, or tokens.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="print(f'BIG PAW v1.0 server running on port {port} ({APP_ENV})')"
+insert="""# Safe auth-role diagnostic.
+try:
+    if IS_PRODUCTION:
+        _ac=db()
+        _ops=_ac.execute("SELECT COUNT(*) AS n FROM users WHERE role='operator'").fetchone()['n']
+        _ac.close()
+        print('AUTH_ROLE_DIAG|operators='+str(_ops),flush=True)
+except Exception as _ae:
+    print('AUTH_ROLE_DIAG_ERROR|'+type(_ae).__name__,flush=True)
+"""
+assert needle in s
+if 'AUTH_ROLE_DIAG|' not in s:s=s.replace(needle,insert+needle,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('AUTH_ROLE_DIAG_PATCH_OK')
+PY
+
 # Trigger a fresh Railway build after builder scheduling failures.
