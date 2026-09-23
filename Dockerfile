@@ -1539,9 +1539,9 @@ try:
             import uuid as _uuid
             _bid='b_'+_uuid.uuid4().hex[:12]
             _cols=[r['name'] for r in _pc.execute("PRAGMA table_info(breeders)").fetchall()]
-            _vals={'id':_bid,'user_id':_ou[0]['id'],'kennel_name':'DOG44'}
-            _use=[k for k in ('id','user_id','kennel_name') if k in _cols]
-            if all(k in _use for k in ('id','user_id','kennel_name')):
+            _vals={'id':_bid,'user_id':_ou[0]['id'],'kennel_name':'DOG44','prefecture':'埼玉県'}
+            _use=[k for k in ('id','user_id','kennel_name','prefecture') if k in _cols]
+            if all(k in _use for k in ('id','user_id','kennel_name','prefecture')):
                 _pc.execute("INSERT INTO breeders ("+','.join(_use)+") VALUES ("+','.join('?' for _ in _use)+")",tuple(_vals[k] for k in _use))
                 _pc.commit(); print('OWNER_BREEDER_PROFILE_OK|created=1',flush=True)
             else:
