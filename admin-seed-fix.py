@@ -13,7 +13,7 @@ BIGPAW_BREEDER_EMAILS = {e.strip().lower() for e in os.environ.get('BIGPAW_BREED
 BIGPAW_BREEDER_EMAILS.add('yoshiyukimoro@gmail.com')
 def bigpaw_recovered_role(user):
     try:
-        if user and str(user.get('email','')).strip().lower() in BIGPAW_BREEDER_EMAILS:
+        if user and str(user.get('email','')).strip().lower() in BIGPAW_BREEDER_EMAILS and str(user.get('role','')) != 'operator':
             user = dict(user)
             user['role'] = 'breeder'
     except Exception:
