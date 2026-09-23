@@ -1049,12 +1049,9 @@ lines=chunk.splitlines(True); out=[]
 for line in lines:
     if 'return self.send_json' in line and ',403)' in line:
         indent=line[:len(line)-len(line.lstrip())]
-        out.append(indent+"print('[BIG PAW] INQUIRY_403_REASON '+repr("+line.strip().split('return self.send_json(',1)[1].rsplit(',403)',1)[0]+"),flush=True)\n")
     out.append(line)
 new=''.join(out); assert new!=chunk, 'no inquiry 403 branch found'
 s=s[:i]+new+s[i+len(chunk):]; p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
-assert 'INQUIRY_403_REASON' in p.read_text(encoding='utf-8')
-print('INQUIRY_403_DIAG_OK')
 PY
 
 
