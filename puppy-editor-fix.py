@@ -492,3 +492,17 @@ except Exception as _e:
 """
    x=x[:line]+code+x[line:]
  p.write_text(x,encoding='utf-8')
+
+
+# Final edit-mode wording: keep new-listing copy untouched, but make edit mode unambiguous.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ old="document.querySelector('h1').textContent='子犬情報を編集';const bc=document.querySelector('.breadcrumb');if(bc)bc.innerHTML='<a href=\"admin.html\">管理画面</a> ＞ 子犬情報を編集';editOnly.style.display='block';"
+ new="document.querySelector('h1').textContent='掲載内容を編集';const bc=document.querySelector('.breadcrumb');if(bc)bc.innerHTML='<a href=\"admin.html\">管理画面</a> ＞ 子犬を編集';editOnly.style.display='block';"
+ x=x.replace(old,new)
+ # Edit-mode review note should describe saving an existing listing, not a brand-new application.
+ marker="document.querySelector('.btn-wide').textContent='変更を保存する';"
+ repl="document.querySelector('.btn-wide').textContent='変更内容を保存する';const notes=[...document.querySelectorAll('p,.muted,.notice')];notes.forEach(n=>{if((n.textContent||'').includes('保存後はBIG PAW運営の掲載審査へ進み'))n.textContent='変更内容を保存します。公開状態は現在の掲載設定を引き継ぎます。'});"
+ x=x.replace(marker,repl)
+ p.write_text(x,encoding='utf-8')
