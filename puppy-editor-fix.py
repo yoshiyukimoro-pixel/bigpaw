@@ -526,3 +526,16 @@ if p.exists():
  repl="const ctx=c.getContext('2d');ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#ffffff';ctx.fillRect(0,0,c.width,c.height);ctx.restore();const iw=im.naturalWidth"
  x=x.replace(needle,repl)
  p.write_text(x,encoding='utf-8')
+
+
+# Photo editor UX: initial cover size is the minimum zoom (no letterbox/empty margins).
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ # Existing pinch handler used a sub-1 minimum to permit zooming out beyond the initial cover.
+ x=x.replace("adjustScale=Math.max(.35,Math.min(4,pinchScale*(d/pinchDist)))","adjustScale=Math.max(1,Math.min(4,pinchScale*(d/pinchDist)))")
+ x=x.replace("adjustScale=Math.max(0.35,Math.min(4,pinchScale*(d/pinchDist)))","adjustScale=Math.max(1,Math.min(4,pinchScale*(d/pinchDist)))")
+ # Clamp any alternate scale assignment used by the editor to the same minimum.
+ x=x.replace("Math.max(.35,Math.min(4,", "Math.max(1,Math.min(4,")
+ x=x.replace("Math.max(0.35,Math.min(4,", "Math.max(1,Math.min(4,")
+ p.write_text(x,encoding='utf-8')
