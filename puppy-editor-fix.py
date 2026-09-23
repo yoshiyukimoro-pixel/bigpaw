@@ -560,3 +560,23 @@ function drawAdjust(){clampAdjust();const im=document.getElementById('adjustImg'
  x=x.replace("document.getElementById('adjustImg').src=URL.createObjectURL(f);document.getElementById('photoAdjustModal').style.display='block';drawAdjust()", "const ai=document.getElementById('adjustImg');ai.onload=()=>{clampAdjust();drawAdjust()};ai.src=URL.createObjectURL(f);document.getElementById('photoAdjustModal').style.display='block';drawAdjust()")
  x=x.replace("document.getElementById('adjustImg').src=p.url;document.getElementById('photoAdjustModal').style.display='block';drawAdjust()", "const ai=document.getElementById('adjustImg');ai.onload=()=>{clampAdjust();drawAdjust()};ai.src=p.url;document.getElementById('photoAdjustModal').style.display='block';drawAdjust()")
  p.write_text(x,encoding='utf-8')
+
+
+# Force the new editor shell independently of legacy exact-string matching.
+p=Path('breeder-puppy-new.html')
+if p.exists():
+ x=p.read_text(encoding='utf-8')
+ old="function ensureAdjustModal(){if(document.getElementById('photoAdjustModal'))return;"
+ new="function ensureAdjustModal(){let prior=document.getElementById('photoAdjustModal');if(prior)prior.remove();"
+ x=x.replace(old,new)
+ # Rewrite the legacy modal's visible shell fragments even if earlier full replacement missed.
+ x=x.replace('background:rgba(0,0,0,.75);z-index:9999;padding:20px','background:#111;z-index:99999;overflow:auto')
+ x=x.replace('max-width:520px;margin:5vh auto;background:white;border-radius:16px;padding:14px','max-width:560px;margin:0 auto;background:#111;color:white;min-height:100%;padding:14px')
+ x=x.replace('<b>写真を調整</b>','<div style="display:flex;justify-content:space-between;align-items:center;background:white;color:#4d4053;padding:12px"><button type="button" onclick="closePhotoAdjust()">‹ 戻る</button><b>画像の編集</b><button type="button" onclick="applyPhotoAdjust()" style="background:#ef7da7;color:white;border:0;border-radius:22px;padding:10px 18px">適用</button></div>')
+ x=x.replace('<div style="margin-top:10px">2本指で拡大・縮小、1本指で上下左右に移動できます。</div>','<div style="margin-top:14px;color:#ddd">掲載サイズは正方形です。写真を移動・拡大して表示位置を調整してください。</div><div style="margin-top:14px;border:1px solid #777;border-radius:14px;padding:12px"><div style="display:flex;justify-content:space-between"><span>初期値</span><span>最大</span></div><input id="adjustZoom" type="range" min="1" max="4" step="0.01" value="1" style="width:100%;accent-color:#ef7da7"></div>')
+ x=x.replace('<div style="display:flex;gap:8px;margin-top:12px"><button type="button" onclick="closePhotoAdjust()">キャンセル</button><button type="button" onclick="applyPhotoAdjust()">決定</button></div>','')
+ # Slider works even with the existing gesture code.
+ hook="const fr=document.getElementById('adjustFrame');"
+ if hook in x and "adjustZoom');if(zr)" not in x:
+  x=x.replace(hook,"const fr=document.getElementById('adjustFrame'),zr=document.getElementById('adjustZoom');if(zr)zr.addEventListener('input',e=>{adjustScale=Math.max(1,Math.min(4,Number(e.target.value)||1));drawAdjust()});",1)
+ p.write_text(x,encoding='utf-8')
