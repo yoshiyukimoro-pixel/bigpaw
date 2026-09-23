@@ -1,10 +1,8 @@
 (()=>{
   const p=location.pathname;
-  const LAST='bigpaw_last_breeder_page';
-
-  // Login page must remain visible until the user explicitly submits the form.
-  // The page's own doLogin() handles authentication and role-based navigation.
-  if(p.endsWith('/login.html')) return;
+  const LAST='bigpaw_last_role_page';
+  const login='/login.html';
+  if(p.endsWith(login)) return;
 
   async function currentRole(){
     try{
@@ -14,24 +12,27 @@
       return String(u.role||'');
     }catch(e){ return ''; }
   }
+  function goLogin(){ sessionStorage.setItem(LAST,location.pathname+location.search); location.replace(login); }
 
-  const protectedBreederPages = [
-    '/breeder-puppy-new.html',
-    '/breeder-register.html',
-    '/breeder-inquiries.html',
-    '/breeder-billing.html',
-    '/breeder-deal-report.html'
-  ];
+  // Application page: any authenticated account may view it; backend controls submission eligibility.
+  const authOnly=['/breeder-register.html','/account.html','/messages.html','/notifications.html'];
+  // Approved breeder workspace. Operator is intentionally NOT treated as breeder here.
+  const breederOnly=['/admin.html','/breeder-puppy-new.html','/breeder-inquiries.html','/breeder-billing.html','/breeder-deal-report.html'];
+  const operatorOnly=['/operator-admin.html','/operator-breeders.html','/operator-breeder-applications.html','/operator-listings.html','/operator-deals.html','/operator-support.html','/operator-deal-reports.html','/operator-revenue.html','/operator-reports.html','/operator-invoices.html','/operator-automations.html'];
+  const buyerOnly=['/mypage.html','/my-page.html'];
 
-  if(protectedBreederPages.some(x=>p.endsWith(x))){
-    const target=location.pathname+location.search;
-    currentRole().then(role=>{
-      if(role==='breeder' || role==='operator'){
-        sessionStorage.setItem(LAST,target);
-        return;
-      }
-      sessionStorage.setItem(LAST,target);
-      location.replace('/login.html');
-    });
-  }
+  let need='';
+  if(operatorOnly.some(x=>p.endsWith(x))) need='operator';
+  else if(breederOnly.some(x=>p.endsWith(x))) need='breeder';
+  else if(buyerOnly.some(x=>p.endsWith(x))) need='buyer';
+  else if(authOnly.some(x=>p.endsWith(x))) need='auth';
+  else return;
+
+  currentRole().then(role=>{
+    if(!role){ goLogin(); return; }
+    if(need==='auth') return;
+    if(role===need) return;
+    const dest=role==='operator'?'/operator-admin.html':role==='breeder'?'/admin.html':'/mypage.html';
+    location.replace(dest);
+  });
 })();
