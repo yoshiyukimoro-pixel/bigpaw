@@ -162,6 +162,24 @@ jobs:
           test "$ok" = 1
           curl -fsS http://127.0.0.1:18080/ >/dev/null
           docker logs "$cid3"
+      - name: Verify generic role and ownership guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("app/backend/server.py").read_text()
+          checks={
+            "generic_require":"if roles and u['role'] not in roles:",
+            "breeder_profile_lookup":"SELECT id FROM breeders WHERE user_id=?",
+            "operator_guard":"require(['operator'])",
+            "buyer_guard":"require(['buyer'])",
+            "breeder_guard":"require(['breeder'])",
+          }
+          missing=[k for k,v in checks.items() if v not in s]
+          if missing: raise SystemExit("MISSING_GUARDS:"+",".join(missing))
+          print("GENERIC_ROLE_GUARDS_OK")
+          PY
       - name: Verify inspection reports are unreferenced
         shell: bash
         run: |
