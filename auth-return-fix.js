@@ -19,9 +19,16 @@
     location.replace(login);
   }
 
-  // Login is a shared authentication endpoint, but an already authenticated
-  // account always returns to its own workspace.
+  // Login is shared. ?switch=1 is an explicit, credential-required account switch:
+  // clear only the current session, then leave the normal login form visible.
   if(p.endsWith(login)){
+    const q=new URLSearchParams(location.search);
+    if(q.get('switch')==='1'){
+      fetch('/api/logout',{method:'POST',credentials:'include'})
+        .catch(()=>{})
+        .finally(()=>history.replaceState(null,'',login));
+      return;
+    }
     currentRole().then(role=>{ if(role) location.replace(homeFor(role)); });
     return;
   }
