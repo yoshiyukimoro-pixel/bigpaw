@@ -1,6 +1,8 @@
 from pathlib import Path
 p=Path('backend/server.py')
 s=p.read_text(encoding='utf-8')
+# Safety: an operator account must never be demoted when a breeder application is approved.
+s=s.replace("UPDATE users SET role='breeder' WHERE id=?","UPDATE users SET role='breeder' WHERE id=? AND role!='operator'")
 old="con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=?',(aid,)).fetchone(); con.close(); return self.send_json(dict(r),201)"
 new="""con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=?',(aid,)).fetchone()
             applicant_email=u['email']
