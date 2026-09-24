@@ -1,0 +1,31 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>お気に入り｜BIG PAW</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="topbar">🐾 大型犬専門｜BIG PAW</div><header class="site-header"><div class="wrap nav"><a class="logo" href="index.html"><span class="logo-mark">🐾</span>BIG PAW</a><nav class="navlinks"><a href="search.html">子犬を探す</a><a href="compare.html">比較する</a><a class="nav-cta" href="mypage.html">マイページ</a></nav></div></header><div class="hero-mini"><div class="wrap"><h1>♡ お気に入り</h1><p>気になる大型犬の子犬をまとめて比較。</p></div></div><main class="wrap"><section class="section" id="favArea"></section></main><script src="assets/app.js"></script><script src="assets/api.js"></script><script src="assets/bridge.js"></script><script>
+async function renderFav(){let dogs=[];try{dogs=await BigPawBridge.favorites()}catch(e){if(e.status===401){favArea.innerHTML='<div class="card empty"><div class="big">♡</div><h2>ログインするとお気に入りを保存できます</h2><a class="btn btn-main" href="login.html">ログイン</a></div>';return}}favArea.innerHTML=dogs.length?`<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><a class="btn btn-sub" href="compare.html">お気に入りを比較する</a></div><div class="dog-cards">${dogs.map(p=>`<div class="card dog-card"><a href="puppy-detail.html?id=${p.id}"><div class="dogpic">${p.imageUrl?`<img src="${BigPaw.esc(p.imageUrl)}" alt="" style="width:100%;height:100%;object-fit:cover">`:'🐾'}</div><div class="body"><span class="status">${BigPaw.esc(p.status)}</span><h3>${BigPaw.esc(p.breed)}｜${BigPaw.esc(p.gender)}</h3><div class="muted">${BigPaw.esc(p.area)}・${BigPaw.esc(p.breeder)}</div><b>${BigPaw.currency(p.price)}</b></div></a><div style="padding:0 15px 15px"><button class="btn btn-sub btn-wide" onclick="removeFav('${p.id}')">お気に入りから外す</button></div></div>`).join('')}</div>`:`<div class="card empty"><div class="big">♡</div><h2>まだお気に入りはありません</h2><p class="muted">気になる子を見つけたら♡を押して保存できます。</p><a class="btn btn-main" href="search.html">子犬を探す</a></div>`}
+async function removeFav(id){await BigPawBridge.toggleFavorite(id);renderFav()}renderFav();
+</script><script id="serverFavoritesRender">
+(async()=>{try{
+ const r=await fetch("/api/favorites",{credentials:"same-origin"});if(!r.ok)return;
+ const a=await r.json();if(!Array.isArray(a)||!a.length)return;
+ const empty=[...document.querySelectorAll("body *")].find(e=>e.children.length===0&&e.textContent.trim()==="まだお気に入りはありません");
+ if(empty){const box=empty.closest("section,article,.card,.panel,div");if(box)box.style.display="none";}
+ let host=document.getElementById("serverFavoriteList");
+ if(!host){host=document.createElement("div");host.id="serverFavoriteList";host.style.cssText="display:grid;gap:16px;margin:20px 0";const main=document.querySelector("main")||document.body;main.appendChild(host);}
+ host.innerHTML=a.map(x=>{const id=String(x.id||x.puppy_id||"");const breed=x.breed||x.breed_name||x.breedName||"";const color=x.color||x.coat_color||x.coatColor||"";const rawSex=x.sex||x.gender||"";const sex=/male|男|♂/i.test(rawSex)?"男の子":(/female|女|♀/i.test(rawSex)?"女の子":rawSex);const detail=[color,sex].filter(Boolean).join("の");const name=breed?(breed+(detail?" / "+detail:"")):(x.name||x.title||detail||"子犬");const img=(x.images&&x.images[0])||x.image||x.image_url||"";return '<a href="/puppy-detail.html?id='+encodeURIComponent(id)+'" style="display:block;text-decoration:none;color:inherit;border:1px solid #ead7e1;border-radius:22px;padding:14px;background:#fff">'+(img?'<img src="'+img+'" alt="" style="width:100%;max-height:320px;object-fit:cover;border-radius:16px">':'')+'<div style="font-weight:700;font-size:20px;margin-top:10px">'+name+'</div></a>'}).join("");
+}catch(e){console.error("favorites render",e)}})();
+</script><script id="favoriteLocalFallback">
+(async()=>{try{
+ const parse=v=>{try{const a=JSON.parse(v||"[]");return Array.isArray(a)?a.map(String):[]}catch(e){return[]}};
+ let ids=[];try{ids=ids.concat(parse(localStorage.getItem("bigpaw_favorites")))}catch(e){}
+ try{ids=ids.concat(parse(sessionStorage.getItem("bigpaw_favorites")))}catch(e){}
+ try{const m=document.cookie.match(/(?:^|; )bigpaw_favorites=([^;]*)/);if(m)ids=ids.concat(parse(decodeURIComponent(m[1])))}catch(e){}
+ ids=[...new Set(ids)].filter(Boolean);if(!ids.length)return;
+ const r=await fetch("/api/favorites",{credentials:"same-origin"});const server=r.ok?await r.json():[];
+ if(Array.isArray(server)&&server.length)return;
+ const puppies=[];
+ for(const id of ids){try{const pr=await fetch("/api/puppies/"+encodeURIComponent(id),{credentials:"same-origin"});if(pr.ok)puppies.push(await pr.json())}catch(e){}}
+ if(!puppies.length)return;
+ const empty=[...document.querySelectorAll("body *")].find(e=>e.children.length===0&&e.textContent.trim()==="まだお気に入りはありません");
+ if(empty){const box=empty.closest("section,article,.card,.panel,div");if(box)box.style.display="none";}
+ let host=document.getElementById("serverFavoriteList");if(!host){host=document.createElement("div");host.id="serverFavoriteList";host.style.cssText="display:grid;gap:16px;margin:20px";(document.querySelector("main")||document.body).appendChild(host)}
+ host.innerHTML=puppies.map(x=>{const id=String(x.id||x.puppy_id||"");const breed=x.breed||x.breed_name||x.breedName||"";const color=x.color||x.coat_color||x.coatColor||"";const rawSex=x.sex||x.gender||"";const sex=/male|男|♂/i.test(rawSex)?"男の子":(/female|女|♀/i.test(rawSex)?"女の子":rawSex);const detail=[color,sex].filter(Boolean).join("の");const name=breed?(breed+(detail?" / "+detail:"")):(x.name||x.title||detail||"子犬");const imgs=x.images||[];const img=(Array.isArray(imgs)?imgs[0]:"")||x.image||x.image_url||"";return '<a href="/puppy-detail.html?id='+encodeURIComponent(id)+'" style="display:block;text-decoration:none;color:inherit;border:1px solid #ead7e1;border-radius:22px;padding:14px;background:#fff">'+(img?'<img src="'+img+'" alt="" style="width:100%;max-height:320px;object-fit:cover;border-radius:16px">':'')+'<div style="font-weight:700;font-size:20px;margin-top:10px">'+name+'</div></a>'}).join("");
+}catch(e){console.error("favorite fallback",e)}})();
+</script></body></html>

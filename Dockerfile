@@ -1476,6 +1476,20 @@ py_compile.compile(str(root/'backend/server.py'),doraise=True)
 print('PUPPY_EXACT_NEWLINE_BR_RENDER_PRECHECK_OK')
 PY
 
+# Public puppy APIs must expose only individually approved listings.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+old="(p.review_status='approved' OR b.review_status='approved')"
+new="p.review_status='approved' AND (p.breeder_id IS NULL OR b.review_status='approved')"
+assert s.count(old)==2, 'expected public puppy list/detail predicates'
+s=s.replace(old,new)
+p.write_text(s,encoding='utf-8')
+py_compile.compile(str(p),doraise=True)
+print('PUBLIC_PUPPY_APPROVAL_GATE_OK')
+PY
+
 # Normalize upload authorization against the persisted user role after legacy breeder migration.
 RUN python3 - <<'PY'
 from pathlib import Path

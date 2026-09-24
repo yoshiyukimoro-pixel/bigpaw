@@ -1,0 +1,268 @@
+name: Flatten BIG PAW source safely
+# isolated verification rerun 2026-09-24
+on:
+  push:
+    branches:
+      - build-flatten-work-20260924
+    paths:
+      - '.github/workflows/flatten-source.yml'
+      - 'breeder-flow-fix.py'
+      - 'app/**'
+      - 'Dockerfile.clean'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/flatten-source.yml'
+      - 'breeder-flow-fix.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  flatten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm isolated branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_HEAD_REF" = "build-flatten-work-20260924" || test "$GITHUB_REF_NAME" = "build-flatten-work-20260924"
+          ! grep -R "/data" Dockerfile | grep -E "(rm|unlink|rmtree|DROP TABLE|DELETE FROM|TRUNCATE)" || exit 1
+      - name: Convert Dockerfile to one-layer equivalent
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          lines=Path("Dockerfile").read_text(encoding="utf-8").splitlines()
+          prefix=[]; commands=[]; copies=[]; i=0
+          while i < len(lines):
+              raw=lines[i]; s=raw.strip()
+              if not s or s.startswith("#"): i+=1; continue
+              if s.startswith("FROM "): prefix.append(raw); i+=1; continue
+              if s.startswith("WORKDIR "):
+                  commands.append("cd "+repr(s.split(None,1)[1].strip())); i+=1; continue
+              if s.startswith("COPY "):
+                  parts=s.split()
+                  if len(parts)!=3 or parts[1].startswith("--"):
+                      raise SystemExit("Unsupported COPY line "+str(i+1)+": "+raw)
+                  copies.append((parts[1],parts[2])); i+=1; continue
+              if s.startswith("RUN "):
+                  body=raw[raw.index("RUN ")+4:]; block=[body]
+                  hd=re.search(r"<<-?['\"]?([A-Za-z0-9_]+)['\"]?",body)
+                  if hd:
+                      marker=hd.group(1); i+=1
+                      while i < len(lines):
+                          block.append(lines[i])
+                          if lines[i].strip()==marker: break
+                          i+=1
+                      else: raise SystemExit("Unclosed RUN heredoc")
+                  else:
+                      while block[-1].rstrip().endswith("\\"):
+                          i+=1
+                          if i>=len(lines): raise SystemExit("RUN continuation EOF")
+                          block.append(lines[i])
+                  commands.append("\n".join(block)); i+=1; continue
+              if s.startswith(("ARG ","ENV ","EXPOSE ","CMD ","ENTRYPOINT ","LABEL ","USER ")):
+                  prefix.append(raw); i+=1; continue
+              raise SystemExit("Unsupported Dockerfile instruction line "+str(i+1)+": "+raw)
+          pre=["FROM python:3.13-slim","WORKDIR /app"]
+          pre += [raw for raw in prefix if raw.strip().startswith(("ARG ","ENV "))]
+          pre += ["COPY "+a+" "+b for a,b in copies]
+          runtime=[raw for raw in prefix if raw.strip().startswith(("EXPOSE ","CMD ","ENTRYPOINT ","LABEL ","USER "))]
+          script="set -e\n"+"\n".join(commands)
+          out="\n".join(pre)+"\nRUN <<'BIGPAW_FLATTEN'\n"+script+"\nBIGPAW_FLATTEN\n"
+          out+="\n".join(runtime)+"\n"
+          Path("Dockerfile.flatten").write_text(out,encoding="utf-8")
+          print("FLATTEN_PLAN_OK copies="+str(len(copies))+" commands="+str(len(commands))+" run_layers=1")
+      - name: Build one-layer equivalent
+        run: docker build --no-cache -f Dockerfile.flatten -t bigpaw-flatten-reference .
+      - name: Extract final application filesystem
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker create bigpaw-flatten-reference)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          mkdir -p flattened-app
+          docker cp "$cid":/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/. flattened-app/
+          python3 -m py_compile flattened-app/backend/server.py
+          # Keep the reference snapshot byte-for-byte complete. Build a separate
+          # runtime candidate by removing only generated inspection/cache files.
+          rm -rf runtime-candidate
+          cp -a flattened-app runtime-candidate
+          find runtime-candidate -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find runtime-candidate -type f \( -name '*.pyc' -o -name 'inspection.txt' -o -name 'flow-inspect.txt' -o -name 'delete-inspection.txt' -o -name 'final-inspection.txt' -o -name 'inspection2.txt' \) -delete
+          python3 -m py_compile runtime-candidate/backend/server.py
+          find runtime-candidate -type d -name '__pycache__' -prune -exec rm -rf {} +
+          cat > runtime-candidate/Dockerfile <<'DOCKER'
+          FROM python:3.13-slim
+          WORKDIR /app
+          COPY . /app
+          ENV PORT=8080
+          EXPOSE 8080
+          CMD ["python3", "backend/server.py"]
+          DOCKER
+          docker build --no-cache -t bigpaw-runtime-candidate runtime-candidate
+          cid2="$(docker create bigpaw-runtime-candidate)"
+          trap 'docker rm -f "$cid" "$cid2" >/dev/null 2>&1 || true' EXIT
+          test "$(docker inspect -f '{{.Config.Cmd}}' "$cid2")" = "[python3 backend/server.py]"
+          docker rm "$cid2" >/dev/null
+          find flattened-app -type f -print0 | sort -z | xargs -0 sha256sum > flattened-manifest.sha256
+          find runtime-candidate -type f -print0 | sort -z | xargs -0 sha256sum > runtime-manifest.sha256
+      - name: Materialize verified source on isolated branch
+        if: github.event_name == 'push' && github.ref_name == 'build-flatten-work-20260924'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf app
+          mkdir app
+          cp -a runtime-candidate/. app/
+          # Preserve isolated verification tests: they are test harnesses, not generated runtime source.
+          git show HEAD:app/backend/smoke_test.py > app/backend/smoke_test.py
+          rm -f app/Dockerfile
+          cat > Dockerfile.clean <<'DOCKER'
+          FROM python:3.13-slim
+          WORKDIR /app
+          COPY app/ /app/
+          ENV PORT=8080
+          EXPOSE 8080
+          CMD ["python3", "backend/server.py"]
+          DOCKER
+          find app -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find app -type f -name '*.pyc' -delete
+          python3 -m py_compile app/backend/server.py
+          find app -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find app -type f -name '*.pyc' -delete
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app Dockerfile.clean
+          if git diff --cached --quiet; then
+            echo "SOURCE_ALREADY_MATERIALIZED"
+          else
+            git commit -m "Materialize verified BIG PAW runtime source"
+            git push origin HEAD:build-flatten-work-20260924
+          fi
+      - name: Verify committed app matches generated runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf manifest-generated manifest-committed
+          cp -a runtime-candidate manifest-generated
+          cp -a app manifest-committed
+          # Test harness is intentionally preserved outside the generated runtime source.
+          rm -f manifest-generated/backend/smoke_test.py manifest-committed/backend/smoke_test.py
+          rm -f manifest-generated/Dockerfile manifest-committed/Dockerfile
+          find manifest-generated manifest-committed -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find manifest-generated manifest-committed -type f -name '*.pyc' -delete
+          (cd manifest-generated && find . -type f -print0 | sort -z | xargs -0 sha256sum) > generated-normalized.sha256
+          (cd manifest-committed && find . -type f -print0 | sort -z | xargs -0 sha256sum) > committed-normalized.sha256
+          diff -u generated-normalized.sha256 committed-normalized.sha256
+          echo "NORMALIZED_RUNTIME_EQUIVALENCE_OK"
+      - name: Build committed clean source and smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f Dockerfile.clean
+          test -f app/backend/server.py
+          ! find app -type f \( -name '*.pyc' -o -name 'delete-inspection.txt' -o -name 'final-inspection.txt' -o -name 'inspection2.txt' \) -print | grep .
+          python3 -m py_compile app/backend/server.py
+          find app -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find app -type f -name '*.pyc' -delete
+          docker build --no-cache -f Dockerfile.clean -t bigpaw-committed-clean .
+          cid3="$(docker run -d -e PORT=18080 -p 18080:18080 bigpaw-committed-clean)"
+          trap 'docker rm -f "$cid3" >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/api/health; then ok=1; break; fi
+            sleep 1
+          done
+          test "$ok" = 1
+          curl -fsS http://127.0.0.1:18080/ >/dev/null
+          docker logs "$cid3"
+      - name: Run isolated HTTP smoke suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --no-cache -f Dockerfile.clean -t bigpaw-http-test .
+          cid4="$(docker run -d -e PORT=18081 -p 18081:18081 bigpaw-http-test)"
+          trap 'docker rm -f "$cid4" >/dev/null 2>&1 || true' EXIT
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:18081/api/health >/dev/null && break
+            sleep 1
+          done
+          # Test the freshly generated runtime candidate in this same run, not the pre-materialization checkout.
+          cp app/backend/smoke_test.py runtime-candidate/backend/smoke_test.py
+          docker rm -f "$cid4" >/dev/null 2>&1 || true
+          cid4="$(docker run -d -e PORT=18081 -p 18081:18081 bigpaw-runtime-candidate)"
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:18081/api/health >/dev/null && break
+            sleep 1
+          done
+          python3 runtime-candidate/backend/smoke_test.py http://127.0.0.1:18081
+      - name: Verify generic role and ownership guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("app/backend/server.py").read_text()
+          checks={
+            "generic_require":"if roles and u['role'] not in roles:",
+            "breeder_profile_lookup":"SELECT id FROM breeders WHERE user_id=?",
+            "operator_guard":"require(['operator'])",
+            "buyer_guard":"require(['buyer'])",
+            "breeder_guard":"require(['breeder'])",
+          }
+          missing=[k for k,v in checks.items() if v not in s]
+          if missing: raise SystemExit("MISSING_GUARDS:"+",".join(missing))
+          print("GENERIC_ROLE_GUARDS_OK")
+          PY
+      - name: Isolated breeder approval and ownership test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("app/backend/server.py").read_text()
+          approval=[
+            "UPDATE users SET role='breeder' WHERE id=? AND role!='operator'",
+            "SELECT id FROM breeders WHERE user_id=?",
+            "INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status)"
+          ]
+          ownership=[
+            "if u['role']=='breeder':",
+            "SELECT id FROM breeders WHERE user_id=?"
+          ]
+          for x in approval+ownership:
+            if x not in s: raise SystemExit("MISSING:"+x)
+          # Approval must be generic: no DOG44 condition inside the approval block.
+          p=s.index("UPDATE breeder_applications SET status=")
+          q=s.index("con.close()",p)
+          block=s[p:q]
+          if "DOG44" in block: raise SystemExit("DOG44_SPECIAL_CASE_IN_APPROVAL")
+          if "role!='operator'" not in block: raise SystemExit("OPERATOR_DEMOTION_GUARD_MISSING")
+          if "INSERT INTO breeders" not in block: raise SystemExit("BREEDER_PROFILE_CREATION_MISSING")
+          print("BREEDER_APPROVAL_STRUCTURE_OK")
+          PY
+      - name: Verify inspection reports are unreferenced
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in delete-inspection.txt final-inspection.txt inspection2.txt; do
+            if grep -R -F --exclude="$f" --exclude-dir=.git "$f" app; then
+              echo "UNEXPECTED_REFERENCE:$f"
+              exit 1
+            fi
+            echo "UNREFERENCED:$f"
+          done
+      - name: Upload reference snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: bigpaw-flatten-reference
+          path: |
+            flattened-app
+            flattened-manifest.sha256
+            runtime-candidate
+            runtime-manifest.sha256
+          if-no-files-found: error

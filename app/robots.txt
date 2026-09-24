@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /api/
+Disallow: /operator-
+Disallow: /admin.html
+Disallow: /breeder-billing.html
+Disallow: /breeder-deal-report.html
+Disallow: /account.html
+Disallow: /mypage.html
+Disallow: /messages.html
+Disallow: /notifications.html

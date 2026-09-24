@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BIG PAW｜大型犬専門・ブリーダーと家族をつなぐ</title>
+<style>
+:root{
+  --ink:#17221f; --muted:#6f7c77; --cream:#fffaf1; --card:#ffffff;
+  --green:#245c4d; --green2:#eaf4ef; --gold:#d9a441; --line:#e7ebe8; --danger:#b84c4c;
+  --shadow:0 14px 40px rgba(21,41,34,.10); --radius:22px;
+}
+*{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;color:var(--ink);background:#fffafd;line-height:1.6}
+a{color:inherit;text-decoration:none} button,input,select{font:inherit}
+.wrap{max-width:1120px;margin:auto;padding:0 20px}
+.topbar{background:linear-gradient(90deg,#ef7fa8,#f7a6c4);color:white;font-size:13px;text-align:center;padding:8px 14px}
+header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.nav{height:70px;display:flex;align-items:center;gap:24px}.logo{font-weight:900;letter-spacing:.04em;font-size:22px;display:flex;align-items:center;gap:10px}.logo-mark{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#ef7fa8,#f7b6cd);color:#fff;display:grid;place-items:center}.navlinks{display:flex;gap:22px;margin-left:auto;font-size:14px;font-weight:700}.nav-cta{background:linear-gradient(135deg,#ef7fa8,#f39cbc);color:#fff;padding:11px 16px;border-radius:14px}
+.hero{background:linear-gradient(135deg,#fff1f7 0%,#fff8ee 52%,#ffffff 100%);padding:64px 0 42px;overflow:hidden}.hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:42px;align-items:center}.eyebrow{display:inline-flex;gap:8px;align-items:center;background:#fff;border:1px solid #f3d6e3;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:800;color:#7b5b71}.hero h1{font-size:clamp(36px,5vw,64px);line-height:1.1;margin:18px 0 16px;letter-spacing:-.03em}.hero h1 span{color:var(--green)}.hero p{font-size:17px;color:#7d6e84;max-width:650px}.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}.btn{border:0;border-radius:14px;padding:14px 19px;font-weight:800;cursor:pointer}.btn-main{background:linear-gradient(135deg,#ef7fa8,#f39cbc);color:#fff}.btn-sub{background:#fff;border:1px solid #f1d8e3;color:#6e5a74}.hero-card{background:white;padding:22px;border-radius:30px;box-shadow:var(--shadow);transform:rotate(1deg);border:1px solid #f3dde7}.dog-photo{aspect-ratio:4/3;border-radius:22px;background:radial-gradient(circle at 50% 35%,#fff 0 19%,transparent 20%),linear-gradient(145deg,#ffd9e7,#f6b8cd);display:flex;align-items:flex-end;justify-content:center;overflow:hidden;position:relative}.dog-photo:before{content:"🐩";font-size:130px;filter:drop-shadow(0 8px 12px rgba(0,0,0,.13));transform:translateY(12px)}.photo-tag{position:absolute;left:14px;top:14px;background:#fff;padding:7px 10px;border-radius:999px;font-weight:800;font-size:12px;color:#7a5d71;border:1px solid #f1d8e3}.mini-info{display:flex;justify-content:space-between;gap:10px;padding-top:15px}.mini-info strong{font-size:15px}.mini-info span{font-size:12px;color:var(--muted)}
+.searchbox{margin-top:-8px;background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:18px;display:grid;grid-template-columns:1.35fr 1fr 1fr auto;gap:10px;align-items:end}.field label{display:block;font-size:12px;color:var(--muted);font-weight:800;margin-bottom:6px}.field select,.field input{width:100%;border:1px solid #eed8e2;border-radius:12px;padding:12px 13px;background:#fff}.searchbtn{height:46px;background:linear-gradient(135deg,#ef7fa8,#f39cbc);color:white;border:none;border-radius:12px;padding:0 22px;font-weight:900;cursor:pointer}
+section{padding:68px 0}.section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin-bottom:24px}.section-head h2{font-size:30px;margin:0}.section-head p{margin:5px 0 0;color:var(--muted)}.link{font-weight:800;color:var(--green)}
+.breed-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.breed-card{border:1px solid var(--line);background:#fff;border-radius:20px;padding:18px 10px;cursor:pointer;text-align:center;color:var(--ink);box-shadow:0 5px 16px rgba(143,93,121,.06);transition:.2s}.breed-card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}.breed-card span{display:block;font-size:36px;margin-bottom:7px}.breed-card b{display:block;font-size:13px;line-height:1.35}.breed-card small{display:block;color:var(--muted);font-size:10px;margin-top:5px}.size-line{font-size:12px;color:#b4567a;font-weight:800;margin-top:7px}.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.trust-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px}.trust-icon{width:44px;height:44px;border-radius:13px;background:var(--green2);display:grid;place-items:center;font-size:21px}.trust-card h3{font-size:15px;margin:12px 0 5px}.trust-card p{font-size:13px;color:var(--muted);margin:0}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.chip{border:1px solid #f0d7e2;background:#fff;border-radius:999px;padding:8px 12px;font-size:13px;font-weight:800;cursor:pointer;color:#755d72}.chip.active{background:var(--green);color:#fff;border-color:var(--green)}
+.puppies{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.puppy{background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 6px 20px rgba(143,93,121,.08);transition:.2s;cursor:pointer}.puppy:hover{transform:translateY(-4px);box-shadow:var(--shadow)}.puppy-img{aspect-ratio:4/3;display:flex;align-items:flex-end;justify-content:center;position:relative}.puppy-img:before{content:"🐩";font-size:92px;filter:drop-shadow(0 6px 8px rgba(0,0,0,.12));transform:translateY(8px)}.img1{background:linear-gradient(145deg,#ffe7ef,#e8bdd0)}.img2{background:linear-gradient(145deg,#fff1e2,#f3cfaa)}.img3{background:linear-gradient(145deg,#8a6a8f,#5a465f)}.badge{position:absolute;top:12px;left:12px;background:#fff;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900}.fav{position:absolute;right:12px;top:10px;background:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer}.fav.on{color:#e2536f}.puppy-body{padding:16px}.puppy-title{font-weight:900;margin:0 0 4px}.meta{font-size:13px;color:var(--muted)}.price{font-size:22px;font-weight:900;margin:11px 0 8px}.price small{font-size:12px}.health{display:flex;gap:6px;flex-wrap:wrap}.health span{font-size:11px;background:#fff1f7;border-radius:7px;padding:5px 7px;font-weight:700;color:#7c6275}.breeder-line{border-top:1px solid var(--line);margin-top:13px;padding-top:12px;display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
+.feature{background:linear-gradient(180deg,#fff8fc,#fff3f8)}.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.feature-panel{background:#fff;border-radius:24px;padding:26px;border:1px solid #f2dbe6}.feature-panel h3{margin-top:0}.checklist{display:grid;gap:10px}.check{display:flex;gap:10px;align-items:flex-start}.check b{color:var(--green)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.step{background:#fff;border:1px solid var(--line);padding:20px;border-radius:18px;position:relative}.step-num{font-size:12px;font-weight:900;color:var(--green)}.step h3{margin:7px 0 5px;font-size:16px}.step p{font-size:13px;color:var(--muted);margin:0}
+.cta{background:linear-gradient(135deg,#e97ba4,#d88cb8);color:#fff;border-radius:28px;padding:38px;display:flex;align-items:center;justify-content:space-between;gap:22px}.cta h2{margin:0 0 5px}.cta p{margin:0;color:#c8d1ce}.cta .btn{background:#fff;color:var(--ink)}
+footer{padding:46px 0;background:#fff3f8;margin-top:72px}.foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.foot small{color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(86,58,80,.46);display:none;align-items:flex-end;justify-content:center;z-index:50;padding:18px}.modal.show{display:flex}.sheet{background:#fff;width:min(720px,100%);border-radius:26px;max-height:90vh;overflow:auto;padding:24px;box-shadow:var(--shadow)}.sheet-head{display:flex;justify-content:space-between;gap:16px}.close{border:0;background:#fff1f7;width:38px;height:38px;border-radius:50%;font-size:20px;cursor:pointer;color:#7a5d71}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.detail-item{background:#fff7fb;border-radius:14px;padding:13px;border:1px solid #f4dfe8}.detail-item span{display:block;color:var(--muted);font-size:11px}.detail-item strong{font-size:14px}.note{background:#fff2f8;border:1px solid #f2d4e3;border-radius:14px;padding:13px;font-size:12px;color:#805f74}.contact{display:flex;gap:10px;margin-top:16px}.contact .btn{flex:1}.demo{font-size:11px;color:var(--muted);text-align:center;margin-top:10px}
+@media(max-width:800px){.breed-grid{grid-template-columns:repeat(3,1fr)}.navlinks a:not(.nav-cta){display:none}.hero{padding-top:38px}.hero-grid{grid-template-columns:1fr}.hero-card{display:none}.searchbox{grid-template-columns:1fr 1fr}.searchbox .field:first-child{grid-column:1/-1}.searchbtn{grid-column:1/-1}.trust{grid-template-columns:1fr 1fr}.puppies{grid-template-columns:1fr 1fr}.feature-grid{grid-template-columns:1fr}.steps{grid-template-columns:1fr 1fr}.cta{flex-direction:column;align-items:flex-start}}
+@media(max-width:540px){.breed-grid{grid-template-columns:repeat(2,1fr)}.wrap{padding:0 14px}.hero h1{font-size:39px}.hero p{font-size:15px}.searchbox{grid-template-columns:1fr}.searchbox .field:first-child,.searchbtn{grid-column:auto}.trust{grid-template-columns:1fr 1fr}.puppies{grid-template-columns:1fr}.steps{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.detail-grid{grid-template-columns:1fr}.cta{padding:27px}.nav{height:62px}.logo{font-size:19px}}
+</style>
+</head>
+<body>
+<div class="topbar">🐾 大型犬専門・大きな家族との出会いを、もっと安心に</div>
+<header><div class="wrap nav">
+  <a class="logo" href="#"><span class="logo-mark">🐾</span>BIG PAW</a>
+  <nav class="navlinks"><a href="#puppies">子犬を探す</a><a href="breed-guide.html">大型犬ガイド</a><a href="breeders.html">ブリーダー</a><a href="favorites.html">♡ お気に入り</a><a class="nav-cta" href="login.html">ログイン</a></nav>
+</div></header>
+
+<main>
+<section class="hero"><div class="wrap">
+  <div class="hero-grid">
+    <div>
+      <div class="eyebrow">🐕 大型犬専門｜サイズ・健康・育った環境まで見える</div>
+      <h1>大きなからだ、<br><span>大きな愛。</span></h1>
+      <p>スタンダードプードル、ゴールデン、ラブラドール、バーニーズなど大型犬だけ。成犬時のサイズ、親犬、健康検査、性格や育った環境まで確認してから出会える、大型犬専門の子犬マッチングサービス。</p>
+      <div class="hero-actions"><a class="btn btn-main" href="#puppies">子犬を探す</a><a class="btn btn-sub" href="#trust">BIG PAWの安心基準</a></div>
+    </div>
+    <div class="hero-card">
+      <div class="dog-photo"><span class="photo-tag">埼玉県｜DOG44</span></div>
+      <div class="mini-info"><div><strong>スタンダードプードル</strong><br><span>ブリーダー直販・見学受付中</span></div><div style="text-align:right"><strong>¥258,000〜</strong><br><span>税込・サンプル表示</span></div></div>
+    </div>
+  </div>
+  <div class="searchbox">
+    <div class="field"><label>大型犬種</label><select id="breed"><option value="all">すべての大型犬種</option><option value="standard">スタンダードプードル</option><option value="golden">ゴールデンレトリバー</option><option value="labrador">ラブラドールレトリバー</option><option value="bernese">バーニーズ</option><option value="husky">シベリアンハスキー</option><option value="samoyed">サモエド</option><option value="greatpyrenees">グレートピレニーズ</option><option value="borzoi">ボルゾイ</option></select></div>
+    <div class="field"><label>性別</label><select id="gender"><option value="all">指定なし</option><option value="male">男の子</option><option value="female">女の子</option></select></div>
+    <div class="field"><label>地域</label><select id="area"><option value="all">全国</option><option value="saitama">埼玉県</option><option value="tokyo">東京都</option><option value="kanagawa">神奈川県</option></select></div>
+    <button class="searchbtn" onclick="applySearch()">この条件で探す</button>
+  </div>
+</div></section>
+
+<section id="breeds"><div class="wrap">
+  <div class="section-head"><div><h2>大型犬種から探す</h2><p>大型犬・超大型犬だけに絞った専門サイト。</p></div></div>
+  <div class="breed-grid">
+    <button class="breed-card" onclick="quickBreed('standard')"><span>🐩</span><b>スタンダード<br>プードル</b><small>賢く人好き</small></button>
+    <button class="breed-card" onclick="quickBreed('golden')"><span>🦮</span><b>ゴールデン<br>レトリバー</b><small>明るく温厚</small></button>
+    <button class="breed-card" onclick="quickBreed('labrador')"><span>🐕</span><b>ラブラドール<br>レトリバー</b><small>活発で友好的</small></button>
+    <button class="breed-card" onclick="quickBreed('bernese')"><span>🐶</span><b>バーニーズ</b><small>穏やかで甘えん坊</small></button>
+    <button class="breed-card" onclick="quickBreed('husky')"><span>🐺</span><b>シベリアン<br>ハスキー</b><small>活発で表情豊か</small></button>
+    <button class="breed-card" onclick="quickBreed('samoyed')"><span>☁️</span><b>サモエド</b><small>ふわふわ・社交的</small></button>
+  </div>
+</div></section>
+
+<section id="trust"><div class="wrap">
+  <div class="section-head"><div><h2>大型犬だから、サイズも健康も大切。</h2><p>成犬になったあとの暮らしまで想像できる情報を、最初から。</p></div></div>
+  <div class="trust">
+    <a class="trust-card" href="adult-size-guide.html"><div class="trust-icon">📏</div><h3>成犬サイズの目安</h3><p>両親犬の体高・体重と、子犬の成犬時サイズ目安を掲載。</p></a>
+    <a class="trust-card" href="large-dog-health.html"><div class="trust-icon">🦴</div><h3>大型犬向け健康情報</h3><p>遺伝子検査に加え、股関節・肘など犬種に応じた検査情報も。</p></a>
+    <a class="trust-card" href="large-dog-life.html"><div class="trust-icon">🏠</div><h3>大型犬との暮らし</h3><p>運動量、食事量、住環境、先住犬との相性などをわかりやすく。</p></a>
+    <a class="trust-card" href="aftercare.html"><div class="trust-icon">🤝</div><h3>お迎え後サポート</h3><p>「売って終わり」ではなく、サポート内容も比較できる。</p></a>
+  </div>
+</div></section>
+
+<section id="puppies"><div class="wrap">
+  <div class="section-head"><div><h2>新着の子犬</h2><p id="resultText">3頭のサンプルを表示中</p></div><a class="link" href="search.html">すべて見る →</a></div>
+  <div class="filters"><button class="chip active" onclick="filterChip(this,'all')">すべて</button><button class="chip" onclick="filterChip(this,'male')">男の子</button><button class="chip" onclick="filterChip(this,'female')">女の子</button><button class="chip" onclick="filterChip(this,'health')">健康情報あり</button></div>
+  <div class="puppies" id="puppyGrid">
+    <article class="puppy" data-gender="male" data-breed="standard" data-area="saitama" data-health="yes" onclick="location.href='puppy-detail.html'">
+      <div class="puppy-img img3"><span class="badge">NEW</span><button class="fav" onclick="toggleFav(event,this)">♡</button></div>
+      <div class="puppy-body"><p class="puppy-title">スタンダードプードル｜男の子</p><div class="meta">ブラック ・ 埼玉県</div><div class="size-line">成犬時目安 28〜32kg</div><div class="price">258,000円 <small>税込</small></div><div class="health"><span>親犬サイズ</span><span>健康診断</span><span>遺伝子検査</span></div><div class="breeder-line"><span>DOG44</span><span>見学受付中</span></div></div>
+    </article>
+    <article class="puppy" data-gender="female" data-breed="golden" data-area="tokyo" data-health="yes" onclick="openDetail('ゴールデンレトリバー｜女の子','ゴールデンレトリバー','女の子','ゴールド','328,000円','25〜30kg目安')">
+      <div class="puppy-img img2"><span class="badge">おすすめ</span><button class="fav" onclick="toggleFav(event,this)">♡</button></div>
+      <div class="puppy-body"><p class="puppy-title">ゴールデンレトリバー｜女の子</p><div class="meta">ゴールド ・ 東京都</div><div class="size-line">成犬時目安 25〜30kg</div><div class="price">328,000円 <small>税込</small></div><div class="health"><span>股関節情報</span><span>健康診断</span><span>親犬情報</span></div><div class="breeder-line"><span>サンプル犬舎</span><span>見学受付中</span></div></div>
+    </article>
+    <article class="puppy" data-gender="male" data-breed="bernese" data-area="kanagawa" data-health="yes" onclick="openDetail('バーニーズ｜男の子','バーニーズ','男の子','トライカラー','398,000円','38〜45kg目安')">
+      <div class="puppy-img img1"><span class="badge">動画あり</span><button class="fav" onclick="toggleFav(event,this)">♡</button></div>
+      <div class="puppy-body"><p class="puppy-title">バーニーズ｜男の子</p><div class="meta">トライカラー ・ 神奈川県</div><div class="size-line">成犬時目安 38〜45kg</div><div class="price">398,000円 <small>税込</small></div><div class="health"><span>親犬サイズ</span><span>股関節情報</span><span>健康診断</span></div><div class="breeder-line"><span>サンプル犬舎</span><span>見学受付中</span></div></div>
+    </article>
+  </div>
+</div></section>
+
+<section class="feature"><div class="wrap feature-grid">
+  <div class="feature-panel"><h3>大型犬だからこそ「ここまで」見える</h3><div class="checklist"><div class="check"><b>✓</b><span>生年月日・性別・毛色・現在体重・成犬時サイズ目安</span></div><div class="check"><b>✓</b><span>父犬・母犬の体高・体重・写真・性格・血統</span></div><div class="check"><b>✓</b><span>遺伝子検査・健康診断・ワクチン・犬種別の関節検査情報</span></div><div class="check"><b>✓</b><span>性格・運動量・食事量・トイレ・日々の成長動画</span></div><div class="check"><b>✓</b><span>お迎え後の相談・コミュニティなどサポート内容</span></div></div></div>
+  <div class="feature-panel"><h3>ブリーダー側も簡単に管理</h3><div class="checklist"><div class="check"><b>✓</b><span>スマホから写真・動画・価格・現在体重を更新</span></div><div class="check"><b>✓</b><span>募集中 / 商談中 / 成約済みをワンタップ切替</span></div><div class="check"><b>✓</b><span>見学予約と問い合わせを一か所で管理</span></div><div class="check"><b>✓</b><span>親犬サイズ・関節検査・ワクチン・マイクロチップ情報を管理</span></div><div class="check"><b>✓</b><span>予約金・契約・お迎え状況まで一元管理</span></div></div></div>
+</div></section>
+
+<section id="flow"><div class="wrap">
+  <div class="section-head"><div><h2>お迎えまでの流れ</h2><p>オンラインだけで完結させず、見学・対面確認を中心に設計。</p></div></div>
+  <div class="steps"><div class="step"><div class="step-num">STEP 01</div><h3>子犬を探す</h3><p>犬種・地域・性別・健康情報などから検索。</p></div><div class="step"><div class="step-num">STEP 02</div><h3>問い合わせ</h3><p>ブリーダーへ質問し、見学日程を相談。</p></div><div class="step"><div class="step-num">STEP 03</div><h3>見学・対面説明</h3><p>子犬の状態を直接確認し、必要事項の説明を受ける。</p></div><div class="step"><div class="step-num">STEP 04</div><h3>契約・お迎え</h3><p>予約金・契約・お迎え予定までサイト上で確認。</p></div></div>
+</div></section>
+
+<section><div class="wrap"><div class="section-head"><div><h2>大型犬を迎える前に</h2><p>子犬探しだけでなく、暮らしの準備までBIG PAWで。</p></div></div><div class="trust"><a class="trust-card" href="breed-guide.html"><div class="trust-icon">📚</div><h3>大型犬種ガイド</h3><p>サイズ・運動量・お手入れを比較。</p></a><a class="trust-card" href="cost-simulator.html"><div class="trust-icon">🧮</div><h3>飼育費シミュレーター</h3><p>毎月・年間・10年間の目安を計算。</p></a><a class="trust-card" href="match.html"><div class="trust-icon">🏡</div><h3>暮らし相性チェック</h3><p>迎える前の準備ポイントを確認。</p></a><a class="trust-card" href="breeders.html"><div class="trust-icon">💬</div><h3>ブリーダーに相談</h3><p>大型犬を知る人から直接聞ける。</p></a></div></div></section>
+<section id="breeder"><div class="wrap"><div class="cta"><div><h2>大型犬ブリーダー掲載者を募集</h2><p>スタンダードプードルをはじめ、信頼できる大型犬ブリーダーから少数精鋭でスタートする想定。</p></div><a class="btn" href="breeder-register.html">ブリーダー掲載申請</a></div></div></section>
+</main>
+
+<footer><div class="wrap foot"><div><div class="logo"><span class="logo-mark">🐾</span>BIG PAW</div><small>© 2026 BIG PAW. 大型犬専門 子犬マッチングサービス。</small></div><small><a href="terms.html">利用規約</a>　<a href="privacy.html">プライバシー</a>　<a href="legal-notice.html">運営情報</a>　<a href="faq.html">FAQ</a>　<a href="contact.html">お問い合わせ</a></small></div></footer>
+
+<div class="modal" id="modal" onclick="closeOutside(event)"><div class="sheet">
+  <div class="sheet-head"><div><div style="font-size:12px;color:var(--green);font-weight:900">DOG44｜埼玉県</div><h2 id="dTitle" style="margin:4px 0 0">子犬詳細</h2></div><button class="close" onclick="closeDetail()">×</button></div>
+  <div class="detail-grid"><div class="detail-item"><span>犬種</span><strong id="dBreed">-</strong></div><div class="detail-item"><span>性別</span><strong id="dGender">-</strong></div><div class="detail-item"><span>毛色</span><strong id="dColor">-</strong></div><div class="detail-item"><span>価格</span><strong id="dPrice">-</strong></div><div class="detail-item"><span>成犬時サイズ目安</span><strong id="dSize">-</strong></div><div class="detail-item"><span>大型犬向け健康情報</span><strong>犬種別の検査情報を掲載</strong></div></div>
+  <div class="note">BIG PAWでは、ブリーダー情報・個体情報・健康情報・見学や商談状況を一つの流れで管理します。</div>
+  <div class="contact"><button class="btn btn-sub" onclick="alert('お気に入りに保存しました')">♡ お気に入り</button><button class="btn btn-main" onclick="alert('見学希望フォームへ進みます')">見学・問い合わせ</button></div>
+  <div class="demo">※初期表示にはサンプルデータを含みます。</div>
+</div></div>
+
+<script>
+function toggleFav(e,btn){e.stopPropagation();btn.classList.toggle('on');btn.textContent=btn.classList.contains('on')?'♥':'♡'}
+function filterChip(btn,type){document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));btn.classList.add('active');const cards=[...document.querySelectorAll('.puppy')];let n=0;cards.forEach(c=>{const ok=type==='all'||(type==='health'&&c.dataset.health==='yes')||c.dataset.gender===type;c.style.display=ok?'block':'none';if(ok)n++});document.getElementById('resultText').textContent=n+'頭のサンプルを表示中'}
+function applySearch(){const b=document.getElementById('breed').value,g=document.getElementById('gender').value,a=document.getElementById('area').value;const cards=[...document.querySelectorAll('.puppy')];let n=0;cards.forEach(c=>{const ok=(b==='all'||c.dataset.breed===b)&&(g==='all'||c.dataset.gender===g)&&(a==='all'||c.dataset.area===a);c.style.display=ok?'block':'none';if(ok)n++});document.getElementById('resultText').textContent=n+'頭のサンプルが条件に一致';document.getElementById('puppies').scrollIntoView({behavior:'smooth'})}
+function openDetail(title,breed,gender,color,price,size){document.getElementById('dTitle').textContent=title;document.getElementById('dBreed').textContent=breed;document.getElementById('dGender').textContent=gender;document.getElementById('dColor').textContent=color;document.getElementById('dPrice').textContent=price+'（税込）';document.getElementById('dSize').textContent=size;document.getElementById('modal').classList.add('show');document.body.style.overflow='hidden'}
+function closeDetail(){document.getElementById('modal').classList.remove('show');document.body.style.overflow=''}
+function quickBreed(b){document.getElementById('breed').value=b;applySearch()}
+function closeOutside(e){if(e.target.id==='modal')closeDetail()}
+</script>
+<script src="assets/app.js"></script><script src="assets/api.js"></script><script src="assets/bridge.js"></script><script src="assets/home.js"></script><script src="assets/breed-data.js"></script><script src="assets/breed-picker-v6.js?v=20260918-multiselect-final"></script><script id="bigpaw-remove-sample-new-puppies">(()=>{function x(){[...document.querySelectorAll('h1,h2,h3,h4')].forEach(h=>{let t=(h.textContent||'').replace(/\\s/g,'');if(t.includes('新着の子犬')){let sec=h.closest('section');if(sec)sec.remove();else{let p=h.parentElement;if(p)p.remove()}}})}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',x):x();new MutationObserver(x).observe(document.documentElement,{childList:true,subtree:true})})();</script></body>
+</html>
