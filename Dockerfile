@@ -1704,6 +1704,19 @@ p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
 print('ADMIN_OPERATOR_MATCH_PATCH_OK')
 PY
 
+# Safe runtime login-result diagnostic: logs only effective role and admin-email match boolean.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="            payload={'user':{'id':u['id'],'email':u['email'],'role':u['role'],'last':u['last'],'first':u['first'],'emailVerified':bool(u['email_verified'])}}"
+repl="            print('LOGIN_RESULT_DIAG|role='+str(u['role'])+'|admin_match='+str(str(email).strip().lower()==str(os.environ.get('BIGPAW_ADMIN_EMAIL','')).strip().lower()).lower(),flush=True)\n"+needle
+assert needle in s
+if 'LOGIN_RESULT_DIAG|' not in s:s=s.replace(needle,repl,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('LOGIN_RESULT_DIAG_PATCH_OK')
+PY
+
 # Safe auth-role diagnostic: counts and effective role only; no emails, IDs, passwords, or tokens.
 RUN python3 - <<'PY'
 from pathlib import Path
