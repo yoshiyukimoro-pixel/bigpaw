@@ -37,8 +37,8 @@
   }
   async function replacePhotos(pid,files){
     if(!files.length) return null;
-    let old=[];
-    try{old=await BigPawAPI.request('/puppies/'+encodeURIComponent(pid)+'/photos')}catch(e){old=[]}
+    const old=await BigPawAPI.request('/puppies/'+encodeURIComponent(pid)+'/photos');
+    if(!Array.isArray(old)) throw new Error('existing_photo_state_unavailable');
     const uploaded=[];
     try{
       for(const f of files){
@@ -85,7 +85,7 @@
       alert(pid?'変更を保存しました。':'子犬情報を掲載しました。');
       location.href='admin.html';
     }catch(x){
-      const msg=x?.message==='old_photo_cleanup_failed'?'新しい写真は保存されましたが、古い写真の整理に失敗しました。画面を再読み込みして写真を確認してください。':(x?.status===401?'ブリーダーとしてログインしてください。':'保存できませんでした：'+(x?.message||''));
+      const msg=x?.message==='old_photo_cleanup_failed'?'新しい写真は保存されましたが、古い写真の整理に失敗しました。画面を再読み込みして写真を確認してください。':x?.message==='existing_photo_state_unavailable'?'現在の写真情報を確認できなかったため、写真は変更していません。画面を再読み込みしてからもう一度お試しください。':(x?.status===401?'ブリーダーとしてログインしてください。':'保存できませんでした：'+(x?.message||''));
       alert(msg);
     }finally{
       if(btn){btn.disabled=false;btn.textContent=original||'保存する'}
