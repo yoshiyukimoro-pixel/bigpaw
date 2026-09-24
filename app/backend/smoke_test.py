@@ -41,6 +41,32 @@ st,r=req('POST','/api/breeder-applications',app,buyer);ok(st==400 and r.get('err
 app['agreeCommissionTerms']=True
 st,r=req('POST','/api/breeder-applications',app,buyer);ok(st==201,'breeder fee terms accepted with application')
 
+# Generic breeder approval and cross-account isolation.
+st,op=req('POST','/api/login',{'email':'admin@bigpaw.jp','password':'admin1234'});ok(st==200 and op.get('token'),'ownership operator login'); own_admin=op['token']
+generic=[]
+for tag in ('A','B'):
+    em='smoke-'+tag.lower()+'-'+uuid.uuid4().hex[:8]+'@example.test'; pw2='Breed1234!'
+    st,x=req('POST','/api/register',{'email':em,'password':pw2,'last':'試験','first':tag,'agreeTerms':True,'agreePrivacy':True});ok(st==201,'generic '+tag+' registration')
+    st,x=req('POST','/api/login',{'email':em,'password':pw2});ok(st==200,'generic '+tag+' login'); tok=x['token']
+    st,x=req('POST','/api/email-verification/request',{},tok); vt=x.get('devToken');ok(st==200 and vt,'generic '+tag+' verification token')
+    st,x=req('POST','/api/email-verification/confirm',{'token':vt});ok(st==200,'generic '+tag+' verified')
+    app2={'kennelName':'SMOKE'+tag+'犬舎','representative':'試験 '+tag,'prefecture':'埼玉県','primaryBreed':'スタンダードプードル','registrationNo':'SMOKE-'+tag+'-'+uuid.uuid4().hex[:6],'expiresOn':'2027-12-31','profile':'ownership test','registrationProofUrl':'/uploads/smoke-registration-proof.jpg','agreeCommissionTerms':True}
+    st,x=req('POST','/api/breeder-applications',app2,tok);ok(st==201,'generic '+tag+' application'); aid=x['id']
+    st,x=req('PATCH','/api/breeder-applications/'+aid,{'status':'approved','reviewNote':'smoke approved'},own_admin);ok(st==200 and x.get('status')=='approved','generic '+tag+' approved')
+    st,x=req('POST','/api/login',{'email':em,'password':pw2});ok(st==200 and x.get('user',{}).get('role')=='breeder','generic '+tag+' promoted'); generic.append(x['token'])
+a_tok,b_tok=generic
+st,x=req('GET','/api/operator/stats',token=a_tok);ok(st==403,'generic breeder blocked from operator API')
+st,x=req('GET','/api/breeder/puppies');ok(st==401,'anonymous blocked from breeder API')
+pids=[]
+for tag,tok in (('A',a_tok),('B',b_tok)):
+    st,x=req('POST','/api/puppies',{'breed':'スタンダードプードル','breedKey':'standard','gender':'男の子','color':'ブラック','price':310000,'area':'埼玉県','areaKey':'saitama','name':'所有犬'+tag,'desc':'ownership '+tag},tok);ok(st==201,'generic '+tag+' creates puppy'); pids.append(x['id'])
+a_pid,b_pid=pids
+st,x=req('GET','/api/breeder/puppies',token=a_tok);ok(st==200 and any(p['id']==a_pid for p in x) and all(p['id']!=b_pid for p in x),'generic A sees only own puppy')
+st,x=req('GET','/api/breeder/puppies',token=b_tok);ok(st==200 and any(p['id']==b_pid for p in x) and all(p['id']!=a_pid for p in x),'generic B sees only own puppy')
+st,x=req('PATCH','/api/puppies/'+a_pid,{'price':1},b_tok);ok(st==403,'generic B cannot modify A puppy')
+st,x=req('GET','/api/puppies/'+a_pid+'/photos',token=b_tok);ok(st==403,'generic B cannot read A photos')
+st,x=req('GET','/api/operator/listings',token=own_admin);ok(st==200 and any(p['id']==a_pid for p in x) and any(p['id']==b_pid for p in x),'operator sees both generic listings')
+
 st,r=req('POST','/api/login',{'email':'dog44@bigpaw.jp','password':'demo1234'});ok(st==200,'breeder login'); breeder=r['token']
 st,r=req('POST','/api/puppies',{'breed':'スタンダードプードル','breedKey':'standard','gender':'男の子','color':'ブラック','price':299000,'area':'埼玉県','areaKey':'saitama','name':'審査テスト犬','desc':'掲載審査テスト'} ,breeder);ok(st==201 and r.get('reviewStatus')=='pending','new breeder listing is pending'); pid=r['id']
 st,public=req('GET','/api/puppies');ok(all(x['id']!=pid for x in public),'pending listing hidden from public')
