@@ -139,6 +139,17 @@ jobs:
             git commit -m "Materialize verified BIG PAW runtime source"
             git push origin HEAD:build-flatten-work-20260924
           fi
+      - name: Verify inspection reports are unreferenced
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in delete-inspection.txt final-inspection.txt inspection2.txt; do
+            if grep -R -F --exclude="$f" --exclude-dir=.git "$f" app; then
+              echo "UNEXPECTED_REFERENCE:$f"
+              exit 1
+            fi
+            echo "UNREFERENCED:$f"
+          done
       - name: Upload reference snapshot
         uses: actions/upload-artifact@v4
         with:
