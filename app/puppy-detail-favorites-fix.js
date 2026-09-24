@@ -5,7 +5,7 @@
   if(!window.__BIGPAW_GALLERY_FIX_LOADING__){
     window.__BIGPAW_GALLERY_FIX_LOADING__=true;
     const s=document.createElement('script');
-    s.src='/puppy-gallery-carousel-fix.js?v=20260925-1';
+    s.src='/puppy-gallery-carousel-fix.js?v=20260925-2';
     s.async=true;
     document.head.appendChild(s);
   }
