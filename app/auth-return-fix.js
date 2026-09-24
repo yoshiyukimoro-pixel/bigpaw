@@ -1,4 +1,6 @@
 (()=>{
+  if(window.__BIGPAW_AUTH_GUARD__) return;
+  window.__BIGPAW_AUTH_GUARD__=true;
   const p=location.pathname;
   const LAST='bigpaw_last_role_page';
   const login='/login.html';
