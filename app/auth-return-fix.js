@@ -33,9 +33,9 @@
     return;
   }
 
-  const authOnly=['/breeder-register.html','/account.html','/messages.html','/notifications.html'];
-  const breederOnly=['/admin.html','/breeder-puppy-new.html','/breeder-inquiries.html','/breeder-billing.html','/breeder-deal-report.html'];
-  const operatorOnly=['/operator-admin.html','/operator-breeders.html','/operator-breeder-applications.html','/operator-listings.html','/operator-deals.html','/operator-support.html','/operator-deal-reports.html','/operator-revenue.html','/operator-reports.html','/operator-invoices.html','/operator-automations.html'];
+  const authOnly=['/breeder-register.html','/account.html','/messages.html','/notifications.html','/breeder-fee-agreement.html'];
+  const breederOnly=['/admin.html','/breeder-puppy-new.html','/breeder-inquiries.html','/breeder-billing.html','/breeder-deal-report.html','/breeder-profile-edit.html','/breeder-invoice.html','/parent-dogs.html','/health-records.html'];
+  const operatorOnly=['/operator-admin.html','/operator-breeders.html','/operator-breeder-applications.html','/operator-listings.html','/operator-deals.html','/operator-support.html','/operator-deal-reports.html','/operator-revenue.html','/operator-reports.html','/operator-invoices.html','/operator-automations.html','/operator-audit.html','/operator-backups.html','/project-status.html','/backend-status.html'];
   const buyerOnly=['/mypage.html','/my-page.html'];
 
   let need='';
