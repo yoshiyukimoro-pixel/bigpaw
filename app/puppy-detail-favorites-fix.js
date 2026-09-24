@@ -1,6 +1,15 @@
 (()=>{
   const id=new URLSearchParams(location.search).get('id');
   if(!id) return;
+
+  if(!window.__BIGPAW_GALLERY_FIX_LOADING__){
+    window.__BIGPAW_GALLERY_FIX_LOADING__=true;
+    const s=document.createElement('script');
+    s.src='/puppy-gallery-carousel-fix.js?v=20260925-1';
+    s.async=true;
+    document.head.appendChild(s);
+  }
+
   async function patch(btn){
     if(!btn||btn.dataset.serverFavorite==='1') return;
     btn.dataset.serverFavorite='1';
