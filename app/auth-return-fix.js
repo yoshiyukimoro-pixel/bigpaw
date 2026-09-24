@@ -6,6 +6,13 @@
   const login='/login.html';
   const operatorLogin='/operator-login.html';
 
+  if(p.endsWith('/puppy-detail.html')){
+    const s=document.createElement('script');
+    s.src='/puppy-detail-favorites-fix.js';
+    s.async=true;
+    document.head.appendChild(s);
+  }
+
   async function currentRole(){
     try{
       const r=await fetch('/api/me',{credentials:'include',cache:'no-store'});
