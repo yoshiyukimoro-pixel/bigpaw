@@ -1673,6 +1673,24 @@ print('ROLE_PROFILE_DIAG_PATCH_OK')
 PY
 
 
+# Safe runtime login-role diagnostic: logs only role and whether the login email matches configured admin email.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile,re
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+# Locate login handler structurally and add a post-auth diagnostic without logging credentials or addresses.
+m=re.search(r"(?ms)(if path\s*==\s*['\"]\/api\/login['\"]:.*?)(?=\n\s*if path\s*==|\n\s*elif path\s*==|\Z)",s)
+assert m, 'LOGIN_HANDLER_NOT_FOUND'
+blk=m.group(1)
+print('LOGIN_HANDLER_FOUND|chars='+str(len(blk)))
+# Source-only structural summary, scrub quoted values and addresses.
+for line in blk.splitlines():
+    low=line.lower()
+    if any(k in low for k in ['select ','role','session','send_json','password','email']):
+        safe=re.sub(r'([\\w.+-]+)@([\\w.-]+)','[email]',line)
+        print('LOGIN_HANDLER_SHAPE|'+safe[:500])
+PY
+
 # Safe auth-role diagnostic: counts and effective role only; no emails, IDs, passwords, or tokens.
 RUN python3 - <<'PY'
 from pathlib import Path
