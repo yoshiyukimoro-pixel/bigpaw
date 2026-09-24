@@ -118,6 +118,8 @@ jobs:
           rm -rf app
           mkdir app
           cp -a runtime-candidate/. app/
+          # Preserve isolated verification tests: they are test harnesses, not generated runtime source.
+          git show HEAD:app/backend/smoke_test.py > app/backend/smoke_test.py
           rm -f app/Dockerfile
           cat > Dockerfile.clean <<'DOCKER'
           FROM python:3.13-slim
