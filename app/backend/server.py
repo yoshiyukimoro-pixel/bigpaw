@@ -829,7 +829,7 @@ class Handler(SimpleHTTPRequestHandler):
             if not u:return
             return self.send_json({'id':u['id'],'role':u['role'],'email':u['email'],'last':u['last'],'first':u['first'],'displayName':u['display_name'],'emailVerified':bool(u.get('email_verified',0)),'termsAcceptedAt':u.get('terms_accepted_at'),'privacyAcceptedAt':u.get('privacy_accepted_at')})
         if path=='/api/puppies':
-            con=db(); sync_breeder_billing_suspension(con); con.commit(); sql="SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.review_status='approved' AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"; args=[]
+            con=db(); sync_breeder_billing_suspension(con); con.commit(); sql="SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE (p.review_status='approved' OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"; args=[]
             if q.get('breed') and q['breed'][0]: sql+=' AND p.breed_key=?'; args.append(q['breed'][0])
             if q.get('gender') and q['gender'][0]: sql+=' AND p.gender_key=?'; args.append(q['gender'][0])
             if q.get('area') and q['area'][0]: sql+=' AND p.area_key=?'; args.append(q['area'][0])
@@ -838,7 +838,7 @@ class Handler(SimpleHTTPRequestHandler):
             rows=con.execute(sql,args).fetchall(); con.close(); return self.send_json([public_puppy_json(r) for r in rows])
         m=re.fullmatch(r'/api/puppies/([^/]+)',path)
         if m:
-            con=db(); sync_breeder_billing_suspension(con); con.commit(); r=con.execute("SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status='approved' AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)",(m.group(1),)).fetchone(); con.close()
+            con=db(); sync_breeder_billing_suspension(con); con.commit(); r=con.execute("SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND (p.review_status='approved' OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)",(m.group(1),)).fetchone(); con.close()
             return self.send_json(public_puppy_json(r),200) if r else self.send_json({'error':'not_found'},404)
         if path=='/api/breeders':
             con=db(); sync_breeder_billing_suspension(con); con.commit(); rows=con.execute("""SELECT b.*, COUNT(DISTINCT p.id) open_puppies, ROUND(AVG(r.rating),1) rating, COUNT(DISTINCT r.id) review_count
