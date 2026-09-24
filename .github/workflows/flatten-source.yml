@@ -162,6 +162,18 @@ jobs:
           test "$ok" = 1
           curl -fsS http://127.0.0.1:18080/ >/dev/null
           docker logs "$cid3"
+      - name: Run isolated HTTP smoke suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --no-cache -f Dockerfile.clean -t bigpaw-http-test .
+          cid4="$(docker run -d -e PORT=18081 -p 18081:18081 bigpaw-http-test)"
+          trap 'docker rm -f "$cid4" >/dev/null 2>&1 || true' EXIT
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:18081/api/health >/dev/null && break
+            sleep 1
+          done
+          python3 app/backend/smoke_test.py http://127.0.0.1:18081
       - name: Verify generic role and ownership guards
         shell: bash
         run: |
