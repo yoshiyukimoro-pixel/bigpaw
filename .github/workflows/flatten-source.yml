@@ -85,7 +85,15 @@ jobs:
           mkdir -p flattened-app
           docker cp "$cid":/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/. flattened-app/
           python3 -m py_compile flattened-app/backend/server.py
+          # Keep the reference snapshot byte-for-byte complete. Build a separate
+          # runtime candidate by removing only generated inspection/cache files.
+          rm -rf runtime-candidate
+          cp -a flattened-app runtime-candidate
+          find runtime-candidate -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find runtime-candidate -type f \( -name '*.pyc' -o -name 'inspection.txt' -o -name 'flow-inspect.txt' \) -delete
+          python3 -m py_compile runtime-candidate/backend/server.py
           find flattened-app -type f -print0 | sort -z | xargs -0 sha256sum > flattened-manifest.sha256
+          find runtime-candidate -type f -print0 | sort -z | xargs -0 sha256sum > runtime-manifest.sha256
       - name: Upload reference snapshot
         uses: actions/upload-artifact@v4
         with:
@@ -93,4 +101,6 @@ jobs:
           path: |
             flattened-app
             flattened-manifest.sha256
+            runtime-candidate
+            runtime-manifest.sha256
           if-no-files-found: error
