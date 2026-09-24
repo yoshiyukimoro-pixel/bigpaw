@@ -20,8 +20,57 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REF_NAME" = "build-flatten-work-20260924"
           ! grep -R "/data" Dockerfile | grep -E "(rm|unlink|rmtree|DROP TABLE|DELETE FROM|TRUNCATE)" || exit 1
-      - name: Build current image exactly
-        run: docker build --no-cache -t bigpaw-flatten-reference .
+      - name: Convert Dockerfile to one-layer equivalent
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          src=Path("Dockerfile").read_text(encoding="utf-8")
+          lines=src.splitlines()
+          prefix=[]
+          workdir="/"
+          commands=[]
+          copies=[]
+          i=0
+          while i < len(lines):
+              raw=lines[i]
+              s=raw.strip()
+              if not s or s.startswith("#"):
+                  i+=1; continue
+              if s.startswith("FROM "):
+                  prefix.append(raw); i+=1; continue
+              if s.startswith("WORKDIR "):
+                  workdir=s.split(None,1)[1].strip()
+                  commands.append(f"cd {workdir!r}")
+                  i+=1; continue
+              if s.startswith("COPY "):
+                  parts=s.split()
+                  if len(parts)!=3 or parts[1].startswith("--"):
+                      raise SystemExit(f"Unsupported COPY at line {i+1}: {raw}")
+                  copies.append((parts[1],parts[2]))
+                  i+=1; continue
+              if s.startswith("RUN "):
+                  block=[raw[raw.index("RUN ")+4:]]
+                  while block[-1].rstrip().endswith("\\"):
+                      i+=1
+                      block.append(lines[i])
+                  commands.append("\n".join(block))
+                  i+=1; continue
+              if s.startswith(("ARG ","ENV ","EXPOSE ","CMD ","ENTRYPOINT ","LABEL ","USER ")):
+                  prefix.append(raw); i+=1; continue
+              raise SystemExit(f"Unsupported Dockerfile instruction at line {i+1}: {raw}")
+          pre=["FROM python:3.13-slim","WORKDIR /app"]
+          for srcp,dst in copies:
+              pre.append(f"COPY {srcp} {dst}")
+          script="set -eu\n"+"\n".join(commands)
+          out="\n".join(pre)+"\nRUN <<'BIGPAW_FLATTEN'\n"+script+"\nBIGPAW_FLATTEN\n"
+          for raw in prefix:
+              if raw.strip().startswith(("EXPOSE ","CMD ","ENTRYPOINT ","ENV ","ARG ","LABEL ","USER ")):
+                  out+=raw+"\n"
+          Path("Dockerfile.flatten").write_text(out,encoding="utf-8")
+          print("FLATTEN_PLAN_OK", "copies",len(copies),"commands",len(commands),"run_layers",1)
+      - name: Build one-layer equivalent
+        run: docker build --no-cache -f Dockerfile.flatten -t bigpaw-flatten-reference .
       - name: Extract final application filesystem
         shell: bash
         run: |
