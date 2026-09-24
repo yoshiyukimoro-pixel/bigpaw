@@ -5,8 +5,25 @@ s = p.read_text(encoding='utf-8')
 
 # Add private breeder visit-contact fields.
 a = "    ensure_column(con,'breeders','billing_suspension_reason',\"TEXT DEFAULT ''\")"
-b = a + "\n    ensure_column(con,'breeders','visit_address',\"TEXT DEFAULT ''\")\n    ensure_column(con,'breeders','visit_phone',\"TEXT DEFAULT ''\")\n    ensure_column(con,'breeders','visit_access',\"TEXT DEFAULT ''\")"
+b = a + "\n    ensure_column(con,'breeders','visit_address',\"TEXT DEFAULT ''\")\n    ensure_column(con,'breeders','visit_phone',\"TEXT DEFAULT ''\")\n    ensure_column(con,'breeders','visit_access',\"TEXT DEFAULT ''\")\n    ensure_column(con,'breeder_applications','visit_address',\"TEXT DEFAULT ''\")\n    ensure_column(con,'breeder_applications','visit_phone',\"TEXT DEFAULT ''\")\n    ensure_column(con,'breeder_applications','visit_access',\"TEXT DEFAULT ''\")"
 assert s.count(a) == 1, ('visit_columns_marker', s.count(a))
+s = s.replace(a, b, 1)
+
+# New breeder applications must contain the private in-person visit location and same-day phone.
+a = "body=self.json_body(); required=['kennelName','representative','prefecture','primaryBreed','registrationNo','expiresOn']; public_profile=str(body.get('profile','')).strip();"
+b = "body=self.json_body(); required=['kennelName','representative','prefecture','primaryBreed','registrationNo','expiresOn','visitAddress','visitPhone']; public_profile=str(body.get('profile','')).strip();"
+assert s.count(a) == 1, ('breeder_application_required_marker', s.count(a))
+s = s.replace(a, b, 1)
+
+a = "            aid=old['id'] if old else make_id('ba_'); vals=(str(body['kennelName']).strip(),str(body['representative']).strip(),str(body['prefecture']).strip(),str(body['primaryBreed']).strip(),str(body['registrationNo']).strip(),str(body['expiresOn']).strip(),(str(body.get('profile','')).strip()+'\\\n[REGISTRATION_PROOF]'+str(body.get('registrationProofUrl','')).strip()),'pending','',now())\n            if old:\n                con.execute('UPDATE breeder_applications SET kennel_name=?,representative=?,prefecture=?,primary_breed=?,registration_no=?,expires_on=?,profile=?,status=?,review_note=?,updated_at=? WHERE id=?',vals+(aid,))\n            else:\n                con.execute('INSERT INTO breeder_applications VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',(aid,u['id'],*vals[:-1],now(),vals[-1]))"
+b = "            aid=old['id'] if old else make_id('ba_'); visit_address=str(body.get('visitAddress','')).strip(); visit_phone=str(body.get('visitPhone','')).strip(); visit_access=str(body.get('visitAccess','')).strip(); vals=(str(body['kennelName']).strip(),str(body['representative']).strip(),str(body['prefecture']).strip(),str(body['primaryBreed']).strip(),str(body['registrationNo']).strip(),str(body['expiresOn']).strip(),(str(body.get('profile','')).strip()+'\\\n[REGISTRATION_PROOF]'+str(body.get('registrationProofUrl','')).strip()),visit_address,visit_phone,visit_access,'pending','',now())\n            if old:\n                con.execute('UPDATE breeder_applications SET kennel_name=?,representative=?,prefecture=?,primary_breed=?,registration_no=?,expires_on=?,profile=?,visit_address=?,visit_phone=?,visit_access=?,status=?,review_note=?,updated_at=? WHERE id=?',vals+(aid,))\n            else:\n                con.execute('INSERT INTO breeder_applications(id,user_id,kennel_name,representative,prefecture,primary_breed,registration_no,expires_on,profile,visit_address,visit_phone,visit_access,status,review_note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',(aid,u['id'],*vals[:-1],now(),vals[-1]))"
+assert s.count(a) == 1, ('breeder_application_save_marker', s.count(a))
+s = s.replace(a, b, 1)
+
+# Carry the private visit-contact fields into the approved breeder profile.
+a = "                if not existing:\n                    con.execute('INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status) VALUES(?,?,?,?,?,?,?)',(make_id('b_'),a['user_id'],a['kennel_name'],a['prefecture'],a['registration_no'],a['profile'],'approved'))"
+b = "                if not existing:\n                    con.execute('INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status,visit_address,visit_phone,visit_access) VALUES(?,?,?,?,?,?,?,?,?,?)',(make_id('b_'),a['user_id'],a['kennel_name'],a['prefecture'],a['registration_no'],a['profile'],'approved',a['visit_address'] or '',a['visit_phone'] or '',a['visit_access'] or ''))\n                else:\n                    con.execute(\"UPDATE breeders SET visit_address=CASE WHEN ?<>'' THEN ? ELSE visit_address END,visit_phone=CASE WHEN ?<>'' THEN ? ELSE visit_phone END,visit_access=CASE WHEN ?<>'' THEN ? ELSE visit_access END WHERE id=?\",(a['visit_address'] or '',a['visit_address'] or '',a['visit_phone'] or '',a['visit_phone'] or '',a['visit_access'] or '',a['visit_access'] or '',existing['id']))"
+assert s.count(a) == 1, ('breeder_approval_visit_contact_marker', s.count(a))
 s = s.replace(a, b, 1)
 
 # Never expose private visit details through public breeder APIs.
@@ -40,4 +57,4 @@ assert s.count(a) == 1, ('in_person_visit_mail_marker', s.count(a))
 s = s.replace(a, b, 1)
 
 p.write_text(s, encoding='utf-8')
-print('VISIT_CONTACT_PRIVACY_OK|public=prefecture_only|confirmed_in_person=address_phone_access|email=buyer_only', flush=True)
+print('VISIT_CONTACT_PRIVACY_OK|application=required|public=prefecture_only|confirmed_in_person=address_phone_access|email=buyer_only', flush=True)
