@@ -1,0 +1,42 @@
+name: Flatten BIG PAW source safely
+on:
+  push:
+    branches:
+      - build-flatten-work-20260924
+    paths:
+      - '.github/workflows/flatten-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  flatten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm isolated branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "build-flatten-work-20260924"
+          ! grep -R "/data" Dockerfile | grep -E "(rm|unlink|rmtree|DROP TABLE|DELETE FROM|TRUNCATE)" || exit 1
+      - name: Build current image exactly
+        run: docker build --no-cache -t bigpaw-flatten-reference .
+      - name: Extract final application filesystem
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker create bigpaw-flatten-reference)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          mkdir -p flattened-app
+          docker cp "$cid":/app/BIG_PAW_v1.0_FINAL3_domain_ready_package/. flattened-app/
+          python3 -m py_compile flattened-app/backend/server.py
+          find flattened-app -type f -print0 | sort -z | xargs -0 sha256sum > flattened-manifest.sha256
+      - name: Upload reference snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: bigpaw-flatten-reference
+          path: |
+            flattened-app
+            flattened-manifest.sha256
+          if-no-files-found: error
