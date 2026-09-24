@@ -15,7 +15,7 @@ on:
       - 'breeder-flow-fix.py'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   flatten:
     runs-on: ubuntu-latest
@@ -108,6 +108,37 @@ jobs:
           docker rm "$cid2" >/dev/null
           find flattened-app -type f -print0 | sort -z | xargs -0 sha256sum > flattened-manifest.sha256
           find runtime-candidate -type f -print0 | sort -z | xargs -0 sha256sum > runtime-manifest.sha256
+      - name: Materialize verified source on isolated branch
+        if: github.event_name == 'push' && github.ref_name == 'build-flatten-work-20260924'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf app
+          mkdir app
+          cp -a runtime-candidate/. app/
+          rm -f app/Dockerfile
+          cat > Dockerfile.clean <<'DOCKER'
+          FROM python:3.13-slim
+          WORKDIR /app
+          COPY app/ /app/
+          ENV PORT=8080
+          EXPOSE 8080
+          CMD ["python3", "backend/server.py"]
+          DOCKER
+          find app -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find app -type f -name '*.pyc' -delete
+          python3 -m py_compile app/backend/server.py
+          find app -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find app -type f -name '*.pyc' -delete
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app Dockerfile.clean
+          if git diff --cached --quiet; then
+            echo "SOURCE_ALREADY_MATERIALIZED"
+          else
+            git commit -m "Materialize verified BIG PAW runtime source"
+            git push origin HEAD:build-flatten-work-20260924
+          fi
       - name: Upload reference snapshot
         uses: actions/upload-artifact@v4
         with:
