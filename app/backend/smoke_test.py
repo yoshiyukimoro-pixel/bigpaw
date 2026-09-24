@@ -36,7 +36,7 @@ st,r=req('POST','/api/password-reset/request',{'email':email});ok(st==200 and r.
 st,r=req('POST','/api/password-reset/confirm',{'token':r['devToken'],'password':'Smoke5678!'});ok(st==200,'password reset')
 st,r=req('POST','/api/login',{'email':email,'password':'Smoke5678!'});ok(st==200,'login with new password'); buyer=r['token']
 
-app={'kennelName':'SMOKE犬舎','representative':'試験 太郎','prefecture':'埼玉県','primaryBreed':'スタンダードプードル','registrationNo':'SMOKE-001','expiresOn':'2027-12-31','profile':'料金同意テスト','registrationProofUrl':'/uploads/smoke-registration-proof.jpg'}
+app={'kennelName':'SMOKE犬舎','representative':'試験 太郎','prefecture':'埼玉県','primaryBreed':'スタンダードプードル','registrationNo':'SMOKE-001','expiresOn':'2027-12-31','profile':'料金同意テスト'}
 st,r=req('POST','/api/breeder-applications',app,buyer);ok(st==400 and r.get('error')=='commission_terms_consent_required','breeder fee consent required')
 app['agreeCommissionTerms']=True
 st,r=req('POST','/api/breeder-applications',app,buyer);ok(st==201,'breeder fee terms accepted with application')
