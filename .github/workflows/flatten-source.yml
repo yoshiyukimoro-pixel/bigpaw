@@ -175,7 +175,15 @@ jobs:
             curl -fsS http://127.0.0.1:18081/api/health >/dev/null && break
             sleep 1
           done
-          python3 app/backend/smoke_test.py http://127.0.0.1:18081
+          # Test the freshly generated runtime candidate in this same run, not the pre-materialization checkout.
+          cp app/backend/smoke_test.py runtime-candidate/backend/smoke_test.py
+          docker rm -f "$cid4" >/dev/null 2>&1 || true
+          cid4="$(docker run -d -e PORT=18081 -p 18081:18081 bigpaw-runtime-candidate)"
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:18081/api/health >/dev/null && break
+            sleep 1
+          done
+          python3 runtime-candidate/backend/smoke_test.py http://127.0.0.1:18081
       - name: Verify generic role and ownership guards
         shell: bash
         run: |
