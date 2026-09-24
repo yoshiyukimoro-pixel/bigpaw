@@ -19,6 +19,24 @@
     sessionStorage.setItem(LAST,location.pathname+location.search);
     location.replace(target);
   }
+  async function loadOwnParentDogs(){
+    if(!p.endsWith('/breeder-puppy-new.html')) return;
+    try{
+      const r=await fetch('/api/parent-dogs',{credentials:'include',cache:'no-store'});
+      if(!r.ok) return;
+      const dogs=await r.json();
+      const fill=(id,sex)=>{
+        const el=document.getElementById(id); if(!el) return;
+        const current=el.value;
+        const names=[...new Set((Array.isArray(dogs)?dogs:[]).filter(d=>String(d.sex||'')===sex).map(d=>String(d.name||'').trim()).filter(Boolean))];
+        if(current&&current!=='未登録'&&!names.includes(current)) names.unshift(current);
+        el.innerHTML=names.map(n=>'<option>'+n.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</option>').join('')+'<option>未登録</option>';
+        if(current&&(names.includes(current)||current==='未登録')) el.value=current;
+        else el.value=names[0]||'未登録';
+      };
+      fill('father','父犬'); fill('mother','母犬');
+    }catch(e){}
+  }
 
   // Keep the breeder workspace generic for every approved breeder.
   if(p.endsWith('/admin.html')){
@@ -72,6 +90,7 @@
     // Operator review mode: operators may inspect breeder workspace pages.
     // Breeders and buyers never gain operator access.
     if(need==='breeder' && (role==='breeder' || role==='operator')){
+      if(role==='breeder') loadOwnParentDogs();
       if(role==='operator'){
         document.documentElement.setAttribute('data-bigpaw-operator-review','1');
         const show=()=>{
