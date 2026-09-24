@@ -133,5 +133,48 @@ new_ready="'smtpConfigured':bool(os.environ.get('RESEND_API_KEY') or (SMTP_HOST 
 assert s.count(old_ready)==1, ('readiness_mail_check_count',s.count(old_ready))
 s=s.replace(old_ready,new_ready,1)
 
+old_public_list="SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.review_status='approved' AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
+new_public_list="SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.review_status='approved' AND p.status!='非公開' AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
+assert s.count(old_public_list)==1, ('public_list_visibility_count',s.count(old_public_list))
+s=s.replace(old_public_list,new_public_list,1)
+
+old_public_detail="SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status='approved' AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
+new_public_detail="SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status='approved' AND p.status!='非公開' AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
+assert s.count(old_public_detail)==1, ('public_detail_visibility_count',s.count(old_public_detail))
+s=s.replace(old_public_detail,new_public_detail,1)
+
+old_breeder_puppies="SELECT * FROM puppies WHERE breeder_id=? AND review_status='approved' ORDER BY created_at DESC"
+new_breeder_puppies="SELECT * FROM puppies WHERE breeder_id=? AND review_status='approved' AND status!='非公開' ORDER BY created_at DESC"
+assert s.count(old_breeder_puppies)==1, ('public_breeder_puppies_visibility_count',s.count(old_breeder_puppies))
+s=s.replace(old_breeder_puppies,new_breeder_puppies,1)
+
+old_sitemap="SELECT p.id FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.review_status='approved' AND p.status!='成約済み' AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
+new_sitemap="SELECT p.id FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.review_status='approved' AND p.status NOT IN ('成約済み','非公開') AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)"
+assert s.count(old_sitemap)==1, ('sitemap_visibility_count',s.count(old_sitemap))
+s=s.replace(old_sitemap,new_sitemap,1)
+
+old_favorites_get="""con=db(); sync_breeder_billing_suspension(con); con.commit(); rows=con.execute('''SELECT p.* FROM favorites f JOIN puppies p ON p.id=f.puppy_id LEFT JOIN breeders b ON b.id=p.breeder_id WHERE f.user_id=? AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0) ORDER BY f.created_at DESC''',(u['id'],)).fetchall(); con.close()"""
+new_favorites_get="""con=db(); sync_breeder_billing_suspension(con); con.commit(); rows=con.execute('''SELECT p.* FROM favorites f JOIN puppies p ON p.id=f.puppy_id LEFT JOIN breeders b ON b.id=p.breeder_id WHERE f.user_id=? AND p.review_status='approved' AND p.status!='非公開' AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0) ORDER BY f.created_at DESC''',(u['id'],)).fetchall(); con.close()"""
+assert s.count(old_favorites_get)==1, ('favorites_get_visibility_count',s.count(old_favorites_get))
+s=s.replace(old_favorites_get,new_favorites_get,1)
+
+old_inquiry_lookup="con=db(); p=con.execute(\"SELECT * FROM puppies WHERE id=? AND review_status='approved' AND status!='成約済み'\",(puppy_id,)).fetchone()"
+new_inquiry_lookup="con=db(); p=con.execute(\"SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status='approved' AND p.status NOT IN ('成約済み','非公開') AND (p.breeder_id IS NULL OR b.review_status='approved')\",(puppy_id,)).fetchone()"
+assert s.count(old_inquiry_lookup)==1, ('inquiry_visibility_count',s.count(old_inquiry_lookup))
+s=s.replace(old_inquiry_lookup,new_inquiry_lookup,1)
+
+old_favorite_add="""            else:
+                if not con.execute(\"SELECT 1 FROM puppies WHERE id=? AND review_status='approved'\",(pid,)).fetchone(): con.close(); return self.send_json({'error':'not_found'},404)
+                con.execute('INSERT INTO favorites VALUES(?,?,?)',(u['id'],pid,now())); value=True
+"""
+new_favorite_add="""            else:
+                sync_breeder_billing_suspension(con); con.commit()
+                visible=con.execute(\"SELECT 1 FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status='approved' AND p.status!='非公開' AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)\",(pid,)).fetchone()
+                if not visible: con.close(); return self.send_json({'error':'not_found'},404)
+                con.execute('INSERT INTO favorites VALUES(?,?,?)',(u['id'],pid,now())); value=True
+"""
+assert s.count(old_favorite_add)==1, ('favorite_add_visibility_count',s.count(old_favorite_add))
+s=s.replace(old_favorite_add,new_favorite_add,1)
+
 p.write_text(s,encoding='utf-8')
-print('FINAL_VISIT_PATCH_OK|buyer=proposed|breeder=confirmed|room=confirmed_plus_30min|mail=online_only|resend=readiness',flush=True)
+print('FINAL_VISIT_PATCH_OK|buyer=proposed|breeder=confirmed|room=confirmed_plus_30min|mail=online_only|resend=readiness|public_visibility=guarded',flush=True)
