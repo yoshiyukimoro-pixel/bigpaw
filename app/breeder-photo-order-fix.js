@@ -1,7 +1,7 @@
 (()=>{
   if(window.__BIGPAW_PHOTO_ORDER_FIX__) return;
   window.__BIGPAW_PHOTO_ORDER_FIX__=true;
-  const puppyId=new URLSearchParams(location.search).get('id')||sessionStorage.getItem('bigpawEditPuppyId')||'';
+  const puppyId=new URLSearchParams(location.search).get('id')||'';
   if(!puppyId) return;
   let lastServerSig=null;
   let saving=false;
