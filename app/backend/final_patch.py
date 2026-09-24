@@ -23,10 +23,10 @@ new_room="""        m=re.fullmatch(r'/api/inquiries/([^/]+)/video-room',path)
             if not visit or visit['transport']!='オンライン見学' or visit['status']!='confirmed':
                 con.close(); return self.send_json({'error':'online_visit_not_confirmed','message':'オンライン見学の日時確定後に入室できます。'},409)
             try:
-                from datetime import datetime,timedelta
-                from zoneinfo import ZoneInfo
-                start=datetime.strptime(str(visit['visit_date'])+' '+str(visit['visit_time']),'%Y-%m-%d %H:%M').replace(tzinfo=ZoneInfo('Asia/Tokyo'))
-                current=datetime.now(ZoneInfo('Asia/Tokyo'))
+                from datetime import datetime,timedelta,timezone
+                jst=timezone(timedelta(hours=9))
+                start=datetime.strptime(str(visit['visit_date'])+' '+str(visit['visit_time']),'%Y-%m-%d %H:%M').replace(tzinfo=jst)
+                current=datetime.now(jst)
             except Exception:
                 con.close(); return self.send_json({'error':'invalid_visit_time'},409)
             if current < start-timedelta(minutes=30):
@@ -176,5 +176,14 @@ new_favorite_add="""            else:
 assert s.count(old_favorite_add)==1, ('favorite_add_visibility_count',s.count(old_favorite_add))
 s=s.replace(old_favorite_add,new_favorite_add,1)
 
+old_legacy_reapprove="""    # legacy approved breeder puppies: approved breeders publish directly
+    con.execute(\"UPDATE puppies SET review_status='approved' WHERE review_status!='approved' AND breeder_id IN (SELECT id FROM breeders WHERE review_status='approved')\")
+"""
+new_legacy_reapprove="""    # Direct publishing is handled when an approved breeder creates a listing.
+    # Preserve later operator moderation decisions across application restarts.
+"""
+assert s.count(old_legacy_reapprove)==1, ('legacy_reapprove_count',s.count(old_legacy_reapprove))
+s=s.replace(old_legacy_reapprove,new_legacy_reapprove,1)
+
 p.write_text(s,encoding='utf-8')
-print('FINAL_VISIT_PATCH_OK|buyer=proposed|breeder=confirmed|room=confirmed_plus_30min|mail=online_only|resend=readiness|public_visibility=guarded',flush=True)
+print('FINAL_VISIT_PATCH_OK|buyer=proposed|breeder=confirmed|room=confirmed_plus_30min|mail=online_only|resend=readiness|public_visibility=guarded|moderation=persistent',flush=True)
