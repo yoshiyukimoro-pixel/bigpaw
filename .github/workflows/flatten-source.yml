@@ -92,6 +92,20 @@ jobs:
           find runtime-candidate -type d -name '__pycache__' -prune -exec rm -rf {} +
           find runtime-candidate -type f \( -name '*.pyc' -o -name 'inspection.txt' -o -name 'flow-inspect.txt' \) -delete
           python3 -m py_compile runtime-candidate/backend/server.py
+          find runtime-candidate -type d -name '__pycache__' -prune -exec rm -rf {} +
+          cat > runtime-candidate/Dockerfile <<'DOCKER'
+          FROM python:3.13-slim
+          WORKDIR /app
+          COPY . /app
+          ENV PORT=8080
+          EXPOSE 8080
+          CMD ["python3", "backend/server.py"]
+          DOCKER
+          docker build --no-cache -t bigpaw-runtime-candidate runtime-candidate
+          cid2="$(docker create bigpaw-runtime-candidate)"
+          trap 'docker rm -f "$cid" "$cid2" >/dev/null 2>&1 || true' EXIT
+          test "$(docker inspect -f '{{.Config.Cmd}}' "$cid2")" = "[python3 backend/server.py]"
+          docker rm "$cid2" >/dev/null
           find flattened-app -type f -print0 | sort -z | xargs -0 sha256sum > flattened-manifest.sha256
           find runtime-candidate -type f -print0 | sort -z | xargs -0 sha256sum > runtime-manifest.sha256
       - name: Upload reference snapshot
