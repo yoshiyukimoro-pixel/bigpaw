@@ -5,9 +5,9 @@
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   function install(){
-    const g=document.getElementById('bigpawRealGallery');
-    if(!g || g.dataset.carouselFixed==='1') return false;
-    const imgs=[...g.querySelectorAll('img')];
+    const old=document.getElementById('bigpawRealGallery');
+    if(!old || old.dataset.carouselFixed==='1') return false;
+    const imgs=[...old.querySelectorAll('img')];
     const urls=[];
     imgs.forEach(img=>{
       const u=img.currentSrc||img.getAttribute('src')||'';
@@ -15,10 +15,11 @@
     });
     if(!urls.length) return false;
 
-    g.dataset.carouselFixed='1';
     const puppy=window.__BIGPAW_DETAIL_PUPPY||{};
     const alt=esc(puppy.breed||'子犬');
-    g.innerHTML='';
+    const g=document.createElement('div');
+    g.id='bigpawRealGallery';
+    g.dataset.carouselFixed='1';
     g.className='bigpaw-simple-carousel';
 
     const stage=document.createElement('div');
@@ -40,6 +41,7 @@
       thumbs.appendChild(b);
     });
     g.append(stage,thumbs);
+    old.replaceWith(g);
 
     const main=stage.querySelector('.bp-carousel-main');
     const count=stage.querySelector('.bp-carousel-count');
@@ -56,29 +58,38 @@
         b.classList.toggle('active',i===index);
         b.setAttribute('aria-current',i===index?'true':'false');
       });
-      const active=thumbButtons[index];
-      if(active && active.scrollIntoView){
-        try{ active.scrollIntoView({block:'nearest',inline:'nearest'}); }catch(_e){}
-      }
     }
 
     function move(delta,e){
-      if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}
+      if(e){
+        e.preventDefault();
+        e.stopPropagation();
+        if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+      }
       show(index+delta);
     }
     prev.addEventListener('click',e=>move(-1,e),true);
     next.addEventListener('click',e=>move(1,e),true);
-    thumbButtons.forEach((b,i)=>b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();show(i);},true));
+    thumbButtons.forEach((b,i)=>b.addEventListener('click',e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+      show(i);
+    },true));
 
     let startX=null;
-    stage.addEventListener('touchstart',e=>{if(e.touches&&e.touches.length===1)startX=e.touches[0].clientX;},{passive:true});
+    stage.addEventListener('touchstart',e=>{
+      if(e.touches&&e.touches.length===1)startX=e.touches[0].clientX;
+    },{passive:true});
     stage.addEventListener('touchend',e=>{
       if(startX===null||!e.changedTouches||!e.changedTouches.length)return;
-      const dx=e.changedTouches[0].clientX-startX; startX=null;
-      if(Math.abs(dx)>45) show(index+(dx<0?1:-1));
+      const dx=e.changedTouches[0].clientX-startX;
+      startX=null;
+      if(Math.abs(dx)>45)show(index+(dx<0?1:-1));
     },{passive:true});
 
     document.getElementById('bigpawPhotoViewer')?.remove();
+    document.documentElement.style.overflow='';
     show(0);
     return true;
   }
