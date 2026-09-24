@@ -12,6 +12,12 @@
     s.async=true;
     document.head.appendChild(s);
   }
+  if(p.endsWith('/breeder-puppy-new.html')){
+    const s=document.createElement('script');
+    s.src='/breeder-photo-order-fix.js';
+    s.async=true;
+    document.head.appendChild(s);
+  }
 
   async function currentRole(){
     try{
