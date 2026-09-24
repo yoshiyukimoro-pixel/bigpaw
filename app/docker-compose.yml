@@ -1,0 +1,14 @@
+services:
+  bigpaw:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - BIGPAW_DEV_LINKS=1
+      - BIGPAW_COMMISSION_RATE_BPS=500
+      - BIGPAW_COMMISSION_DUE_DAYS=7
+    volumes:
+      - ./backend:/app/backend
+      - ./uploads:/app/uploads
+      - ./backups:/app/backups

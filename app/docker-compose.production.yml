@@ -1,0 +1,16 @@
+services:
+  bigpaw:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - bigpaw_backend:/app/backend
+      - bigpaw_uploads:/app/uploads
+      - bigpaw_backups:/app/backups
+volumes:
+  bigpaw_backend:
+  bigpaw_uploads:
+  bigpaw_backups:

@@ -1,0 +1,10 @@
+backend/bigpaw.sqlite3
+uploads/*
+!uploads/.gitkeep
+__pycache__/
+*.pyc
+.DS_Store
+
+# Production secrets
+.env*
+!.env.example

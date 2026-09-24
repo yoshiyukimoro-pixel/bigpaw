@@ -1,0 +1,10 @@
+backend/__pycache__/
+backend/bigpaw.sqlite3
+*.zip
+.git/
+.env
+BIG_PAW_PRIVATE_SETTINGS*.env
+backups/*
+!backups/.gitkeep
+uploads/*
+!uploads/.gitkeep

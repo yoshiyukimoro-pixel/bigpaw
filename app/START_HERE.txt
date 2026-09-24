@@ -1,0 +1,43 @@
+BIG PAW v1.0 — START HERE
+
+このパッケージは、BIG PAW v1.0 のアプリケーション完成版です。
+
+まずローカルで確認する場合:
+  1. python3 backend/server.py
+  2. ブラウザで http://127.0.0.1:8080/ を開く
+
+本番公開する場合:
+  1. .env.example を参考に本番環境変数を設定
+  2. DEPLOYMENT.md を読む
+  3. RELEASE_CHECKLIST.md をすべて確認
+  4. 運営画面 launch-checklist.html / backend-status.html で公開設定を確認
+
+BIG PAW 初期料金モデル:
+  - 掲載料 0円
+  - 月額 0円
+  - 成約時のみ最終生体販売価格の5%（税込・1円未満切り捨て）
+  - ブリーダー成約申請 → 運営承認 → 請求書自動発行
+  - 支払期限は請求日から7日以内
+  - 期限超過中は犬舎・子犬の公開を自動停止
+  - 期限超過分の入金確認後に自動再開
+
+公開前に実データが必要なもの:
+  - 独自ドメイン / HTTPS
+  - 運営者名・所在地（入力済み）
+  - 請求書発行者情報（入力済み／登録番号・郵便番号は未設定）
+  - 振込口座（非公開設定ファイルに準備済み）
+  - SMTPメール設定
+  - 強い運営者パスワード（未設定）
+  - 規約・プライバシー・表示内容の最終確認
+  - 商標・サービス名の正式確認
+
+詳細: README.txt / OPERATIONS.md / QA_REPORT.md
+
+
+【現在の次の作業】
+1. bigpaw.jp を指定事業者でリアルタイム検索し、空いていれば登録
+2. Google Workspace等で info@bigpaw.jp を作成し、noreply@bigpaw.jp を送信用に設定
+3. Railway等へ公開し、/data 永続ボリュームを設定
+4. bigpaw.jp のDNSを公開先へ接続
+
+詳細: DOMAIN_EMAIL_SETUP.md / RAILWAY_DEPLOYMENT.md
