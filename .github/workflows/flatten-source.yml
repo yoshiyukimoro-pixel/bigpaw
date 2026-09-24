@@ -50,10 +50,24 @@ jobs:
                   copies.append((parts[1],parts[2]))
                   i+=1; continue
               if s.startswith("RUN "):
-                  block=[raw[raw.index("RUN ")+4:]]
-                  while block[-1].rstrip().endswith("\\"):
+                  body=raw[raw.index("RUN ")+4:]
+                  block=[body]
+                  heredoc=re.search(r"<<-?['\\\"]?([A-Za-z0-9_]+)['\\\"]?", body)
+                  if heredoc:
+                      marker=heredoc.group(1)
                       i+=1
-                      block.append(lines[i])
+                      while i < len(lines):
+                          block.append(lines[i])
+                          if lines[i].strip()==marker:
+                              break
+                          i+=1
+                      else:
+                          raise SystemExit(f"Unclosed RUN heredoc starting line {i+1}")
+                  else:
+                      while block[-1].rstrip().endswith("\\"):
+                          i+=1
+                          if i>=len(lines): raise SystemExit("RUN continuation reached EOF")
+                          block.append(lines[i])
                   commands.append("\n".join(block))
                   i+=1; continue
               if s.startswith(("ARG ","ENV ","EXPOSE ","CMD ","ENTRYPOINT ","LABEL ","USER ")):
