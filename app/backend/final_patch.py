@@ -123,5 +123,15 @@ BIG PAW
 assert s.count(old_email)==1, ('online_visit_email_block_count',s.count(old_email))
 s=s.replace(old_email,new_email,1)
 
+old_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(SMTP_HOST),'paymentMode':PAYMENT_MODE})"
+new_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(os.environ.get('RESEND_API_KEY') or SMTP_HOST),'paymentMode':PAYMENT_MODE})"
+assert s.count(old_health)==1, ('health_mail_check_count',s.count(old_health))
+s=s.replace(old_health,new_health,1)
+
+old_ready="'smtpConfigured':bool(SMTP_HOST and SMTP_FROM),"
+new_ready="'smtpConfigured':bool(os.environ.get('RESEND_API_KEY') or (SMTP_HOST and SMTP_FROM)),"
+assert s.count(old_ready)==1, ('readiness_mail_check_count',s.count(old_ready))
+s=s.replace(old_ready,new_ready,1)
+
 p.write_text(s,encoding='utf-8')
-print('FINAL_VISIT_PATCH_OK|buyer=proposed|breeder=confirmed|room=confirmed_plus_30min|mail=online_only',flush=True)
+print('FINAL_VISIT_PATCH_OK|buyer=proposed|breeder=confirmed|room=confirmed_plus_30min|mail=online_only|resend=readiness',flush=True)
