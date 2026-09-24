@@ -1691,6 +1691,19 @@ for line in blk.splitlines():
         print('LOGIN_HANDLER_SHAPE|'+safe[:500])
 PY
 
+# Safe production admin/operator identity diagnostic: boolean/count only; no addresses or credentials.
+RUN python3 - <<'PY'
+from pathlib import Path
+import py_compile
+p=Path('backend/server.py'); s=p.read_text(encoding='utf-8')
+needle="print(f'BIG PAW v1.0 server running on port {port} ({APP_ENV})')"
+insert="""# Compare configured admin identity with the operator row without exposing either value.\ntry:\n    if IS_PRODUCTION:\n        _dc=db()\n        _ae=str(os.environ.get('BIGPAW_ADMIN_EMAIL','')).strip().lower()\n        _match=_dc.execute(\"SELECT COUNT(*) AS n FROM users WHERE role='operator' AND lower(email)=?\",(_ae,)).fetchone()['n'] if _ae else 0\n        _same_any=_dc.execute(\"SELECT COUNT(*) AS n FROM users WHERE lower(email)=?\",(_ae,)).fetchone()['n'] if _ae else 0\n        _dc.close()\n        print('ADMIN_OPERATOR_MATCH|configured='+str(bool(_ae)).lower()+'|operator_match='+str(_match)+'|any_user_match='+str(_same_any),flush=True)\nexcept Exception as _de:\n    print('ADMIN_OPERATOR_MATCH_ERROR|'+type(_de).__name__,flush=True)\n"""
+assert needle in s
+if 'ADMIN_OPERATOR_MATCH|' not in s:s=s.replace(needle,insert+needle,1)
+p.write_text(s,encoding='utf-8'); py_compile.compile(str(p),doraise=True)
+print('ADMIN_OPERATOR_MATCH_PATCH_OK')
+PY
+
 # Safe auth-role diagnostic: counts and effective role only; no emails, IDs, passwords, or tokens.
 RUN python3 - <<'PY'
 from pathlib import Path
