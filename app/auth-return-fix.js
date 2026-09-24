@@ -13,10 +13,26 @@
     document.head.appendChild(s);
   }
   if(p.endsWith('/breeder-puppy-new.html')){
-    const s=document.createElement('script');
-    s.src='/breeder-photo-order-fix.js';
-    s.async=true;
-    document.head.appendChild(s);
+    const q=new URLSearchParams(location.search);
+    const urlEditId=q.get('id')||'';
+    const stale=sessionStorage.getItem('bigpawEditPuppyId')||'';
+    if(!urlEditId&&stale){
+      sessionStorage.removeItem('bigpawEditPuppyId');
+      if(!q.has('new')){
+        location.replace('/breeder-puppy-new.html?new=1');
+        return;
+      }
+    }
+    const safety=document.createElement('script');
+    safety.src='/breeder-editor-safety-fix.js';
+    safety.async=false;
+    document.head.appendChild(safety);
+    if(urlEditId){
+      const order=document.createElement('script');
+      order.src='/breeder-photo-order-fix.js';
+      order.async=false;
+      document.head.appendChild(order);
+    }
   }
 
   async function currentRole(){
@@ -59,7 +75,7 @@
     if(label&&label.textContent.includes('DOG44')) label.textContent='ブリーダー管理';
   }
   if(p.endsWith('/breeder-puppy-new.html')){
-    const editing=new URLSearchParams(location.search).has('id')||!!sessionStorage.getItem('bigpawEditPuppyId');
+    const editing=!!new URLSearchParams(location.search).get('id');
     if(!editing){
       const notice=[...document.querySelectorAll('.notice')].find(x=>(x.textContent||'').includes('掲載審査へ進み'));
       if(notice) notice.textContent='承認済みブリーダーの子犬は、保存後すぐにBIG PAWへ公開されます。';
