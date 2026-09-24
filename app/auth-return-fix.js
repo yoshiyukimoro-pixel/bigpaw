@@ -2,6 +2,7 @@
   const p=location.pathname;
   const LAST='bigpaw_last_role_page';
   const login='/login.html';
+  const operatorLogin='/operator-login.html';
 
   async function currentRole(){
     try{
@@ -14,13 +15,18 @@
   function homeFor(role){
     return role==='operator'?'/operator-admin.html':role==='breeder'?'/admin.html':'/mypage.html';
   }
-  function goLogin(){
+  function goLogin(target=login){
     sessionStorage.setItem(LAST,location.pathname+location.search);
-    location.replace(login);
+    location.replace(target);
   }
 
-  // Login is shared. ?switch=1 is an explicit, credential-required account switch:
-  // clear only the current session, then leave the normal login form visible.
+  // Keep the breeder workspace generic for every approved breeder.
+  if(p.endsWith('/admin.html')){
+    const label=document.querySelector('.side p');
+    if(label&&label.textContent.includes('DOG44')) label.textContent='ブリーダー管理';
+  }
+
+  // Buyer/breeder login is separate from the operator-only entrance.
   if(p.endsWith(login)){
     const q=new URLSearchParams(location.search);
     if(q.get('switch')==='1'){
@@ -30,6 +36,13 @@
       return;
     }
     currentRole().then(role=>{ if(role) location.replace(homeFor(role)); });
+    return;
+  }
+  if(p.endsWith(operatorLogin)){
+    currentRole().then(role=>{
+      if(role==='operator') location.replace('/operator-admin.html');
+      else if(role) location.replace(homeFor(role));
+    });
     return;
   }
 
@@ -46,7 +59,7 @@
   else return;
 
   currentRole().then(role=>{
-    if(!role){ goLogin(); return; }
+    if(!role){ goLogin(need==='operator'?operatorLogin:login); return; }
     if(need==='auth') return;
 
     // Operator review mode: operators may inspect breeder workspace pages.
