@@ -180,6 +180,33 @@ jobs:
           if missing: raise SystemExit("MISSING_GUARDS:"+",".join(missing))
           print("GENERIC_ROLE_GUARDS_OK")
           PY
+      - name: Isolated breeder approval and ownership test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("app/backend/server.py").read_text()
+          approval=[
+            "UPDATE users SET role='breeder' WHERE id=? AND role!='operator'",
+            "SELECT id FROM breeders WHERE user_id=?",
+            "INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status)"
+          ]
+          ownership=[
+            "if u['role']=='breeder':",
+            "SELECT id FROM breeders WHERE user_id=?"
+          ]
+          for x in approval+ownership:
+            if x not in s: raise SystemExit("MISSING:"+x)
+          # Approval must be generic: no DOG44 condition inside the approval block.
+          p=s.index("UPDATE breeder_applications SET status=")
+          q=s.index("con.close()",p)
+          block=s[p:q]
+          if "DOG44" in block: raise SystemExit("DOG44_SPECIAL_CASE_IN_APPROVAL")
+          if "role!='operator'" not in block: raise SystemExit("OPERATOR_DEMOTION_GUARD_MISSING")
+          if "INSERT INTO breeders" not in block: raise SystemExit("BREEDER_PROFILE_CREATION_MISSING")
+          print("BREEDER_APPROVAL_STRUCTURE_OK")
+          PY
       - name: Verify inspection reports are unreferenced
         shell: bash
         run: |
