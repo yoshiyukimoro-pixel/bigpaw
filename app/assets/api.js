@@ -87,4 +87,11 @@
     upload(file,puppyId=''){const f=new FormData();f.append('file',file);if(puppyId)f.append('puppyId',puppyId);return this.request('/uploads',{method:'POST',body:f})}
   };
   window.BigPawAPI=API;
+  if(!window.__BIGPAW_AUTH_GUARD_LOADING__){
+    window.__BIGPAW_AUTH_GUARD_LOADING__=true;
+    const s=document.createElement('script');
+    s.src='/auth-return-fix.js';
+    s.async=true;
+    document.head.appendChild(s);
+  }
 })();
