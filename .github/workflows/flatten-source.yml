@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/workflows/flatten-source.yml'
       - 'breeder-flow-fix.py'
+      - 'app/**'
+      - 'Dockerfile.clean'
   pull_request:
     branches:
       - main
