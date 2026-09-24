@@ -69,7 +69,6 @@
     }catch(e){}
   }
 
-  // Keep the breeder workspace generic for every approved breeder.
   if(p.endsWith('/admin.html')){
     const label=document.querySelector('.side p');
     if(label&&label.textContent.includes('DOG44')) label.textContent='ブリーダー管理';
@@ -82,7 +81,6 @@
     }
   }
 
-  // Buyer/breeder login is separate from the operator-only entrance.
   if(p.endsWith(login)){
     const q=new URLSearchParams(location.search);
     if(q.get('switch')==='1'){
@@ -102,7 +100,7 @@
     return;
   }
 
-  const authOnly=['/breeder-register.html','/account.html','/messages.html','/notifications.html','/breeder-fee-agreement.html'];
+  const authOnly=['/breeder-register.html','/account.html','/messages.html','/notifications.html','/breeder-fee-agreement.html','/visit-confirm.html','/deal.html','/online-visit.html','/reservation.html','/contract.html','/pickup.html','/review.html','/report.html'];
   const breederOnly=['/admin.html','/breeder-puppy-new.html','/breeder-inquiries.html','/breeder-billing.html','/breeder-deal-report.html','/breeder-profile-edit.html','/breeder-invoice.html','/parent-dogs.html','/health-records.html'];
   const operatorOnly=['/operator-admin.html','/operator-breeders.html','/operator-breeder-applications.html','/operator-listings.html','/operator-deals.html','/operator-support.html','/operator-deal-reports.html','/operator-revenue.html','/operator-reports.html','/operator-invoices.html','/operator-automations.html','/operator-audit.html','/operator-backups.html','/project-status.html','/backend-status.html'];
   const buyerOnly=['/mypage.html','/my-page.html'];
@@ -118,8 +116,6 @@
     if(!role){ goLogin(need==='operator'?operatorLogin:login); return; }
     if(need==='auth') return;
 
-    // Operator review mode: operators may inspect breeder workspace pages.
-    // Breeders and buyers never gain operator access.
     if(need==='breeder' && (role==='breeder' || role==='operator')){
       if(role==='breeder') loadOwnParentDogs();
       if(role==='operator'){
