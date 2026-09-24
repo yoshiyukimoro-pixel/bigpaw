@@ -5,6 +5,9 @@ RUN python3 -c "import zipfile; zipfile.ZipFile('/tmp/bigpaw-app.zip').extractal
 WORKDIR /app/BIG_PAW_v1.0_FINAL3_domain_ready_package
 COPY breeder-register-fix.js /tmp/breeder-register-fix.js
 COPY auth-return-fix.js /tmp/auth-return-fix.js
+# Force the safe auth-inspection layer to rerun so Railway captures the source-only diagnostics.
+ARG BIGPAW_AUTH_INSPECT_REV=20260924_1
+RUN echo "AUTH_INSPECT_REV|$BIGPAW_AUTH_INSPECT_REV"
 # Safe build-time auth inspection: source structure only, no credentials or database rows.
 RUN python3 - <<'PY'
 from pathlib import Path
