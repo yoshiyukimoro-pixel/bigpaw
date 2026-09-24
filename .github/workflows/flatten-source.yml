@@ -143,6 +143,22 @@ jobs:
             git commit -m "Materialize verified BIG PAW runtime source"
             git push origin HEAD:build-flatten-work-20260924
           fi
+      - name: Verify committed app matches generated runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf manifest-generated manifest-committed
+          cp -a runtime-candidate manifest-generated
+          cp -a app manifest-committed
+          # Test harness is intentionally preserved outside the generated runtime source.
+          rm -f manifest-generated/backend/smoke_test.py manifest-committed/backend/smoke_test.py
+          rm -f manifest-generated/Dockerfile manifest-committed/Dockerfile
+          find manifest-generated manifest-committed -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find manifest-generated manifest-committed -type f -name '*.pyc' -delete
+          (cd manifest-generated && find . -type f -print0 | sort -z | xargs -0 sha256sum) > generated-normalized.sha256
+          (cd manifest-committed && find . -type f -print0 | sort -z | xargs -0 sha256sum) > committed-normalized.sha256
+          diff -u generated-normalized.sha256 committed-normalized.sha256
+          echo "NORMALIZED_RUNTIME_EQUIVALENCE_OK"
       - name: Build committed clean source and smoke test
         shell: bash
         run: |
