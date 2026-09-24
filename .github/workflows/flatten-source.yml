@@ -7,6 +7,12 @@ on:
     paths:
       - '.github/workflows/flatten-source.yml'
       - 'breeder-flow-fix.py'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/flatten-source.yml'
+      - 'breeder-flow-fix.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,7 +26,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = "build-flatten-work-20260924"
+          test "$GITHUB_HEAD_REF" = "build-flatten-work-20260924" || test "$GITHUB_REF_NAME" = "build-flatten-work-20260924"
           ! grep -R "/data" Dockerfile | grep -E "(rm|unlink|rmtree|DROP TABLE|DELETE FROM|TRUNCATE)" || exit 1
       - name: Convert Dockerfile to one-layer equivalent
         shell: python
