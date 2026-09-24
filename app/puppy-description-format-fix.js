@@ -39,8 +39,21 @@
     return t.replace(/\n{3,}/g,'\n\n').trim();
   }
 
+  function fixInquiryLinks(){
+    const pageId=new URLSearchParams(location.search).get('id')||'';
+    [...document.querySelectorAll('a[href*="inquiry.html"]')].forEach(a=>{
+      try{
+        const raw=a.getAttribute('href')||'';
+        const u=new URL(raw,location.href);
+        const puppyId=u.searchParams.get('id')||u.searchParams.get('puppy')||pageId;
+        if(puppyId) a.setAttribute('href','inquiry.html?id='+encodeURIComponent(puppyId));
+      }catch(_e){}
+    });
+  }
+
   function apply(){
     let changed=false;
+    fixInquiryLinks();
     [...document.querySelectorAll('h1,h2,h3,h4')].forEach(h=>{
       if((h.textContent||'').trim()!=='この子について') return;
       const box=h.closest('.detailsection,.card,section,article,div');
