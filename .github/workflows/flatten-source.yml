@@ -90,7 +90,7 @@ jobs:
           rm -rf runtime-candidate
           cp -a flattened-app runtime-candidate
           find runtime-candidate -type d -name '__pycache__' -prune -exec rm -rf {} +
-          find runtime-candidate -type f \( -name '*.pyc' -o -name 'inspection.txt' -o -name 'flow-inspect.txt' \) -delete
+          find runtime-candidate -type f \( -name '*.pyc' -o -name 'inspection.txt' -o -name 'flow-inspect.txt' -o -name 'delete-inspection.txt' -o -name 'final-inspection.txt' -o -name 'inspection2.txt' \) -delete
           python3 -m py_compile runtime-candidate/backend/server.py
           find runtime-candidate -type d -name '__pycache__' -prune -exec rm -rf {} +
           cat > runtime-candidate/Dockerfile <<'DOCKER'
