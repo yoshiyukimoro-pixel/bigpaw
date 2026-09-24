@@ -139,6 +139,27 @@ jobs:
             git commit -m "Materialize verified BIG PAW runtime source"
             git push origin HEAD:build-flatten-work-20260924
           fi
+      - name: Build committed clean source and smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f Dockerfile.clean
+          test -f app/backend/server.py
+          ! find app -type f \( -name '*.pyc' -o -name 'delete-inspection.txt' -o -name 'final-inspection.txt' -o -name 'inspection2.txt' \) -print | grep .
+          python3 -m py_compile app/backend/server.py
+          find app -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find app -type f -name '*.pyc' -delete
+          docker build --no-cache -f Dockerfile.clean -t bigpaw-committed-clean .
+          cid3="$(docker run -d -e PORT=18080 -p 18080:18080 bigpaw-committed-clean)"
+          trap 'docker rm -f "$cid3" >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/api/health; then ok=1; break; fi
+            sleep 1
+          done
+          test "$ok" = 1
+          curl -fsS http://127.0.0.1:18080/ >/dev/null
+          docker logs "$cid3"
       - name: Verify inspection reports are unreferenced
         shell: bash
         run: |
