@@ -11,19 +11,22 @@
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const yen=n=>'¥'+Number(n||0).toLocaleString('ja-JP');
 const date=n=>n?new Date(Number(n)*1000).toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}):'-';
+const pct=bps=>{const n=Number(bps||0)/100;return (Number.isInteger(n)?String(n):n.toFixed(2).replace(/0+$/,'').replace(/\.$/,''))+'%'};
 (async()=>{try{
  const id=new URLSearchParams(location.search).get('id'); if(!id)throw new Error('請求書IDがありません。');
  const [list,cfg]=await Promise.all([BigPawAPI.breederInvoices(),BigPawAPI.breederBillingConfig()]);
  const x=list.find(v=>v.id===id); if(!x)throw new Error('請求書が見つかりません。');
  const total=Number(x.fee_amount||0); const tax=Math.floor(total*10/110); const net=total-tax;
+ const rateLabel=pct(x.rate_bps||cfg.commissionRateBps||500);
+ const dueDays=(x.issued_at&&x.due_at)?Math.max(0,Math.round((Number(x.due_at)-Number(x.issued_at))/86400)):Number(cfg.commissionDueDays||7);
  const bank=[cfg.bankName,cfg.bankBranch,cfg.bankAccountType,cfg.bankAccountNo].filter(Boolean).join('　');
  const issuerAddress=[cfg.postal?('〒'+cfg.postal):'',cfg.address].filter(Boolean).join(' ');
  doc.innerHTML=`
  <div class="inv-head"><div><h1 class="inv-title">請 求 書</h1><p style="font-size:20px;margin:28px 0 4px"><b>${esc(x.kennel_name||'ブリーダー')} 御中</b></p><p class="muted">下記の通りご請求申し上げます。</p></div><div class="right"><b>${esc(cfg.issuerName||'BIG PAW運営')}</b><br>${issuerAddress?esc(issuerAddress)+'<br>':''}${cfg.invoiceRegistrationNo?'登録番号 '+esc(cfg.invoiceRegistrationNo)+'<br>':''}<span class="muted">請求番号 ${esc(x.invoice_no)}</span><br><span class="muted">発行日 ${date(x.issued_at)}</span></div></div>
- <div style="margin-top:30px"><span class="muted">ご請求金額（税込）</span><div class="amount">${yen(total)}</div><b>支払期限：${date(x.due_at)}</b> <span class="chip">請求日から7日以内</span></div>
- <table class="invoice-table"><thead><tr><th>内容</th><th>対象</th><th>金額</th></tr></thead><tbody><tr><td>BIG PAW 成約手数料 5%（税込）</td><td>${esc(x.puppy_name)} / ${esc(x.breed)}<br><span class="muted">生体販売価格 ${yen(x.sale_amount)}</span></td><td>${yen(total)}</td></tr></tbody></table>
+ <div style="margin-top:30px"><span class="muted">ご請求金額（税込）</span><div class="amount">${yen(total)}</div><b>支払期限：${date(x.due_at)}</b> <span class="chip">請求日から${dueDays}日以内</span></div>
+ <table class="invoice-table"><thead><tr><th>内容</th><th>対象</th><th>金額</th></tr></thead><tbody><tr><td>BIG PAW 成約手数料 ${rateLabel}（税込）</td><td>${esc(x.puppy_name)} / ${esc(x.breed)}<br><span class="muted">生体販売価格 ${yen(x.sale_amount)}</span></td><td>${yen(total)}</td></tr></tbody></table>
  <div class="totals"><div class="total-row"><span>税抜相当額</span><b>${yen(net)}</b></div><div class="total-row"><span>消費税相当額（10%）</span><b>${yen(tax)}</b></div><div class="total-row grand"><span>合計（税込）</span><span>${yen(total)}</span></div></div>
- <div class="bank"><b>お振込先</b><p>${bank?esc(bank):'公開前にBIG PAW運営の振込先口座を設定してください。'}${cfg.bankAccountHolder?'<br>口座名義　'+esc(cfg.bankAccountHolder):''}</p><small class="muted">振込手数料はブリーダー様のご負担となります。請求番号をお控えください。</small></div>
+ <div class="bank"><b>お振込先</b><p>${bank?esc(bank):'BIG PAW運営の振込先口座が未設定です。'}${cfg.bankAccountHolder?'<br>口座名義　'+esc(cfg.bankAccountHolder):''}</p><small class="muted">振込手数料はブリーダー様のご負担となります。請求番号をお控えください。</small></div>
  <p class="muted" style="margin-top:22px">ステータス：${x.status==='paid'?'支払済み':x.status==='void'?'取消':'お支払い待ち'}</p>`;
 }catch(e){doc.innerHTML=`<h2>請求書を表示できません</h2><p class="muted">${esc(e.message||'ブリーダーアカウントでログインしてください。')}</p>`}})();
 </script></body></html>
