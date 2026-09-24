@@ -5,6 +5,7 @@ on:
       - build-flatten-work-20260924
     paths:
       - '.github/workflows/flatten-source.yml'
+      - 'breeder-flow-fix.py'
   workflow_dispatch:
 permissions:
   contents: read
