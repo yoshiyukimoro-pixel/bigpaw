@@ -25,6 +25,13 @@
     const label=document.querySelector('.side p');
     if(label&&label.textContent.includes('DOG44')) label.textContent='ブリーダー管理';
   }
+  if(p.endsWith('/breeder-puppy-new.html')){
+    const editing=new URLSearchParams(location.search).has('id')||!!sessionStorage.getItem('bigpawEditPuppyId');
+    if(!editing){
+      const notice=[...document.querySelectorAll('.notice')].find(x=>(x.textContent||'').includes('掲載審査へ進み'));
+      if(notice) notice.textContent='承認済みブリーダーの子犬は、保存後すぐにBIG PAWへ公開されます。';
+    }
+  }
 
   // Buyer/breeder login is separate from the operator-only entrance.
   if(p.endsWith(login)){
