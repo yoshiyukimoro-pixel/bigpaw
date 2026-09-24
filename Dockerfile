@@ -8,6 +8,9 @@ COPY auth-return-fix.js /tmp/auth-return-fix.js
 # Force the safe auth-inspection layer to rerun so Railway captures the source-only diagnostics.
 ARG BIGPAW_AUTH_INSPECT_REV=20260924_1
 RUN echo "AUTH_INSPECT_REV|$BIGPAW_AUTH_INSPECT_REV"
+# Force login-handler inspection to rerun; source-only, secrets remain redacted.
+ARG BIGPAW_LOGIN_INSPECT_REV=20260924_1
+RUN echo "LOGIN_INSPECT_REV|$BIGPAW_LOGIN_INSPECT_REV"
 # Safe build-time auth inspection: source structure only, no credentials or database rows.
 RUN python3 - <<'PY'
 from pathlib import Path
