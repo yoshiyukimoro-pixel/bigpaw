@@ -50,6 +50,10 @@
     sessionStorage.setItem(LAST,location.pathname+location.search);
     location.replace(target);
   }
+  async function logoutAndStay(target){
+    try{ await fetch('/api/logout',{method:'POST',credentials:'include'}); }catch(e){}
+    history.replaceState(null,'',target);
+  }
   async function loadOwnParentDogs(){
     if(!p.endsWith('/breeder-puppy-new.html')) return;
     try{
@@ -84,18 +88,24 @@
   if(p.endsWith(login)){
     const q=new URLSearchParams(location.search);
     if(q.get('switch')==='1'){
-      fetch('/api/logout',{method:'POST',credentials:'include'})
-        .catch(()=>{})
-        .finally(()=>history.replaceState(null,'',login));
+      logoutAndStay(login);
       return;
     }
     currentRole().then(role=>{ if(role) location.replace(homeFor(role)); });
     return;
   }
   if(p.endsWith(operatorLogin)){
-    currentRole().then(role=>{
-      if(role==='operator') location.replace('/operator-admin.html');
-      else if(role) location.replace(homeFor(role));
+    const q=new URLSearchParams(location.search);
+    if(q.get('switch')==='1'){
+      logoutAndStay(operatorLogin);
+      return;
+    }
+    currentRole().then(async role=>{
+      if(role==='operator'){
+        location.replace('/operator-admin.html');
+      }else if(role){
+        await logoutAndStay(operatorLogin);
+      }
     });
     return;
   }
@@ -133,6 +143,17 @@
       return;
     }
     if(role===need) return;
+
+    if(need==='breeder'){
+      sessionStorage.setItem(LAST,location.pathname+location.search);
+      location.replace('/login.html?switch=1');
+      return;
+    }
+    if(need==='operator'){
+      sessionStorage.setItem(LAST,location.pathname+location.search);
+      location.replace('/operator-login.html?switch=1');
+      return;
+    }
     location.replace(homeFor(role));
   });
 })();
