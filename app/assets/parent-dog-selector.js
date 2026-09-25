@@ -9,6 +9,26 @@
   function makePreview(id,label){const box=document.createElement('div');box.id=id;box.style.cssText='display:none;margin-top:10px;padding:10px;border:1px solid #cfe0f7;border-radius:14px;background:#f7fbff;align-items:center;gap:12px';box.innerHTML=`<div data-parent-photo style="width:72px;height:72px;flex:0 0 72px;border-radius:12px;background:#e7f1ff;display:grid;place-items:center;font-size:34px;overflow:hidden;position:relative">🐩</div><div><b data-parent-name>${esc(label)}</b><div class="muted" data-parent-meta style="font-size:12px"></div><div class="muted" data-parent-note style="font-size:11px;margin-top:3px"></div></div>`;return box}
   function renderPreview(select,box){const id=select.selectedOptions[0]?.dataset?.parentId||'',dog=parents.find(x=>String(x.id)===String(id));if(!dog){box.style.display='none';return}box.style.display='flex';box.querySelector('[data-parent-name]').textContent=dog.name||'';box.querySelector('[data-parent-meta]').textContent=[dog.breed,dog.color].filter(Boolean).join('・');const photo=box.querySelector('[data-parent-photo]'),url=imageOf(dog),a=layoutOf(dog);if(url){photo.innerHTML=`<img src="${esc(url)}" alt="${esc(dog.name||'親犬')}">`;requestAnimationFrame(()=>renderFocal(photo,photo.querySelector('img'),a.x,a.y,a.z))}else photo.innerHTML='🐩';box.querySelector('[data-parent-note]').textContent=url?'親犬管理で保存した切り取り位置を表示':'写真未登録（写真は任意です）'}
   function populate(select,sex,currentValue){const list=parents.filter(x=>String(x.sex||'')===sex),keep=String(currentValue||select.value||'').trim();select.innerHTML='';const blank=document.createElement('option');blank.value='未登録';blank.textContent='未登録';select.appendChild(blank);list.forEach(d=>{const o=document.createElement('option');o.value=d.name||'';o.textContent=d.name||'名称未登録';o.dataset.parentId=d.id||'';select.appendChild(o)});if(keep&&keep!=='未登録'&&!list.some(d=>String(d.name)===keep)){const legacy=document.createElement('option');legacy.value=keep;legacy.textContent=keep+'（既存登録）';select.appendChild(legacy)}select.value=keep||'未登録';if(!select.value)select.value='未登録'}
+  const KANA_ROWS=[
+    ['あ行','アイウエオァィゥェォヴ'],
+    ['か行','カキクケコガギグゲゴ'],
+    ['さ行','サシスセソザジズゼゾ'],
+    ['た行','タチツテトダヂヅデドッ'],
+    ['な行','ナニヌネノ'],
+    ['は行','ハヒフヘホバビブベボパピプペポ'],
+    ['ま行','マミムメモ'],
+    ['や行','ヤユヨャュョ'],
+    ['ら行','ラリルレロ'],
+    ['わ行','ワヰヱヲン']
+  ];
+  function breedKanaRow(name){
+    const n=String(name||'').trim();
+    if(!n)return'その他';
+    if(n.startsWith('秋田犬'))return'あ行';
+    const ch=n.charAt(0);
+    const row=KANA_ROWS.find(r=>r[1].includes(ch));
+    return row?row[0]:'その他';
+  }
   function populateBreedOptions(editId){
     const select=document.getElementById('breed');
     const breeds=Array.isArray(window.BIGPAW_BREEDS)?window.BIGPAW_BREEDS:[];
@@ -16,10 +36,22 @@
     const keep=editId?String(select.value||'').trim():'';
     select.innerHTML='';
     const ph=document.createElement('option');ph.value='';ph.textContent='選択してください';select.appendChild(ph);
-    breeds.forEach(b=>{const o=document.createElement('option');o.value=b.ja||'';o.textContent=b.ja||'';o.dataset.breedKey=b.key||'';select.appendChild(o)});
+    const order=KANA_ROWS.map(r=>r[0]).concat(['その他']);
+    const groups=new Map(order.map(x=>[x,[]]));
+    breeds.forEach(b=>{const row=breedKanaRow(b.ja);if(!groups.has(row))groups.set(row,[]);groups.get(row).push(b)});
+    order.forEach(label=>{
+      const list=(groups.get(label)||[]).sort((a,b)=>String(a.ja||'').localeCompare(String(b.ja||''),'ja'));
+      if(!list.length)return;
+      const g=document.createElement('optgroup');g.label=label;
+      list.forEach(b=>{const o=document.createElement('option');o.value=b.ja||'';o.textContent=b.ja||'';o.dataset.breedKey=b.key||'';g.appendChild(o)});
+      select.appendChild(g);
+    });
     if(keep&&!breeds.some(b=>String(b.ja)===keep)){const legacy=document.createElement('option');legacy.value=keep;legacy.textContent=keep+'（既存登録）';select.appendChild(legacy)}
     select.value=keep||'';
     if(!editId)select.value='';
+    if(!document.getElementById('breedKanaHint')){
+      const hint=document.createElement('div');hint.id='breedKanaHint';hint.className='muted';hint.style.cssText='font-size:12px;margin-top:6px';hint.textContent='あ行・か行・さ行…の五十音順で選べます。';select.insertAdjacentElement('afterend',hint);
+    }
   }
   function prepareNewListingDefaults(editId){
     if(editId)return;
