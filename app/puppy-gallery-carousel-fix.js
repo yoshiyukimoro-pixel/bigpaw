@@ -3,23 +3,30 @@
   window.__BIGPAW_PUPPY_GALLERY_CAROUSEL_FIX__=true;
 
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  function variant(u,kind){
+
+  // Always keep a working original upload URL available. The previous version
+  // rewrote /uploads/ into /media/ even when that route was not active, which
+  // produced broken-image icons on the public detail page.
+  function stableUrl(u){
     try{
       const x=new URL(u,location.origin);
-      if(x.pathname.startsWith('/media/')){x.searchParams.set('kind',kind);return x.pathname+x.search}
-      if(x.pathname.startsWith('/uploads/'))return '/media/'+encodeURIComponent(x.pathname.split('/').pop())+'?kind='+encodeURIComponent(kind);
-    }catch(_e){}
-    return u;
+      if(x.pathname.startsWith('/media/')){
+        const name=decodeURIComponent(x.pathname.slice('/media/'.length));
+        return '/uploads/'+encodeURIComponent(name);
+      }
+      return x.pathname+x.search;
+    }catch(_e){return u;}
   }
 
   function install(){
     const old=document.getElementById('bigpawRealGallery');
     if(!old || old.dataset.carouselFixed==='1') return false;
-    const imgs=[...old.querySelectorAll('img')];
+
     const urls=[];
-    imgs.forEach(img=>{
+    [...old.querySelectorAll('img')].forEach(img=>{
       const u=img.getAttribute('data-src')||img.currentSrc||img.getAttribute('src')||'';
-      if(u && !urls.includes(u)) urls.push(u);
+      const v=stableUrl(u);
+      if(v && !urls.includes(v)) urls.push(v);
     });
     if(!urls.length) return false;
 
@@ -32,7 +39,7 @@
 
     const stage=document.createElement('div');
     stage.className='bp-carousel-stage';
-    stage.innerHTML=`<img class="bp-carousel-main" alt="${alt}" decoding="async" fetchpriority="high"><button type="button" class="bp-carousel-arrow bp-carousel-prev" aria-label="前の写真">‹</button><button type="button" class="bp-carousel-arrow bp-carousel-next" aria-label="次の写真">›</button><div class="bp-carousel-count"></div>`;
+    stage.innerHTML=`<img class="bp-carousel-main" alt="${alt}" decoding="async" fetchpriority="high" loading="eager"><button type="button" class="bp-carousel-arrow bp-carousel-prev" aria-label="前の写真">‹</button><button type="button" class="bp-carousel-arrow bp-carousel-next" aria-label="次の写真">›</button><div class="bp-carousel-count"></div>`;
 
     const thumbs=document.createElement('div');
     thumbs.className='bp-carousel-thumbs';
@@ -42,9 +49,10 @@
       b.className='bp-carousel-thumb';
       b.setAttribute('aria-label',`${i+1}枚目の写真を表示`);
       const im=document.createElement('img');
-      im.dataset.src=variant(u,'thumb');
+      im.dataset.src=u;
       im.alt=`${puppy.breed||'子犬'} ${i+1}`;
       im.decoding='async';
+      im.loading='lazy';
       b.appendChild(im);
       thumbs.appendChild(b);
     });
@@ -56,26 +64,33 @@
     const prev=stage.querySelector('.bp-carousel-prev');
     const next=stage.querySelector('.bp-carousel-next');
     const thumbButtons=[...thumbs.querySelectorAll('.bp-carousel-thumb')];
-    let index=0,thumbTimer=null;
+    let index=0;
 
     function loadThumb(i){
       const im=thumbButtons[i]?.querySelector('img');
-      if(im && !im.src && im.dataset.src) im.src=im.dataset.src;
+      if(im && !im.getAttribute('src') && im.dataset.src) im.src=im.dataset.src;
     }
-    function scheduleThumbs(){
-      let i=0;
-      clearTimeout(thumbTimer);
-      const step=()=>{
-        if(i>=thumbButtons.length)return;
-        loadThumb(i++);
-        thumbTimer=setTimeout(step,350);
-      };
-      thumbTimer=setTimeout(step,250);
+
+    // Load thumbnails only as they approach the viewport. This keeps the first
+    // photo responsive without starving it with 8-10 simultaneous downloads.
+    if('IntersectionObserver' in window){
+      const io=new IntersectionObserver(entries=>{
+        entries.forEach(entry=>{
+          if(!entry.isIntersecting)return;
+          const im=entry.target;
+          if(!im.getAttribute('src')&&im.dataset.src)im.src=im.dataset.src;
+          io.unobserve(im);
+        });
+      },{rootMargin:'350px 0px'});
+      thumbButtons.forEach(b=>io.observe(b.querySelector('img')));
+    }else{
+      thumbButtons.slice(0,2).forEach((_,i)=>loadThumb(i));
     }
+
     function show(n){
       index=(n+urls.length)%urls.length;
-      const hero=variant(urls[index],'hero');
-      if(main.getAttribute('src')!==hero)main.src=hero;
+      const src=urls[index];
+      if(main.getAttribute('src')!==src) main.src=src;
       count.textContent=`${index+1} / ${urls.length}`;
       loadThumb(index);
       thumbButtons.forEach((b,i)=>{
@@ -85,36 +100,25 @@
     }
 
     function move(delta,e){
-      if(e){
-        e.preventDefault();
-        e.stopPropagation();
-        if(e.stopImmediatePropagation)e.stopImmediatePropagation();
-      }
+      if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}
       show(index+delta);
     }
     prev.addEventListener('click',e=>move(-1,e),true);
     next.addEventListener('click',e=>move(1,e),true);
     thumbButtons.forEach((b,i)=>b.addEventListener('click',e=>{
-      e.preventDefault();
-      e.stopPropagation();
-      if(e.stopImmediatePropagation)e.stopImmediatePropagation();
-      show(i);
+      e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();show(i);
     },true));
 
     let startX=null;
-    stage.addEventListener('touchstart',e=>{
-      if(e.touches&&e.touches.length===1)startX=e.touches[0].clientX;
-    },{passive:true});
+    stage.addEventListener('touchstart',e=>{if(e.touches&&e.touches.length===1)startX=e.touches[0].clientX;},{passive:true});
     stage.addEventListener('touchend',e=>{
       if(startX===null||!e.changedTouches||!e.changedTouches.length)return;
-      const dx=e.changedTouches[0].clientX-startX;
-      startX=null;
+      const dx=e.changedTouches[0].clientX-startX;startX=null;
       if(Math.abs(dx)>45)show(index+(dx<0?1:-1));
     },{passive:true});
 
     document.getElementById('bigpawPhotoViewer')?.remove();
     document.documentElement.style.overflow='';
-    main.addEventListener('load',()=>scheduleThumbs(),{once:true});
     show(0);
     return true;
   }
