@@ -93,15 +93,18 @@ new="""            if 'gender' in body: sets.append('gender_key=?'); args.append
 assert s.count(old)==1,('policy_edit_marker',s.count(old))
 s=s.replace(old,new,1)
 
-# 6) Load the UI on the breeder editor and public puppy detail without rewriting those large files.
+# 6) Load the policy UI and parent-dog selector without rewriting large HTML files.
 for name in ('breeder-puppy-new.html','puppy-detail.html'):
     hp=Path(__file__).resolve().parents[1]/name
     h=hp.read_text(encoding='utf-8')
-    tag='<script src="assets/sales-policy.js"></script>'
-    if tag not in h:
-        assert '</body>' in h,(name,'missing_body')
-        h=h.replace('</body>',tag+'</body>',1)
-        hp.write_text(h,encoding='utf-8')
+    tags=['<script src="assets/sales-policy.js"></script>']
+    if name=='breeder-puppy-new.html':
+        tags.append('<script src="assets/parent-dog-selector.js"></script>')
+    for tag in tags:
+        if tag not in h:
+            assert '</body>' in h,(name,'missing_body')
+            h=h.replace('</body>',tag+'</body>',1)
+    hp.write_text(h,encoding='utf-8')
 
 p.write_text(s,encoding='utf-8')
-print('SALES_POLICY_OK|fixed_reasons_only|legacy_unset|breeding_and_breeder_sale=enabled',flush=True)
+print('SALES_POLICY_OK|fixed_reasons_only|legacy_unset|breeding_and_breeder_sale=enabled|parent_selector=loaded',flush=True)
