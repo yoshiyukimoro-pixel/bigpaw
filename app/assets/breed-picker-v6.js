@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260918-multi2';
+const VERSION='20260925-home-jump';
 const breeds=Array.isArray(window.BIGPAW_BREEDS)?window.BIGPAW_BREEDS:[];
 if(!breeds.length){console.error('BIG PAW breed data missing');return;}
 let selectedKeys=new Set();
@@ -22,6 +22,15 @@ function destroyOld(){
  const m=document.getElementById('bpBreedModal');if(m)m.remove();
  $$('.bp-credit-note,.bp-photo-source').forEach(x=>x.remove());
 }
+function jumpToHomeSearch(){
+ const box=document.querySelector('.hero .searchbox')||document.querySelector('.searchbox');
+ if(!box||!document.getElementById('breeds'))return;
+ document.body.style.overflow='';
+ requestAnimationFrame(()=>{
+   box.scrollIntoView({behavior:'smooth',block:'center'});
+   setTimeout(()=>{const btn=box.querySelector('.searchbtn');if(btn){try{btn.focus({preventScroll:true});}catch(_){btn.focus();}}},450);
+ });
+}
 function createModal(){
  destroyOld();
  const modal=document.createElement('div');modal.id='bpv6Modal';modal.dataset.version=VERSION;modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.style.cssText='position:fixed;inset:0;z-index:2147483000;background:#fff;display:none;flex-direction:column;color:#222;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;';
@@ -42,14 +51,14 @@ function createModal(){
  const confirm=document.createElement('button');confirm.type='button';confirm.textContent='決定';confirm.style.cssText='appearance:none;border:0;border-radius:999px;background:#17211d;color:#fff;padding:13px 24px;font-size:16px;font-weight:800;flex:0 0 auto;';bottom.append(selectedLabel,confirm);modal.append(head,sw,scroll,bottom);document.body.appendChild(modal);
  function close(){modal.style.display='none';document.body.style.overflow='';}
  function filter(q){q=(q||'').trim().toLowerCase();$$('.bpv6-card',grid).forEach(c=>{c.style.display=(!q||c.dataset.name.toLowerCase().includes(q))?'flex':'none';});}
- back.onclick=close;x.onclick=close;clear.onclick=()=>{input.value='';filter('');input.focus();};input.addEventListener('input',()=>filter(input.value));confirm.onclick=()=>{applySelected();close();};
+ back.onclick=close;x.onclick=close;clear.onclick=()=>{input.value='';filter('');input.focus();};input.addEventListener('input',()=>filter(input.value));confirm.onclick=()=>{applySelected();close();jumpToHomeSearch();};
  refreshSelection();
  return modal;
 }
 function openModal(){const sel=document.getElementById('breed');if(!selectedKeys.size&&sel&&sel.value&&sel.value!=='all')selectedKeys.add(sel.value);const old=document.getElementById('bpv6Modal');if(old)old.remove();const m=createModal();m.style.display='flex';document.body.style.overflow='hidden';}
 function applySelected(){const sel=document.getElementById('breed');const keys=[...selectedKeys];window.BIGPAW_SELECTED_BREEDS=keys;if(sel)sel.value=keys.length===1?keys[0]:'all';const t=document.getElementById('bpv6Trigger');if(t)t.firstChild.nodeValue=keys.length?(keys.length===1?(breedByKey(keys[0])||{}).ja:keys.length+'犬種を選択中')+' ':'すべての大型犬種 ';if(typeof window.render==='function')window.render();}
 function enhanceSelect(){const sel=document.getElementById('breed');if(!sel)return;sel.innerHTML='<option value="all">すべての大型犬種</option>'+breeds.map(b=>'<option value="'+b.key+'">'+b.ja+'</option>').join('');sel.style.cssText='position:absolute!important;opacity:0!important;pointer-events:none!important;width:1px!important;height:1px!important;';const old=document.getElementById('bpBreedTrigger');if(old)old.remove();const old2=document.getElementById('bpv6Trigger');if(old2)old2.remove();const t=document.createElement('button');t.type='button';t.id='bpv6Trigger';t.style.cssText='appearance:none;width:100%;min-height:48px;border:1px solid #eadfe5;border-radius:12px;background:#fff;padding:11px 42px 11px 12px;text-align:left;font-size:15px;color:#222;font-weight:700;position:relative;';t.append(document.createTextNode('すべての大型犬種 '));const ar=document.createElement('span');ar.textContent='⌄';ar.style.cssText='position:absolute;right:14px;top:8px;font-size:24px;color:#7d6b75;';t.appendChild(ar);t.onclick=openModal;sel.insertAdjacentElement('afterend',t);const q=new URLSearchParams(location.search).get('breed');if(q){q.split(',').filter(k=>breedByKey(k)).forEach(k=>selectedKeys.add(k));applySelected();}}
-function enhanceHome(){const old=document.querySelector('#breeds .breed-grid');if(!old)return;old.innerHTML='';old.style.cssText='display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;align-items:start;';breeds.slice(0,12).forEach(b=>old.appendChild(makeCard(b,(breed)=>{selectedKeys=new Set([breed.key]);const sel=document.getElementById('breed');if(sel)sel.value=breed.key;applySelected();openModal();})));const prev=document.getElementById('bpAllBreedsButton');if(prev)prev.remove();const btn=document.createElement('button');btn.type='button';btn.id='bpAllBreedsButton';btn.textContent='全60犬種を画像から選ぶ';btn.style.cssText='display:block;margin:18px auto 0;border:1px solid #d8a9bc;background:#fff;color:#8d4564;font-weight:800;border-radius:999px;padding:11px 20px;font-size:15px;';btn.onclick=openModal;old.insertAdjacentElement('afterend',btn);}
+function enhanceHome(){const old=document.querySelector('#breeds .breed-grid');if(!old)return;old.innerHTML='';old.style.cssText='display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;align-items:start;';breeds.slice(0,12).forEach(b=>old.appendChild(makeCard(b,(breed)=>{selectedKeys=new Set([breed.key]);const sel=document.getElementById('breed');if(sel)sel.value=breed.key;applySelected();jumpToHomeSearch();})));const prev=document.getElementById('bpAllBreedsButton');if(prev)prev.remove();const btn=document.createElement('button');btn.type='button';btn.id='bpAllBreedsButton';btn.textContent='全60犬種を画像から選ぶ';btn.style.cssText='display:block;margin:18px auto 0;border:1px solid #d8a9bc;background:#fff;color:#8d4564;font-weight:800;border-radius:999px;padding:11px 20px;font-size:15px;';btn.onclick=openModal;old.insertAdjacentElement('afterend',btn);}
 function enhanceGuide(){if(!/breed-guide\.html$/.test(location.pathname))return;const old=document.querySelector('.dog-cards');if(!old)return;old.innerHTML='';old.style.cssText='display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;align-items:start;';breeds.forEach(b=>old.appendChild(makeCard(b,(breed)=>{location.href='breed-guide-detail.html?breed='+encodeURIComponent(breed.key);})));}
 function init(){destroyOld();enhanceSelect();enhanceHome();enhanceGuide();window.BigPawBreedPicker={open:openModal,breeds,version:VERSION,clear:function(){selectedKeys.clear();applySelected();}};}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
