@@ -108,10 +108,18 @@
   if(p.endsWith(login)){
     const q=new URLSearchParams(location.search);
     if(q.get('switch')==='1'){
-      logoutAndStay(login);
+      logoutAndStay(q.get('role')==='buyer'?'/login.html?role=buyer':login);
       return;
     }
-    currentRole().then(role=>{ if(role) location.replace(homeFor(role)); });
+    currentRole().then(role=>{
+      if(!role) return;
+      if(q.get('role')==='buyer' && role!=='buyer'){
+        sessionStorage.setItem(LAST,'/mypage.html');
+        location.replace('/login.html?switch=1&role=buyer');
+        return;
+      }
+      location.replace(homeFor(role));
+    });
     return;
   }
   if(p.endsWith(operatorLogin)){
@@ -143,7 +151,7 @@
   else return;
 
   currentRole().then(role=>{
-    if(!role){ goLogin(need==='operator'?operatorLogin:login); return; }
+    if(!role){ goLogin(need==='operator'?operatorLogin:(need==='buyer'?'/login.html?role=buyer':login)); return; }
     if((p.endsWith('/admin.html')||p.endsWith('/operator-admin.html'))&&role){
       showLogoutButton(p.endsWith('/operator-admin.html')?operatorLogin:login);
     }
@@ -175,6 +183,11 @@
     if(need==='operator'){
       sessionStorage.setItem(LAST,location.pathname+location.search);
       location.replace('/operator-login.html?switch=1');
+      return;
+    }
+    if(need==='buyer'){
+      sessionStorage.setItem(LAST,'/mypage.html');
+      location.replace('/login.html?switch=1&role=buyer');
       return;
     }
     location.replace(homeFor(role));
