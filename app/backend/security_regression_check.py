@@ -1,5 +1,9 @@
 from pathlib import Path
 
+# Final operational patch: notify operator accounts when a breeder applies and
+# show the pending application count on the operator dashboard.
+exec(Path('/app/backend/breeder_application_notify_patch.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
+
 server = Path('/app/backend/server.py').read_text(encoding='utf-8')
 auth = Path('/app/auth-return-fix.js').read_text(encoding='utf-8')
 
