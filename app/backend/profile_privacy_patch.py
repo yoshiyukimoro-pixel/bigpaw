@@ -3,7 +3,8 @@ from pathlib import Path
 p=Path('/app/backend/server.py')
 s=p.read_text(encoding='utf-8')
 
-# Add privacy-aware public profile validation. Public breeder location is prefecture-only.
+# Add privacy-aware public profile validation. Rough access guidance is allowed,
+# but information that identifies the actual kennel remains blocked.
 marker="def public_puppy_json(r):\n"
 helper=r'''def _profile_norm(value):
     return re.sub(r'[\s\u3000\-ー‐‑–—−－・,，.。/／]+','',str(value or '')).lower()
@@ -41,11 +42,8 @@ def public_profile_privacy_issue(text, kennel_name='', representative='', privat
     for token in _private_address_tokens(private_address,prefecture):
         if token in norm:
             return 'address'
-    # The public location is prefecture-only, so do not allow precise access hints either.
-    if re.search(r'(?:インターチェンジ|インター|ＩＣ|IC|駅).{0,20}(?:徒歩|車|分|時間|km|㎞|キロ)',t,re.I):
-        return 'access_hint'
-    if re.search(r'(?:徒歩|車で|車なら|車の場合).{0,10}[0-9０-９一二三四五六七八九十]+(?:分|時間|km|㎞|キロ)',t):
-        return 'access_hint'
+    # Exact street-level addresses remain blocked. Rough guidance such as
+    # "与野インターから車で10分" or "○○駅から徒歩15分" is intentionally allowed.
     if re.search(r'(?:都|道|府|県).{0,24}(?:市|区|郡|町|村).{0,24}(?:[0-9０-９]|丁目|番地|番|号)',t):
         return 'address'
     return ''
@@ -75,7 +73,7 @@ s=s.replace(a,b,1)
 
 # Breeder application: reject private identity/location data in the public profile before saving.
 a="            if public_profile_has_direct_contact(public_profile): return self.send_json({'error':'direct_contact_not_allowed','message':'公開プロフィールには電話番号・メール・LINE・SNS・外部サイトURLを掲載できません。'},400)"
-b="            privacy_issue=public_profile_privacy_issue(public_profile,body.get('kennelName',''),body.get('representative',''),body.get('visitAddress',''),body.get('prefecture',''))\n            if privacy_issue: return self.send_json({'error':'public_profile_private_info','message':'公開プロフィールには犬舎名・代表者名・市区町村以下の住所・郵便番号・最寄り駅やICなど場所を特定できる案内・電話番号・メール・LINE・SNS・外部サイトURLを掲載できません。所在地の一般公開は都道府県までです。'},400)"
+b="            privacy_issue=public_profile_privacy_issue(public_profile,body.get('kennelName',''),body.get('representative',''),body.get('visitAddress',''),body.get('prefecture',''))\n            if privacy_issue: return self.send_json({'error':'public_profile_private_info','message':'公開プロフィールには犬舎名・代表者名・市区町村以下の住所・郵便番号・電話番号・メール・LINE・SNS・外部サイトURLなど、犬舎を特定できる情報は掲載できません。ICや駅からの所要時間など大まかなアクセス案内は掲載できます。'},400)"
 assert s.count(a)==1,('privacy_application_guard_marker',s.count(a))
 s=s.replace(a,b,1)
 
@@ -92,9 +90,9 @@ b="""            body=self.json_body();
                 representative=(rep['representative'] if rep else '')
                 privacy_issue=public_profile_privacy_issue(body.get('profile',''),body.get('kennelName',b['kennel_name']),representative,body.get('visitAddress',b['visit_address'] if 'visit_address' in b.keys() else ''),body.get('prefecture',b['prefecture']))
                 if privacy_issue:
-                    con.close(); return self.send_json({'error':'public_profile_private_info','message':'紹介文は一般公開です。犬舎名・代表者名・市区町村以下の住所・郵便番号・最寄り駅やICなど場所を特定できる案内・電話番号・メール・LINE・SNS・外部サイトURLは記載できません。所在地の公開は都道府県までです。'},400)"""
+                    con.close(); return self.send_json({'error':'public_profile_private_info','message':'紹介文は一般公開です。犬舎名・代表者名・市区町村以下の住所・郵便番号・電話番号・メール・LINE・SNS・外部サイトURLなど、犬舎を特定できる情報は記載できません。ICや駅からの所要時間など大まかなアクセス案内は記載できます。'},400)"""
 assert s.count(a)==1,('privacy_profile_edit_guard_marker',s.count(a))
 s=s.replace(a,b,1)
 
 p.write_text(s,encoding='utf-8')
-print('PROFILE_PRIVACY_GUARD_OK|kennel_name=blocked|representative=blocked|address=blocked|access_hint=blocked|public=prefecture_only',flush=True)
+print('PROFILE_PRIVACY_GUARD_OK|kennel_name=blocked|representative=blocked|exact_address=blocked|rough_access=allowed',flush=True)
