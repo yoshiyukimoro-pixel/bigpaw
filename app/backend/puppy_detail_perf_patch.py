@@ -40,6 +40,12 @@ extra_fetch="try{var r=await fetch('/api/puppies/'+encodeURIComponent(id)+'/phot
 assert html.count(extra_fetch)==1,('duplicate_photo_fetch_count',html.count(extra_fetch))
 html=html.replace(extra_fetch,'',1)
 
+# Public detail enhancement and rescue blocks were reading birthDate/birth_date only,
+# while the API's canonical field is birth. Include birth first everywhere.
+html=html.replace('p.birthDate||p.birth_date','p.birth||p.birthDate||p.birth_date')
+if 'p.birthDate||p.birth_date' in html:
+    raise SystemExit('legacy birth key lookup still present')
+
 # Prioritize the first legacy hero image too.
 legacy="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
 legacy_new="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" fetchpriority=\"high\" loading=\"eager\" decoding=\"async\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
@@ -47,9 +53,9 @@ assert html.count(legacy)==1,('legacy_hero_count',html.count(legacy))
 html=html.replace(legacy,legacy_new,1)
 
 # Force Safari to pick up the optimized scripts after deploy.
-html=html.replace('<script src="assets/bridge.js"></script>','<script src="assets/bridge.js?v=20260925perf2"></script>',1)
-html=html.replace('assets/public-parent-dogs.js?v=20260925c','assets/public-parent-dogs.js?v=20260925perf2')
-html=html.replace('assets/public-parent-genetics.js?v=20260925a','assets/public-parent-genetics.js?v=20260925perf2')
+html=html.replace('<script src="assets/bridge.js"></script>','<script src="assets/bridge.js?v=20260925perf3"></script>',1)
+html=html.replace('assets/public-parent-dogs.js?v=20260925c','assets/public-parent-dogs.js?v=20260925perf3')
+html=html.replace('assets/public-parent-genetics.js?v=20260925a','assets/public-parent-genetics.js?v=20260925perf3')
 
 # Add a prominent inquiry CTA directly under the photo gallery, next to the favorite action.
 top_cta='<script src="assets/puppy-detail-top-inquiry.js?v=20260925a"></script>'
@@ -59,4 +65,4 @@ if top_cta not in html:
 
 hp.write_text(html,encoding='utf-8')
 
-print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=single|gallery=hero_only_first|hero=priority|top_inquiry=enabled',flush=True)
+print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=single|gallery=hero_only_first|hero=priority|birth=canonical|top_inquiry=enabled',flush=True)
