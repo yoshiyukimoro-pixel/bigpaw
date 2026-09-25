@@ -35,14 +35,33 @@
   }
 
   function enhancedCard(d){
-    const adjust=d.image_url?`<button class="btn btn-sub btn-wide" style="margin-top:9px" onclick="BigPawParentPhoto.openAdjust('${esc(d.id)}')">写真表示を調整</button>`:'';
-    return `<div class="card"><div class="parentpic">${photoHtml(d)}</div><div class="pad"><div class="chips"><span class="chip">${esc(d.sex)}</span><span class="chip">${esc(d.color||'')}</span></div><h2>${esc(d.name)}</h2><div class="fact-grid"><div class="fact"><span>犬種</span><b>${esc(d.breed||'-')}</b></div><div class="fact"><span>体高</span><b>${d.height_cm||'-'}cm</b></div><div class="fact"><span>体重</span><b>${d.weight_kg||'-'}kg</b></div><div class="fact"><span>健康情報</span><b>${esc(d.health_summary||'未登録')}</b></div></div><p class="muted">${esc(d.genetics||'')}</p>${adjust}<a class="btn btn-sub btn-wide" style="margin-top:9px" href="health-records.html?parentDogId=${encodeURIComponent(d.id)}">健康・検査記録を見る</a></div></div>`;
+    const photoButtons=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 4px"><button type="button" class="btn btn-sub" onclick="BigPawParentPhoto.pickPhoto('${esc(d.id)}')">📷 ${d.image_url?'写真を変更':'写真を追加'}</button>${d.image_url?`<button type="button" class="btn btn-main" onclick="BigPawParentPhoto.openAdjust('${esc(d.id)}')">↔ 表示を調整</button>`:'<span></span>'}</div>`;
+    return `<div class="card"><div class="parentpic">${photoHtml(d)}</div><div class="pad">${photoButtons}<div class="chips" style="margin-top:12px"><span class="chip">${esc(d.sex)}</span><span class="chip">${esc(d.color||'')}</span></div><h2>${esc(d.name)}</h2><div class="fact-grid"><div class="fact"><span>犬種</span><b>${esc(d.breed||'-')}</b></div><div class="fact"><span>体高</span><b>${d.height_cm||'-'}cm</b></div><div class="fact"><span>体重</span><b>${d.weight_kg||'-'}kg</b></div><div class="fact"><span>健康情報</span><b>${esc(d.health_summary||'未登録')}</b></div></div><p class="muted">${esc(d.genetics||'')}</p><a class="btn btn-sub btn-wide" style="margin-top:9px" href="health-records.html?parentDogId=${encodeURIComponent(d.id)}">健康・検査記録を見る</a></div></div>`;
   }
   async function enhancedLoad(){
     const listEl=document.getElementById('parentList');if(!listEl)return;
     try{const list=await BigPawAPI.parentDogs();window.__BIGPAW_PARENT_DOGS=list||[];listEl.innerHTML=list.length?list.map(enhancedCard).join(''):'<div class="card empty" style="grid-column:1/-1"><h2>親犬はまだ登録されていません</h2><p class="muted">「＋ 親犬を登録」から登録できます。</p></div>'}
     catch(e){listEl.innerHTML='<div class="card empty" style="grid-column:1/-1"><h2>親犬情報を読み込めませんでした</h2><button class="btn btn-sub" onclick="BigPawParentPhoto.reload()">再読み込み</button></div>'}
   }
+
+  let replaceDogId='';
+  function ensureReplaceInput(){
+    let input=document.getElementById('pdReplacePhoto');
+    if(input)return input;
+    input=document.createElement('input');input.id='pdReplacePhoto';input.type='file';input.accept='image/jpeg,image/png,image/webp';input.style.display='none';document.body.appendChild(input);
+    input.addEventListener('change',async()=>{
+      const f=input.files&&input.files[0];const id=replaceDogId;input.value='';if(!f||!id)return;
+      if(f.size>8*1024*1024){alert('写真は8MB以下を選んでください。');return}
+      try{
+        const up=await BigPawAPI.upload(f);if(!up.url)throw new Error('upload_failed');
+        await BigPawAPI.updateParentDog(id,{imageUrl:up.url,imagePosX:50,imagePosY:50,imageZoom:1});
+        await enhancedLoad();
+        setTimeout(()=>openAdjust(id),0);
+      }catch(e){alert(e&&e.status===415?'JPG・PNG・WebPの写真を選んでください。':'写真を変更できませんでした。')}
+    });
+    return input;
+  }
+  function pickPhoto(id){replaceDogId=id;const input=ensureReplaceInput();input.click()}
 
   let editDog=null,editX=50,editY=50,editZ=1;
   function ensureAdjustModal(){
@@ -68,8 +87,8 @@
     catch(e){alert('写真の表示調整を保存できませんでした。')}
     finally{btn.disabled=false}
   }
-  window.BigPawParentPhoto={openAdjust,reload:enhancedLoad};
+  window.BigPawParentPhoto={openAdjust,pickPhoto,reload:enhancedLoad};
   window.load=enhancedLoad;
-  function start(){installCreateControls();ensureAdjustModal();enhancedLoad()}
+  function start(){installCreateControls();ensureReplaceInput();ensureAdjustModal();enhancedLoad()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
