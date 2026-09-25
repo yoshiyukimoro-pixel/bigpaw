@@ -88,30 +88,16 @@ disable='<script id="bigpaw-disable-experimental-gallery">window.__BIGPAW_PUPPY_
 if disable not in html:
     html=html.replace('</head>',disable+'</head>',1)
 
-# iPhone Safari was showing 1/6 but never requesting the other five thumbnail
-# files. Do not wait for requestIdleCallback or viewport detection: there are at
-# most ten tiny thumbnails, so load every one in a short stagger after the hero.
+# Safari-safe gallery is maintained as a standalone asset. Validate the critical
+# behavior here instead of rewriting it during every Docker build.
 gallery=Path('/app/assets/puppy-detail-stable-gallery.js')
 g=gallery.read_text(encoding='utf-8')
-g=g.replace("const MEDIA_V='20260926j1';","const MEDIA_V='20260926j2';",1)
-idle_old="setTimeout(()=>{'requestIdleCallback'in window?requestIdleCallback(run,{timeout:1000}):run()},delay);"
-idle_new="setTimeout(run,delay);"
-assert idle_old in g,('gallery_idle_marker_missing',g.count(idle_old))
-g=g.replace(idle_old,idle_new,1)
-visible_old="""  function loadVisibleThumbs(){
-    const r=thumbs.getBoundingClientRect();let step=0;
-    thumbButtons.forEach((b,i)=>{const br=b.getBoundingClientRect();if(br.right>=r.left-40&&br.left<=r.right+40){loadThumb(i,step*120);step++}});
-  }
-  function scheduleVisibleThumbs(){clearTimeout(thumbBatchTimer);thumbBatchTimer=setTimeout(loadVisibleThumbs,650)}"""
-visible_new="""  function loadVisibleThumbs(){
-    thumbButtons.forEach((_b,i)=>loadThumb(i,i*70));
-  }
-  function scheduleVisibleThumbs(){clearTimeout(thumbBatchTimer);thumbBatchTimer=setTimeout(loadVisibleThumbs,120)}"""
-assert visible_old in g,('gallery_thumb_scheduler_marker_missing',g.count(visible_old))
-g=g.replace(visible_old,visible_new,1)
-gallery.write_text(g,encoding='utf-8')
+assert "const MEDIA_V='20260926j3';" in g,'gallery_media_version_missing'
+assert 'setTimeout(loadAllThumbs,40);' in g,'gallery_independent_thumbs_missing'
+assert "mobile?'card':'hero'" in g,'gallery_mobile_card_missing'
+assert '写真を読み込み中…' not in g,'gallery_loading_overlay_still_present'
 
-version='20260926gallery6'
+version='20260926gallery7'
 html=re.sub(r'<script src="assets/bridge\.js(?:\?v=[^"]*)?"></script>',f'<script src="assets/bridge.js?v={version}"></script>',html,count=1)
 html=re.sub(r'<script src="/?puppy-detail-favorites-fix\.js(?:\?v=[^"]*)?"></script>',f'<script src="/puppy-detail-favorites-fix.js?v={version}"></script>',html,count=1)
 html=re.sub(r'assets/public-parent-dogs\.js(?:\?v=[^"\']*)?',f'assets/public-parent-dogs.js?v={version}',html)
@@ -129,4 +115,4 @@ if top_cta not in html:
     html=html.replace('</body>',top_cta+'</body>',1)
 
 hp.write_text(html,encoding='utf-8')
-print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=payload_only|favorites=single_owner|gallery=single_hero_plus_staggered_all_thumbnails|max_photos=10|media_cache_busted=20260926j2|hero_duplicate=disabled|hero_prefetch=disabled|thumbs=all_small_no_idle_callback|swipe=enabled|mobile_arrows=hidden|breeder_editor=separate|experimental_carousel=disabled|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
+print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=payload_only|favorites=single_owner|gallery=mobile_card_plus_independent_thumbnails|max_photos=10|media_cache_busted=20260926j3|hero_duplicate=disabled|hero_prefetch=disabled|thumbs=all_small_independent_of_hero_onload|loading_overlay=removed|swipe=enabled|mobile_arrows=hidden|breeder_editor=separate|experimental_carousel=disabled|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
