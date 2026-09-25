@@ -29,7 +29,7 @@ new="""            pos_x=max(0.0,min(100.0,float(body.get('imagePosX',50) or 50)
 assert s.count(old)==1,('parent_create_layout_marker',s.count(old))
 s=s.replace(old,new,1)
 
-# Breeders may adjust only their own parent-dog photo; operator may adjust any.
+# Breeders may adjust only their own parent-dog photo/genetic tests; operator may adjust any.
 patch_marker="        mlist=re.fullmatch(r'/api/operator/listings/([^/]+)',path)\n"
 route="""        mpd=re.fullmatch(r'/api/parent-dogs/([^/]+)',path)
         if mpd:
@@ -45,8 +45,9 @@ route="""        mpd=re.fullmatch(r'/api/parent-dogs/([^/]+)',path)
             if 'imagePosY' in body: sets.append('image_pos_y=?'); args.append(max(0.0,min(100.0,float(body.get('imagePosY') or 50))))
             if 'imageZoom' in body: sets.append('image_zoom=?'); args.append(max(1.0,min(3.0,float(body.get('imageZoom') or 1))))
             if 'imageUrl' in body: sets.append('image_url=?'); args.append(str(body.get('imageUrl') or ''))
+            if 'genetics' in body: sets.append('genetics=?'); args.append(str(body.get('genetics') or '')[:4000])
             if not sets: con.close(); return self.send_json(dict(d))
-            args.append(d['id']); con.execute('UPDATE parent_dogs SET '+','.join(sets)+' WHERE id=?',args); audit(con,u['id'],'parent_dog_photo_layout_updated','parent_dog',d['id']); con.commit(); out=con.execute('SELECT * FROM parent_dogs WHERE id=?',(d['id'],)).fetchone(); con.close(); return self.send_json(dict(out))
+            args.append(d['id']); con.execute('UPDATE parent_dogs SET '+','.join(sets)+' WHERE id=?',args); audit(con,u['id'],'parent_dog_updated','parent_dog',d['id'],','.join(body.keys())); con.commit(); out=con.execute('SELECT * FROM parent_dogs WHERE id=?',(d['id'],)).fetchone(); con.close(); return self.send_json(dict(out))
 """
 assert s.count(patch_marker)==1,('parent_patch_route_marker',s.count(patch_marker))
 s=s.replace(patch_marker,route+patch_marker,1)
@@ -58,11 +59,11 @@ new="""out=public_puppy_json(r); ph=con.execute('SELECT stored_name FROM uploads
             if r['breeder_id']:
                 for key,sex,name in (('father','父犬',r['father']),('mother','母犬',r['mother'])):
                     if not str(name or '').strip(): continue
-                    pd=con.execute('''SELECT name,sex,breed,color,image_url,image_pos_x,image_pos_y,image_zoom FROM parent_dogs
+                    pd=con.execute('''SELECT name,sex,breed,color,genetics,image_url,image_pos_x,image_pos_y,image_zoom FROM parent_dogs
                         WHERE breeder_id=? AND name=? ORDER BY CASE WHEN sex=? THEN 0 ELSE 1 END, created_at DESC LIMIT 1''',(r['breeder_id'],str(name).strip(),sex)).fetchone()
                     if pd:
-                        parent_out[key]={'name':pd['name'],'sex':pd['sex'],'breed':pd['breed'],'color':pd['color'],'imageUrl':pd['image_url'] or '',
-                            'imagePosX':float(pd['image_pos_x'] if pd['image_pos_x'] is not None else 50),'imagePosY':float(pd['image_pos_y'] if pd['image_pos_y'] is not None else 50),
+                        parent_out[key]={'name':pd['name'],'sex':pd['sex'],'breed':pd['breed'],'color':pd['color'],'genetics':pd['genetics'] or '',
+                            'imageUrl':pd['image_url'] or '','imagePosX':float(pd['image_pos_x'] if pd['image_pos_x'] is not None else 50),'imagePosY':float(pd['image_pos_y'] if pd['image_pos_y'] is not None else 50),
                             'imageZoom':float(pd['image_zoom'] if pd['image_zoom'] is not None else 1)}
             out['parentDogs']=parent_out; con.close(); return self.send_json(out,200)"""
 assert s.count(old)==1,('public_parent_payload_marker',s.count(old))
@@ -70,7 +71,7 @@ s=s.replace(old,new,1)
 
 p.write_text(s,encoding='utf-8')
 
-# Load enhanced UI only on relevant pages.
+# Load enhanced photo UI only on relevant pages.
 for html_name,asset in [('parent-dogs.html','assets/parent-photo-adjust.js'),('puppy-detail.html','assets/public-parent-dogs.js')]:
     hp=Path('/app')/html_name
     html=hp.read_text(encoding='utf-8')
@@ -80,7 +81,19 @@ for html_name,asset in [('parent-dogs.html','assets/parent-photo-adjust.js'),('p
         html=html.replace('</body>',tag+'</body>',1)
         hp.write_text(html,encoding='utf-8')
 
+# Structured genetic-test editors/displays.
+for html_name,tag in [
+    ('parent-dogs.html','<script src="assets/parent-genetics.js?v=20260925a"></script>'),
+    ('puppy-detail.html','<script src="assets/public-parent-genetics.js?v=20260925a"></script>')
+]:
+    hp=Path('/app')/html_name
+    html=hp.read_text(encoding='utf-8')
+    if tag not in html:
+        assert '</body>' in html,('parent_genetics_html_body_missing',html_name)
+        html=html.replace('</body>',tag+'</body>',1)
+        hp.write_text(html,encoding='utf-8')
+
 # Apply edge-position preservation and mobile cache-busting after the generated routes/tags exist.
 exec(Path('/app/backend/parent_photo_runtime_fix.py').read_text(encoding='utf-8'))
 
-print('PARENT_PHOTO_LAYOUT_OK|position_xy=stored|zoom=stored|public_puppy_parents=attached|owner_scoped=1',flush=True)
+print('PARENT_PHOTO_LAYOUT_OK|position_xy=stored|zoom=stored|public_puppy_parents=attached|genetics=editable_public|owner_scoped=1',flush=True)
