@@ -96,3 +96,7 @@ s=s.replace(a,b,1)
 
 p.write_text(s,encoding='utf-8')
 print('PROFILE_PRIVACY_GUARD_OK|kennel_name=blocked|representative=blocked|exact_address=blocked|rough_access=allowed',flush=True)
+
+# Final build gate: after every backend patch has run, fail the deployment if
+# role separation or ownership checks have accidentally regressed.
+exec(Path('/app/backend/security_regression_check.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
