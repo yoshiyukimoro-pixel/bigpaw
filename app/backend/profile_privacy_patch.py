@@ -111,6 +111,9 @@ assert s.count(op_marker)==1,('operator_breeders_route_marker',s.count(op_marker
 s=s.replace(op_marker,op_route+op_marker,1)
 
 p.write_text(s,encoding='utf-8')
+# Allow only upload files that are explicitly referenced by parent_dogs to be public.
+# Other unbound uploads (such as breeder proof documents) remain private.
+exec(Path('/app/backend/parent_photo_public_patch.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
 print('PROFILE_PRIVACY_GUARD_OK|kennel_name=blocked|representative=blocked|exact_address=blocked|rough_access=allowed',flush=True)
 print('OPERATOR_BREEDERS_API_OK|all_registered=visible|suspended=visible|counts=included',flush=True)
 
