@@ -19,7 +19,6 @@ helper="""  const puppyInflight=new Map();
     return req;
   }
 """
-# Replace either the old inflight-only helper or inject a fresh helper.
 old_helper="""  const puppyInflight=new Map();
   function sharedPuppy(id){
     const key=String(id||'');
@@ -52,11 +51,15 @@ extra_fetch="try{var r=await fetch('/api/puppies/'+encodeURIComponent(id)+'/phot
 if extra_fetch in html:
     html=html.replace(extra_fetch,'',1)
 
-# Public detail enhancement and rescue blocks must use the canonical birth field.
+# The dedicated favorite integration owns favorite state; avoid the legacy
+# renderer issuing the same favorites request again on page load.
+legacy_fav="try{const favs=await BigPawBridge.favorites();faved=favs.some(x=>String(x.id)===String(p.id))}catch(e){faved=false}refreshFav()"
+if legacy_fav in html:
+    html=html.replace(legacy_fav,'faved=false;refreshFav()',1)
+
 if 'p.birthDate||p.birth_date' in html:
     html=html.replace('p.birthDate||p.birth_date','p.birth||p.birthDate||p.birth_date')
 
-# Always show kg for current-weight displays, including the fallback/rescue renderer.
 old_detail_weight="<div class=\"detailfact\"><span>現在体重</span><b>'+v(p.weight||p.currentWeight)+'</b></div>"
 new_detail_weight="<div class=\"detailfact\"><span>現在体重</span><b>'+(((p.weight||p.currentWeight)===undefined||(p.weight||p.currentWeight)===null||(p.weight||p.currentWeight)==='')?'-':v(p.weight||p.currentWeight)+'kg')+'</b></div>"
 if old_detail_weight in html:
@@ -66,8 +69,6 @@ rescue_new="(((p.weight||p.currentWeight)===undefined||(p.weight||p.currentWeigh
 if rescue_old in html:
     html=html.replace(rescue_old,rescue_new,1)
 
-# Prioritize the legacy hero while the final gallery initializes. This is only
-# one image and prevents a blank flash on iPhone Safari.
 legacy="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
 legacy_new="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" fetchpriority=\"high\" loading=\"eager\" decoding=\"async\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
 if legacy in html:
@@ -75,10 +76,8 @@ if legacy in html:
 elif legacy_new not in html:
     raise SystemExit(('legacy_hero_missing',html.count(legacy),html.count(legacy_new)))
 
-# Remove both old gallery implementations. The old inline grid created every
-# image element at once, and the older replacement carousel had a Safari race.
-# The public gallery now uses one large image plus a horizontally scrollable
-# thumbnail strip, while the breeder editor remains unchanged.
+# Remove the old grid and experimental carousel. The public-only gallery uses
+# one square hero plus the thumbnail strip; breeder photo editing is separate.
 removed=len(re.findall(r'<script id="bigpaw-detail-real-gallery-js">.*?</script>',html,flags=re.S))
 html=re.sub(r'<script id="bigpaw-detail-real-gallery-js">.*?</script>','',html,flags=re.S)
 if removed!=1:
@@ -88,21 +87,16 @@ disable='<script id="bigpaw-disable-experimental-gallery">window.__BIGPAW_PUPPY_
 if disable not in html:
     html=html.replace('</head>',disable+'</head>',1)
 
-# Force Safari to pick up the stable page-cache and favorite integration.
-html=re.sub(r'<script src="assets/bridge\.js(?:\?v=[^"]*)?"></script>','<script src="assets/bridge.js?v=20260926gallery1"></script>',html,count=1)
-html=re.sub(r'<script src="/?puppy-detail-favorites-fix\.js(?:\?v=[^"]*)?"></script>','<script src="/puppy-detail-favorites-fix.js?v=20260926gallery1"></script>',html,count=1)
-html=re.sub(r'assets/public-parent-dogs\.js(?:\?v=[^"\']*)?','assets/public-parent-dogs.js?v=20260926gallery1',html)
-html=re.sub(r'assets/public-parent-genetics\.js(?:\?v=[^"\']*)?','assets/public-parent-genetics.js?v=20260926gallery1',html)
+html=re.sub(r'<script src="assets/bridge\.js(?:\?v=[^"]*)?"></script>','<script src="assets/bridge.js?v=20260926gallery3"></script>',html,count=1)
+html=re.sub(r'<script src="/?puppy-detail-favorites-fix\.js(?:\?v=[^"]*)?"></script>','<script src="/puppy-detail-favorites-fix.js?v=20260926gallery3"></script>',html,count=1)
+html=re.sub(r'assets/public-parent-dogs\.js(?:\?v=[^"\']*)?','assets/public-parent-dogs.js?v=20260926gallery3',html)
+html=re.sub(r'assets/public-parent-genetics\.js(?:\?v=[^"\']*)?','assets/public-parent-genetics.js?v=20260926gallery3',html)
 
-# Public-only photo viewer: 4:5 main image, swipe/arrows, thumbnail strip below.
-# Thumbnail image elements are only created as they become visible in the strip,
-# so opening the detail page does not immediately request all full-size photos.
-stable_gallery='<script src="assets/puppy-detail-stable-gallery.js?v=20260926gallery2"></script>'
+stable_gallery='<script src="assets/puppy-detail-stable-gallery.js?v=20260926gallery3"></script>'
 if stable_gallery not in html:
     assert '</body>' in html,'body_close_missing_for_stable_gallery'
     html=html.replace('</body>',stable_gallery+'</body>',1)
 
-# Add a prominent inquiry CTA directly under the photo gallery.
 top_cta='<script src="assets/puppy-detail-top-inquiry.js?v=20260925a"></script>'
 if top_cta not in html:
     assert '</body>' in html,'body_close_missing'
@@ -110,4 +104,4 @@ if top_cta not in html:
 
 hp.write_text(html,encoding='utf-8')
 
-print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=payload_only|gallery=public_main_plus_thumbnails|thumbs=visible_only|arrows=restored|swipe=enabled|portrait=4x5|object_fit=contain|breeder_editor=unchanged|experimental_carousel=disabled|hero=priority|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
+print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=payload_only|favorites=single_owner|gallery=public_square_main_plus_thumbnails|thumbs=small_variants|swipe=enabled|mobile_arrows=hidden|breeder_editor=separate|experimental_carousel=disabled|hero=priority|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
