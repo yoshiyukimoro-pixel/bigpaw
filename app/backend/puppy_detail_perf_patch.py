@@ -63,6 +63,16 @@ if extra_fetch in html:
 if 'p.birthDate||p.birth_date' in html:
     html=html.replace('p.birthDate||p.birth_date','p.birth||p.birthDate||p.birth_date')
 
+# Always show kg for current-weight displays, including the fallback/rescue renderer.
+old_detail_weight="<div class=\"detailfact\"><span>現在体重</span><b>'+v(p.weight||p.currentWeight)+'</b></div>"
+new_detail_weight="<div class=\"detailfact\"><span>現在体重</span><b>'+(((p.weight||p.currentWeight)===undefined||(p.weight||p.currentWeight)===null||(p.weight||p.currentWeight)==='')?'-':v(p.weight||p.currentWeight)+'kg')+'</b></div>"
+if old_detail_weight in html:
+    html=html.replace(old_detail_weight,new_detail_weight,1)
+rescue_old="p.weight||p.currentWeight||'-'"
+rescue_new="(((p.weight||p.currentWeight)===undefined||(p.weight||p.currentWeight)===null||(p.weight||p.currentWeight)==='')?'-':String(p.weight||p.currentWeight)+'kg')"
+if rescue_old in html:
+    html=html.replace(rescue_old,rescue_new,1)
+
 # Prioritize the first legacy hero image too.
 legacy="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
 legacy_new="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" fetchpriority=\"high\" loading=\"eager\" decoding=\"async\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
@@ -94,4 +104,4 @@ if top_cta not in html:
 
 hp.write_text(html,encoding='utf-8')
 
-print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=single|gallery=stable_native_lazy|experimental_carousel=disabled|hero=priority|birth=canonical|top_inquiry=enabled',flush=True)
+print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=single|gallery=stable_native_lazy|experimental_carousel=disabled|hero=priority|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
