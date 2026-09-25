@@ -77,8 +77,8 @@ elif legacy_new not in html:
 
 # Remove both old gallery implementations. The old inline grid created every
 # image element at once, and the older replacement carousel had a Safari race.
-# The new stable gallery only requests the currently visible photo and restores
-# left/right navigation without bringing those races back.
+# The public gallery now uses one large image plus a horizontally scrollable
+# thumbnail strip, while the breeder editor remains unchanged.
 removed=len(re.findall(r'<script id="bigpaw-detail-real-gallery-js">.*?</script>',html,flags=re.S))
 html=re.sub(r'<script id="bigpaw-detail-real-gallery-js">.*?</script>','',html,flags=re.S)
 if removed!=1:
@@ -94,9 +94,10 @@ html=re.sub(r'<script src="/?puppy-detail-favorites-fix\.js(?:\?v=[^"]*)?"></scr
 html=re.sub(r'assets/public-parent-dogs\.js(?:\?v=[^"\']*)?','assets/public-parent-dogs.js?v=20260926gallery1',html)
 html=re.sub(r'assets/public-parent-genetics\.js(?:\?v=[^"\']*)?','assets/public-parent-genetics.js?v=20260926gallery1',html)
 
-# Stable portrait gallery: 4:5 stage, object-fit contain (no crop), main-photo
-# left/right arrows, swipe support, and only one image requested at a time.
-stable_gallery='<script src="assets/puppy-detail-stable-gallery.js?v=20260926gallery1"></script>'
+# Public-only photo viewer: 4:5 main image, swipe/arrows, thumbnail strip below.
+# Thumbnail image elements are only created as they become visible in the strip,
+# so opening the detail page does not immediately request all full-size photos.
+stable_gallery='<script src="assets/puppy-detail-stable-gallery.js?v=20260926gallery2"></script>'
 if stable_gallery not in html:
     assert '</body>' in html,'body_close_missing_for_stable_gallery'
     html=html.replace('</body>',stable_gallery+'</body>',1)
@@ -109,4 +110,4 @@ if top_cta not in html:
 
 hp.write_text(html,encoding='utf-8')
 
-print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=payload_only|gallery=single_visible_image|arrows=restored|portrait=4x5|object_fit=contain|experimental_carousel=disabled|hero=priority|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
+print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=payload_only|gallery=public_main_plus_thumbnails|thumbs=visible_only|arrows=restored|swipe=enabled|portrait=4x5|object_fit=contain|breeder_editor=unchanged|experimental_carousel=disabled|hero=priority|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
