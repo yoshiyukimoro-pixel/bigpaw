@@ -83,7 +83,7 @@ for html_name,asset in [('parent-dogs.html','assets/parent-photo-adjust.js'),('p
 
 # Structured genetic-test editors/displays.
 for html_name,tag in [
-    ('parent-dogs.html','<script src="assets/parent-genetics.js?v=20260925a"></script>'),
+    ('parent-dogs.html','<script src="assets/parent-genetics.js?v=20260925b"></script>'),
     ('puppy-detail.html','<script src="assets/public-parent-genetics.js?v=20260925a"></script>')
 ]:
     hp=Path('/app')/html_name
@@ -96,9 +96,9 @@ for html_name,tag in [
 # Breed-aware genetic-test suggestions and easy parent-management entry points.
 page_tags={
     'parent-dogs.html':[
-        '<script src="assets/breed-data.js?v=20260925a"></script>',
-        '<script src="assets/breed-genetics-data.js?v=20260925a"></script>',
-        '<script src="assets/breed-genetics-suggestions.js?v=20260925a"></script>'
+        '<script src="assets/breed-data.js?v=20260925b"></script>',
+        '<script src="assets/breed-genetics-data.js?v=20260925b"></script>',
+        '<script src="assets/breed-genetics-suggestions.js?v=20260925b"></script>'
     ],
     'admin.html':['<script src="assets/breeder-parent-entry.js?v=20260925a"></script>'],
     'breeder-profile-edit.html':['<script src="assets/breeder-parent-entry.js?v=20260925a"></script>']
