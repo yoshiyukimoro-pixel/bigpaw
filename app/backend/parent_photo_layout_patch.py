@@ -80,4 +80,7 @@ for html_name,asset in [('parent-dogs.html','assets/parent-photo-adjust.js'),('p
         html=html.replace('</body>',tag+'</body>',1)
         hp.write_text(html,encoding='utf-8')
 
+# Apply edge-position preservation and mobile cache-busting after the generated routes/tags exist.
+exec(Path('/app/backend/parent_photo_runtime_fix.py').read_text(encoding='utf-8'))
+
 print('PARENT_PHOTO_LAYOUT_OK|position_xy=stored|zoom=stored|public_puppy_parents=attached|owner_scoped=1',flush=True)
