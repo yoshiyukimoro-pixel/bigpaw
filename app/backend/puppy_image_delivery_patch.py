@@ -2,7 +2,7 @@ from pathlib import Path
 
 p=Path('/app/backend/server.py')
 s=p.read_text(encoding='utf-8')
-MEDIA_VERSION='20260926j1'
+MEDIA_VERSION='20260926j3'
 
 # Pillow-backed display variants. Originals remain untouched in /data/uploads.
 import_anchor='from email.policy import default as email_policy\n'
@@ -48,8 +48,9 @@ route=f"""        # Never send a puppy-bound original to a normal public page. O
             widths={{'thumb':140,'card':480,'hero':800}}
             safe_kind=kind if kind in widths else 'hero'
             requested=widths[safe_kind]
-            # v2 JPEG cache avoids any stale/corrupt WebP objects already held by Safari.
-            dest=PUPPY_IMAGE_CACHE/(name+'.v2.'+safe_kind+'.jpg')
+            # Baseline JPEG is deliberately used for iPhone Safari stability. The
+            # card variant is also reused between search results and mobile detail.
+            dest=PUPPY_IMAGE_CACHE/(name+'.v3.'+safe_kind+'.jpg')
             try:
                 with PUPPY_IMAGE_LOCK:
                     if (not dest.exists()) or dest.stat().st_mtime < src.stat().st_mtime:
@@ -60,7 +61,7 @@ route=f"""        # Never send a puppy-bound original to a normal public page. O
                             im=ImageOps.fit(im,(side,side),method=Image.Resampling.LANCZOS,centering=(0.5,0.5))
                             quality=70 if safe_kind=='thumb' else (74 if safe_kind=='card' else 78)
                             tmp=dest.with_suffix(dest.suffix+'.tmp')
-                            im.save(tmp,'JPEG',quality=quality,optimize=True,progressive=True)
+                            im.save(tmp,'JPEG',quality=quality,optimize=False,progressive=False)
                             tmp.replace(dest)
                 raw=dest.read_bytes()
                 self.send_response(200); self.send_header('Content-Type','image/jpeg'); self.send_header('Content-Length',str(len(raw)))
@@ -91,4 +92,4 @@ assert s.count(photo_old)==1,('photo_payload_marker',s.count(photo_old))
 s=s.replace(photo_old,photo_new,1)
 
 p.write_text(s,encoding='utf-8')
-print('PUPPY_IMAGE_DELIVERY_OK|hero=max800_square|card=max480_square|thumb=max140_square|format=jpeg|cache_version=20260926j1|detail_photos=max10|raw_public_uploads=redirected|original_fallback=disabled|originals=preserved',flush=True)
+print('PUPPY_IMAGE_DELIVERY_OK|hero=max800_square|card=max480_square|thumb=max140_square|format=baseline_jpeg|cache_version=20260926j3|generation=fast_nonprogressive|detail_photos=max10|raw_public_uploads=redirected|original_fallback=disabled|originals=preserved',flush=True)
