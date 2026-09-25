@@ -9,7 +9,8 @@ insert="""    ensure_column(con,'puppies','published_at','INTEGER')
     ensure_column(con,'puppies','breeding_allowed','INTEGER NOT NULL DEFAULT 1')
     ensure_column(con,'puppies','breeding_ng_reason',\"TEXT DEFAULT ''\")
     ensure_column(con,'puppies','breeder_sale_allowed','INTEGER NOT NULL DEFAULT 1')
-    ensure_column(con,'puppies','breeder_sale_ng_reason',\"TEXT DEFAULT ''\")"""
+    ensure_column(con,'puppies','breeder_sale_ng_reason',\"TEXT DEFAULT ''\")
+    ensure_column(con,'puppies','sales_policy_set','INTEGER NOT NULL DEFAULT 0')"""
 assert s.count(marker)==1,('policy_schema_marker',s.count(marker))
 s=s.replace(marker,insert,1)
 
@@ -65,6 +66,7 @@ s=s.replace(helper_marker,helper,1)
 old="""      'reviewStatus':d.get('review_status','approved') if isinstance(d,dict) else 'approved','moderationNote':d.get('moderation_note','') if isinstance(d,dict) else ''
     }"""
 new="""      'reviewStatus':d.get('review_status','approved') if isinstance(d,dict) else 'approved','moderationNote':d.get('moderation_note','') if isinstance(d,dict) else '',
+      'salesPolicySet':bool(d.get('sales_policy_set',0)),
       'breedingAllowed':bool(d.get('breeding_allowed',1)),'breedingNgReason':d.get('breeding_ng_reason',''),
       'breederSaleAllowed':bool(d.get('breeder_sale_allowed',1)),'breederSaleNgReason':d.get('breeder_sale_ng_reason','')
     }"""
@@ -74,7 +76,7 @@ s=s.replace(old,new,1)
 # 4) Persist choices when creating a puppy, without disturbing existing INSERT shape.
 old="""            audit(con,u['id'],'puppy_created','puppy',pid,review_status); con.commit(); r=con.execute('SELECT * FROM puppies WHERE id=?',(pid,)).fetchone(); con.close(); return self.send_json(puppy_json(r),201)"""
 new="""            breeding_allowed,breeding_reason,breeder_sale_allowed,breeder_sale_reason=normalize_sales_policy(body)
-            con.execute('UPDATE puppies SET breeding_allowed=?,breeding_ng_reason=?,breeder_sale_allowed=?,breeder_sale_ng_reason=? WHERE id=?',(breeding_allowed,breeding_reason,breeder_sale_allowed,breeder_sale_reason,pid))
+            con.execute('UPDATE puppies SET breeding_allowed=?,breeding_ng_reason=?,breeder_sale_allowed=?,breeder_sale_ng_reason=?,sales_policy_set=1 WHERE id=?',(breeding_allowed,breeding_reason,breeder_sale_allowed,breeder_sale_reason,pid))
             audit(con,u['id'],'puppy_created','puppy',pid,review_status); con.commit(); r=con.execute('SELECT * FROM puppies WHERE id=?',(pid,)).fetchone(); con.close(); return self.send_json(puppy_json(r),201)"""
 assert s.count(old)==1,('policy_create_marker',s.count(old))
 s=s.replace(old,new,1)
@@ -85,7 +87,7 @@ old="""            if 'gender' in body: sets.append('gender_key=?'); args.append
 new="""            if 'gender' in body: sets.append('gender_key=?'); args.append('female' if body['gender']=='女の子' else 'male')
             if any(k in body for k in ('breedingAllowed','breedingNgReason','breederSaleAllowed','breederSaleNgReason')):
                 breeding_allowed,breeding_reason,breeder_sale_allowed,breeder_sale_reason=normalize_sales_policy(body,p)
-                sets.extend(['breeding_allowed=?','breeding_ng_reason=?','breeder_sale_allowed=?','breeder_sale_ng_reason=?'])
+                sets.extend(['breeding_allowed=?','breeding_ng_reason=?','breeder_sale_allowed=?','breeder_sale_ng_reason=?','sales_policy_set=1'])
                 args.extend([breeding_allowed,breeding_reason,breeder_sale_allowed,breeder_sale_reason])
             if sets:"""
 assert s.count(old)==1,('policy_edit_marker',s.count(old))
@@ -102,4 +104,4 @@ for name in ('breeder-puppy-new.html','puppy-detail.html'):
         hp.write_text(h,encoding='utf-8')
 
 p.write_text(s,encoding='utf-8')
-print('SALES_POLICY_OK|fixed_reasons_only|breeding_and_breeder_sale=enabled',flush=True)
+print('SALES_POLICY_OK|fixed_reasons_only|legacy_unset|breeding_and_breeder_sale=enabled',flush=True)
