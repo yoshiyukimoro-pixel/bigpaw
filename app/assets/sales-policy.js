@@ -81,11 +81,41 @@
           breedingAllowed.value=d.breedingAllowed===false?'0':'1';
           breederSaleAllowed.value=d.breederSaleAllowed===false?'0':'1';
           if(d.breedingNgReason&&BREEDING_REASONS.includes(d.breedingNgReason))document.getElementById('breedingNgReason').value=d.breedingNgReason;
-          if(d.breederSaleNgReason&&BREEDER_SALE_REASONS.includes(d.breederSaleNgReason))document.getElementById('breederSaleNgReason').value=d.breederSaleNgReason;
+          if(d.breederSaleNgReason&&BREEDER_SALE_NG_REASONS.includes(d.breederSaleNgReason))document.getElementById('breederSaleNgReason').value=d.breederSaleNgReason;
         }
         sync();
       }).catch(()=>{});
     }
+  }
+
+  function installStepNavigation(){
+    const form=document.querySelector('form[onsubmit*="savePuppy"]');
+    if(!form)return;
+    const steps=[...form.querySelectorAll('.stepbar .step')];
+    if(steps.length<4)return;
+    const photoHeading=[...form.querySelectorAll('h2')].find(x=>(x.textContent||'').trim()==='写真');
+    const targets=[
+      document.getElementById('breed')?.closest('.field')||form.querySelector('h1'),
+      document.getElementById('father')?.closest('.field')||[...form.querySelectorAll('h2')].find(x=>(x.textContent||'').includes('健康')),
+      photoHeading,
+      document.getElementById('bigpawSalesPolicy')||form.querySelector('button.btn-main.btn-wide')
+    ];
+    steps.forEach((step,i)=>{
+      step.style.cursor='pointer';
+      step.style.userSelect='none';
+      step.setAttribute('role','button');
+      step.setAttribute('tabindex','0');
+      step.setAttribute('aria-label',(step.textContent||'').trim()+'へ移動');
+      const go=()=>{
+        const target=targets[i];if(!target)return;
+        steps.forEach(s=>s.classList.remove('active'));
+        step.classList.add('active');
+        target.scrollIntoView({behavior:'smooth',block:'start'});
+      };
+      step.addEventListener('click',go);
+      step.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}});
+    });
+    steps.forEach((s,i)=>s.classList.toggle('active',i===0));
   }
 
   async function installPublicDetail(){
@@ -107,6 +137,6 @@
     }catch(_e){}
   }
 
-  function boot(){installBreederEditor();installPublicDetail()}
+  function boot(){installBreederEditor();installStepNavigation();installPublicDetail()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
