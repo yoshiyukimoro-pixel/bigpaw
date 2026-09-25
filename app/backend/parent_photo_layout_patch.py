@@ -93,7 +93,26 @@ for html_name,tag in [
         html=html.replace('</body>',tag+'</body>',1)
         hp.write_text(html,encoding='utf-8')
 
+# Breed-aware genetic-test suggestions and easy parent-management entry points.
+page_tags={
+    'parent-dogs.html':[
+        '<script src="assets/breed-data.js?v=20260925a"></script>',
+        '<script src="assets/breed-genetics-data.js?v=20260925a"></script>',
+        '<script src="assets/breed-genetics-suggestions.js?v=20260925a"></script>'
+    ],
+    'admin.html':['<script src="assets/breeder-parent-entry.js?v=20260925a"></script>'],
+    'breeder-profile-edit.html':['<script src="assets/breeder-parent-entry.js?v=20260925a"></script>']
+}
+for html_name,tags in page_tags.items():
+    hp=Path('/app')/html_name
+    html=hp.read_text(encoding='utf-8')
+    for tag in tags:
+        if tag not in html:
+            assert '</body>' in html,('breed_genetics_ui_body_missing',html_name)
+            html=html.replace('</body>',tag+'</body>',1)
+    hp.write_text(html,encoding='utf-8')
+
 # Apply edge-position preservation and mobile cache-busting after the generated routes/tags exist.
 exec(Path('/app/backend/parent_photo_runtime_fix.py').read_text(encoding='utf-8'))
 
-print('PARENT_PHOTO_LAYOUT_OK|position_xy=stored|zoom=stored|public_puppy_parents=attached|genetics=editable_public|owner_scoped=1',flush=True)
+print('PARENT_PHOTO_LAYOUT_OK|position_xy=stored|zoom=stored|public_puppy_parents=attached|genetics=editable_public|breed_suggestions=60|parent_entry=prominent|owner_scoped=1',flush=True)
