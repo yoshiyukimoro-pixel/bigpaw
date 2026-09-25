@@ -1,7 +1,7 @@
 (()=>{
   if(!/\/parent-dogs\.html$/.test(location.pathname))return;
 
-  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const COMMON=[
     'DM（変性性脊髄症）',
     'PRA（prcd／進行性網膜萎縮症）',
