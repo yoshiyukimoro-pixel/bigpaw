@@ -81,7 +81,7 @@
           breedingAllowed.value=d.breedingAllowed===false?'0':'1';
           breederSaleAllowed.value=d.breederSaleAllowed===false?'0':'1';
           if(d.breedingNgReason&&BREEDING_REASONS.includes(d.breedingNgReason))document.getElementById('breedingNgReason').value=d.breedingNgReason;
-          if(d.breederSaleNgReason&&BREEDER_SALE_NG_REASONS.includes(d.breederSaleNgReason))document.getElementById('breederSaleNgReason').value=d.breederSaleNgReason;
+          if(d.breederSaleNgReason&&BREEDER_SALE_REASONS.includes(d.breederSaleNgReason))document.getElementById('breederSaleNgReason').value=d.breederSaleNgReason;
         }
         sync();
       }).catch(()=>{});
