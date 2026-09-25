@@ -114,6 +114,30 @@ p.write_text(s,encoding='utf-8')
 print('PROFILE_PRIVACY_GUARD_OK|kennel_name=blocked|representative=blocked|exact_address=blocked|rough_access=allowed',flush=True)
 print('OPERATOR_BREEDERS_API_OK|all_registered=visible|suspended=visible|counts=included',flush=True)
 
-# Final build gate: after every backend patch has run, fail the deployment if
-# role separation or ownership checks have accidentally regressed.
+# Every protected HTML entry point must actually load the common role guard.
+protected_pages=[
+    'admin.html','breeder-puppy-new.html','breeder-inquiries.html','breeder-billing.html',
+    'breeder-deal-report.html','breeder-profile-edit.html','breeder-invoice.html','parent-dogs.html','health-records.html',
+    'operator-admin.html','operator-breeders.html','operator-breeder-detail.html','operator-listings.html',
+    'operator-deals.html','operator-support.html','operator-deal-reports.html','operator-revenue.html',
+    'operator-reports.html','operator-invoices.html','operator-automations.html','operator-audit.html',
+    'operator-backups.html','project-status.html','backend-status.html','launch-checklist.html',
+    'mypage.html'
+]
+injected=[]
+for name in protected_pages:
+    fp=Path('/app')/name
+    if not fp.exists():
+        continue
+    html=fp.read_text(encoding='utf-8')
+    if 'auth-return-fix.js' not in html:
+        if '</body>' not in html:
+            raise SystemExit('PROTECTED_PAGE_AUTH_FAIL|missing_body|'+name)
+        html=html.replace('</body>','<script src="/auth-return-fix.js"></script></body>',1)
+        fp.write_text(html,encoding='utf-8')
+        injected.append(name)
+print('PROTECTED_PAGE_AUTH_OK|checked='+str(len([x for x in protected_pages if (Path('/app')/x).exists()]))+'|injected='+(','.join(injected) if injected else 'none'),flush=True)
+
+# Final build gate: after every backend and HTML security patch has run, fail the
+# deployment if role separation, ownership or protected-page guards regress.
 exec(Path('/app/backend/security_regression_check.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
