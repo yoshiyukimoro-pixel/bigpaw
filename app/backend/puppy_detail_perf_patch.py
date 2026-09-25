@@ -42,9 +42,10 @@ html=html.replace(extra_fetch,'',1)
 
 # Public detail enhancement and rescue blocks were reading birthDate/birth_date only,
 # while the API's canonical field is birth. Include birth first everywhere.
+birth_legacy_count=html.count('p.birthDate||p.birth_date')
+assert birth_legacy_count>=1,('birth_lookup_count',birth_legacy_count)
 html=html.replace('p.birthDate||p.birth_date','p.birth||p.birthDate||p.birth_date')
-if 'p.birthDate||p.birth_date' in html:
-    raise SystemExit('legacy birth key lookup still present')
+assert html.count('p.birth||p.birthDate||p.birth_date')>=birth_legacy_count
 
 # Prioritize the first legacy hero image too.
 legacy="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
@@ -53,9 +54,9 @@ assert html.count(legacy)==1,('legacy_hero_count',html.count(legacy))
 html=html.replace(legacy,legacy_new,1)
 
 # Force Safari to pick up the optimized scripts after deploy.
-html=html.replace('<script src="assets/bridge.js"></script>','<script src="assets/bridge.js?v=20260925perf3"></script>',1)
-html=html.replace('assets/public-parent-dogs.js?v=20260925c','assets/public-parent-dogs.js?v=20260925perf3')
-html=html.replace('assets/public-parent-genetics.js?v=20260925a','assets/public-parent-genetics.js?v=20260925perf3')
+html=html.replace('<script src="assets/bridge.js"></script>','<script src="assets/bridge.js?v=20260925perf4"></script>',1)
+html=html.replace('assets/public-parent-dogs.js?v=20260925c','assets/public-parent-dogs.js?v=20260925perf4')
+html=html.replace('assets/public-parent-genetics.js?v=20260925a','assets/public-parent-genetics.js?v=20260925perf4')
 
 # Add a prominent inquiry CTA directly under the photo gallery, next to the favorite action.
 top_cta='<script src="assets/puppy-detail-top-inquiry.js?v=20260925a"></script>'
