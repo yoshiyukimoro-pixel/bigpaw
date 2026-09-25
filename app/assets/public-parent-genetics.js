@@ -19,7 +19,11 @@
     const rows=parse(value);if(!rows.length)return '';
     return `<div class="bp-public-genetics"><div class="bp-public-genetics-title">遺伝子検査</div>${rows.map(r=>`<div class="bp-public-gen-row"><span>${esc(r.name)}</span><b>${esc(r.result||'')}</b></div>`).join('')}</div>`;
   }
-  async function latestPuppy(id){try{const r=await fetch('/api/puppies/'+encodeURIComponent(id)+'?parentGeneticsTs='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache'}});if(r.ok)return await r.json()}catch(_e){}return null}
+  async function latestPuppy(id){
+    if(window.__BIGPAW_DETAIL_PUPPY)return window.__BIGPAW_DETAIL_PUPPY;
+    try{const p=window.BigPawBridge?await BigPawBridge.puppy(id):null;if(p){window.__BIGPAW_DETAIL_PUPPY=p;return p}}catch(_e){}
+    return null;
+  }
   function decorate(p){
     const grid=document.querySelector('.bp-parent-grid');if(!grid)return false;
     const cards=[...grid.querySelectorAll('.bp-parent-card')],parents=p?.parentDogs||p?.parent_dogs||{};
@@ -30,8 +34,8 @@
   async function run(){
     ensureCss();const id=new URLSearchParams(location.search).get('id');if(!id)return;const p=await latestPuppy(id);if(!p)return;
     if(decorate(p))return;
-    let n=0;const t=setInterval(()=>{n++;if(decorate(p)||n>30)clearInterval(t)},100);
+    let n=0;const t=setInterval(()=>{n++;if(decorate(p)||n>20)clearInterval(t)},100);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
-  window.addEventListener('pageshow',run);
+  window.addEventListener('pageshow',e=>{if(e.persisted)run()});
 })();
