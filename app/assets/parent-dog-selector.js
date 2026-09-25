@@ -1,5 +1,5 @@
 (()=>{
-  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const num=(v,d)=>Number.isFinite(Number(v))?Number(v):d;
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
   let parents=[];
