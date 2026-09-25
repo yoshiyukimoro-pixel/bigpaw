@@ -2,6 +2,8 @@
   if(window.__BIGPAW_DESCRIPTION_FORMAT_FIX__) return;
   window.__BIGPAW_DESCRIPTION_FORMAT_FIX__=true;
 
+  let viewerRole='';
+
   function formatLegacy(raw){
     let t=String(raw||'').replace(/\r\n?/g,'\n').trim();
     if(!t) return t;
@@ -41,14 +43,39 @@
 
   function fixInquiryLinks(){
     const pageId=new URLSearchParams(location.search).get('id')||'';
-    [...document.querySelectorAll('a[href*="inquiry.html"]')].forEach(a=>{
+    [...document.querySelectorAll('a[href*="inquiry.html"],a[data-bigpaw-inquiry-link="1"]')].forEach(a=>{
       try{
-        const raw=a.getAttribute('href')||'';
+        const raw=a.dataset.bigpawInquiryHref||a.getAttribute('href')||'';
         const u=new URL(raw,location.href);
         const puppyId=u.searchParams.get('id')||u.searchParams.get('puppy')||pageId;
-        if(puppyId) a.setAttribute('href','inquiry.html?id='+encodeURIComponent(puppyId));
+        if(!puppyId) return;
+        const inquiryHref='inquiry.html?id='+encodeURIComponent(puppyId);
+        a.dataset.bigpawInquiryHref=inquiryHref;
+        a.dataset.bigpawInquiryLink='1';
+        if(viewerRole==='breeder'||viewerRole==='operator'){
+          if(!a.dataset.bigpawOriginalText) a.dataset.bigpawOriginalText=(a.textContent||'').trim();
+          a.setAttribute('href','login.html?switch=1&role=buyer');
+          a.textContent='購入する場合は一般ユーザーでログイン';
+          a.setAttribute('aria-label','購入する場合は一般ユーザーアカウントでログインしてください');
+          a.dataset.bigpawBuyerSwitch='1';
+        }else{
+          a.setAttribute('href',inquiryHref);
+          if(a.dataset.bigpawBuyerSwitch==='1'&&a.dataset.bigpawOriginalText) a.textContent=a.dataset.bigpawOriginalText;
+          delete a.dataset.bigpawBuyerSwitch;
+        }
       }catch(_e){}
     });
+  }
+
+  async function loadViewerRole(){
+    try{
+      const r=await fetch('/api/me',{credentials:'include',cache:'no-store'});
+      if(r.ok){
+        const u=await r.json();
+        viewerRole=String(u?.role||'');
+      }
+    }catch(_e){}
+    apply();
   }
 
   function apply(){
@@ -72,9 +99,16 @@
     return changed;
   }
 
+  document.addEventListener('click',e=>{
+    const a=e.target.closest?.('a[data-bigpaw-buyer-switch="1"]');
+    if(!a) return;
+    try{localStorage.removeItem('bigpaw_api_token_v1')}catch(_e){}
+  });
+
   const run=()=>apply();
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run);
   else run();
+  loadViewerRole();
   const mo=new MutationObserver(run);
   mo.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
   setTimeout(run,250);
