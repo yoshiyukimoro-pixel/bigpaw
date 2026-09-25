@@ -12,6 +12,7 @@ checks = {
     'breeder_photo_is_owner_scoped': "owned=con.execute('SELECT 1 FROM puppies WHERE id=? AND breeder_id=?',(puppy_id,bid)).fetchone()" in server,
     'breeder_health_is_owner_scoped': "owned=bool(con.execute('SELECT 1 FROM puppies WHERE id=? AND breeder_id=?',(puppy_id,bid)).fetchone())" in server,
     'parent_dog_create_uses_own_breeder': "b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone(); breeder_id=b['id'] if b else None" in server,
+    'parent_dog_update_is_owner_scoped': "if not b or d['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)" in server,
     'require_uses_persisted_role': "if roles and u['role'] not in roles:" in server,
     'current_user_keeps_database_role': "con.close(); return rowdict(row)" in server,
     'login_returns_database_role': "'role':u['role']" in server,
@@ -40,6 +41,6 @@ if failed:
     raise SystemExit('SECURITY_REGRESSION_FAIL|' + '|'.join(failed))
 
 print(
-    'SECURITY_REGRESSION_OK|buyer_create_edit=blocked|breeder_cross_edit=blocked|operator_role=preserved|operator_pages=guarded|protected_entries=guarded',
+    'SECURITY_REGRESSION_OK|buyer_create_edit=blocked|breeder_cross_edit=blocked|parent_dog_update=owner_scoped|operator_role=preserved|operator_pages=guarded|protected_entries=guarded',
     flush=True,
 )
