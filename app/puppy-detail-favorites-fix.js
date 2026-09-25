@@ -21,9 +21,20 @@
   async function patch(btn){
     if(!btn||btn.dataset.serverFavorite==='1') return;
     btn.dataset.serverFavorite='1';
+
+    // Stop the legacy localStorage-only click handler immediately. Until the
+    // server state is known the button cannot be pressed, so favorites and
+    // My Page always use the same database state.
+    btn.disabled=true;
+    btn.onclick=null;
+    btn.textContent='♡ お気に入り確認中…';
+
     let loggedIn=true;
     let saved=false;
-    const paint=()=>{btn.textContent=saved?'♥ お気に入り保存済み':'♡ お気に入りに保存';btn.style.background=saved?'#fff1f7':'#fff'};
+    const paint=()=>{
+      btn.textContent=saved?'♥ お気に入り保存済み':'♡ お気に入りに保存';
+      btn.style.background=saved?'#fff1f7':'#fff';
+    };
     try{
       const favs=await BigPawAPI.favorites();
       saved=Array.isArray(favs)&&favs.some(x=>String(x.id)===String(id));
@@ -32,6 +43,8 @@
       saved=false;
     }
     paint();
+    btn.disabled=false;
+
     btn.onclick=async()=>{
       if(!loggedIn){location.href='/login.html';return;}
       btn.disabled=true;
@@ -47,6 +60,7 @@
       }finally{btn.disabled=false;}
     };
   }
+
   const scan=()=>patch(document.getElementById('bigpawFavButton'));
   scan();
   const mo=new MutationObserver(scan);
