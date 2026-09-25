@@ -53,6 +53,16 @@
       const hint=document.createElement('div');hint.id='breedKanaHint';hint.className='muted';hint.style.cssText='font-size:12px;margin-top:6px';hint.textContent='あ行・か行・さ行…の五十音順で選べます。';select.insertAdjacentElement('afterend',hint);
     }
   }
+  function addUnitSuffix(id,unit){
+    const input=document.getElementById(id);if(!input||input.closest('.bp-unit-input'))return;
+    const field=input.closest('.field');
+    const label=field&&field.querySelector('label');
+    if(label)label.textContent=label.textContent.replace(/\s*kg\s*$/i,'');
+    const wrap=document.createElement('div');wrap.className='bp-unit-input';wrap.style.cssText='position:relative;width:100%';
+    input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);input.style.paddingRight='58px';
+    const suffix=document.createElement('span');suffix.textContent=unit;suffix.setAttribute('aria-hidden','true');suffix.style.cssText='position:absolute;right:18px;top:50%;transform:translateY(-50%);pointer-events:none;font-weight:800;color:#766b79;font-size:16px';wrap.appendChild(suffix);
+  }
+  function installWeightUnits(){['weight','adultMin','adultMax'].forEach(id=>addUnitSuffix(id,'kg'))}
   function prepareNewListingDefaults(editId){
     if(editId)return;
     ['color','birth','price','weight','adultMin','adultMax','desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
@@ -61,6 +71,6 @@
     if(father)father.value='未登録';
     if(mother)mother.value='未登録';
   }
-  async function install(){if(!/breeder-puppy-new\.html$/.test(location.pathname))return;const father=document.getElementById('father'),mother=document.getElementById('mother');if(!father||!mother||!window.BigPawAPI)return;const editId=new URLSearchParams(location.search).get('id')||sessionStorage.getItem('bigpawEditPuppyId')||'';populateBreedOptions(editId);prepareNewListingDefaults(editId);const fBox=makePreview('fatherParentPreview','父犬'),mBox=makePreview('motherParentPreview','母犬');father.closest('.field')?.appendChild(fBox);mother.closest('.field')?.appendChild(mBox);try{parents=await BigPawAPI.parentDogs();let currentFather=editId?father.value:'未登録',currentMother=editId?mother.value:'未登録';if(editId&&window.BigPawBridge){try{const ds=await BigPawBridge.breederPuppies();const d=(ds||[]).find(x=>String(x.id)===String(editId));if(d){currentFather=d.father||currentFather;currentMother=d.mother||currentMother}}catch(_e){}}populate(father,'父犬',currentFather);populate(mother,'母犬',currentMother);renderPreview(father,fBox);renderPreview(mother,mBox);father.addEventListener('change',()=>renderPreview(father,fBox));mother.addEventListener('change',()=>renderPreview(mother,mBox));const help=document.createElement('div');help.className='notice';help.style.margin='12px 0 18px';help.innerHTML='父犬・母犬は「親犬管理」に登録した犬から選べます。写真がある場合は、親犬管理で保存した切り取り位置をそのまま表示します。 <a href="parent-dogs.html" style="font-weight:800;text-decoration:underline">親犬管理を開く →</a>';const target=mother.closest('.field')?.parentElement;if(target)target.insertAdjacentElement('afterend',help)}catch(_e){}}
+  async function install(){if(!/breeder-puppy-new\.html$/.test(location.pathname))return;const father=document.getElementById('father'),mother=document.getElementById('mother');if(!father||!mother||!window.BigPawAPI)return;const editId=new URLSearchParams(location.search).get('id')||sessionStorage.getItem('bigpawEditPuppyId')||'';populateBreedOptions(editId);prepareNewListingDefaults(editId);installWeightUnits();const fBox=makePreview('fatherParentPreview','父犬'),mBox=makePreview('motherParentPreview','母犬');father.closest('.field')?.appendChild(fBox);mother.closest('.field')?.appendChild(mBox);try{parents=await BigPawAPI.parentDogs();let currentFather=editId?father.value:'未登録',currentMother=editId?mother.value:'未登録';if(editId&&window.BigPawBridge){try{const ds=await BigPawBridge.breederPuppies();const d=(ds||[]).find(x=>String(x.id)===String(editId));if(d){currentFather=d.father||currentFather;currentMother=d.mother||currentMother}}catch(_e){}}populate(father,'父犬',currentFather);populate(mother,'母犬',currentMother);renderPreview(father,fBox);renderPreview(mother,mBox);father.addEventListener('change',()=>renderPreview(father,fBox));mother.addEventListener('change',()=>renderPreview(mother,mBox));const help=document.createElement('div');help.className='notice';help.style.margin='12px 0 18px';help.innerHTML='父犬・母犬は「親犬管理」に登録した犬から選べます。写真がある場合は、親犬管理で保存した切り取り位置をそのまま表示します。 <a href="parent-dogs.html" style="font-weight:800;text-decoration:underline">親犬管理を開く →</a>';const target=mother.closest('.field')?.parentElement;if(target)target.insertAdjacentElement('afterend',help)}catch(_e){}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
