@@ -43,18 +43,11 @@ elif new not in s:
     raise SystemExit(('bridge_puppy_method_missing',s.count(old),s.count(new)))
 bridge.write_text(s,encoding='utf-8')
 
-# Restore the stable gallery behavior. Every photo keeps a real src so iPhone
-# Safari never shows broken placeholders. Native loading=lazy handles non-hero photos.
 hp=Path('/app/puppy-detail.html')
 html=hp.read_text(encoding='utf-8')
-old_img="var im=document.createElement('img');im.src=u;im.alt=p.breed||'子犬';"
-new_img="var im=document.createElement('img');im.alt=p.breed||'子犬';im.decoding='async';if(i===0){im.loading='eager';im.fetchPriority='high'}else{im.loading='lazy';im.fetchPriority='low'}im.src=u;"
-if old_img in html:
-    html=html.replace(old_img,new_img,1)
-elif new_img not in html:
-    raise SystemExit(('gallery_image_create_missing',html.count(old_img),html.count(new_img)))
 
-# Puppy payload already contains photos, so do not request the same list a second time.
+# The puppy payload already contains the complete photo list. Never issue a
+# second photos request from the detail page.
 extra_fetch="try{var r=await fetch('/api/puppies/'+encodeURIComponent(id)+'/photos',{credentials:'same-origin'});if(r.ok){var j=await r.json();var a=Array.isArray(j)?j:(j.photos||j.items||j.images||[]);a.forEach(function(x){add(typeof x==='string'?x:(x&&(x.url||x.imageUrl||x.path)))})}}catch(_e){}"
 if extra_fetch in html:
     html=html.replace(extra_fetch,'',1)
@@ -73,7 +66,8 @@ rescue_new="(((p.weight||p.currentWeight)===undefined||(p.weight||p.currentWeigh
 if rescue_old in html:
     html=html.replace(rescue_old,rescue_new,1)
 
-# Prioritize the first legacy hero image too.
+# Prioritize the legacy hero while the final gallery initializes. This is only
+# one image and prevents a blank flash on iPhone Safari.
 legacy="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
 legacy_new="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" fetchpriority=\"high\" loading=\"eager\" decoding=\"async\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
 if legacy in html:
@@ -81,20 +75,31 @@ if legacy in html:
 elif legacy_new not in html:
     raise SystemExit(('legacy_hero_missing',html.count(legacy),html.count(legacy_new)))
 
-# Never install the experimental replacement carousel. It raced the built-in
-# gallery on iPhone Safari. Remove direct tags and disable any stale/dynamic load.
+# Remove both old gallery implementations. The old inline grid created every
+# image element at once, and the older replacement carousel had a Safari race.
+# The new stable gallery only requests the currently visible photo and restores
+# left/right navigation without bringing those races back.
+removed=len(re.findall(r'<script id="bigpaw-detail-real-gallery-js">.*?</script>',html,flags=re.S))
+html=re.sub(r'<script id="bigpaw-detail-real-gallery-js">.*?</script>','',html,flags=re.S)
+if removed!=1:
+    raise SystemExit(('legacy_detail_gallery_script_count',removed))
 html=re.sub(r'<script src="/?puppy-gallery-carousel-fix\.js(?:\?v=[^"]*)?"></script>','',html)
 disable='<script id="bigpaw-disable-experimental-gallery">window.__BIGPAW_PUPPY_GALLERY_CAROUSEL_FIX__=true;</script>'
 if disable not in html:
     html=html.replace('</head>',disable+'</head>',1)
 
-# Force Safari to pick up restored scripts after deploy.
-html=re.sub(r'<script src="assets/bridge\.js(?:\?v=[^"]*)?"></script>','<script src="assets/bridge.js?v=20260925stablephotos2"></script>',html,count=1)
-html=re.sub(r'<script src="/?puppy-detail-favorites-fix\.js(?:\?v=[^"]*)?"></script>','<script src="/puppy-detail-favorites-fix.js?v=20260925stablephotos2"></script>',html,count=1)
-html=html.replace('assets/public-parent-dogs.js?v=20260925c','assets/public-parent-dogs.js?v=20260925stablephotos2')
-html=html.replace('assets/public-parent-dogs.js?v=20260925stablephotos1','assets/public-parent-dogs.js?v=20260925stablephotos2')
-html=html.replace('assets/public-parent-genetics.js?v=20260925a','assets/public-parent-genetics.js?v=20260925stablephotos2')
-html=html.replace('assets/public-parent-genetics.js?v=20260925stablephotos1','assets/public-parent-genetics.js?v=20260925stablephotos2')
+# Force Safari to pick up the stable page-cache and favorite integration.
+html=re.sub(r'<script src="assets/bridge\.js(?:\?v=[^"]*)?"></script>','<script src="assets/bridge.js?v=20260926gallery1"></script>',html,count=1)
+html=re.sub(r'<script src="/?puppy-detail-favorites-fix\.js(?:\?v=[^"]*)?"></script>','<script src="/puppy-detail-favorites-fix.js?v=20260926gallery1"></script>',html,count=1)
+html=re.sub(r'assets/public-parent-dogs\.js(?:\?v=[^"\']*)?','assets/public-parent-dogs.js?v=20260926gallery1',html)
+html=re.sub(r'assets/public-parent-genetics\.js(?:\?v=[^"\']*)?','assets/public-parent-genetics.js?v=20260926gallery1',html)
+
+# Stable portrait gallery: 4:5 stage, object-fit contain (no crop), main-photo
+# left/right arrows, swipe support, and only one image requested at a time.
+stable_gallery='<script src="assets/puppy-detail-stable-gallery.js?v=20260926gallery1"></script>'
+if stable_gallery not in html:
+    assert '</body>' in html,'body_close_missing_for_stable_gallery'
+    html=html.replace('</body>',stable_gallery+'</body>',1)
 
 # Add a prominent inquiry CTA directly under the photo gallery.
 top_cta='<script src="assets/puppy-detail-top-inquiry.js?v=20260925a"></script>'
@@ -104,4 +109,4 @@ if top_cta not in html:
 
 hp.write_text(html,encoding='utf-8')
 
-print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=single|gallery=stable_native_lazy|experimental_carousel=disabled|hero=priority|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
+print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=payload_only|gallery=single_visible_image|arrows=restored|portrait=4x5|object_fit=contain|experimental_carousel=disabled|hero=priority|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
