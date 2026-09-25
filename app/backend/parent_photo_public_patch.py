@@ -1,6 +1,6 @@
 from pathlib import Path
 
-p=Path(__file__).with_name('server.py')
+p=Path('/app/backend/server.py')
 s=p.read_text(encoding='utf-8')
 
 old="""            con=db(); hidden=con.execute('SELECT 1 FROM uploads WHERE stored_name=? AND puppy_id IS NULL LIMIT 1',(name,)).fetchone(); con.close()
