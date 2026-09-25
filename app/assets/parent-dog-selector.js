@@ -1,8 +1,10 @@
 (()=>{
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num=(v,d)=>Number.isFinite(Number(v))?Number(v):d;
   let parents=[];
 
   function imageOf(d){return d&&(d.image_url||d.imageUrl)||''}
+  function layoutOf(d){return {x:num(d&&(d.image_pos_x??d.imagePosX),50),y:num(d&&(d.image_pos_y??d.imagePosY),50),z:num(d&&(d.image_zoom??d.imageZoom),1)}}
   function makePreview(id,label){
     const box=document.createElement('div');
     box.id=id;
@@ -17,8 +19,8 @@
     box.style.display='flex';
     box.querySelector('[data-parent-name]').textContent=dog.name||'';
     box.querySelector('[data-parent-meta]').textContent=[dog.breed,dog.color].filter(Boolean).join('・');
-    const photo=box.querySelector('[data-parent-photo]'),url=imageOf(dog);
-    photo.innerHTML=url?`<img src="${esc(url)}" alt="${esc(dog.name||'親犬')}" style="width:100%;height:100%;object-fit:cover">`:'🐩';
+    const photo=box.querySelector('[data-parent-photo]'),url=imageOf(dog),a=layoutOf(dog);
+    photo.innerHTML=url?`<img src="${esc(url)}" alt="${esc(dog.name||'親犬')}" style="width:100%;height:100%;object-fit:cover;object-position:${a.x}% ${a.y}%;transform:scale(${a.z});transform-origin:${a.x}% ${a.y}%;display:block">`:'🐩';
     box.querySelector('[data-parent-note]').textContent=url?'親犬管理に登録された写真':'写真未登録（写真は任意です）';
   }
   function populate(select,sex,currentValue){
@@ -49,7 +51,7 @@
       populate(father,'父犬',currentFather);populate(mother,'母犬',currentMother);
       renderPreview(father,fBox);renderPreview(mother,mBox);
       father.addEventListener('change',()=>renderPreview(father,fBox));mother.addEventListener('change',()=>renderPreview(mother,mBox));
-      const help=document.createElement('div');help.className='notice';help.style.margin='12px 0 18px';help.innerHTML='父犬・母犬は「親犬管理」に登録した犬から選べます。写真を登録してある場合はここに表示されます。写真登録は任意です。 <a href="parent-dogs.html" style="font-weight:800;text-decoration:underline">親犬管理を開く →</a>';
+      const help=document.createElement('div');help.className='notice';help.style.margin='12px 0 18px';help.innerHTML='父犬・母犬は「親犬管理」に登録した犬から選べます。写真を登録してある場合は、親犬管理で調整した位置・拡大率のまま表示されます。写真登録は任意です。 <a href="parent-dogs.html" style="font-weight:800;text-decoration:underline">親犬管理を開く →</a>';
       const target=mother.closest('.field')?.parentElement;if(target)target.insertAdjacentElement('afterend',help);
     }catch(_e){
       // Existing static selections remain usable if parent-dog API is temporarily unavailable.
