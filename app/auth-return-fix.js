@@ -54,6 +54,26 @@
     try{ await fetch('/api/logout',{method:'POST',credentials:'include'}); }catch(e){}
     history.replaceState(null,'',target);
   }
+  function showLogoutButton(target){
+    const show=()=>{
+      if(document.getElementById('bigpaw-admin-logout')) return;
+      const b=document.createElement('button');
+      b.id='bigpaw-admin-logout';
+      b.type='button';
+      b.textContent='ログアウト';
+      b.style.cssText='position:fixed;top:12px;right:12px;z-index:100000;border:1px solid #d8c7d3;border-radius:12px;padding:9px 14px;background:#fff;color:#5b4b62;font-weight:700;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.08)';
+      b.addEventListener('click',async()=>{
+        if(b.disabled) return;
+        b.disabled=true;
+        b.textContent='ログアウト中…';
+        try{ await fetch('/api/logout',{method:'POST',credentials:'include'}); }catch(e){}
+        sessionStorage.removeItem(LAST);
+        location.replace(target);
+      });
+      document.body&&document.body.appendChild(b);
+    };
+    document.readyState==='loading'?document.addEventListener('DOMContentLoaded',show,{once:true}):show();
+  }
   async function loadOwnParentDogs(){
     if(!p.endsWith('/breeder-puppy-new.html')) return;
     try{
@@ -124,6 +144,9 @@
 
   currentRole().then(role=>{
     if(!role){ goLogin(need==='operator'?operatorLogin:login); return; }
+    if((p.endsWith('/admin.html')||p.endsWith('/operator-admin.html'))&&role){
+      showLogoutButton(p.endsWith('/operator-admin.html')?operatorLogin:login);
+    }
     if(need==='auth') return;
 
     if(need==='breeder' && (role==='breeder' || role==='operator')){
