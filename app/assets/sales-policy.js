@@ -28,11 +28,11 @@
     wrap.style.marginTop='22px';
     wrap.innerHTML=`
       <h2>販売・繁殖条件</h2>
-      <div class="notice" style="margin-bottom:14px">購入希望者がお問い合わせ前に確認できる情報です。不可にする場合は理由を選択してください。</div>
+      <div class="notice" style="margin-bottom:14px">購入希望者がお問い合わせ前に確認できる情報です。可否を選択し、不可の場合は理由を選んでください。</div>
       <div class="form-grid">
         <div class="field">
           <label>この子犬での繁殖</label>
-          <select id="breedingAllowed"><option value="1">繁殖可</option><option value="0">繁殖不可</option></select>
+          <select id="breedingAllowed" required><option value="">選択してください</option><option value="1">繁殖可</option><option value="0">繁殖不可</option></select>
         </div>
         <div class="field" id="breedingReasonField" style="display:none">
           <label>繁殖不可の理由</label>
@@ -40,7 +40,7 @@
         </div>
         <div class="field">
           <label>ブリーダーへの販売</label>
-          <select id="breederSaleAllowed"><option value="1">販売可</option><option value="0">販売不可</option></select>
+          <select id="breederSaleAllowed" required><option value="">選択してください</option><option value="1">販売可</option><option value="0">販売不可</option></select>
         </div>
         <div class="field" id="breederSaleReasonField" style="display:none">
           <label>ブリーダーへの販売不可の理由</label>
@@ -58,12 +58,15 @@
     };
     breedingAllowed.addEventListener('change',sync);breederSaleAllowed.addEventListener('change',sync);sync();
 
-    const augment=payload=>Object.assign({},payload,{
-      breedingAllowed:breedingAllowed.value==='1',
-      breedingNgReason:breedingAllowed.value==='0'?document.getElementById('breedingNgReason').value:'',
-      breederSaleAllowed:breederSaleAllowed.value==='1',
-      breederSaleNgReason:breederSaleAllowed.value==='0'?document.getElementById('breederSaleNgReason').value:''
-    });
+    const augment=payload=>{
+      if(!['0','1'].includes(breedingAllowed.value)||!['0','1'].includes(breederSaleAllowed.value))return Object.assign({},payload);
+      return Object.assign({},payload,{
+        breedingAllowed:breedingAllowed.value==='1',
+        breedingNgReason:breedingAllowed.value==='0'?document.getElementById('breedingNgReason').value:'',
+        breederSaleAllowed:breederSaleAllowed.value==='1',
+        breederSaleNgReason:breederSaleAllowed.value==='0'?document.getElementById('breederSaleNgReason').value:''
+      });
+    };
     if(window.BigPawBridge&&!BigPawBridge.__salesPolicyWrapped){
       const add=BigPawBridge.addPuppy.bind(BigPawBridge),update=BigPawBridge.updatePuppy.bind(BigPawBridge);
       BigPawBridge.addPuppy=(payload)=>add(augment(payload));
@@ -74,10 +77,12 @@
     if(editId&&window.BigPawBridge){
       BigPawBridge.breederPuppies().then(ds=>{
         const d=(ds||[]).find(x=>String(x.id)===String(editId));if(!d)return;
-        breedingAllowed.value=d.breedingAllowed===false?'0':'1';
-        breederSaleAllowed.value=d.breederSaleAllowed===false?'0':'1';
-        if(d.breedingNgReason&&BREEDING_REASONS.includes(d.breedingNgReason))document.getElementById('breedingNgReason').value=d.breedingNgReason;
-        if(d.breederSaleNgReason&&BREEDER_SALE_REASONS.includes(d.breederSaleNgReason))document.getElementById('breederSaleNgReason').value=d.breederSaleNgReason;
+        if(d.salesPolicySet){
+          breedingAllowed.value=d.breedingAllowed===false?'0':'1';
+          breederSaleAllowed.value=d.breederSaleAllowed===false?'0':'1';
+          if(d.breedingNgReason&&BREEDING_REASONS.includes(d.breedingNgReason))document.getElementById('breedingNgReason').value=d.breedingNgReason;
+          if(d.breederSaleNgReason&&BREEDER_SALE_REASONS.includes(d.breederSaleNgReason))document.getElementById('breederSaleNgReason').value=d.breederSaleNgReason;
+        }
         sync();
       }).catch(()=>{});
     }
@@ -87,7 +92,7 @@
     if(!/puppy-detail\.html$/.test(location.pathname)||document.getElementById('bigpawSalesPolicyPublic'))return;
     const id=new URLSearchParams(location.search).get('id');if(!id||!window.BigPawBridge)return;
     try{
-      const p=await BigPawBridge.puppy(id);if(!p)return;
+      const p=await BigPawBridge.puppy(id);if(!p||!p.salesPolicySet)return;
       const cards=[...document.querySelectorAll('.card.pad')];
       const about=cards.find(x=>x.querySelector('h2')&&x.querySelector('h2').textContent.includes('この子について'));
       if(!about)return;
