@@ -112,7 +112,18 @@ for html_name,tags in page_tags.items():
             html=html.replace('</body>',tag+'</body>',1)
     hp.write_text(html,encoding='utf-8')
 
+# New puppy listings must not show DOG44 sample parents before the selector script loads.
+puppy_form=Path('/app/breeder-puppy-new.html')
+form_html=puppy_form.read_text(encoding='utf-8')
+old_father='<select id="father"><option>クラージュ</option><option>未登録</option></select>'
+old_mother='<select id="mother"><option>ミルク</option><option>アメリー</option><option>シャルム</option><option>未登録</option></select>'
+new_parent='<select id="{id}"><option value="">選択してください</option><option value="未登録">未登録</option></select>'
+assert form_html.count(old_father)==1,('preset_father_count',form_html.count(old_father))
+assert form_html.count(old_mother)==1,('preset_mother_count',form_html.count(old_mother))
+form_html=form_html.replace(old_father,new_parent.format(id='father'),1).replace(old_mother,new_parent.format(id='mother'),1)
+puppy_form.write_text(form_html,encoding='utf-8')
+
 # Apply edge-position preservation and mobile cache-busting after the generated routes/tags exist.
 exec(Path('/app/backend/parent_photo_runtime_fix.py').read_text(encoding='utf-8'))
 
-print('PARENT_PHOTO_LAYOUT_OK|position_xy=stored|zoom=stored|public_puppy_parents=attached|genetics=editable_public|breed_suggestions=60|parent_entry=prominent|owner_scoped=1',flush=True)
+print('PARENT_PHOTO_LAYOUT_OK|position_xy=stored|zoom=stored|public_puppy_parents=attached|genetics=editable_public|breed_suggestions=60|parent_entry=prominent|owner_scoped=1|new_parent_defaults=blank',flush=True)
