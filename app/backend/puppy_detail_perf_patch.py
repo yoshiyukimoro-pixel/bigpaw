@@ -1,9 +1,7 @@
 from pathlib import Path
 import re
 
-# Share and cache a puppy response for the lifetime of one page. The public
-# detail page has more than one renderer; without a page-local resolved cache a
-# second renderer can issue another GET just after the first request completes.
+# Share and cache a puppy response for the lifetime of one page.
 bridge=Path('/app/assets/bridge.js')
 s=bridge.read_text(encoding='utf-8')
 marker='  window.BigPawBridge={'
@@ -51,8 +49,7 @@ extra_fetch="try{var r=await fetch('/api/puppies/'+encodeURIComponent(id)+'/phot
 if extra_fetch in html:
     html=html.replace(extra_fetch,'',1)
 
-# The dedicated favorite integration owns favorite state; avoid the legacy
-# renderer issuing the same favorites request again on page load.
+# Dedicated favorite integration owns favorite state; avoid a duplicate request.
 legacy_fav="try{const favs=await BigPawBridge.favorites();faved=favs.some(x=>String(x.id)===String(p.id))}catch(e){faved=false}refreshFav()"
 if legacy_fav in html:
     html=html.replace(legacy_fav,'faved=false;refreshFav()',1)
@@ -69,15 +66,21 @@ rescue_new="(((p.weight||p.currentWeight)===undefined||(p.weight||p.currentWeigh
 if rescue_old in html:
     html=html.replace(rescue_old,rescue_new,1)
 
+# The stable gallery is the only code allowed to load the hero image. The base
+# renderer keeps an emoji placeholder, eliminating the duplicate hero download
+# that was visible in iPhone Safari request logs.
 legacy="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
-legacy_new="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" fetchpriority=\"high\" loading=\"eager\" decoding=\"async\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
+legacy_eager="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" fetchpriority=\"high\" loading=\"eager\" decoding=\"async\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
+legacy_safe="mainPhoto.innerHTML=dogEmoji(p);"
 if legacy in html:
-    html=html.replace(legacy,legacy_new,1)
-elif legacy_new not in html:
-    raise SystemExit(('legacy_hero_missing',html.count(legacy),html.count(legacy_new)))
+    html=html.replace(legacy,legacy_safe,1)
+elif legacy_eager in html:
+    html=html.replace(legacy_eager,legacy_safe,1)
+elif legacy_safe not in html:
+    raise SystemExit(('legacy_hero_missing',html.count(legacy),html.count(legacy_eager),html.count(legacy_safe)))
 
 # Remove the old grid and experimental carousel. The public-only gallery uses
-# one square hero plus the thumbnail strip; breeder photo editing is separate.
+# one square hero plus a delayed thumbnail strip; breeder editing is separate.
 removed=len(re.findall(r'<script id="bigpaw-detail-real-gallery-js">.*?</script>',html,flags=re.S))
 html=re.sub(r'<script id="bigpaw-detail-real-gallery-js">.*?</script>','',html,flags=re.S)
 if removed!=1:
@@ -87,12 +90,12 @@ disable='<script id="bigpaw-disable-experimental-gallery">window.__BIGPAW_PUPPY_
 if disable not in html:
     html=html.replace('</head>',disable+'</head>',1)
 
-html=re.sub(r'<script src="assets/bridge\.js(?:\?v=[^"]*)?"></script>','<script src="assets/bridge.js?v=20260926gallery3"></script>',html,count=1)
-html=re.sub(r'<script src="/?puppy-detail-favorites-fix\.js(?:\?v=[^"]*)?"></script>','<script src="/puppy-detail-favorites-fix.js?v=20260926gallery3"></script>',html,count=1)
-html=re.sub(r'assets/public-parent-dogs\.js(?:\?v=[^"\']*)?','assets/public-parent-dogs.js?v=20260926gallery3',html)
-html=re.sub(r'assets/public-parent-genetics\.js(?:\?v=[^"\']*)?','assets/public-parent-genetics.js?v=20260926gallery3',html)
+html=re.sub(r'<script src="assets/bridge\.js(?:\?v=[^"]*)?"></script>','<script src="assets/bridge.js?v=20260926gallery4"></script>',html,count=1)
+html=re.sub(r'<script src="/?puppy-detail-favorites-fix\.js(?:\?v=[^"]*)?"></script>','<script src="/puppy-detail-favorites-fix.js?v=20260926gallery4"></script>',html,count=1)
+html=re.sub(r'assets/public-parent-dogs\.js(?:\?v=[^"\']*)?','assets/public-parent-dogs.js?v=20260926gallery4',html)
+html=re.sub(r'assets/public-parent-genetics\.js(?:\?v=[^"\']*)?','assets/public-parent-genetics.js?v=20260926gallery4',html)
 
-stable_gallery='<script src="assets/puppy-detail-stable-gallery.js?v=20260926gallery3"></script>'
+stable_gallery='<script src="assets/puppy-detail-stable-gallery.js?v=20260926gallery4"></script>'
 if stable_gallery not in html:
     assert '</body>' in html,'body_close_missing_for_stable_gallery'
     html=html.replace('</body>',stable_gallery+'</body>',1)
@@ -103,5 +106,4 @@ if top_cta not in html:
     html=html.replace('</body>',top_cta+'</body>',1)
 
 hp.write_text(html,encoding='utf-8')
-
-print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=payload_only|favorites=single_owner|gallery=public_square_main_plus_thumbnails|thumbs=small_variants|swipe=enabled|mobile_arrows=hidden|breeder_editor=separate|experimental_carousel=disabled|hero=priority|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
+print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=payload_only|favorites=single_owner|gallery=single_hero_plus_delayed_thumbnails|hero_duplicate=disabled|hero_prefetch=disabled|thumbs=small_delayed_variants|swipe=enabled|mobile_arrows=hidden|breeder_editor=separate|experimental_carousel=disabled|birth=canonical|weight_unit=kg|top_inquiry=enabled',flush=True)
