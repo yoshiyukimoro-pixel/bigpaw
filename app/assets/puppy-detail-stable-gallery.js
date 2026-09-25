@@ -15,7 +15,10 @@ function collectUrls(p){
 function mediaUrl(url,kind){
   const s=String(url||'');
   if(!s)return s;
-  if(s.startsWith('/media/'))return s.replace(/([?&])kind=[^&]*/,'$1kind='+kind).replace(/\?$/,'?kind='+kind)+(s.includes('kind=')?'':(s.includes('?')?'&':'?')+'kind='+kind);
+  if(s.startsWith('/media/')){
+    if(/([?&])kind=/.test(s))return s.replace(/([?&])kind=[^&]*/,'$1kind='+kind);
+    return s+(s.includes('?')?'&':'?')+'kind='+kind;
+  }
   if(s.startsWith('/uploads/'))return '/media/'+encodeURIComponent(s.split('/').pop())+'?kind='+kind;
   return s;
 }
@@ -71,34 +74,34 @@ async function init(){
   const help=document.createElement('div');help.className='bpsg-help';help.textContent=urls.length>1?'写真を左右にスワイプ、または下の写真をタップして切り替え':'メイン写真';root.appendChild(help);
   old.replaceWith(root);
 
-  let index=0,loadToken=0,startX=null,startY=null;
-  const loadedThumbs=new Set(),queuedThumbs=new Set(),prefetchedHeroes=new Set();
-  function loadThumb(i){
+  let index=0,loadToken=0,startX=null,startY=null,thumbBatchTimer=null;
+  const loadedThumbs=new Set(),queuedThumbs=new Set();
+  function loadThumb(i,delay=0){
     if(i<0||i>=urls.length||loadedThumbs.has(i)||queuedThumbs.has(i))return;
     queuedThumbs.add(i);
     const run=()=>{
-      if(loadedThumbs.has(i))return;
-      const b=thumbButtons[i];if(!b)return;
+      if(loadedThumbs.has(i)){queuedThumbs.delete(i);return}
+      const b=thumbButtons[i];if(!b){queuedThumbs.delete(i);return}
       const ti=document.createElement('img');ti.alt='';ti.loading='lazy';ti.decoding='async';ti.fetchPriority='low';
       ti.onload=()=>{loadedThumbs.add(i);queuedThumbs.delete(i);const ph=b.querySelector('.bpsg-thumb-placeholder');if(ph)ph.remove()};
       ti.onerror=()=>{queuedThumbs.delete(i)};
       ti.src=mediaUrl(urls[i],'thumb');b.appendChild(ti);
     };
-    if('requestIdleCallback'in window)requestIdleCallback(run,{timeout:700});else setTimeout(run,Math.min(420,i*45));
-  }
-  function prefetchHero(i){
-    if(i<0||i>=urls.length||prefetchedHeroes.has(i)||i===index)return;
-    prefetchedHeroes.add(i);const run=()=>{const pre=new Image();pre.decoding='async';pre.src=mediaUrl(urls[i],'hero')};
-    if('requestIdleCallback'in window)requestIdleCallback(run,{timeout:1200});else setTimeout(run,250);
+    setTimeout(()=>{
+      if('requestIdleCallback'in window)requestIdleCallback(run,{timeout:1000});else run();
+    },delay);
   }
   function loadVisibleThumbs(){
-    const r=thumbs.getBoundingClientRect();
-    thumbButtons.forEach((b,i)=>{const br=b.getBoundingClientRect();if(br.right>=r.left-50&&br.left<=r.right+50)loadThumb(i)});
+    const r=thumbs.getBoundingClientRect();let step=0;
+    thumbButtons.forEach((b,i)=>{const br=b.getBoundingClientRect();if(br.right>=r.left-40&&br.left<=r.right+40){loadThumb(i,step*120);step++}});
+  }
+  function scheduleVisibleThumbs(){
+    clearTimeout(thumbBatchTimer);
+    thumbBatchTimer=setTimeout(loadVisibleThumbs,650);
   }
   function paintThumbs(){
     thumbButtons.forEach((b,i)=>b.classList.toggle('active',i===index));
-    const active=thumbButtons[index];if(active){try{active.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}catch(_e){}}
-    loadThumb(index);requestAnimationFrame(loadVisibleThumbs);
+    const active=thumbButtons[index];if(active){try{active.scrollIntoView({behavior:'auto',block:'nearest',inline:'center'})}catch(_e){}}
   }
   function show(n){
     index=(n+urls.length)%urls.length;
@@ -106,16 +109,17 @@ async function init(){
     loading.textContent='写真を読み込み中…';loading.style.display='flex';
     count.textContent=(index+1)+' / '+urls.length;
     const one=urls.length<2;prev.style.display=one?'none':'flex';next.style.display=one?'none':'flex';
-    img.onload=()=>{if(token===loadToken){loading.style.display='none';setTimeout(loadVisibleThumbs,50);prefetchHero((index+1)%urls.length);prefetchHero((index-1+urls.length)%urls.length)}};
+    paintThumbs();
+    img.onload=()=>{if(token===loadToken){loading.style.display='none';loadThumb(index,180);scheduleVisibleThumbs()}};
     img.onerror=()=>{if(token===loadToken){loading.textContent='写真を読み込めませんでした';loading.style.display='flex'}};
-    img.src=mediaUrl(urls[index],'hero');paintThumbs();
+    img.src=mediaUrl(urls[index],'hero');
   }
   prev.onclick=e=>{e.preventDefault();e.stopPropagation();show(index-1)};
   next.onclick=e=>{e.preventDefault();e.stopPropagation();show(index+1)};
   stage.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;startX=e.touches[0].clientX;startY=e.touches[0].clientY},{passive:true});
   stage.addEventListener('touchend',e=>{if(startX==null||!e.changedTouches.length)return;const dx=e.changedTouches[0].clientX-startX,dy=e.changedTouches[0].clientY-startY;startX=startY=null;if(Math.abs(dx)>34&&Math.abs(dx)>Math.abs(dy)*1.1)show(index+(dx<0?1:-1))},{passive:true});
-  thumbs.addEventListener('scroll',()=>requestAnimationFrame(loadVisibleThumbs),{passive:true});
-  addEventListener('resize',()=>requestAnimationFrame(loadVisibleThumbs),{passive:true});
+  thumbs.addEventListener('scroll',scheduleVisibleThumbs,{passive:true});
+  addEventListener('resize',scheduleVisibleThumbs,{passive:true});
 
   const fav=document.getElementById('bigpawFavButton')||document.createElement('button');
   if(!fav.id){fav.id='bigpawFavButton';fav.type='button';fav.textContent='♡ お気に入りに保存';root.insertAdjacentElement('afterend',fav)}
