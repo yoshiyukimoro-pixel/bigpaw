@@ -38,10 +38,11 @@
       .bp-genetics-edit-row{margin-top:8px}.bp-genetics-edit-row input,.bp-genetics-edit-row select{width:100%;min-width:0;border:1px solid #cbdcf4;border-radius:10px;padding:10px;background:#fff;font:inherit}
       .bp-genetics-remove{width:40px;height:40px;border:1px solid #d9e4f3;border-radius:10px;background:#fff;color:#657b97;font-size:20px;line-height:1}
       .bp-genetics-add{margin-top:10px}.bp-genetics-help{display:block;margin-top:8px;font-size:12px;color:#7d8da2;line-height:1.55}
-      .bp-genetics-view{margin-top:10px;border:1px solid #dce7f7;border-radius:12px;overflow:hidden;background:#fff}
+      .bp-genetics-block{margin-top:14px;padding-top:12px;border-top:1px solid #e4edf8}.bp-genetics-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.bp-genetics-title b{font-size:14px}.bp-genetics-edit-btn{border:1px solid #cbdcf4;background:#fff;color:#426895;border-radius:10px;padding:7px 9px;font-weight:800;font-size:12px}
+      .bp-genetics-view{margin-top:8px;border:1px solid #dce7f7;border-radius:12px;overflow:hidden;background:#fff}
       .bp-genetics-view-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border-top:1px solid #e7eef8;font-size:13px}.bp-genetics-view-row:first-child{border-top:0}.bp-genetics-view-row span{min-width:0;line-height:1.45}.bp-genetics-view-row b{white-space:nowrap;color:#3f6d9f}
       .bp-genetics-empty{font-size:13px;color:#8c9bae;padding:8px 0}
-      @media(max-width:520px){.bp-genetics-head,.bp-genetics-edit-row{grid-template-columns:minmax(0,1fr) 96px 36px;gap:6px}.bp-genetics-edit-row input,.bp-genetics-edit-row select{padding:9px 8px;font-size:14px}.bp-genetics-remove{width:36px;height:38px}}
+      @media(max-width:520px){.bp-genetics-head,.bp-genetics-edit-row{grid-template-columns:minmax(0,1fr) 96px 36px;gap:6px}.bp-genetics-edit-row input,.bp-genetics-edit-row select{padding:9px 8px;font-size:14px}.bp-genetics-remove{width:36px;height:38px}.bp-genetics-view-row{font-size:12px;padding:8px}}
     `;
     document.head.appendChild(s);
   }
@@ -105,7 +106,27 @@
     finally{btn.disabled=false}
   }
 
+  function decorateManagedCards(){
+    const list=window.__BIGPAW_PARENT_DOGS||[],host=document.getElementById('parentList');if(!host||!list.length)return;
+    const cards=[...host.children].filter(x=>x.classList.contains('card')&&!x.classList.contains('empty'));
+    cards.forEach((card,i)=>{
+      const d=list[i];if(!d||card.querySelector('.bp-genetics-block'))return;
+      const pad=card.querySelector('.pad');if(!pad)return;
+      [...pad.querySelectorAll(':scope > p.muted')].forEach(p=>{if(String(p.textContent||'').trim()===String(d.genetics||'').trim())p.remove()});
+      const block=document.createElement('div');block.className='bp-genetics-block';
+      block.innerHTML=`<div class="bp-genetics-title"><b>🧬 遺伝子検査</b><button type="button" class="bp-genetics-edit-btn">登録・編集</button></div>${render(d.genetics,{empty:true})}`;
+      block.querySelector('button').onclick=()=>open(d.id);
+      const health=[...pad.querySelectorAll('a')].find(a=>String(a.getAttribute('href')||'').includes('health-records.html'));
+      if(health)pad.insertBefore(block,health);else pad.appendChild(block);
+    });
+  }
+  function watchCards(){
+    const host=document.getElementById('parentList');if(!host)return;
+    new MutationObserver(()=>setTimeout(decorateManagedCards,0)).observe(host,{childList:true});
+    setTimeout(decorateManagedCards,60);
+  }
+
   window.BigPawParentGenetics={open,render,parse,serialize};
-  function start(){ensureCss();ensureDatalist();installCreateEditor();ensureEditModal()}
+  function start(){ensureCss();ensureDatalist();installCreateEditor();ensureEditModal();watchCards()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
