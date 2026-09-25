@@ -13,6 +13,7 @@ RUN ["python3", "backend/video_provider_patch.py"]
 RUN ["python3", "backend/visit_contact_patch.py"]
 RUN ["python3", "backend/sales_policy_patch.py"]
 RUN ["python3", "backend/parent_photo_layout_patch.py"]
+RUN ["python3", "backend/puppy_detail_perf_patch.py"]
 RUN ["python3", "backend/profile_privacy_patch.py"]
 ENV PORT=8080
 EXPOSE 8080
