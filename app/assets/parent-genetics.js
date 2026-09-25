@@ -1,7 +1,7 @@
 (()=>{
   if(!/\/parent-dogs\.html$/.test(location.pathname))return;
 
-  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   const COMMON=[
     'DM（変性性脊髄症）',
     'PRA（prcd／進行性網膜萎縮症）',
@@ -77,7 +77,7 @@
     const label=field.querySelector('label');if(label)label.textContent='遺伝子検査（任意）';
     ta.style.display='none';ta.setAttribute('aria-hidden','true');
     const ed=document.createElement('div');ed.id='bpCreateGeneticsEditor';ed.className='bp-genetics-editor';
-    ed.innerHTML='<div class="bp-genetics-head"><span>検査項目</span><span>結果</span><span></span></div><div id="bpCreateGeneticsRows"></div><button type="button" class="btn btn-sub bp-genetics-add" id="bpCreateGeneticsAdd">＋ 検査を追加</button><small class="bp-genetics-help">検査名は自由に入力できます。DM・PRA・vWDなどは候補から選べます。結果は「クリア」と表示できます。</small>';
+    ed.innerHTML='<div class="bp-genetics-head"><span>検査項目</span><span>結果</span><span></span></div><div id="bpCreateGeneticsRows"></div><button type="button" class="btn btn-sub bp-genetics-add" id="bpCreateGeneticsAdd">＋ 検査を追加</button><small class="bp-genetics-help">検査名は自由に入力できます。犬種別候補がある場合は上に表示されます。結果は「クリア」と表示できます。</small>';
     field.appendChild(ed);createRows=ed.querySelector('#bpCreateGeneticsRows');
     const existing=parse(ta.value);(existing.length?existing:[{}]).forEach(x=>addRow(createRows,x));
     ed.querySelector('#bpCreateGeneticsAdd').onclick=()=>{const r=addRow(createRows);r.querySelector('input')?.focus()};syncCreate();
@@ -115,7 +115,7 @@
       [...pad.querySelectorAll(':scope > p.muted')].forEach(p=>{if(String(p.textContent||'').trim()===String(d.genetics||'').trim())p.remove()});
       const block=document.createElement('div');block.className='bp-genetics-block';
       block.innerHTML=`<div class="bp-genetics-title"><b>🧬 遺伝子検査</b><button type="button" class="bp-genetics-edit-btn">登録・編集</button></div>${render(d.genetics,{empty:true})}`;
-      block.querySelector('button').onclick=()=>open(d.id);
+      block.querySelector('button').onclick=()=>window.BigPawParentGenetics.open(d.id);
       const health=[...pad.querySelectorAll('a')].find(a=>String(a.getAttribute('href')||'').includes('health-records.html'));
       if(health)pad.insertBefore(block,health);else pad.appendChild(block);
     });
