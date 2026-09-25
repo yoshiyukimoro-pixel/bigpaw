@@ -11,6 +11,7 @@ RUN ["python3", "backend/final_patch.py"]
 RUN ["python3", "backend/contract_patch.py"]
 RUN ["python3", "backend/video_provider_patch.py"]
 RUN ["python3", "backend/visit_contact_patch.py"]
+RUN ["python3", "backend/sales_policy_patch.py"]
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
