@@ -94,8 +94,25 @@ b="""            body=self.json_body();
 assert s.count(a)==1,('privacy_profile_edit_guard_marker',s.count(a))
 s=s.replace(a,b,1)
 
+# Operator management must see every registered breeder, including suspended/non-public accounts.
+op_marker="        if path=='/api/operator/listings':\n"
+op_route="""        if path=='/api/operator/breeders':
+            u=self.require(['operator']);
+            if not u:return
+            con=db(); sync_breeder_billing_suspension(con); con.commit()
+            rows=con.execute('''SELECT b.*,
+                (SELECT COUNT(*) FROM puppies p WHERE p.breeder_id=b.id) puppy_count,
+                (SELECT COUNT(*) FROM inquiries i WHERE i.breeder_id=b.id) inquiry_count,
+                (SELECT COUNT(*) FROM deals d WHERE d.breeder_id=b.id) deal_count
+                FROM breeders b ORDER BY b.kennel_name,b.id''').fetchall(); con.close()
+            return self.send_json([dict(r) for r in rows])
+"""
+assert s.count(op_marker)==1,('operator_breeders_route_marker',s.count(op_marker))
+s=s.replace(op_marker,op_route+op_marker,1)
+
 p.write_text(s,encoding='utf-8')
 print('PROFILE_PRIVACY_GUARD_OK|kennel_name=blocked|representative=blocked|exact_address=blocked|rough_access=allowed',flush=True)
+print('OPERATOR_BREEDERS_API_OK|all_registered=visible|suspended=visible|counts=included',flush=True)
 
 # Final build gate: after every backend patch has run, fail the deployment if
 # role separation or ownership checks have accidentally regressed.
