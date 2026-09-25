@@ -54,9 +54,15 @@ assert html.count(legacy)==1,('legacy_hero_count',html.count(legacy))
 html=html.replace(legacy,legacy_new,1)
 
 # Force Safari to pick up the optimized scripts after deploy.
-html=html.replace('<script src="assets/bridge.js"></script>','<script src="assets/bridge.js?v=20260925perf4"></script>',1)
-html=html.replace('assets/public-parent-dogs.js?v=20260925c','assets/public-parent-dogs.js?v=20260925perf4')
-html=html.replace('assets/public-parent-genetics.js?v=20260925a','assets/public-parent-genetics.js?v=20260925perf4')
+html=html.replace('<script src="assets/bridge.js"></script>','<script src="assets/bridge.js?v=20260925perf5"></script>',1)
+html=html.replace('assets/public-parent-dogs.js?v=20260925c','assets/public-parent-dogs.js?v=20260925perf5')
+html=html.replace('assets/public-parent-genetics.js?v=20260925a','assets/public-parent-genetics.js?v=20260925perf5')
+
+# Always load exactly one current carousel script. This cache-bust is important on iPhone Safari.
+html=re.sub(r'<script src="puppy-gallery-carousel-fix\.js(?:\?v=[^"]*)?"></script>','',html)
+carousel='<script src="puppy-gallery-carousel-fix.js?v=20260925galleryfix1"></script>'
+assert '</body>' in html,'body_close_missing_for_gallery'
+html=html.replace('</body>',carousel+'</body>',1)
 
 # Add a prominent inquiry CTA directly under the photo gallery, next to the favorite action.
 top_cta='<script src="assets/puppy-detail-top-inquiry.js?v=20260925a"></script>'
@@ -66,4 +72,4 @@ if top_cta not in html:
 
 hp.write_text(html,encoding='utf-8')
 
-print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=single|gallery=hero_only_first|hero=priority|birth=canonical|top_inquiry=enabled',flush=True)
+print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=single|gallery=hero_only_first|gallery_source=stable_uploads|hero=priority|birth=canonical|top_inquiry=enabled',flush=True)
