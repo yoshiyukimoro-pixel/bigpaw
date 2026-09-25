@@ -1,17 +1,15 @@
 from pathlib import Path
 import re
 
-# Deduplicate puppy-detail API requests for the lifetime of the page.
+# Deduplicate simultaneous puppy-detail API requests made by multiple page modules.
 bridge=Path('/app/assets/bridge.js')
 s=bridge.read_text(encoding='utf-8')
 marker='  window.BigPawBridge={'
 helper="""  const puppyInflight=new Map();
-  const puppyCache=new Map();
   function sharedPuppy(id){
     const key=String(id||'');
-    if(puppyCache.has(key))return Promise.resolve(puppyCache.get(key));
     if(puppyInflight.has(key))return puppyInflight.get(key);
-    const req=Promise.resolve().then(()=>fallbackable(()=>BigPawAPI.puppy(id),()=>BigPaw.getPuppy(id))).then(value=>{puppyCache.set(key,value);return value});
+    const req=Promise.resolve().then(()=>fallbackable(()=>BigPawAPI.puppy(id),()=>BigPaw.getPuppy(id)));
     puppyInflight.set(key,req);
     req.finally(()=>{if(puppyInflight.get(key)===req)puppyInflight.delete(key)});
     return req;
@@ -26,26 +24,24 @@ assert s.count(old)==1,('bridge_puppy_method_count',s.count(old))
 s=s.replace(old,new,1)
 bridge.write_text(s,encoding='utf-8')
 
-# First paint must request only the hero image. Non-hero URLs are kept in data-src
-# so Safari cannot eagerly download the whole gallery before the hero is visible.
+# Restore the last stable gallery behavior. Every photo keeps a real src so iPhone Safari
+# never shows broken placeholders. Native loading=lazy handles non-hero photos.
 hp=Path('/app/puppy-detail.html')
 html=hp.read_text(encoding='utf-8')
 old_img="var im=document.createElement('img');im.src=u;im.alt=p.breed||'子犬';"
-new_img="var im=document.createElement('img');im.alt=p.breed||'子犬';im.decoding='async';if(i===0){im.loading='eager';im.fetchPriority='high';im.src=u}else{im.loading='lazy';im.fetchPriority='low';im.dataset.src=u}"
+new_img="var im=document.createElement('img');im.alt=p.breed||'子犬';im.decoding='async';if(i===0){im.loading='eager';im.fetchPriority='high'}else{im.loading='lazy';im.fetchPriority='low'}im.src=u;"
 assert html.count(old_img)==1,('gallery_image_create_count',html.count(old_img))
 html=html.replace(old_img,new_img,1)
 
-# Puppy payload already contains photos, so do not request the same photo list a second time.
+# Puppy payload already contains photos, so do not request the same list a second time.
 extra_fetch="try{var r=await fetch('/api/puppies/'+encodeURIComponent(id)+'/photos',{credentials:'same-origin'});if(r.ok){var j=await r.json();var a=Array.isArray(j)?j:(j.photos||j.items||j.images||[]);a.forEach(function(x){add(typeof x==='string'?x:(x&&(x.url||x.imageUrl||x.path)))})}}catch(_e){}"
 assert html.count(extra_fetch)==1,('duplicate_photo_fetch_count',html.count(extra_fetch))
 html=html.replace(extra_fetch,'',1)
 
-# Public detail enhancement and rescue blocks were reading birthDate/birth_date only,
-# while the API's canonical field is birth. Include birth first everywhere.
+# Public detail enhancement and rescue blocks must use the canonical birth field.
 birth_legacy_count=html.count('p.birthDate||p.birth_date')
-assert birth_legacy_count>=1,('birth_lookup_count',birth_legacy_count)
-html=html.replace('p.birthDate||p.birth_date','p.birth||p.birthDate||p.birth_date')
-assert html.count('p.birth||p.birthDate||p.birth_date')>=birth_legacy_count
+if birth_legacy_count:
+    html=html.replace('p.birthDate||p.birth_date','p.birth||p.birthDate||p.birth_date')
 
 # Prioritize the first legacy hero image too.
 legacy="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
@@ -53,18 +49,15 @@ legacy_new="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}
 assert html.count(legacy)==1,('legacy_hero_count',html.count(legacy))
 html=html.replace(legacy,legacy_new,1)
 
-# Force Safari to pick up the optimized scripts after deploy.
-html=html.replace('<script src="assets/bridge.js"></script>','<script src="assets/bridge.js?v=20260925perf5"></script>',1)
-html=html.replace('assets/public-parent-dogs.js?v=20260925c','assets/public-parent-dogs.js?v=20260925perf5')
-html=html.replace('assets/public-parent-genetics.js?v=20260925a','assets/public-parent-genetics.js?v=20260925perf5')
-
-# Always load exactly one current carousel script. This cache-bust is important on iPhone Safari.
+# Do not install the experimental replacement carousel. The built-in gallery was stable.
 html=re.sub(r'<script src="puppy-gallery-carousel-fix\.js(?:\?v=[^"]*)?"></script>','',html)
-carousel='<script src="puppy-gallery-carousel-fix.js?v=20260925galleryfix1"></script>'
-assert '</body>' in html,'body_close_missing_for_gallery'
-html=html.replace('</body>',carousel+'</body>',1)
 
-# Add a prominent inquiry CTA directly under the photo gallery, next to the favorite action.
+# Force Safari to pick up the restored scripts after deploy.
+html=html.replace('<script src="assets/bridge.js"></script>','<script src="assets/bridge.js?v=20260925stablephotos1"></script>',1)
+html=html.replace('assets/public-parent-dogs.js?v=20260925c','assets/public-parent-dogs.js?v=20260925stablephotos1')
+html=html.replace('assets/public-parent-genetics.js?v=20260925a','assets/public-parent-genetics.js?v=20260925stablephotos1')
+
+# Add a prominent inquiry CTA directly under the photo gallery.
 top_cta='<script src="assets/puppy-detail-top-inquiry.js?v=20260925a"></script>'
 if top_cta not in html:
     assert '</body>' in html,'body_close_missing'
@@ -72,4 +65,4 @@ if top_cta not in html:
 
 hp.write_text(html,encoding='utf-8')
 
-print('PUPPY_DETAIL_PERF_OK|api_requests=page_cached|photo_fetch=single|gallery=hero_only_first|gallery_source=stable_uploads|hero=priority|birth=canonical|top_inquiry=enabled',flush=True)
+print('PUPPY_DETAIL_PERF_OK|api_requests=deduped|photo_fetch=single|gallery=stable_native_lazy|hero=priority|birth=canonical|top_inquiry=enabled',flush=True)
