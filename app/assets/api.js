@@ -38,6 +38,7 @@
     updateInquiry(id,v){return this.request('/inquiries/'+encodeURIComponent(id),{method:'PATCH',body:v})},
     parentDogs(){return this.request('/parent-dogs')},
     addParentDog(v){return this.request('/parent-dogs',{method:'POST',body:v})},
+    updateParentDog(id,v){return this.request('/parent-dogs/'+encodeURIComponent(id),{method:'PATCH',body:v})},
     healthRecords(params={}){const q=new URLSearchParams(Object.entries(params).filter(([,v])=>v));return this.request('/health-records'+(q.toString()?'?'+q:''))},
     addHealthRecord(v){return this.request('/health-records',{method:'POST',body:v})},
     breederProfile(){return this.request('/breeder-profile')},
