@@ -2,9 +2,14 @@
 'use strict';
 const puppyId=new URLSearchParams(location.search).get('id');
 if(!puppyId)return;
+const MEDIA_V='20260926j1';
 function collectUrls(p){
-  const out=[];
-  const add=u=>{if(typeof u==='string'&&u.trim()&&!out.includes(u.trim()))out.push(u.trim())};
+  const out=[],seen=new Set();
+  const key=u=>String(u||'').split('?')[0];
+  const add=u=>{
+    if(out.length>=10||typeof u!=='string'||!u.trim())return;
+    const s=u.trim(),k=key(s);if(seen.has(k))return;seen.add(k);out.push(s)
+  };
   add(p&&p.imageUrl);
   [p&&p.photos,p&&p.images,p&&p.imageUrls,p&&p.photoUrls].forEach(a=>{
     if(!Array.isArray(a))return;
@@ -12,14 +17,16 @@ function collectUrls(p){
   });
   return out;
 }
+function setParam(s,name,value){
+  const rx=new RegExp('([?&])'+name+'=[^&]*');
+  if(rx.test(s))return s.replace(rx,'$1'+name+'='+encodeURIComponent(value));
+  return s+(s.includes('?')?'&':'?')+name+'='+encodeURIComponent(value);
+}
 function mediaUrl(url,kind){
-  const s=String(url||'');
+  let s=String(url||'');
   if(!s)return s;
-  if(s.startsWith('/media/')){
-    if(/([?&])kind=/.test(s))return s.replace(/([?&])kind=[^&]*/,'$1kind='+kind);
-    return s+(s.includes('?')?'&':'?')+'kind='+kind;
-  }
-  if(s.startsWith('/uploads/'))return '/media/'+encodeURIComponent(s.split('/').pop())+'?kind='+kind;
+  if(s.startsWith('/media/')){s=setParam(s,'kind',kind);return setParam(s,'v',MEDIA_V)}
+  if(s.startsWith('/uploads/'))return '/media/'+encodeURIComponent(s.split('/').pop())+'?kind='+kind+'&v='+MEDIA_V;
   return s;
 }
 function installStyle(){
@@ -74,7 +81,7 @@ async function init(){
   const help=document.createElement('div');help.className='bpsg-help';help.textContent=urls.length>1?'写真を左右にスワイプ、または下の写真をタップして切り替え':'メイン写真';root.appendChild(help);
   old.replaceWith(root);
 
-  let index=0,loadToken=0,startX=null,startY=null,thumbBatchTimer=null;
+  let index=0,loadToken=0,startX=null,startY=null,thumbBatchTimer=null,heroFallback=false;
   const loadedThumbs=new Set(),queuedThumbs=new Set();
   function loadThumb(i,delay=0){
     if(i<0||i>=urls.length||loadedThumbs.has(i)||queuedThumbs.has(i))return;
@@ -87,31 +94,30 @@ async function init(){
       ti.onerror=()=>{queuedThumbs.delete(i)};
       ti.src=mediaUrl(urls[i],'thumb');b.appendChild(ti);
     };
-    setTimeout(()=>{
-      if('requestIdleCallback'in window)requestIdleCallback(run,{timeout:1000});else run();
-    },delay);
+    setTimeout(()=>{'requestIdleCallback'in window?requestIdleCallback(run,{timeout:1000}):run()},delay);
   }
   function loadVisibleThumbs(){
     const r=thumbs.getBoundingClientRect();let step=0;
     thumbButtons.forEach((b,i)=>{const br=b.getBoundingClientRect();if(br.right>=r.left-40&&br.left<=r.right+40){loadThumb(i,step*120);step++}});
   }
-  function scheduleVisibleThumbs(){
-    clearTimeout(thumbBatchTimer);
-    thumbBatchTimer=setTimeout(loadVisibleThumbs,650);
-  }
+  function scheduleVisibleThumbs(){clearTimeout(thumbBatchTimer);thumbBatchTimer=setTimeout(loadVisibleThumbs,650)}
   function paintThumbs(){
     thumbButtons.forEach((b,i)=>b.classList.toggle('active',i===index));
     const active=thumbButtons[index];if(active){try{active.scrollIntoView({behavior:'auto',block:'nearest',inline:'center'})}catch(_e){}}
   }
   function show(n){
-    index=(n+urls.length)%urls.length;
+    index=(n+urls.length)%urls.length;heroFallback=false;
     const token=++loadToken;
     loading.textContent='写真を読み込み中…';loading.style.display='flex';
     count.textContent=(index+1)+' / '+urls.length;
     const one=urls.length<2;prev.style.display=one?'none':'flex';next.style.display=one?'none':'flex';
     paintThumbs();
     img.onload=()=>{if(token===loadToken){loading.style.display='none';loadThumb(index,180);scheduleVisibleThumbs()}};
-    img.onerror=()=>{if(token===loadToken){loading.textContent='写真を読み込めませんでした';loading.style.display='flex'}};
+    img.onerror=()=>{
+      if(token!==loadToken)return;
+      if(!heroFallback){heroFallback=true;img.src=mediaUrl(urls[index],'card');return}
+      loading.textContent='写真を読み込めませんでした';loading.style.display='flex'
+    };
     img.src=mediaUrl(urls[index],'hero');
   }
   prev.onclick=e=>{e.preventDefault();e.stopPropagation();show(index-1)};
