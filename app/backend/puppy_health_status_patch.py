@@ -58,6 +58,13 @@ if payload_old in h:
     h=h.replace(payload_old,payload_new)
 if h.count('healthStatus:document.getElementById')<2:
     raise SystemExit('save payload status fields not injected twice')
+
+# Final guard: whatever save path calls BigPawBridge, always attach the four current selections.
+# This prevents later page patches from accidentally dropping the status fields again.
+guard='''<script id="bigpaw-health-status-save-guard">(()=>{if(window.__BIGPAW_HEALTH_SAVE_GUARD__)return;window.__BIGPAW_HEALTH_SAVE_GUARD__=1;function vals(){const g=id=>document.getElementById(id);const hs=g('healthStatus'),vs=g('vaccineStatus'),ms=g('microchipStatus'),gs=g('geneticTestStatus');if(!hs||!vs||!ms||!gs)return{};return{health:hs.value.indexOf('実施済み')===0,healthStatus:hs.value,vaccineStatus:vs.value,microchipStatus:ms.value,geneticTestStatus:gs.value}}function install(){if(!window.BigPawBridge||window.__BIGPAW_HEALTH_BRIDGE_WRAPPED__)return false;window.__BIGPAW_HEALTH_BRIDGE_WRAPPED__=1;const u=BigPawBridge.updatePuppy.bind(BigPawBridge),a=BigPawBridge.addPuppy.bind(BigPawBridge);BigPawBridge.updatePuppy=(id,v)=>u(id,Object.assign({},v||{},vals()));BigPawBridge.addPuppy=v=>a(Object.assign({},v||{},vals()));return true}if(!install())setTimeout(install,0);window.addEventListener('pageshow',install)})();</script>'''
+if 'bigpaw-health-status-save-guard' not in h:
+    if '</body>' not in h: raise SystemExit('health save guard body close missing')
+    h=h.replace('</body>',guard+'</body>',1)
 form.write_text(h,encoding='utf-8')
 
 # ---- public puppy detail ----
@@ -76,4 +83,4 @@ if '大型犬向け検査' in d:
     raise SystemExit('large-dog test row still present')
 detail.write_text(d,encoding='utf-8')
 
-print('PUPPY_HEALTH_STATUS_OK|fields=health_vaccine_microchip_genetics|large_dog_test=removed|public=actual_status',flush=True)
+print('PUPPY_HEALTH_STATUS_OK|fields=health_vaccine_microchip_genetics|save_guard=enabled|large_dog_test=removed|public=actual_status',flush=True)
