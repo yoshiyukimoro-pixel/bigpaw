@@ -1,5 +1,6 @@
 FROM python:3.13-slim
 WORKDIR /app
+RUN pip install --no-cache-dir Pillow
 COPY app/ /app/
 RUN ["python3", "-c", "from pathlib import Path; p=Path('/app/backend/server.py'); s=p.read_text(encoding='utf-8'); a=\"if path=='/api/puppies':\\n            u=self.require(['buyer','breeder','operator']);\"; b=\"if path=='/api/puppies':\\n            u=self.require(['breeder','operator']);\"; c=\"m=re.fullmatch(r'/api/puppies/([^/]+)',path)\\n        if m:\\n            u=self.require(['buyer','breeder','operator']);\"; d=\"m=re.fullmatch(r'/api/puppies/([^/]+)',path)\\n        if m:\\n            u=self.require(['breeder','operator']);\"; e=\"iq=re.fullmatch(r'/api/inquiries/([^/]+)',path)\\n        if iq:\\n            u=self.require(['buyer','breeder','operator']);\"; f=\"iq=re.fullmatch(r'/api/inquiries/([^/]+)',path)\\n        if iq:\\n            u=self.require(['breeder','operator']);\"; assert s.count(a)==1, ('create_guard_count',s.count(a)); assert s.count(c)==1, ('edit_guard_count',s.count(c)); assert s.count(e)==1, ('inquiry_guard_count',s.count(e)); s=s.replace(a,b,1).replace(c,d,1).replace(e,f,1); p.write_text(s,encoding='utf-8'); print('PERMISSION_GUARD_OK|puppy_create=breeder_operator|puppy_edit=breeder_operator|inquiry_update=breeder_operator',flush=True)"]
 RUN ["python3", "-c", "from pathlib import Path; p=Path('/app/backend/server.py'); s=p.read_text(encoding='utf-8'); a=\"m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)\\n        if m:\\n            u=self.require(['buyer','breeder','operator'])\"; b=\"m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)\\n        if m:\\n            u=self.require(['breeder','operator'])\"; q=\"r=con.execute(\\\"SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status='approved' AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)\\\",(m.group(1),)).fetchone(); con.close()\\n            return self.send_json(public_puppy_json(r),200) if r else self.send_json({'error':'not_found'},404)\"; r=\"r=con.execute(\\\"SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status='approved' AND (p.breeder_id IS NULL OR b.review_status='approved') AND (p.breeder_id IS NULL OR COALESCE(b.billing_suspended,0)=0)\\\",(m.group(1),)).fetchone()\\n            if not r: con.close(); return self.send_json({'error':'not_found'},404)\\n            out=public_puppy_json(r); ph=con.execute('SELECT stored_name FROM uploads WHERE puppy_id=? ORDER BY created_at,id',(r['id'],)).fetchall(); out['photos']=['/uploads/'+x['stored_name'] for x in ph]; con.close(); return self.send_json(out,200)\"; assert s.count(a)==1, ('photo_guard_count',s.count(a)); assert s.count(q)==1, ('public_photo_payload_count',s.count(q)); s=s.replace(a,b,1).replace(q,r,1); p.write_text(s,encoding='utf-8'); print('PHOTO_API_SPLIT_OK|public_photos=enabled|editor_metadata=breeder_operator',flush=True)"]
@@ -13,9 +14,11 @@ RUN ["python3", "backend/video_provider_patch.py"]
 RUN ["python3", "backend/visit_contact_patch.py"]
 RUN ["python3", "backend/sales_policy_patch.py"]
 RUN ["python3", "backend/parent_photo_layout_patch.py"]
+RUN ["python3", "backend/puppy_image_delivery_patch.py"]
 RUN ["python3", "backend/puppy_detail_perf_patch.py"]
 RUN ["python3", "backend/prefecture_search_patch.py"]
 RUN ["python3", "backend/puppy_health_status_patch.py"]
+RUN ["python3", "backend/puppy_photo_consistency_patch.py"]
 RUN ["python3", "backend/profile_privacy_patch.py"]
 ENV PORT=8080
 EXPOSE 8080
