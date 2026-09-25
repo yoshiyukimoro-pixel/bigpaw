@@ -45,11 +45,12 @@ route=f"""        # Never send a puppy-bound original to a normal public page. O
             con=db(); ur=con.execute('SELECT puppy_id FROM uploads WHERE stored_name=? LIMIT 1',(name,)).fetchone(); con.close()
             if ur and not ur['puppy_id']: return self.send_json({{'error':'not_found'}},404)
             kind=(q.get('kind') or ['hero'])[0]
-            widths={{'thumb':140,'card':480,'hero':800}}
+            widths={{'thumb':140,'card':480,'hero':800,'list':560}}
             safe_kind=kind if kind in widths else 'hero'
             requested=widths[safe_kind]
-            # Baseline JPEG is deliberately used for iPhone Safari stability. The
-            # card variant is also reused between search results and mobile detail.
+            # Baseline JPEG is deliberately used for iPhone Safari stability.
+            # The dedicated list variant preserves the original aspect ratio so
+            # search-result photos can be shown in full without cutting off the dog.
             dest=PUPPY_IMAGE_CACHE/(name+'.v3.'+safe_kind+'.jpg')
             try:
                 with PUPPY_IMAGE_LOCK:
@@ -57,9 +58,12 @@ route=f"""        # Never send a puppy-bound original to a normal public page. O
                         with Image.open(src) as im:
                             im=ImageOps.exif_transpose(im)
                             if im.mode!='RGB': im=im.convert('RGB')
-                            side=max(1,min(im.size[0],im.size[1],requested))
-                            im=ImageOps.fit(im,(side,side),method=Image.Resampling.LANCZOS,centering=(0.5,0.5))
-                            quality=70 if safe_kind=='thumb' else (74 if safe_kind=='card' else 78)
+                            if safe_kind=='list':
+                                im.thumbnail((requested,requested),Image.Resampling.LANCZOS)
+                            else:
+                                side=max(1,min(im.size[0],im.size[1],requested))
+                                im=ImageOps.fit(im,(side,side),method=Image.Resampling.LANCZOS,centering=(0.5,0.5))
+                            quality=70 if safe_kind=='thumb' else (74 if safe_kind=='card' else (76 if safe_kind=='list' else 78))
                             tmp=dest.with_suffix(dest.suffix+'.tmp')
                             im.save(tmp,'JPEG',quality=quality,optimize=False,progressive=False)
                             tmp.replace(dest)
@@ -92,4 +96,4 @@ assert s.count(photo_old)==1,('photo_payload_marker',s.count(photo_old))
 s=s.replace(photo_old,photo_new,1)
 
 p.write_text(s,encoding='utf-8')
-print('PUPPY_IMAGE_DELIVERY_OK|hero=max800_square|card=max480_square|thumb=max140_square|format=baseline_jpeg|cache_version=20260926j3|generation=fast_nonprogressive|detail_photos=max10|raw_public_uploads=redirected|original_fallback=disabled|originals=preserved',flush=True)
+print('PUPPY_IMAGE_DELIVERY_OK|hero=max800_square|card=max480_square|thumb=max140_square|list=max560_preserve_aspect|format=baseline_jpeg|cache_version=20260926j3|generation=fast_nonprogressive|detail_photos=max10|raw_public_uploads=redirected|original_fallback=disabled|originals=preserved',flush=True)
