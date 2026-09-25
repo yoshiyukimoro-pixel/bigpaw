@@ -3,6 +3,14 @@
   window.__BIGPAW_PUPPY_GALLERY_CAROUSEL_FIX__=true;
 
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function variant(u,kind){
+    try{
+      const x=new URL(u,location.origin);
+      if(x.pathname.startsWith('/media/')){x.searchParams.set('kind',kind);return x.pathname+x.search}
+      if(x.pathname.startsWith('/uploads/'))return '/media/'+encodeURIComponent(x.pathname.split('/').pop())+'?kind='+encodeURIComponent(kind);
+    }catch(_e){}
+    return u;
+  }
 
   function install(){
     const old=document.getElementById('bigpawRealGallery');
@@ -10,7 +18,7 @@
     const imgs=[...old.querySelectorAll('img')];
     const urls=[];
     imgs.forEach(img=>{
-      const u=img.currentSrc||img.getAttribute('src')||'';
+      const u=img.getAttribute('data-src')||img.currentSrc||img.getAttribute('src')||'';
       if(u && !urls.includes(u)) urls.push(u);
     });
     if(!urls.length) return false;
@@ -24,7 +32,7 @@
 
     const stage=document.createElement('div');
     stage.className='bp-carousel-stage';
-    stage.innerHTML=`<img class="bp-carousel-main" alt="${alt}"><button type="button" class="bp-carousel-arrow bp-carousel-prev" aria-label="前の写真">‹</button><button type="button" class="bp-carousel-arrow bp-carousel-next" aria-label="次の写真">›</button><div class="bp-carousel-count"></div>`;
+    stage.innerHTML=`<img class="bp-carousel-main" alt="${alt}" decoding="async" fetchpriority="high"><button type="button" class="bp-carousel-arrow bp-carousel-prev" aria-label="前の写真">‹</button><button type="button" class="bp-carousel-arrow bp-carousel-next" aria-label="次の写真">›</button><div class="bp-carousel-count"></div>`;
 
     const thumbs=document.createElement('div');
     thumbs.className='bp-carousel-thumbs';
@@ -34,9 +42,9 @@
       b.className='bp-carousel-thumb';
       b.setAttribute('aria-label',`${i+1}枚目の写真を表示`);
       const im=document.createElement('img');
-      im.src=u;
+      im.dataset.src=variant(u,'thumb');
       im.alt=`${puppy.breed||'子犬'} ${i+1}`;
-      im.loading=i<4?'eager':'lazy';
+      im.decoding='async';
       b.appendChild(im);
       thumbs.appendChild(b);
     });
@@ -48,12 +56,28 @@
     const prev=stage.querySelector('.bp-carousel-prev');
     const next=stage.querySelector('.bp-carousel-next');
     const thumbButtons=[...thumbs.querySelectorAll('.bp-carousel-thumb')];
-    let index=0;
+    let index=0,thumbTimer=null;
 
+    function loadThumb(i){
+      const im=thumbButtons[i]?.querySelector('img');
+      if(im && !im.src && im.dataset.src) im.src=im.dataset.src;
+    }
+    function scheduleThumbs(){
+      let i=0;
+      clearTimeout(thumbTimer);
+      const step=()=>{
+        if(i>=thumbButtons.length)return;
+        loadThumb(i++);
+        thumbTimer=setTimeout(step,350);
+      };
+      thumbTimer=setTimeout(step,250);
+    }
     function show(n){
       index=(n+urls.length)%urls.length;
-      main.src=urls[index];
+      const hero=variant(urls[index],'hero');
+      if(main.getAttribute('src')!==hero)main.src=hero;
       count.textContent=`${index+1} / ${urls.length}`;
+      loadThumb(index);
       thumbButtons.forEach((b,i)=>{
         b.classList.toggle('active',i===index);
         b.setAttribute('aria-current',i===index?'true':'false');
@@ -90,6 +114,7 @@
 
     document.getElementById('bigpawPhotoViewer')?.remove();
     document.documentElement.style.overflow='';
+    main.addEventListener('load',()=>scheduleThumbs(),{once:true});
     show(0);
     return true;
   }
@@ -104,9 +129,9 @@
     .bp-carousel-prev{left:10px}.bp-carousel-next{right:10px}
     .bp-carousel-count{position:absolute;left:12px;bottom:10px;z-index:2;padding:4px 9px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:13px;font-weight:800}
     .bp-carousel-thumbs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
-    .bp-carousel-thumb{display:block;padding:0;border:2px solid transparent;border-radius:16px;background:transparent;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .bp-carousel-thumb{display:block;padding:0;border:2px solid transparent;border-radius:16px;background:#f8e9ef;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;aspect-ratio:1/1}
     .bp-carousel-thumb.active{border-color:#ef7fa8}
-    .bp-carousel-thumb img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:13px;background:#f8e9ef}
+    .bp-carousel-thumb img{display:block;width:100%;height:100%;object-fit:cover;border-radius:13px;background:#f8e9ef}
     @media(min-width:821px){.bp-carousel-thumbs{grid-template-columns:repeat(4,minmax(0,1fr))}}
   `;
   document.head.appendChild(style);
