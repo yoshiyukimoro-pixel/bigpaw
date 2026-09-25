@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(!/breeder-puppy-new\.html$/.test(location.pathname))return;
-const TARGET=1200,QUALITY=.82;
+const TARGET=1000,QUALITY=.80;
 let previewUrls=[];
 function revokePreviews(){previewUrls.forEach(u=>{try{URL.revokeObjectURL(u)}catch(_e){}});previewUrls=[]}
 function installRender(){
@@ -50,11 +50,22 @@ function installUploadOptimizer(){
   };
   BigPawBridge.__photoNormalizeInstalled=true;
 }
+function installPersistedOriginalAdjust(){
+  if(typeof window.openPersistedAdjust!=='function'||window.openPersistedAdjust.__bigpawOriginalGuard)return;
+  const original=window.openPersistedAdjust;
+  const wrapped=function(i){
+    const p=window.persistedPhotos&&window.persistedPhotos[i];
+    if(!p||!String(p.url||'').startsWith('/uploads/'))return original(i);
+    const old=p.url;p.url=old+(old.includes('?')?'&':'?')+'original=1';
+    try{return original(i)}finally{p.url=old}
+  };
+  wrapped.__bigpawOriginalGuard=true;window.openPersistedAdjust=wrapped;
+}
 function installNote(){
   const box=document.querySelector('.photo-box');if(!box||document.getElementById('bigpawPhotoNormalizeNote'))return;
   const n=document.createElement('div');n.id='bigpawPhotoNormalizeNote';n.className='notice';n.style.cssText='margin-top:12px;text-align:left';n.textContent='公開画面では、すべての子犬写真を同じ正方形サイズで表示します。必要に応じて「写真を調整」から位置・拡大を整えてください。保存時に自動で軽量化します。';box.appendChild(n)
 }
-function install(){installRender();installUploadOptimizer();installNote();if(typeof window.renderSelectedPhotos==='function'&&typeof selectedPhotos!=='undefined'&&selectedPhotos.length)renderSelectedPhotos()}
+function install(){installRender();installUploadOptimizer();installPersistedOriginalAdjust();installNote();if(typeof window.renderSelectedPhotos==='function'&&typeof selectedPhotos!=='undefined'&&selectedPhotos.length)renderSelectedPhotos()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 setTimeout(install,200);setTimeout(install,900);
 addEventListener('pageshow',install);
