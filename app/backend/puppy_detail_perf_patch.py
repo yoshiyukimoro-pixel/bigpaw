@@ -47,6 +47,13 @@ html=html.replace(legacy,legacy_new,1)
 html=html.replace('<script src="assets/bridge.js"></script>','<script src="assets/bridge.js?v=20260925perf1"></script>',1)
 html=html.replace('assets/public-parent-dogs.js?v=20260925c','assets/public-parent-dogs.js?v=20260925perf1')
 html=html.replace('assets/public-parent-genetics.js?v=20260925a','assets/public-parent-genetics.js?v=20260925perf1')
+
+# Add a prominent inquiry CTA directly under the photo gallery, next to the favorite action.
+top_cta='<script src="assets/puppy-detail-top-inquiry.js?v=20260925a"></script>'
+if top_cta not in html:
+    assert '</body>' in html,'body_close_missing'
+    html=html.replace('</body>',top_cta+'</body>',1)
+
 hp.write_text(html,encoding='utf-8')
 
-print('PUPPY_DETAIL_PERF_OK|api_requests=deduped|photo_fetch=single|gallery=lazy|hero=priority',flush=True)
+print('PUPPY_DETAIL_PERF_OK|api_requests=deduped|photo_fetch=single|gallery=lazy|hero=priority|top_inquiry=enabled',flush=True)
