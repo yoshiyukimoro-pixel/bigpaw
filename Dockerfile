@@ -21,6 +21,7 @@ RUN ["python3", "backend/search_result_list_patch.py"]
 RUN ["python3", "backend/puppy_health_status_patch.py"]
 RUN ["python3", "backend/puppy_photo_consistency_patch.py"]
 RUN ["python3", "backend/profile_privacy_patch.py"]
+RUN ["python3", "backend/storage_capacity_patch.py"]
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
