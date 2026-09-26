@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import os
+import re
 import runpy
 import signal
 import subprocess
@@ -18,9 +19,24 @@ FINAL_JS_MARKER = 'id="bigpaw-search-final-layout-v3-js"'
 LEGACY_DIAG = '/__renderdiag'
 
 
+def remove_legacy_search_diagnostics(html: str) -> str:
+    # Remove any old diagnostic script that still posts layout snapshots to
+    # /__renderdiag. These blocks came from an earlier search debugging phase
+    # and can override/compete with the final search renderer on iPhone.
+    blocks = re.findall(r'<script\b[^>]*>.*?</script>', html, flags=re.S | re.I)
+    for block in blocks:
+        if LEGACY_DIAG in block:
+            html = html.replace(block, '', 1)
+    return html
+
+
 def heal_search(stage: str) -> None:
     runpy.run_path(str(PATCH), run_name='__main__')
     html = SEARCH.read_text(encoding='utf-8')
+    cleaned = remove_legacy_search_diagnostics(html)
+    if cleaned != html:
+        SEARCH.write_text(cleaned, encoding='utf-8')
+        html = cleaned
     checks = {
         'final_css': html.count(FINAL_MARKER) == 1,
         'final_js': html.count(FINAL_JS_MARKER) == 1,
