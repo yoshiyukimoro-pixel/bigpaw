@@ -6,42 +6,49 @@
   <title>子犬を探す｜BIG PAW</title>
   <link rel="stylesheet" href="assets/style.css">
   <style>
-    :root{--pink:#d978a0;--line:#eadfe5;--muted:#756b70;--bg:#fff;--soft:#fff8fb}
+    :root{--bp-pink:#d978a0;--bp-line:#eadfe5;--bp-muted:#756b70;--bp-soft:#fff8fb;--bp-blue:#4e6f9e}
     *{box-sizing:border-box}
-    html,body{margin:0;background:var(--bg);color:#222}
+    html,body{margin:0;background:#fff;color:#222}
     body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    .search-list-page{max-width:760px;margin:0 auto;padding:18px 14px 80px}
-    .search-list-page h1{font-size:25px;margin:8px 0 18px}
-    .filters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
-    .filters select{width:100%;height:48px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0 10px;font-size:14px}
-    .result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 10px}
-    .result-head h2{margin:0;font-size:20px}
-    .result-count{font-weight:800;color:#555}
-    .result-list{display:grid;gap:14px}
-    .puppy-row{display:block;text-decoration:none;color:inherit;background:#fff;border-bottom:1px solid #e8e8e8;padding:0 0 14px}
-    .puppy-title{font-size:19px;font-weight:900;line-height:1.35;margin:0 0 9px}
-    .puppy-layout{display:grid;grid-template-columns:minmax(0,49%) minmax(0,51%);align-items:stretch;min-height:190px}
-    .puppy-photo{position:relative;background:var(--soft);overflow:hidden;min-height:190px}
-    .puppy-photo img{display:block;width:100%;height:100%;min-height:190px;object-fit:contain;background:var(--soft)}
-    .photo-fallback{height:100%;min-height:190px;display:grid;place-items:center;font-size:64px}
-    .gender-badge{position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.94);border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}
-    .puppy-info{padding:3px 0 3px 14px;display:flex;flex-direction:column;min-width:0}
-    .status{font-size:14px;font-weight:900;color:var(--pink);margin-bottom:5px}
-    .area{font-size:14px;color:#444;margin-bottom:10px}
-    .meta{font-size:14px;line-height:1.65;color:var(--muted)}
-    .price-wrap{margin-top:auto;padding-top:8px}
-    .price-label{font-size:12px;color:#777}
-    .price{font-size:22px;font-weight:900;line-height:1.2;color:#222}
-    .tax{font-size:12px;font-weight:600;color:#777;margin-left:3px}
-    .empty{border:1px solid var(--line);border-radius:14px;padding:24px;text-align:center;color:#666;background:#fff}
+    .bp-search-page{max-width:760px;margin:0 auto;padding:18px 14px 100px;background:#fff}
+    .bp-search-page h1{font-size:25px;margin:8px 0 18px}
+    .bp-filter-card{background:#fff;border:1px solid #f0e4e9;border-radius:18px;padding:18px;margin-bottom:14px}
+    .bp-filter-card h2{font-size:18px;margin:0 0 12px}
+    .bp-filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .bp-filter-grid select{width:100%;height:48px;border:1px solid var(--bp-line);border-radius:12px;background:#fff;padding:0 9px;font-size:14px;color:#333}
+    .bp-result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:24px 2px 9px}
+    .bp-result-head h2{margin:0;font-size:20px}
+    .bp-result-count{font-weight:900;color:#555;white-space:nowrap}
+    .bp-result-list{display:grid;gap:0;background:#fff}
+    .bp-puppy-row{display:block;text-decoration:none;color:inherit;background:#fff;padding:14px 0 15px;border-bottom:1px solid #dedede;-webkit-tap-highlight-color:transparent}
+    .bp-puppy-row:first-child{padding-top:8px}
+    .bp-puppy-title{font-size:19px;font-weight:900;line-height:1.35;margin:0 0 9px;color:#222}
+    .bp-puppy-layout{display:grid;grid-template-columns:minmax(0,49%) minmax(0,51%);align-items:stretch;min-height:188px}
+    .bp-puppy-photo{position:relative;min-width:0;min-height:188px;background:var(--bp-soft);overflow:hidden;border-radius:0}
+    .bp-puppy-photo img{display:block;width:100%;height:100%;min-height:188px;object-fit:contain;background:var(--bp-soft)}
+    .bp-photo-fallback{height:100%;min-height:188px;display:grid;place-items:center;font-size:62px;background:var(--bp-soft)}
+    .bp-gender-badge{position:absolute;left:7px;bottom:7px;background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.05);border-radius:999px;padding:4px 8px;font-size:12px;font-weight:900;color:#444}
+    .bp-puppy-info{padding:2px 0 2px 13px;display:flex;flex-direction:column;min-width:0}
+    .bp-status{font-size:14px;font-weight:900;color:var(--bp-pink);line-height:1.3;margin-bottom:4px}
+    .bp-area{font-size:14px;color:#333;line-height:1.35;margin-bottom:8px;white-space:normal;overflow-wrap:anywhere}
+    .bp-meta{font-size:14px;line-height:1.62;color:var(--bp-muted);overflow-wrap:anywhere}
+    .bp-price-wrap{margin-top:auto;padding-top:8px}
+    .bp-price-label{font-size:11px;color:#777;line-height:1.2}
+    .bp-price{font-size:22px;font-weight:900;line-height:1.2;color:#222;letter-spacing:.01em}
+    .bp-tax{font-size:11px;font-weight:700;color:#777;margin-left:3px}
+    .bp-empty{border:1px solid var(--bp-line);border-radius:14px;padding:24px;text-align:center;color:#666;background:#fff;margin-top:8px}
+    .bp-bottom-search{position:fixed;left:0;right:0;bottom:0;z-index:100;background:rgba(255,255,255,.98);border-top:1px solid #eee;padding:9px 14px calc(9px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:center;gap:12px}
+    .bp-clear{border:0;background:transparent;color:#777;text-decoration:underline;font-size:13px;padding:10px}
+    .bp-search-btn{border:0;border-radius:999px;background:var(--bp-pink);color:#fff;font-weight:900;font-size:15px;padding:13px 25px;min-width:132px}
     @media(max-width:420px){
-      .search-list-page{padding-left:12px;padding-right:12px}
-      .puppy-layout{grid-template-columns:minmax(0,48%) minmax(0,52%);min-height:178px}
-      .puppy-photo,.puppy-photo img,.photo-fallback{min-height:178px}
-      .puppy-info{padding-left:11px}
-      .puppy-title{font-size:18px}
-      .meta,.area,.status{font-size:13px}
-      .price{font-size:20px}
+      .bp-search-page{padding-left:12px;padding-right:12px}
+      .bp-filter-card{padding:15px}
+      .bp-puppy-layout{grid-template-columns:minmax(0,48%) minmax(0,52%);min-height:176px}
+      .bp-puppy-photo,.bp-puppy-photo img,.bp-photo-fallback{min-height:176px}
+      .bp-puppy-info{padding-left:11px}
+      .bp-puppy-title{font-size:18px;margin-bottom:8px}
+      .bp-status,.bp-area,.bp-meta{font-size:13px}
+      .bp-price{font-size:20px}
     }
   </style>
 </head>
@@ -58,29 +65,40 @@
     </div>
   </header>
 
-  <main class="search-list-page">
+  <main class="bp-search-page">
     <h1>子犬を探す</h1>
-    <section class="filters" aria-label="検索条件">
-      <select id="breedFilter"><option value="all">犬種：すべて</option></select>
-      <select id="genderFilter">
-        <option value="all">性別：すべて</option>
-        <option value="male">男の子</option>
-        <option value="female">女の子</option>
-      </select>
-      <select id="areaFilter"><option value="all">地域：すべて</option></select>
-      <select id="sortFilter">
-        <option value="new">新着順</option>
-        <option value="low">価格が安い順</option>
-        <option value="high">価格が高い順</option>
-      </select>
+
+    <section class="bp-filter-card" aria-label="子犬の条件">
+      <h2>子犬を選ぶ</h2>
+      <div class="bp-filter-grid">
+        <select id="bpBreed"><option value="all">犬種：すべて</option></select>
+        <select id="bpGender"><option value="all">性別：すべて</option><option value="male">男の子</option><option value="female">女の子</option></select>
+        <select id="bpAge"><option value="all">年齢：すべて</option><option value="2">生後2ヶ月まで</option><option value="3">生後3ヶ月まで</option><option value="6">生後6ヶ月まで</option><option value="12">生後12ヶ月まで</option><option value="adult">成犬</option></select>
+        <select id="bpColor"><option value="all">毛色：すべて</option><option value="ブラック">ブラック</option><option value="ホワイト">ホワイト</option><option value="クリーム">クリーム</option><option value="レッド">レッド</option><option value="その他">その他</option></select>
+      </div>
     </section>
 
-    <div class="result-head">
+    <section class="bp-filter-card" aria-label="地域と価格">
+      <h2>地域・予算を選ぶ</h2>
+      <div class="bp-filter-grid">
+        <select id="bpArea"><option value="all">地域：全国</option></select>
+        <select id="bpSort"><option value="new">新着順</option><option value="low">価格が安い順</option><option value="high">価格が高い順</option></select>
+        <select id="bpMin"><option value="0">下限なし</option><option value="200000">20万円〜</option><option value="250000">25万円〜</option><option value="300000">30万円〜</option><option value="350000">35万円〜</option><option value="400000">40万円〜</option></select>
+        <select id="bpMax"><option value="0">上限なし</option><option value="250000">〜25万円</option><option value="300000">〜30万円</option><option value="350000">〜35万円</option><option value="400000">〜40万円</option><option value="500000">〜50万円</option></select>
+      </div>
+    </section>
+
+    <div class="bp-result-head">
       <h2>検索結果</h2>
-      <span id="resultCount" class="result-count">0頭</span>
+      <span id="bpCount" class="bp-result-count">0頭</span>
     </div>
-    <div id="resultList" class="result-list"></div>
+    <div id="bpResults" class="bp-result-list" aria-live="polite"></div>
   </main>
+
+  <div class="bp-bottom-search">
+    <button id="bpClear" class="bp-clear" type="button">条件をクリア</button>
+    <button id="bpSearch" class="bp-search-btn" type="button">🔍 検索</button>
+  </div>
 
   <script src="assets/app.js"></script>
   <script src="assets/api.js"></script>
@@ -89,89 +107,103 @@
     (function(){
       'use strict';
       const qs=new URLSearchParams(location.search);
-      const breedFilter=document.getElementById('breedFilter');
-      const genderFilter=document.getElementById('genderFilter');
-      const areaFilter=document.getElementById('areaFilter');
-      const sortFilter=document.getElementById('sortFilter');
-      const resultList=document.getElementById('resultList');
-      const resultCount=document.getElementById('resultCount');
+      const breed=document.getElementById('bpBreed');
+      const gender=document.getElementById('bpGender');
+      const age=document.getElementById('bpAge');
+      const color=document.getElementById('bpColor');
+      const area=document.getElementById('bpArea');
+      const sort=document.getElementById('bpSort');
+      const minPrice=document.getElementById('bpMin');
+      const maxPrice=document.getElementById('bpMax');
+      const results=document.getElementById('bpResults');
+      const count=document.getElementById('bpCount');
       let source=[];
 
       function esc(v){return BigPaw.esc(String(v==null?'':v))}
+      function monthsOld(v){
+        if(!v)return null;
+        const d=new Date(v);if(Number.isNaN(d.getTime()))return null;
+        const n=new Date();
+        return (n.getFullYear()-d.getFullYear())*12+n.getMonth()-d.getMonth()-(n.getDate()<d.getDate()?1:0);
+      }
       function birthday(v){
         if(!v)return '—';
-        const d=new Date(v);
-        if(Number.isNaN(d.getTime()))return esc(v);
+        const d=new Date(v);if(Number.isNaN(d.getTime()))return esc(v);
         return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日';
       }
-      function statusText(p){return p.status||p.reviewStatus||'募集中'}
-      function imageUrl(p){return p.listImageUrl||p.imageUrl||''}
-
-      function uniqueOptions(select,items,labelFn,valueFn){
+      function statusText(p){
+        const raw=String(p.status||'募集中');
+        return raw==='approved'?'募集中':raw;
+      }
+      function listImage(p){return p.listImageUrl||p.imageUrl||''}
+      function colorMatch(p,v){
+        if(v==='all')return true;
+        const c=String(p.color||'');
+        if(v==='その他')return !['ブラック','ホワイト','クリーム','レッド'].some(x=>c.includes(x));
+        return c.includes(v);
+      }
+      function addUniqueOptions(select,items,labelFn,valueFn){
         const seen=new Set();
         items.forEach(function(item){
-          const value=valueFn(item);
-          if(!value||seen.has(value))return;
+          const value=valueFn(item);if(!value||seen.has(value))return;
           seen.add(value);
-          const o=document.createElement('option');
-          o.value=value;
-          o.textContent=labelFn(item);
-          select.appendChild(o);
+          const o=document.createElement('option');o.value=value;o.textContent=labelFn(item);select.appendChild(o);
         });
       }
-
-      function render(){
+      function render(scroll){
         let list=source.slice();
-        const breed=breedFilter.value;
-        const gender=genderFilter.value;
-        const area=areaFilter.value;
-        if(breed!=='all')list=list.filter(p=>String(p.breedKey||p.breed)===breed);
-        if(gender!=='all')list=list.filter(p=>p.genderKey===gender);
-        if(area!=='all')list=list.filter(p=>String(p.areaKey||p.area)===area);
-        if(sortFilter.value==='low')list.sort((a,b)=>Number(a.price||0)-Number(b.price||0));
-        else if(sortFilter.value==='high')list.sort((a,b)=>Number(b.price||0)-Number(a.price||0));
-        else list.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+        const b=breed.value,g=gender.value,ag=age.value,c=color.value,a=area.value;
+        const min=Number(minPrice.value||0),max=Number(maxPrice.value||0);
+        if(b!=='all')list=list.filter(p=>String(p.breedKey||p.breed||'')===b);
+        if(g!=='all')list=list.filter(p=>String(p.genderKey||'')===g);
+        if(a!=='all')list=list.filter(p=>String(p.areaKey||p.area||'')===a);
+        if(min)list=list.filter(p=>Number(p.price||0)>=min);
+        if(max)list=list.filter(p=>Number(p.price||0)<=max);
+        list=list.filter(p=>colorMatch(p,c));
+        if(ag!=='all')list=list.filter(function(p){const m=monthsOld(p.birth);if(m==null)return false;return ag==='adult'?m>=12:m<=Number(ag)});
+        if(sort.value==='low')list.sort((x,y)=>Number(x.price||0)-Number(y.price||0));
+        else if(sort.value==='high')list.sort((x,y)=>Number(y.price||0)-Number(x.price||0));
+        else list.sort((x,y)=>String(y.createdAt||'').localeCompare(String(x.createdAt||'')));
 
-        resultCount.textContent=list.length+'頭';
-        if(!list.length){
-          resultList.innerHTML='<div class="empty">条件に合う子がいません。条件を少し広げてみてください。</div>';
-          return;
-        }
-        resultList.innerHTML=list.map(function(p){
-          const img=imageUrl(p);
-          const photo=img
-            ? '<img src="'+esc(img)+'" alt="'+esc(p.breed||'子犬')+'" loading="eager">'
-            : '<div class="photo-fallback">🐾</div>';
-          return '<a class="puppy-row" href="puppy-detail.html?id='+encodeURIComponent(p.id)+'">'
-            +'<h3 class="puppy-title">'+esc(p.breed||'')+'</h3>'
-            +'<div class="puppy-layout">'
-              +'<div class="puppy-photo">'+photo+'<span class="gender-badge">'+esc(p.gender||'')+'</span></div>'
-              +'<div class="puppy-info">'
-                +'<div class="status">'+esc(statusText(p))+'</div>'
-                +'<div class="area">'+esc(p.area||'')+'</div>'
-                +'<div class="meta">誕生：'+birthday(p.birth)+'</div>'
-                +'<div class="meta">毛色：'+esc(p.color||'—')+'</div>'
-                +'<div class="price-wrap"><div class="price-label">生体価格</div><div class="price">'+BigPaw.currency(Number(p.price||0))+'<span class="tax">税込</span></div></div>'
+        count.textContent=list.length+'頭';
+        if(!list.length){results.innerHTML='<div class="bp-empty">条件に合う子がいません。条件を少し広げてみてください。</div>';return;}
+        results.innerHTML=list.map(function(p){
+          const img=listImage(p);
+          const photo=img?'<img src="'+esc(img)+'" alt="'+esc(p.breed||'子犬')+'" loading="eager" decoding="async">':'<div class="bp-photo-fallback">🐾</div>';
+          const price=Number(p.price||0);
+          return '<a class="bp-puppy-row" href="puppy-detail.html?id='+encodeURIComponent(p.id)+'">'
+            +'<h3 class="bp-puppy-title">'+esc(p.breed||'')+'</h3>'
+            +'<div class="bp-puppy-layout">'
+              +'<div class="bp-puppy-photo">'+photo+'<span class="bp-gender-badge">'+esc(p.gender||'')+'</span></div>'
+              +'<div class="bp-puppy-info">'
+                +'<div class="bp-status">'+esc(statusText(p))+'</div>'
+                +'<div class="bp-area">'+esc(p.area||'')+'</div>'
+                +'<div class="bp-meta">誕生：'+birthday(p.birth)+'</div>'
+                +'<div class="bp-meta">毛色：'+esc(p.color||'—')+'</div>'
+                +'<div class="bp-price-wrap"><div class="bp-price-label">生体価格</div><div class="bp-price">'+BigPaw.currency(price)+'<span class="bp-tax">税込</span></div></div>'
               +'</div>'
             +'</div>'
           +'</a>';
         }).join('');
+        if(scroll)document.querySelector('.bp-result-head').scrollIntoView({behavior:'smooth',block:'start'});
       }
-
+      function clearAll(){
+        breed.value='all';gender.value='all';age.value='all';color.value='all';area.value='all';sort.value='new';minPrice.value='0';maxPrice.value='0';render(false);
+      }
       async function init(){
         try{
           source=await BigPawBridge.puppies();
-          uniqueOptions(breedFilter,source,p=>p.breed||'',p=>String(p.breedKey||p.breed||''));
-          uniqueOptions(areaFilter,source,p=>p.area||'',p=>String(p.areaKey||p.area||''));
-          const qBreed=qs.get('breed');
-          const qArea=qs.get('area');
-          if(qBreed&&Array.from(breedFilter.options).some(o=>o.value===qBreed))breedFilter.value=qBreed;
-          if(qArea&&Array.from(areaFilter.options).some(o=>o.value===qArea))areaFilter.value=qArea;
-          [breedFilter,genderFilter,areaFilter,sortFilter].forEach(x=>x.addEventListener('change',render));
-          render();
+          addUniqueOptions(breed,source,p=>p.breed||'',p=>String(p.breedKey||p.breed||''));
+          addUniqueOptions(area,source,p=>p.area||'',p=>String(p.areaKey||p.area||''));
+          const qBreed=qs.get('breed'),qArea=qs.get('area');
+          if(qBreed&&Array.from(breed.options).some(o=>o.value===qBreed))breed.value=qBreed;
+          if(qArea&&Array.from(area.options).some(o=>o.value===qArea))area.value=qArea;
+          [breed,gender,age,color,area,sort,minPrice,maxPrice].forEach(x=>x.addEventListener('change',()=>render(false)));
+          document.getElementById('bpSearch').addEventListener('click',()=>render(true));
+          document.getElementById('bpClear').addEventListener('click',clearAll);
+          render(false);
         }catch(e){
-          resultCount.textContent='0頭';
-          resultList.innerHTML='<div class="empty">データを読み込めませんでした。</div>';
+          count.textContent='0頭';results.innerHTML='<div class="bp-empty">データを読み込めませんでした。</div>';
         }
       }
       init();
