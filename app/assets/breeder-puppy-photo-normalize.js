@@ -11,11 +11,10 @@ function installRender(){
     revokePreviews();host.innerHTML='';
     selectedPhotos.forEach((f,i)=>{
       const card=document.createElement('div');card.style.cssText='border:1px solid #eee;border-radius:14px;padding:8px';
-      const im=document.createElement('img');const u=URL.createObjectURL(f);previewUrls.push(u);im.src=u;im.alt='登録写真 '+(i+1);im.style.cssText='width:100%;aspect-ratio:1/1;object-fit:contain;border-radius:10px;background:#f7edf2';card.appendChild(im);
+      const im=document.createElement('img');const u=URL.createObjectURL(f);previewUrls.push(u);im.src=u;im.alt='登録写真 '+(i+1);im.style.cssText='width:100%;height:auto;max-height:360px;object-fit:contain;border-radius:10px;background:#f7edf2;display:block';card.appendChild(im);
       const small=document.createElement('small');small.style.display='block';small.textContent=i===0?'メイン写真':'写真 '+(i+1);card.appendChild(small);
       const row=document.createElement('div');row.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:6px';
       const btn=(label,fn)=>{const b=document.createElement('button');b.type='button';b.className='btn btn-sub';b.textContent=label;b.onclick=fn;row.appendChild(b)};
-      btn('写真を調整',()=>openPhotoAdjust(i));
       if(i>0)btn('←',()=>movePhoto(i,-1));
       if(i<selectedPhotos.length-1)btn('→',()=>movePhoto(i,1));
       if(i>0)btn('メインにする',()=>makeMain(i));
@@ -29,8 +28,9 @@ async function decodeImage(file){
   return await new Promise((resolve,reject)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>resolve({width:im.naturalWidth,height:im.naturalHeight,draw:(ctx,...args)=>ctx.drawImage(im,...args),close:()=>URL.revokeObjectURL(u)});im.onerror=()=>{URL.revokeObjectURL(u);reject(new Error('image_decode_failed'))};im.src=u})
 }
 async function preserveAspectForUpload(file){
-  if(!(file instanceof Blob)||!String(file.type||'').startsWith('image/'))return file;
-  const d=await decodeImage(file);try{
+  const original=file&&file._bigpawOriginal instanceof Blob?file._bigpawOriginal:file;
+  if(!(original instanceof Blob)||!String(original.type||'').startsWith('image/'))return original;
+  const d=await decodeImage(original);try{
     const scale=Math.min(1,TARGET/Math.max(d.width,d.height));
     const w=Math.max(1,Math.round(d.width*scale)),h=Math.max(1,Math.round(d.height*scale));
     const c=document.createElement('canvas');c.width=w;c.height=h;
@@ -62,7 +62,7 @@ function installPersistedOriginalAdjust(){
 }
 function installNote(){
   const box=document.querySelector('.photo-box');if(!box||document.getElementById('bigpawPhotoNormalizeNote'))return;
-  const n=document.createElement('div');n.id='bigpawPhotoNormalizeNote';n.className='notice';n.style.cssText='margin-top:12px;text-align:left';n.textContent='元の写真は切り取らず縦横比を保ったまま軽量化して保存します。公開画面では用途に合わせて全体表示または正方形表示を使い分けます。';box.appendChild(n)
+  const n=document.createElement('div');n.id='bigpawPhotoNormalizeNote';n.className='notice';n.style.cssText='margin-top:12px;text-align:left';n.textContent='新しく選んだ写真は切り取らず、元の縦横比を保ったまま軽量化して保存します。';box.appendChild(n)
 }
 function install(){installRender();installUploadOptimizer();installPersistedOriginalAdjust();installNote();if(typeof window.renderSelectedPhotos==='function'&&typeof selectedPhotos!=='undefined'&&selectedPhotos.length)renderSelectedPhotos()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
