@@ -13,11 +13,49 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SEARCH = ROOT / 'search.html'
+REBUILT_SEARCH = ROOT / 'search-list-rebuild.html'
 PATCH = ROOT / 'backend' / 'search_result_list_patch.py'
 FINAL_MARKER = 'id="bigpaw-search-final-layout-v3"'
 FINAL_JS_MARKER = 'id="bigpaw-search-final-layout-v3-js"'
 LEGACY_DIAG = '/__renderdiag'
 NATIVE_MARKER = 'data-bp-native-layout="20260926-native1"'
+REBUILT_MARKERS = (
+    'class="bp-puppy-layout"',
+    'grid-template-columns:minmax(0,49%) minmax(0,51%)',
+    'class="bp-puppy-photo"',
+    'class="bp-puppy-info"',
+    'puppy-detail.html?id=',
+    'window.BIGPAW_SELECTED_BREEDS',
+    'id="bpAge"',
+    'id="bpColor"',
+    'id="bpMin"',
+    'id="bpMax"',
+    '誕生：',
+    '毛色：',
+)
+
+
+def install_rebuilt_search(stage: str) -> bool:
+    if not REBUILT_SEARCH.exists():
+        return False
+    html = REBUILT_SEARCH.read_text(encoding='utf-8')
+    missing = [marker for marker in REBUILT_MARKERS if marker not in html]
+    if missing:
+        raise RuntimeError('SEARCH_REBUILD_GATE_FAIL|' + stage + '|missing=' + ','.join(missing))
+    if LEGACY_DIAG in html:
+        raise RuntimeError('SEARCH_REBUILD_GATE_FAIL|' + stage + '|legacy_renderdiag_present')
+    SEARCH.write_text(html, encoding='utf-8')
+    verify = SEARCH.read_text(encoding='utf-8')
+    missing_after = [marker for marker in REBUILT_MARKERS if marker not in verify]
+    if missing_after:
+        raise RuntimeError('SEARCH_REBUILD_GATE_FAIL|' + stage + '|postwrite_missing=' + ','.join(missing_after))
+    print(
+        'SEARCH_REBUILD_LIVE_OK|stage=' + stage
+        + '|source=search-list-rebuild.html|layout=photo_left_info_right|ratio=49_51'
+        + '|multi_breed=enabled|age_color_price_filters=enabled|detail_page=linked_not_modified',
+        flush=True,
+    )
+    return True
 
 
 def remove_legacy_search_diagnostics(html: str) -> str:
@@ -42,7 +80,7 @@ def force_native_horizontal_renderer(html: str) -> str:
     return html
 
 
-def heal_search(stage: str) -> None:
+def heal_legacy_search(stage: str) -> None:
     runpy.run_path(str(PATCH), run_name='__main__')
     html = SEARCH.read_text(encoding='utf-8')
     html = remove_legacy_search_diagnostics(html)
@@ -67,6 +105,12 @@ def heal_search(stage: str) -> None:
         + '|native_renderer=horizontal|legacy_vertical_renderer=0|final_css=1|final_js=1|legacy_renderdiag=0|version=20260926-native1',
         flush=True,
     )
+
+
+def heal_search(stage: str) -> None:
+    if install_rebuilt_search(stage):
+        return
+    heal_legacy_search(stage)
 
 
 def delayed_verify() -> None:
