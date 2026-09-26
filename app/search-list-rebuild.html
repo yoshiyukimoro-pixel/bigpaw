@@ -6,16 +6,20 @@
   <title>子犬を探す｜BIG PAW</title>
   <link rel="stylesheet" href="assets/style.css">
   <style>
-    :root{--bp-pink:#d978a0;--bp-line:#eadfe5;--bp-muted:#756b70;--bp-soft:#fff8fb}
+    :root{--bp-pink:#d978a0;--bp-line:#eadfe5;--bp-muted:#756b70;--bp-soft:#fff8fb;--bp-region:#fff4e3}
     *{box-sizing:border-box}
     html,body{margin:0;background:#fff;color:#222}
     body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body.bp-modal-open{overflow:hidden}
     .bp-search-page{max-width:760px;margin:0 auto;padding:18px 14px 100px;background:#fff}
     .bp-search-page h1{font-size:25px;margin:8px 0 18px}
     .bp-filter-card{background:#fff;border:1px solid #f0e4e9;border-radius:18px;padding:18px;margin-bottom:14px}
     .bp-filter-card h2{font-size:18px;margin:0 0 12px}
     .bp-filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-    .bp-filter-grid select{width:100%;height:48px;border:1px solid var(--bp-line);border-radius:12px;background:#fff;padding:0 9px;font-size:14px;color:#333}
+    .bp-filter-grid select,.bp-area-open{width:100%;height:48px;border:1px solid var(--bp-line);border-radius:12px;background:#fff;padding:0 9px;font-size:14px;color:#333;text-align:left}
+    .bp-area-open{display:flex;align-items:center;justify-content:space-between;gap:8px;overflow:hidden}
+    .bp-area-open span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .bp-area-open-arrow{font-size:18px;color:#777;flex:0 0 auto}
     .bp-result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:24px 2px 9px}
     .bp-result-head h2{margin:0;font-size:20px}
     .bp-result-count{font-weight:900;color:#555;white-space:nowrap}
@@ -40,6 +44,28 @@
     .bp-bottom-search{position:fixed;left:0;right:0;bottom:0;z-index:100;background:rgba(255,255,255,.98);border-top:1px solid #eee;padding:9px 14px calc(9px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:center;gap:12px}
     .bp-clear{border:0;background:transparent;color:#777;text-decoration:underline;font-size:13px;padding:10px}
     .bp-search-btn{border:0;border-radius:999px;background:var(--bp-pink);color:#fff;font-weight:900;font-size:15px;padding:13px 25px;min-width:132px}
+
+    .bp-area-modal[hidden]{display:none!important}
+    .bp-area-modal{position:fixed;inset:0;z-index:1000;background:#fff;overflow:auto;-webkit-overflow-scrolling:touch}
+    .bp-area-dialog{min-height:100%;max-width:760px;margin:0 auto;background:#fff;padding-bottom:calc(82px + env(safe-area-inset-bottom))}
+    .bp-area-head{position:sticky;top:0;z-index:3;background:#fffaf1;border-bottom:1px solid #d9d0c4;padding:14px 14px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .bp-area-head h2{font-size:18px;line-height:1.35;margin:0;color:#57212e}
+    .bp-area-close{border:1px solid #a9afb7;background:#f6f7f8;border-radius:8px;padding:8px 11px;font-size:14px;font-weight:700;color:#444}
+    .bp-area-all{padding:14px 16px;border-bottom:1px solid #ddd;display:flex;justify-content:center}
+    .bp-check{display:inline-flex;align-items:center;gap:7px;font-size:16px;line-height:1.35;cursor:pointer}
+    .bp-check input{width:22px;height:22px;margin:0;accent-color:var(--bp-pink);flex:0 0 auto}
+    .bp-area-groups{padding:0 14px 14px}
+    .bp-region-row{display:grid;grid-template-columns:108px minmax(0,1fr);border:1px solid #d9d2ca;border-top:0}
+    .bp-region-row:first-child{border-top:1px solid #d9d2ca}
+    .bp-region-name{background:var(--bp-region);padding:14px 9px;display:flex;align-items:center;justify-content:flex-start;border-right:1px solid #d9d2ca;font-weight:800;color:#673039}
+    .bp-pref-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px;padding:14px}
+    .bp-pref-grid .bp-check{font-size:15px;min-width:0}
+    .bp-pref-grid .bp-check span{white-space:nowrap}
+    .bp-area-actions{position:fixed;left:0;right:0;bottom:0;z-index:4;background:rgba(60,60,60,.86);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px}
+    .bp-area-actions-inner{display:contents}
+    .bp-area-reset{border:0;border-radius:8px;background:#eef1f3;color:#555;font-size:15px;font-weight:800}
+    .bp-area-apply{border:0;border-radius:8px;background:var(--bp-pink);color:#fff;font-size:17px;font-weight:900;min-height:52px}
+
     @media(max-width:420px){
       .bp-search-page{padding-left:12px;padding-right:12px}
       .bp-filter-card{padding:15px}
@@ -49,6 +75,11 @@
       .bp-puppy-title{font-size:18px;margin-bottom:8px}
       .bp-status,.bp-area,.bp-meta{font-size:13px}
       .bp-price{font-size:20px}
+      .bp-region-row{grid-template-columns:82px minmax(0,1fr)}
+      .bp-region-name{padding:12px 7px;font-size:14px}
+      .bp-pref-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 10px;padding:12px 10px}
+      .bp-pref-grid .bp-check{font-size:14px}
+      .bp-area-groups{padding-left:8px;padding-right:8px}
     }
   </style>
 </head>
@@ -71,17 +102,17 @@
     <section class="bp-filter-card" aria-label="地域と価格">
       <h2>地域・予算を選ぶ</h2>
       <div class="bp-filter-grid">
-        <select id="bpArea" data-prefecture-count="47">
-          <option value="all">地域：全国</option>
-          <optgroup label="北海道"><option value="北海道">北海道</option></optgroup>
-          <optgroup label="東北"><option value="青森県">青森県</option><option value="岩手県">岩手県</option><option value="宮城県">宮城県</option><option value="秋田県">秋田県</option><option value="山形県">山形県</option><option value="福島県">福島県</option></optgroup>
-          <optgroup label="関東"><option value="茨城県">茨城県</option><option value="栃木県">栃木県</option><option value="群馬県">群馬県</option><option value="埼玉県">埼玉県</option><option value="千葉県">千葉県</option><option value="東京都">東京都</option><option value="神奈川県">神奈川県</option></optgroup>
-          <optgroup label="甲信越・北陸"><option value="新潟県">新潟県</option><option value="富山県">富山県</option><option value="石川県">石川県</option><option value="福井県">福井県</option><option value="山梨県">山梨県</option><option value="長野県">長野県</option></optgroup>
-          <optgroup label="東海"><option value="岐阜県">岐阜県</option><option value="静岡県">静岡県</option><option value="愛知県">愛知県</option><option value="三重県">三重県</option></optgroup>
-          <optgroup label="近畿"><option value="滋賀県">滋賀県</option><option value="京都府">京都府</option><option value="大阪府">大阪府</option><option value="兵庫県">兵庫県</option><option value="奈良県">奈良県</option><option value="和歌山県">和歌山県</option></optgroup>
-          <optgroup label="中国"><option value="鳥取県">鳥取県</option><option value="島根県">島根県</option><option value="岡山県">岡山県</option><option value="広島県">広島県</option><option value="山口県">山口県</option></optgroup>
-          <optgroup label="四国"><option value="徳島県">徳島県</option><option value="香川県">香川県</option><option value="愛媛県">愛媛県</option><option value="高知県">高知県</option></optgroup>
-          <optgroup label="九州・沖縄"><option value="福岡県">福岡県</option><option value="佐賀県">佐賀県</option><option value="長崎県">長崎県</option><option value="熊本県">熊本県</option><option value="大分県">大分県</option><option value="宮崎県">宮崎県</option><option value="鹿児島県">鹿児島県</option><option value="沖縄県">沖縄県</option></optgroup>
+        <button id="bpAreaOpen" class="bp-area-open" type="button" aria-haspopup="dialog" aria-controls="bpAreaModal"><span id="bpAreaSummary">地域：全国</span><span class="bp-area-open-arrow">⌄</span></button>
+        <select id="bpArea" data-prefecture-count="47" multiple hidden aria-hidden="true" tabindex="-1">
+          <option value="北海道">北海道</option>
+          <option value="青森県">青森県</option><option value="岩手県">岩手県</option><option value="宮城県">宮城県</option><option value="秋田県">秋田県</option><option value="山形県">山形県</option><option value="福島県">福島県</option>
+          <option value="茨城県">茨城県</option><option value="栃木県">栃木県</option><option value="群馬県">群馬県</option><option value="埼玉県">埼玉県</option><option value="千葉県">千葉県</option><option value="東京都">東京都</option><option value="神奈川県">神奈川県</option>
+          <option value="新潟県">新潟県</option><option value="富山県">富山県</option><option value="石川県">石川県</option><option value="福井県">福井県</option><option value="山梨県">山梨県</option><option value="長野県">長野県</option>
+          <option value="岐阜県">岐阜県</option><option value="静岡県">静岡県</option><option value="愛知県">愛知県</option><option value="三重県">三重県</option>
+          <option value="滋賀県">滋賀県</option><option value="京都府">京都府</option><option value="大阪府">大阪府</option><option value="兵庫県">兵庫県</option><option value="奈良県">奈良県</option><option value="和歌山県">和歌山県</option>
+          <option value="鳥取県">鳥取県</option><option value="島根県">島根県</option><option value="岡山県">岡山県</option><option value="広島県">広島県</option><option value="山口県">山口県</option>
+          <option value="徳島県">徳島県</option><option value="香川県">香川県</option><option value="愛媛県">愛媛県</option><option value="高知県">高知県</option>
+          <option value="福岡県">福岡県</option><option value="佐賀県">佐賀県</option><option value="長崎県">長崎県</option><option value="熊本県">熊本県</option><option value="大分県">大分県</option><option value="宮崎県">宮崎県</option><option value="鹿児島県">鹿児島県</option><option value="沖縄県">沖縄県</option>
         </select>
         <select id="bpSort"><option value="new">新着順</option><option value="low">価格が安い順</option><option value="high">価格が高い順</option></select>
         <select id="bpMin"><option value="0">下限なし</option><option value="200000">20万円〜</option><option value="250000">25万円〜</option><option value="300000">30万円〜</option><option value="350000">35万円〜</option><option value="400000">40万円〜</option></select>
@@ -94,6 +125,15 @@
   </main>
 
   <div class="bp-bottom-search"><button id="bpClear" class="bp-clear" type="button">条件をクリア</button><button id="bpSearch" class="bp-search-btn" type="button">🔍 検索</button></div>
+
+  <section id="bpAreaModal" class="bp-area-modal" role="dialog" aria-modal="true" aria-labelledby="bpAreaTitle" hidden>
+    <div class="bp-area-dialog">
+      <div class="bp-area-head"><h2 id="bpAreaTitle">地域を選んでください（複数選択可）</h2><button id="bpAreaClose" class="bp-area-close" type="button">閉じる</button></div>
+      <div class="bp-area-all"><label class="bp-check"><input id="bpAreaAll" type="checkbox"><span>全都道府県</span></label></div>
+      <div id="bpAreaGroups" class="bp-area-groups" data-region-picker="47-prefectures"></div>
+      <div class="bp-area-actions"><button id="bpAreaReset" class="bp-area-reset" type="button">クリア</button><button id="bpAreaApply" class="bp-area-apply" type="button">選択して閉じる</button></div>
+    </div>
+  </section>
 
   <script src="assets/app.js"></script>
   <script src="assets/api.js"></script>
@@ -114,7 +154,12 @@
       const maxPrice=document.getElementById('bpMax');
       const results=document.getElementById('bpResults');
       const count=document.getElementById('bpCount');
+      const areaModal=document.getElementById('bpAreaModal');
+      const areaSummary=document.getElementById('bpAreaSummary');
+      const areaAll=document.getElementById('bpAreaAll');
+      const areaGroups=document.getElementById('bpAreaGroups');
       let source=[];
+      let selectedAreas=new Set();
       const PREF_KEY={
         '北海道':'hokkaido','青森県':'aomori','岩手県':'iwate','宮城県':'miyagi','秋田県':'akita','山形県':'yamagata','福島県':'fukushima',
         '茨城県':'ibaraki','栃木県':'tochigi','群馬県':'gunma','埼玉県':'saitama','千葉県':'chiba','東京都':'tokyo','神奈川県':'kanagawa',
@@ -123,6 +168,18 @@
         '鳥取県':'tottori','島根県':'shimane','岡山県':'okayama','広島県':'hiroshima','山口県':'yamaguchi','徳島県':'tokushima','香川県':'kagawa','愛媛県':'ehime','高知県':'kochi',
         '福岡県':'fukuoka','佐賀県':'saga','長崎県':'nagasaki','熊本県':'kumamoto','大分県':'oita','宮崎県':'miyazaki','鹿児島県':'kagoshima','沖縄県':'okinawa'
       };
+      const PREF_REGIONS=[
+        ['北海道',['北海道']],
+        ['東北',['青森県','岩手県','秋田県','宮城県','山形県','福島県']],
+        ['関東',['東京都','神奈川県','千葉県','埼玉県','茨城県','栃木県','群馬県']],
+        ['甲信越・北陸',['山梨県','長野県','新潟県','富山県','石川県','福井県']],
+        ['中部・東海',['静岡県','愛知県','岐阜県','三重県']],
+        ['関西・近畿',['大阪府','兵庫県','京都府','滋賀県','奈良県','和歌山県']],
+        ['中国',['岡山県','広島県','鳥取県','島根県','山口県']],
+        ['四国',['愛媛県','香川県','高知県','徳島県']],
+        ['九州・沖縄',['福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県']]
+      ];
+      const ALL_PREFS=Object.keys(PREF_KEY);
 
       function esc(v){return BigPaw.esc(String(v==null?'':v))}
       function monthsOld(v){if(!v)return null;const d=new Date(v);if(Number.isNaN(d.getTime()))return null;const n=new Date();return (n.getFullYear()-d.getFullYear())*12+n.getMonth()-d.getMonth()-(n.getDate()<d.getDate()?1:0)}
@@ -130,16 +187,57 @@
       function statusText(p){const raw=String(p.status||'募集中');return raw==='approved'?'募集中':raw}
       function listImage(p){return p.listImageUrl||p.imageUrl||''}
       function colorMatch(p,v){if(v==='all')return true;const c=String(p.color||'');if(v==='その他')return !['ブラック','ホワイト','クリーム','レッド'].some(x=>c.includes(x));return c.includes(v)}
+      function puppyAreaMatch(p,name){return String(p.area||'').trim()===name||String(p.areaKey||'')===PREF_KEY[name]}
+
+      function syncHiddenArea(){
+        Array.from(area.options).forEach(function(o){o.selected=selectedAreas.has(o.value)});
+      }
+      function updateAreaSummary(){
+        const n=selectedAreas.size;
+        if(n===0||n===47)areaSummary.textContent='地域：全国';
+        else if(n===1)areaSummary.textContent='地域：'+Array.from(selectedAreas)[0];
+        else if(n<=3)areaSummary.textContent='地域：'+Array.from(selectedAreas).join('・');
+        else areaSummary.textContent='地域：'+n+'都道府県選択中';
+      }
+      function syncAreaChecks(){
+        document.querySelectorAll('[data-pref]').forEach(function(cb){cb.checked=selectedAreas.has(cb.dataset.pref)});
+        document.querySelectorAll('[data-region-index]').forEach(function(cb){
+          const prefs=PREF_REGIONS[Number(cb.dataset.regionIndex)][1];
+          const hit=prefs.filter(x=>selectedAreas.has(x)).length;
+          cb.checked=hit===prefs.length;
+          cb.indeterminate=hit>0&&hit<prefs.length;
+        });
+        areaAll.checked=selectedAreas.size===47;
+        areaAll.indeterminate=selectedAreas.size>0&&selectedAreas.size<47;
+        syncHiddenArea();
+        updateAreaSummary();
+      }
+      function buildAreaPicker(){
+        areaGroups.innerHTML=PREF_REGIONS.map(function(row,idx){
+          const region=row[0],prefs=row[1];
+          return '<div class="bp-region-row">'
+            +'<label class="bp-region-name bp-check"><input type="checkbox" data-region-index="'+idx+'"><span>'+esc(region)+'</span></label>'
+            +'<div class="bp-pref-grid">'+prefs.map(function(name){return '<label class="bp-check"><input type="checkbox" data-pref="'+esc(name)+'"><span>'+esc(name)+'</span></label>'}).join('')+'</div>'
+          +'</div>';
+        }).join('');
+        areaGroups.addEventListener('change',function(e){
+          const t=e.target;if(!(t instanceof HTMLInputElement))return;
+          if(t.dataset.pref){if(t.checked)selectedAreas.add(t.dataset.pref);else selectedAreas.delete(t.dataset.pref);syncAreaChecks();return}
+          if(t.dataset.regionIndex!=null){const prefs=PREF_REGIONS[Number(t.dataset.regionIndex)][1];prefs.forEach(x=>t.checked?selectedAreas.add(x):selectedAreas.delete(x));syncAreaChecks()}
+        });
+      }
+      function openAreaPicker(){areaModal.hidden=false;document.body.classList.add('bp-modal-open');syncAreaChecks()}
+      function closeAreaPicker(apply){areaModal.hidden=true;document.body.classList.remove('bp-modal-open');if(apply)render(false)}
 
       function render(scroll){
         let list=source.slice();
         const selected=Array.isArray(window.BIGPAW_SELECTED_BREEDS)?window.BIGPAW_SELECTED_BREEDS:[];
-        const b=breed.value,g=gender.value,ag=age.value,c=color.value,a=area.value;
+        const b=breed.value,g=gender.value,ag=age.value,c=color.value;
         const min=Number(minPrice.value||0),max=Number(maxPrice.value||0);
         if(selected.length)list=list.filter(p=>selected.includes(String(p.breedKey||'')));
         else if(b!=='all')list=list.filter(p=>String(p.breedKey||p.breed||'')===b);
         if(g!=='all')list=list.filter(p=>String(p.genderKey||'')===g);
-        if(a!=='all')list=list.filter(p=>String(p.area||'').trim()===a||String(p.areaKey||'')===PREF_KEY[a]);
+        if(selectedAreas.size>0&&selectedAreas.size<47)list=list.filter(p=>Array.from(selectedAreas).some(name=>puppyAreaMatch(p,name)));
         if(min)list=list.filter(p=>Number(p.price||0)>=min);
         if(max)list=list.filter(p=>Number(p.price||0)<=max);
         list=list.filter(p=>colorMatch(p,c));
@@ -173,19 +271,27 @@
 
       function clearAll(){
         if(window.BigPawBreedPicker&&BigPawBreedPicker.clear)BigPawBreedPicker.clear();
-        breed.value='all';gender.value='all';age.value='all';color.value='all';area.value='all';sort.value='new';minPrice.value='0';maxPrice.value='0';render(false);
+        selectedAreas.clear();syncAreaChecks();
+        breed.value='all';gender.value='all';age.value='all';color.value='all';sort.value='new';minPrice.value='0';maxPrice.value='0';render(false);
       }
       async function init(){
         try{
-          source=await BigPawBridge.puppies();
+          buildAreaPicker();
           const qArea=qs.get('area');
           if(qArea){
-            const oldName=Object.keys(PREF_KEY).find(name=>PREF_KEY[name]===qArea);
-            const resolved=oldName||qArea;
-            if(Array.from(area.options).some(o=>o.value===resolved))area.value=resolved;
+            qArea.split(',').forEach(function(raw){const value=decodeURIComponent(raw.trim());const oldName=Object.keys(PREF_KEY).find(name=>PREF_KEY[name]===value);const resolved=oldName||value;if(PREF_KEY[resolved])selectedAreas.add(resolved)});
           }
-          [gender,age,color,area,sort,minPrice,maxPrice].forEach(x=>x.addEventListener('change',()=>render(false)));
+          syncAreaChecks();
+          source=await BigPawBridge.puppies();
+          [gender,age,color,sort,minPrice,maxPrice].forEach(x=>x.addEventListener('change',()=>render(false)));
           breed.addEventListener('change',()=>render(false));
+          document.getElementById('bpAreaOpen').addEventListener('click',openAreaPicker);
+          document.getElementById('bpAreaClose').addEventListener('click',()=>closeAreaPicker(false));
+          document.getElementById('bpAreaApply').addEventListener('click',()=>closeAreaPicker(true));
+          document.getElementById('bpAreaReset').addEventListener('click',()=>{selectedAreas.clear();syncAreaChecks()});
+          areaAll.addEventListener('change',()=>{selectedAreas.clear();if(areaAll.checked)ALL_PREFS.forEach(x=>selectedAreas.add(x));syncAreaChecks()});
+          areaModal.addEventListener('click',e=>{if(e.target===areaModal)closeAreaPicker(false)});
+          document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!areaModal.hidden)closeAreaPicker(false)});
           document.getElementById('bpSearch').addEventListener('click',()=>render(true));
           document.getElementById('bpClear').addEventListener('click',clearAll);
           render(false);
