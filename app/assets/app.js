@@ -37,3 +37,33 @@
     resetDemo(){Object.values(K).forEach(k=>localStorage.removeItem(k));ensure();location.reload()}
   }
 })();
+
+(function(){
+  const HEADER='/assets/bigpaw-logo-header.webp?v=20260926b';
+  const FULL='/assets/bigpaw-logo-full.webp?v=20260926b';
+  function applyBigPawBrand(){
+    if(!document.getElementById('bigpaw-brand-style')){
+      const st=document.createElement('style');
+      st.id='bigpaw-brand-style';
+      st.textContent='.logo{font-size:0!important;line-height:0!important;display:flex!important;align-items:center!important;flex:0 0 auto!important}.bigpaw-header-logo{display:block;width:150px;height:58px;object-fit:contain}.bigpaw-hero-brand{display:flex;justify-content:center;align-items:center;margin:0 auto 18px;max-width:440px}.bigpaw-hero-brand img{display:block;width:min(400px,90vw);height:auto;border-radius:22px}.bigpaw-footer-brand{display:flex;justify-content:center;align-items:center;padding:14px 18px 4px}.bigpaw-footer-brand img{display:block;width:min(240px,72vw);height:auto;border-radius:16px}@media(max-width:540px){.bigpaw-header-logo{width:118px;height:46px}.bigpaw-hero-brand img{width:min(340px,92vw)}}';
+      document.head.appendChild(st);
+    }
+    document.querySelectorAll('a.logo').forEach(a=>{
+      if(a.querySelector('.bigpaw-header-logo'))return;
+      a.innerHTML='<img class="bigpaw-header-logo" src="'+HEADER+'" alt="BIG PAW">';
+      a.setAttribute('aria-label','BIG PAW ホーム');
+    });
+    const isHome=location.pathname==='/'||/\/index\.html$/.test(location.pathname);
+    if(isHome){
+      const target=document.querySelector('.hero-grid > div:first-child');
+      if(target&&!document.querySelector('.bigpaw-hero-brand')){
+        const d=document.createElement('div');d.className='bigpaw-hero-brand';d.innerHTML='<img src="'+FULL+'" alt="BIG PAW 大型犬専門">';target.insertBefore(d,target.firstChild);
+      }
+    }
+    document.querySelectorAll('footer').forEach(f=>{
+      if(f.querySelector('.bigpaw-footer-brand'))return;
+      const d=document.createElement('div');d.className='bigpaw-footer-brand';d.innerHTML='<img src="'+FULL+'" alt="BIG PAW">';f.appendChild(d);
+    });
+  }
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',applyBigPawBrand):applyBigPawBrand();
+})();
