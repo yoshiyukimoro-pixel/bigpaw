@@ -17,12 +17,10 @@ PATCH = ROOT / 'backend' / 'search_result_list_patch.py'
 FINAL_MARKER = 'id="bigpaw-search-final-layout-v3"'
 FINAL_JS_MARKER = 'id="bigpaw-search-final-layout-v3-js"'
 LEGACY_DIAG = '/__renderdiag'
+NATIVE_MARKER = 'data-bp-native-layout="20260926-native1"'
 
 
 def remove_legacy_search_diagnostics(html: str) -> str:
-    # Remove any old diagnostic script that still posts layout snapshots to
-    # /__renderdiag. These blocks came from an earlier search debugging phase
-    # and can override/compete with the final search renderer on iPhone.
     blocks = re.findall(r'<script\b[^>]*>.*?</script>', html, flags=re.S | re.I)
     for block in blocks:
         if LEGACY_DIAG in block:
@@ -30,18 +28,34 @@ def remove_legacy_search_diagnostics(html: str) -> str:
     return html
 
 
+def force_native_horizontal_renderer(html: str) -> str:
+    if NATIVE_MARKER in html:
+        return html
+    pat = re.compile(
+        r'list\.map\(p=>`<a class="card result-card" href="puppy-detail\.html\?id=\$\{encodeURIComponent\(p\.id\)\}">.*?</a>`\)\.join\(\'\'\)',
+        flags=re.S,
+    )
+    replacement = r'''list.map(p=>`<a class="result-card" data-bp-native-layout="20260926-native1" href="puppy-detail.html?id=${encodeURIComponent(p.id)}"><div class="result-title">${BigPaw.esc(p.breed||'子犬')}</div><div class="result-row"><div class="result-pic-wrap"><div class="result-pic">${p.imageUrl?`<img src="${BigPaw.esc(p.imageUrl)}" alt="${BigPaw.esc(p.breed||'子犬')}" loading="eager" decoding="async">`:'🐾'}</div>${p.gender?`<span class="result-gender">${BigPaw.esc(p.gender)}</span>`:''}</div><div class="result-info"><div class="result-meta"><span class="result-status">${BigPaw.esc(p.status||'募集中')}</span><span>${BigPaw.esc(p.area||'')}</span></div><div class="result-line">誕生：${BigPaw.esc(String(p.birth||'未登録').replace(/-/g,'/'))}</div><div class="result-line">毛色：${BigPaw.esc(p.color||'未登録')}</div><div class="price">${BigPaw.currency(p.price)} <span style="font-size:12px;color:#5c5357;font-weight:700">(税込)</span></div>${p.desc?`<div class="result-appeal">${BigPaw.esc(p.desc)}</div>`:''}<div class="result-more">この子の詳細を見る ›</div></div></div></a>`).join('')'''
+    html, n = pat.subn(lambda _m: replacement, html, count=1)
+    if n != 1:
+        raise RuntimeError('SEARCH_NATIVE_RENDER_FAIL|legacy_card_template_count=' + str(n))
+    return html
+
+
 def heal_search(stage: str) -> None:
     runpy.run_path(str(PATCH), run_name='__main__')
     html = SEARCH.read_text(encoding='utf-8')
-    cleaned = remove_legacy_search_diagnostics(html)
-    if cleaned != html:
-        SEARCH.write_text(cleaned, encoding='utf-8')
-        html = cleaned
+    html = remove_legacy_search_diagnostics(html)
+    html = force_native_horizontal_renderer(html)
+    SEARCH.write_text(html, encoding='utf-8')
+    html = SEARCH.read_text(encoding='utf-8')
     checks = {
         'final_css': html.count(FINAL_MARKER) == 1,
         'final_js': html.count(FINAL_JS_MARKER) == 1,
         'legacy_diag_removed': LEGACY_DIAG not in html,
         'horizontal_css': 'grid-template-columns:minmax(0,49%) minmax(0,51%)' in html,
+        'native_horizontal_renderer': html.count(NATIVE_MARKER) == 1,
+        'legacy_vertical_renderer_removed': 'class="card result-card"' not in html,
         'birth': '誕生：' in html,
         'color': '毛色：' in html,
     }
@@ -50,14 +64,12 @@ def heal_search(stage: str) -> None:
         raise RuntimeError('SEARCH_LIVE_GATE_FAIL|' + stage + '|missing=' + ','.join(failed))
     print(
         'SEARCH_LIVE_GATE_OK|stage=' + stage
-        + '|final_css=1|final_js=1|legacy_renderdiag=0|horizontal=locked|version=20260926-final3',
+        + '|native_renderer=horizontal|legacy_vertical_renderer=0|final_css=1|final_js=1|legacy_renderdiag=0|version=20260926-native1',
         flush=True,
     )
 
 
 def delayed_verify() -> None:
-    # Re-apply after server module initialization as a guard against legacy
-    # runtime/UI bootstrap code rewriting search.html during startup.
     time.sleep(1.0)
     heal_search('post_server_start')
 
@@ -75,7 +87,6 @@ def main() -> int:
 
     signal.signal(signal.SIGTERM, forward)
     signal.signal(signal.SIGINT, forward)
-
     verifier = threading.Thread(target=delayed_verify, daemon=True)
     verifier.start()
     return child.wait()
