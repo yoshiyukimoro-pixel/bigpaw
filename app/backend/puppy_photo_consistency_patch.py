@@ -19,6 +19,7 @@ for old_tag in (
     '<script src="assets/breeder-puppy-photo-normalize.js?v=20260926b"></script>',
     '<script src="assets/breeder-puppy-photo-normalize.js?v=20260926c"></script>',
     '<script src="assets/breeder-puppy-photo-normalize.js?v=20260926d"></script>',
+    '<script src="assets/breeder-puppy-photo-normalize.js?v=20260926e"></script>',
 ):
     s=s.replace(old_tag,'')
 tag='<script src="assets/breeder-puppy-photo-normalize.js?v=20260926e"></script>'
