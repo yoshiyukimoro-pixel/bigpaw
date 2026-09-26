@@ -71,7 +71,18 @@
     <section class="bp-filter-card" aria-label="地域と価格">
       <h2>地域・予算を選ぶ</h2>
       <div class="bp-filter-grid">
-        <select id="bpArea"><option value="all">地域：全国</option></select>
+        <select id="bpArea" data-prefecture-count="47">
+          <option value="all">地域：全国</option>
+          <optgroup label="北海道"><option value="北海道">北海道</option></optgroup>
+          <optgroup label="東北"><option value="青森県">青森県</option><option value="岩手県">岩手県</option><option value="宮城県">宮城県</option><option value="秋田県">秋田県</option><option value="山形県">山形県</option><option value="福島県">福島県</option></optgroup>
+          <optgroup label="関東"><option value="茨城県">茨城県</option><option value="栃木県">栃木県</option><option value="群馬県">群馬県</option><option value="埼玉県">埼玉県</option><option value="千葉県">千葉県</option><option value="東京都">東京都</option><option value="神奈川県">神奈川県</option></optgroup>
+          <optgroup label="甲信越・北陸"><option value="新潟県">新潟県</option><option value="富山県">富山県</option><option value="石川県">石川県</option><option value="福井県">福井県</option><option value="山梨県">山梨県</option><option value="長野県">長野県</option></optgroup>
+          <optgroup label="東海"><option value="岐阜県">岐阜県</option><option value="静岡県">静岡県</option><option value="愛知県">愛知県</option><option value="三重県">三重県</option></optgroup>
+          <optgroup label="近畿"><option value="滋賀県">滋賀県</option><option value="京都府">京都府</option><option value="大阪府">大阪府</option><option value="兵庫県">兵庫県</option><option value="奈良県">奈良県</option><option value="和歌山県">和歌山県</option></optgroup>
+          <optgroup label="中国"><option value="鳥取県">鳥取県</option><option value="島根県">島根県</option><option value="岡山県">岡山県</option><option value="広島県">広島県</option><option value="山口県">山口県</option></optgroup>
+          <optgroup label="四国"><option value="徳島県">徳島県</option><option value="香川県">香川県</option><option value="愛媛県">愛媛県</option><option value="高知県">高知県</option></optgroup>
+          <optgroup label="九州・沖縄"><option value="福岡県">福岡県</option><option value="佐賀県">佐賀県</option><option value="長崎県">長崎県</option><option value="熊本県">熊本県</option><option value="大分県">大分県</option><option value="宮崎県">宮崎県</option><option value="鹿児島県">鹿児島県</option><option value="沖縄県">沖縄県</option></optgroup>
+        </select>
         <select id="bpSort"><option value="new">新着順</option><option value="low">価格が安い順</option><option value="high">価格が高い順</option></select>
         <select id="bpMin"><option value="0">下限なし</option><option value="200000">20万円〜</option><option value="250000">25万円〜</option><option value="300000">30万円〜</option><option value="350000">35万円〜</option><option value="400000">40万円〜</option></select>
         <select id="bpMax"><option value="0">上限なし</option><option value="250000">〜25万円</option><option value="300000">〜30万円</option><option value="350000">〜35万円</option><option value="400000">〜40万円</option><option value="500000">〜50万円</option></select>
@@ -104,6 +115,14 @@
       const results=document.getElementById('bpResults');
       const count=document.getElementById('bpCount');
       let source=[];
+      const PREF_KEY={
+        '北海道':'hokkaido','青森県':'aomori','岩手県':'iwate','宮城県':'miyagi','秋田県':'akita','山形県':'yamagata','福島県':'fukushima',
+        '茨城県':'ibaraki','栃木県':'tochigi','群馬県':'gunma','埼玉県':'saitama','千葉県':'chiba','東京都':'tokyo','神奈川県':'kanagawa',
+        '新潟県':'niigata','富山県':'toyama','石川県':'ishikawa','福井県':'fukui','山梨県':'yamanashi','長野県':'nagano',
+        '岐阜県':'gifu','静岡県':'shizuoka','愛知県':'aichi','三重県':'mie','滋賀県':'shiga','京都府':'kyoto','大阪府':'osaka','兵庫県':'hyogo','奈良県':'nara','和歌山県':'wakayama',
+        '鳥取県':'tottori','島根県':'shimane','岡山県':'okayama','広島県':'hiroshima','山口県':'yamaguchi','徳島県':'tokushima','香川県':'kagawa','愛媛県':'ehime','高知県':'kochi',
+        '福岡県':'fukuoka','佐賀県':'saga','長崎県':'nagasaki','熊本県':'kumamoto','大分県':'oita','宮崎県':'miyazaki','鹿児島県':'kagoshima','沖縄県':'okinawa'
+      };
 
       function esc(v){return BigPaw.esc(String(v==null?'':v))}
       function monthsOld(v){if(!v)return null;const d=new Date(v);if(Number.isNaN(d.getTime()))return null;const n=new Date();return (n.getFullYear()-d.getFullYear())*12+n.getMonth()-d.getMonth()-(n.getDate()<d.getDate()?1:0)}
@@ -111,7 +130,6 @@
       function statusText(p){const raw=String(p.status||'募集中');return raw==='approved'?'募集中':raw}
       function listImage(p){return p.listImageUrl||p.imageUrl||''}
       function colorMatch(p,v){if(v==='all')return true;const c=String(p.color||'');if(v==='その他')return !['ブラック','ホワイト','クリーム','レッド'].some(x=>c.includes(x));return c.includes(v)}
-      function addAreaOptions(items){const seen=new Set();items.forEach(function(p){const value=String(p.areaKey||p.area||'');if(!value||seen.has(value))return;seen.add(value);const o=document.createElement('option');o.value=value;o.textContent=p.area||value;area.appendChild(o)})}
 
       function render(scroll){
         let list=source.slice();
@@ -121,7 +139,7 @@
         if(selected.length)list=list.filter(p=>selected.includes(String(p.breedKey||'')));
         else if(b!=='all')list=list.filter(p=>String(p.breedKey||p.breed||'')===b);
         if(g!=='all')list=list.filter(p=>String(p.genderKey||'')===g);
-        if(a!=='all')list=list.filter(p=>String(p.areaKey||p.area||'')===a);
+        if(a!=='all')list=list.filter(p=>String(p.area||'').trim()===a||String(p.areaKey||'')===PREF_KEY[a]);
         if(min)list=list.filter(p=>Number(p.price||0)>=min);
         if(max)list=list.filter(p=>Number(p.price||0)<=max);
         list=list.filter(p=>colorMatch(p,c));
@@ -160,8 +178,12 @@
       async function init(){
         try{
           source=await BigPawBridge.puppies();
-          addAreaOptions(source);
-          const qArea=qs.get('area');if(qArea&&Array.from(area.options).some(o=>o.value===qArea))area.value=qArea;
+          const qArea=qs.get('area');
+          if(qArea){
+            const oldName=Object.keys(PREF_KEY).find(name=>PREF_KEY[name]===qArea);
+            const resolved=oldName||qArea;
+            if(Array.from(area.options).some(o=>o.value===resolved))area.value=resolved;
+          }
           [gender,age,color,area,sort,minPrice,maxPrice].forEach(x=>x.addEventListener('change',()=>render(false)));
           breed.addEventListener('change',()=>render(false));
           document.getElementById('bpSearch').addEventListener('click',()=>render(true));
