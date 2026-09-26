@@ -31,6 +31,13 @@ REBUILT_MARKERS = (
     'id="bpMin"',
     'id="bpMax"',
     'data-prefecture-count="47"',
+    'id="bpAreaOpen"',
+    'id="bpAreaModal"',
+    'data-region-picker="47-prefectures"',
+    'id="bpAreaApply"',
+    'let selectedAreas=new Set()',
+    'data-region-index',
+    'data-pref',
     '誕生：',
     '毛色：',
 )
@@ -72,7 +79,8 @@ def install_rebuilt_search(stage: str) -> bool:
     print(
         'SEARCH_REBUILD_LIVE_OK|stage=' + stage
         + '|source=search-list-rebuild.html|layout=photo_left_info_right|ratio=49_51'
-        + '|prefectures=47|multi_breed=enabled|age_color_price_filters=enabled|detail_page=linked_not_modified',
+        + '|prefectures=47|area_picker=grouped_multi|region_bulk_select=enabled'
+        + '|multi_breed=enabled|age_color_price_filters=enabled|detail_page=linked_not_modified',
         flush=True,
     )
     return True
