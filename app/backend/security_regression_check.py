@@ -13,8 +13,14 @@ exec(Path('/app/backend/operator_users_patch.py').read_text(encoding='utf-8'), {
 # checks. The feature has its own build gate and does not modify puppy-detail/gallery.
 exec(Path('/app/backend/sales_handover_settings_patch.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
 
+# Validate and repair the generated server source before any release can pass.
+exec(Path('/app/backend/sales_handover_postbuild_fix.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
+
 server = Path('/app/backend/server.py').read_text(encoding='utf-8')
 auth = Path('/app/auth-return-fix.js').read_text(encoding='utf-8')
+
+# Syntax validity is part of the release gate, not just textual assertions.
+compile(server, '/app/backend/server.py', 'exec')
 
 checks = {
     'buyer_cannot_create_puppy': "if path=='/api/puppies':\n            u=self.require(['breeder','operator']);" in server,
@@ -61,6 +67,6 @@ if failed:
     raise SystemExit('SECURITY_REGRESSION_FAIL|' + '|'.join(failed))
 
 print(
-    'SECURITY_REGRESSION_OK|buyer_create_edit=blocked|breeder_cross_edit=blocked|parent_dog_update=owner_scoped|operator_role=preserved|operator_pages=guarded|operator_users=guarded|sales_handover=guarded|protected_entries=guarded',
+    'SECURITY_REGRESSION_OK|server_syntax=valid|buyer_create_edit=blocked|breeder_cross_edit=blocked|parent_dog_update=owner_scoped|operator_role=preserved|operator_pages=guarded|operator_users=guarded|sales_handover=guarded|protected_entries=guarded',
     flush=True,
 )
