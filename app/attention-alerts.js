@@ -57,6 +57,7 @@
     document.querySelectorAll('a[href]').forEach(a=>{
       if(keyForHref(a.getAttribute('href'))!==wanted) return;
       a.classList.add('bp-attention-link');
+      if(a.querySelector(':scope > .bp-attention-badge')) return;
       const b=document.createElement('span');
       b.className='bp-attention-badge';
       b.textContent=count>99?'99+':String(count);
@@ -166,17 +167,24 @@
   }
 
   function waitForMenu(){
-    ensureBreederNoticeLink();
     refresh();
-    const obs=new MutationObserver(()=>{if(document.getElementById('bp-global-mobile-menu-drawer')){ensureBreederNoticeLink();Object.entries(lastMap).forEach(([h,c])=>applyOne(h,c));showSummary(Object.values(lastMap).some(v=>n(v)>0))}});
-    obs.observe(document.documentElement,{childList:true,subtree:true});
-    setTimeout(()=>obs.disconnect(),12000);
+    let tries=0;
+    const timer=setInterval(()=>{
+      tries++;
+      if(document.getElementById('bp-global-mobile-menu-drawer')){
+        ensureBreederNoticeLink();
+        refresh();
+        clearInterval(timer);
+      }else if(tries>=40){
+        clearInterval(timer);
+      }
+    },250);
   }
 
   getRole().then(r=>{
     role=r;
     if(!role) return;
-    const go=()=>{waitForMenu();setInterval(refresh,30000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});document.addEventListener('click',e=>{if(e.target.closest('button'))setTimeout(refresh,1500)})};
+    const go=()=>{waitForMenu();setInterval(refresh,30000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});document.addEventListener('click',e=>{if(e.target.closest('button')&&!e.target.closest('#bp-global-mobile-menu-button,#bp-global-mobile-menu-drawer'))setTimeout(refresh,1500)})};
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go,{once:true});else go();
   });
 })();
