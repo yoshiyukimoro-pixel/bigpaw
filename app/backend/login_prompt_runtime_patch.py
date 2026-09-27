@@ -6,11 +6,11 @@ MESSAGES = ROOT / 'messages.html'
 LOGIN = ROOT / 'login.html'
 
 m = MESSAGES.read_text(encoding='utf-8')
-marker = 'BIGPAW_LOGIN_PROMPT_V2'
+marker = 'BIGPAW_LOGIN_PROMPT_V3'
 
 if marker not in m:
     css_old = '</style></head><body>'
-    css_new = '''#loginPromptOverlay{position:fixed;inset:0;background:rgba(35,28,39,.42);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}#loginPromptOverlay.show{display:flex}#loginPromptBox{width:min(92vw,420px);background:#fff;border-radius:22px;padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.2);text-align:center}#loginPromptBox h3{margin:0 0 10px;font-size:23px;color:#59465f}#loginPromptBox p{margin:0 0 18px;color:#7d7080;line-height:1.7}#loginPromptActions{display:grid;gap:10px}#loginPromptActions .btn{width:100%;box-sizing:border-box}/* BIGPAW_LOGIN_PROMPT_V2 */</style></head><body>'''
+    css_new = '''#loginPromptOverlay{position:fixed;inset:0;background:rgba(35,28,39,.42);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}#loginPromptOverlay.show{display:flex}#loginPromptBox{width:min(92vw,420px);background:#fff;border-radius:22px;padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.2);text-align:center}#loginPromptBox h3{margin:0 0 10px;font-size:23px;color:#59465f}#loginPromptBox p{margin:0 0 18px;color:#7d7080;line-height:1.7}#loginPromptActions{display:grid;gap:10px}#loginPromptActions .btn{width:100%;box-sizing:border-box}/* BIGPAW_LOGIN_PROMPT_V3 */</style></head><body>'''
     if css_old not in m:
         raise RuntimeError('LOGIN_PROMPT_PATCH_FAIL|messages_style_marker_missing')
     m = m.replace(css_old, css_new, 1)
@@ -23,6 +23,23 @@ if marker not in m:
 
     js_old = "let selected=null,inquiries=[],me=null;const breederFilter=new URLSearchParams(location.search).get('breeder')||'';"
     js_new = """let selected=null,inquiries=[],me=null;const breederFilter=new URLSearchParams(location.search).get('breeder')||'';
+const messageTopbar=document.getElementById('messageTopbar');
+const messageLogo=document.getElementById('messageLogo');
+const messageLogoText=document.getElementById('messageLogoText');
+const navPrimary=document.getElementById('navPrimary');
+const navSecondary=document.getElementById('navSecondary');
+const crumbLink=document.getElementById('crumbLink');
+const roleNotice=document.getElementById('roleNotice');
+const threads=document.getElementById('threads');
+const who=document.getElementById('who');
+const about=document.getElementById('about');
+const chat=document.getElementById('chat');
+const msg=document.getElementById('msg');
+const chatStatus=document.getElementById('chatStatus');
+const stepHint=document.getElementById('stepHint');
+const visitLink=document.getElementById('visitLink');
+const dealLink=document.getElementById('dealLink');
+const onlineVisit=document.getElementById('onlineVisit');
 function currentReturnPath(){return location.pathname+location.search+location.hash}
 function showLoginPrompt(){const o=document.getElementById('loginPromptOverlay');const a=document.getElementById('loginPromptGo');if(a)a.href='login.html?next='+encodeURIComponent(currentReturnPath());if(o)o.classList.add('show')}
 function hideLoginPrompt(){const o=document.getElementById('loginPromptOverlay');if(o)o.classList.remove('show')}
@@ -42,7 +59,7 @@ function hideLoginPrompt(){const o=document.getElementById('loginPromptOverlay')
     return;
   }
   hideLoginPrompt();
-  applyRoleUI();
+  try{applyRoleUI()}catch(e){console.error('messages role ui failed',e)}
   try{
     inquiries=await BigPawBridge.inquiries();
     if(me?.role==='operator'&&breederFilter)inquiries=inquiries.filter(x=>String(x.breeder_id||'')===String(breederFilter));
@@ -82,8 +99,9 @@ function safeNext(){const n=new URLSearchParams(location.search).get('next')||''
 m2 = MESSAGES.read_text(encoding='utf-8')
 l2 = LOGIN.read_text(encoding='utf-8')
 assert marker in m2
+assert "getElementById('threads')" in m2
 assert 'showLoginPrompt()' in m2
 assert '問い合わせを読み込めませんでした' in m2
 assert login_marker in l2
 assert 'const next=safeNext()' in l2
-print('LOGIN_PROMPT_OK|messages=modal_auth_only|load_error=separate|login_return=same_page|safe_next=same_origin', flush=True)
+print('LOGIN_PROMPT_OK|messages=modal_auth_only|dom_refs=explicit|load_error=separate|login_return=same_page|safe_next=same_origin', flush=True)
