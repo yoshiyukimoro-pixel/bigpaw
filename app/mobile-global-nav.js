@@ -5,7 +5,7 @@
   const path=location.pathname;
   const query=new URLSearchParams(location.search);
   const operatorPages=['/operator-admin.html','/operator-breeders.html','/operator-breeder-detail.html','/operator-listings.html','/operator-reports.html','/operator-support.html','/operator-deal-reports.html','/operator-deals.html','/operator-revenue.html','/operator-invoices.html','/operator-audit.html','/operator-backups.html','/operator-automations.html','/project-status.html','/backend-status.html','/launch-checklist.html'];
-  const breederPages=['/admin.html','/breeder-puppy-new.html','/breeder-inquiries.html','/breeder-deal-report.html','/breeder-billing.html','/breeder-invoice.html','/breeder-fees.html','/breeder-profile-edit.html','/parent-dogs.html','/health-records.html','/breeder-fee-agreement.html'];
+  const breederPages=['/admin.html','/breeder-puppy-new.html','/breeder-inquiries.html','/breeder-deal-report.html','/breeder-billing.html','/breeder-invoice.html','/breeder-fees.html','/breeder-profile-edit.html','/parent-dogs.html','/breeder-fee-agreement.html'];
   const sharedDealPages=['/messages.html','/online-visit.html','/visit-confirm.html','/deal.html','/reservation.html','/contract.html','/pickup.html','/review.html','/report.html'];
 
   const menus={
@@ -16,7 +16,7 @@
     },
     breeder:{
       label:'ブリーダー管理',tone:'breeder',items:[
-        ['🏠','管理トップ','/admin.html'],['＋','子犬を掲載','/breeder-puppy-new.html?new=1'],['💬','見学・問い合わせ','/breeder-inquiries.html'],['✅','成約申請','/breeder-deal-report.html'],['💴','請求・お支払い','/breeder-billing.html'],['🐩','親犬管理','/parent-dogs.html'],['🩺','健康情報','/health-records.html'],['🏡','犬舎プロフィール','/breeder-profile-edit.html'],['💳','料金・手数料','/breeder-fees.html'],['🌐','公開サイト','/index.html']
+        ['🏠','管理トップ','/admin.html'],['＋','子犬を掲載','/breeder-puppy-new.html?new=1'],['💬','見学・問い合わせ','/breeder-inquiries.html'],['✅','成約申請','/breeder-deal-report.html'],['💴','請求・お支払い','/breeder-billing.html'],['🐩','親犬管理','/parent-dogs.html'],['🏡','犬舎プロフィール','/breeder-profile-edit.html'],['💳','料金・手数料','/breeder-fees.html'],['🌐','公開サイト','/index.html']
       ]
     },
     buyer:{
