@@ -8,7 +8,7 @@ DETAIL = ROOT / 'puppy-detail.html'
 MARKER = 'SAFARI_DETAIL_GALLERY_HARDENING_v1'
 MEDIA_VERSION = '20260926safari1'
 ASSET_VERSION = '20260927swipe1'
-SWIPE_VERSION = '20260927swipe2'
+SWIPE_VERSION = '20260927native1'
 
 g = GALLERY.read_text(encoding='utf-8')
 
@@ -61,9 +61,8 @@ html, n = re.subn(
 )
 assert n == 1, ('stable_gallery_tag_count', n)
 
-# Load one capture-phase touch bridge after the stable gallery. It owns mobile
-# swiping and suppresses the gallery's older bubbling touch listeners so one
-# gesture can only advance once.
+# Load the mobile native-scroll bridge after the stable gallery. It replaces
+# only the mobile hero stage so Safari/Chrome own horizontal swiping directly.
 html = re.sub(
     r'<script src="assets/puppy-detail-swipe-fix\.js(?:\?v=[^"]*)?"></script>',
     '',
@@ -77,8 +76,8 @@ html = html.replace(
 )
 DETAIL.write_text(html, encoding='utf-8')
 
-# Final gate: preserve the existing UI while changing only resource lifecycle
-# and adding the isolated swipe bridge.
+# Final gate: preserve the existing stable gallery and load the mobile native
+# scroller as a separate, cache-busted asset.
 verify = GALLERY.read_text(encoding='utf-8')
 verify_html = DETAIL.read_text(encoding='utf-8')
 checks = {
@@ -97,8 +96,8 @@ if failed:
     raise RuntimeError('SAFARI_GALLERY_HARDENING_FAIL|' + ','.join(failed))
 
 print(
-    'SAFARI_GALLERY_HARDENING_OK|ui=unchanged|swipe=preserved|thumb_tap=preserved'
+    'SAFARI_GALLERY_HARDENING_OK|ui=unchanged|stable_gallery=preserved|thumb_tap=preserved'
     '|thumbs=lazy_visible|stage_release=pagehide|bfcache_restore=enabled'
-    f'|media_cache_bust={MEDIA_VERSION}|swipe_fix={SWIPE_VERSION}',
+    f'|media_cache_bust={MEDIA_VERSION}|mobile_native_scroll={SWIPE_VERSION}',
     flush=True,
 )
