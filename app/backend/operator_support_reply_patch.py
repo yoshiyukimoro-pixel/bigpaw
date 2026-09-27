@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import runpy
 
 p=Path(__file__).with_name('server.py')
 s=p.read_text(encoding='utf-8')
@@ -81,3 +82,4 @@ s=s.replace(post_anchor,post_anchor+post_route,1)
 
 p.write_text(s,encoding='utf-8')
 print('OPERATOR_SUPPORT_REPLY_OK|history=enabled|email=enabled|status=reviewing',flush=True)
+runpy.run_path(str(Path(__file__).with_name('operator_support_retention_patch.py')),run_name='__main__')
