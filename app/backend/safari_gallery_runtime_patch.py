@@ -7,7 +7,8 @@ GALLERY = ROOT / 'assets' / 'puppy-detail-stable-gallery.js'
 DETAIL = ROOT / 'puppy-detail.html'
 MARKER = 'SAFARI_DETAIL_GALLERY_HARDENING_v1'
 MEDIA_VERSION = '20260926safari1'
-ASSET_VERSION = '20260926safari1'
+ASSET_VERSION = '20260927swipe1'
+SWIPE_VERSION = '20260927swipe1'
 
 g = GALLERY.read_text(encoding='utf-8')
 
@@ -50,7 +51,7 @@ if MARKER not in g:
 
     GALLERY.write_text(g, encoding='utf-8')
 
-# Make Safari fetch this gallery revision instead of reusing an older JS resource.
+# Make browsers fetch this gallery revision instead of reusing an older JS resource.
 html = DETAIL.read_text(encoding='utf-8')
 html, n = re.subn(
     r'<script src="assets/puppy-detail-stable-gallery\.js(?:\?v=[^"]*)?"></script>',
@@ -59,10 +60,27 @@ html, n = re.subn(
     count=1,
 )
 assert n == 1, ('stable_gallery_tag_count', n)
+
+# Add a separate pointer/touch swipe bridge. It only activates the existing
+# thumbnail buttons, so it cannot alter photo data, rendering, favorites, or
+# the rest of the puppy detail page.
+html = re.sub(
+    r'<script src="assets/puppy-detail-swipe-fix\.js(?:\?v=[^"]*)?"></script>',
+    '',
+    html,
+)
+assert '</body>' in html, 'body_close_missing_for_swipe_fix'
+html = html.replace(
+    '</body>',
+    f'<script src="assets/puppy-detail-swipe-fix.js?v={SWIPE_VERSION}"></script></body>',
+    1,
+)
 DETAIL.write_text(html, encoding='utf-8')
 
-# Final gate: preserve the existing UI while changing only resource lifecycle.
+# Final gate: preserve the existing UI while changing only resource lifecycle
+# and adding the isolated swipe bridge.
 verify = GALLERY.read_text(encoding='utf-8')
+verify_html = DETAIL.read_text(encoding='utf-8')
 checks = {
     'marker': MARKER in verify,
     'media_cache_bust': f"const MEDIA_V='{MEDIA_VERSION}';" in verify,
@@ -72,6 +90,7 @@ checks = {
     'mobile_versioned_media': "mediaUrl(urls[index],mobile?'card':'hero');" in verify,
     'swipe_preserved': "stage.addEventListener('touchstart'" in verify and "stage.addEventListener('touchend'" in verify,
     'thumb_tap_preserved': "b.onclick=e=>{e.preventDefault();show(i)}" in verify,
+    'swipe_fix_loaded': f'puppy-detail-swipe-fix.js?v={SWIPE_VERSION}' in verify_html,
 }
 failed = [k for k, ok in checks.items() if not ok]
 if failed:
@@ -80,6 +99,6 @@ if failed:
 print(
     'SAFARI_GALLERY_HARDENING_OK|ui=unchanged|swipe=preserved|thumb_tap=preserved'
     '|thumbs=lazy_visible|stage_release=pagehide|bfcache_restore=enabled'
-    f'|media_cache_bust={MEDIA_VERSION}',
+    f'|media_cache_bust={MEDIA_VERSION}|swipe_fix={SWIPE_VERSION}',
     flush=True,
 )
