@@ -22,11 +22,11 @@ checks={
     'sales_table_present': 'CREATE TABLE IF NOT EXISTS breeder_sales_handover_settings' in s,
     'support_reply_post_present': "msupport_reply=re.fullmatch(r'/api/operator/support/([^/]+)/reply',path)" in post_part,
     'buyer_puppy_create_blocked': "if path=='/api/puppies':\n            u=self.require(['breeder','operator']);" in post_part,
-    'photo_order_api_present': "/api/puppies/([^/]+)/photos/order" in post_part,
+    'photo_order_api_preserved_in_patch': "/api/puppies/([^/]+)/photos/order" in patch_part,
     'sales_page_guarded': "'/breeder-sales-handover.html'" in (ROOT/'auth-return-fix.js').read_text(encoding='utf-8'),
     'puppy_detail_isolated': 'sales-handover-public.js' not in (ROOT/'puppy-detail.html').read_text(encoding='utf-8'),
 }
 failed=[k for k,v in checks.items() if not v]
 if failed:
     raise SystemExit('FINAL_RELEASE_GATE_FAIL|'+'|'.join(failed))
-print('FINAL_RELEASE_GATE_OK|server_syntax=valid|sales_get=GET|sales_save=POST|support_reply=preserved|photo_order=preserved|puppy_detail=untouched',flush=True)
+print('FINAL_RELEASE_GATE_OK|server_syntax=valid|sales_get=GET|sales_save=POST|support_reply=preserved|photo_order=PATCH_preserved|puppy_detail=untouched',flush=True)
