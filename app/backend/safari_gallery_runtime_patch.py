@@ -7,20 +7,15 @@ GALLERY = ROOT / 'assets' / 'puppy-detail-stable-gallery.js'
 DETAIL = ROOT / 'puppy-detail.html'
 MARKER = 'SAFARI_DETAIL_GALLERY_HARDENING_v1'
 MEDIA_VERSION = '20260926safari1'
-ASSET_VERSION = '20260927swipe1'
-SWIPE_VERSION = '20260927native2'
+ASSET_VERSION = '20260927restore1'
 
 g = GALLERY.read_text(encoding='utf-8')
 
 if MARKER not in g:
-    # Mark the runtime asset so this patch is idempotent.
     needle = "'use strict';\n"
     assert g.count(needle) == 1, ('strict_marker_count', g.count(needle))
     g = g.replace(needle, needle + f"// {MARKER}\n", 1)
 
-    # Always cache-bust media URLs on iPhone/Safari as well. Previously mobile
-    # preserved an older media URL/version, which could keep stale WebKit image
-    # resources alive until website data was cleared.
     g, n = re.subn(r"const MEDIA_V='[^']+';", f"const MEDIA_V='{MEDIA_VERSION}';", g, count=1)
     assert n == 1, ('media_version_count', n)
 
@@ -51,8 +46,12 @@ if MARKER not in g:
 
     GALLERY.write_text(g, encoding='utf-8')
 
-# Make browsers fetch this gallery revision instead of reusing an older JS resource.
 html = DETAIL.read_text(encoding='utf-8')
+html = re.sub(
+    r'<script src="assets/puppy-detail-swipe-fix\.js(?:\?v=[^"]*)?"></script>',
+    '',
+    html,
+)
 html, n = re.subn(
     r'<script src="assets/puppy-detail-stable-gallery\.js(?:\?v=[^"]*)?"></script>',
     f'<script src="assets/puppy-detail-stable-gallery.js?v={ASSET_VERSION}"></script>',
@@ -60,24 +59,8 @@ html, n = re.subn(
     count=1,
 )
 assert n == 1, ('stable_gallery_tag_count', n)
-
-# Load the mobile native-scroll bridge after the stable gallery. It replaces
-# only the mobile hero stage so Safari/Chrome own horizontal swiping directly.
-html = re.sub(
-    r'<script src="assets/puppy-detail-swipe-fix\.js(?:\?v=[^"]*)?"></script>',
-    '',
-    html,
-)
-assert '</body>' in html, 'body_close_missing_for_swipe_fix'
-html = html.replace(
-    '</body>',
-    f'<script src="assets/puppy-detail-swipe-fix.js?v={SWIPE_VERSION}"></script></body>',
-    1,
-)
 DETAIL.write_text(html, encoding='utf-8')
 
-# Final gate: preserve the existing stable gallery and load the mobile native
-# scroller as a separate, cache-busted asset.
 verify = GALLERY.read_text(encoding='utf-8')
 verify_html = DETAIL.read_text(encoding='utf-8')
 checks = {
@@ -89,15 +72,15 @@ checks = {
     'mobile_versioned_media': "mediaUrl(urls[index],mobile?'card':'hero');" in verify,
     'swipe_preserved': "stage.addEventListener('touchstart'" in verify and "stage.addEventListener('touchend'" in verify,
     'thumb_tap_preserved': "b.onclick=e=>{e.preventDefault();show(i)}" in verify,
-    'swipe_fix_loaded': f'puppy-detail-swipe-fix.js?v={SWIPE_VERSION}' in verify_html,
+    'extra_swipe_bridge_removed': 'puppy-detail-swipe-fix.js' not in verify_html,
 }
 failed = [k for k, ok in checks.items() if not ok]
 if failed:
     raise RuntimeError('SAFARI_GALLERY_HARDENING_FAIL|' + ','.join(failed))
 
 print(
-    'SAFARI_GALLERY_HARDENING_OK|ui=unchanged|stable_gallery=preserved|thumb_tap=preserved'
-    '|thumbs=lazy_visible|stage_release=pagehide|bfcache_restore=enabled'
-    f'|media_cache_bust={MEDIA_VERSION}|mobile_native_scroll={SWIPE_VERSION}',
+    'SAFARI_GALLERY_HARDENING_OK|known_good_restore=20260926|swipe=original|thumb_tap=preserved'
+    '|extra_swipe_bridge=removed|alerts_checked_separately=1'
+    f'|asset={ASSET_VERSION}|media_cache_bust={MEDIA_VERSION}',
     flush=True,
 )
