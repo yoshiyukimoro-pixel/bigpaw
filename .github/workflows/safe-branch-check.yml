@@ -5,6 +5,7 @@ on:
     branches:
       - safe-sales-handover-settings
       - fix-sales-handover-save-v2
+      - safe-support-history-retention-180d
   workflow_dispatch:
 
 jobs:
@@ -19,17 +20,19 @@ jobs:
           python3 -m py_compile app/backend/sales_handover_settings_patch.py
           python3 -m py_compile app/backend/sales_handover_postbuild_fix.py
           python3 -m py_compile app/backend/sales_handover_post_route_fix.py
+          python3 -m py_compile app/backend/operator_support_reply_patch.py
+          python3 -m py_compile app/backend/operator_support_retention_patch.py
           python3 -m py_compile app/backend/final_release_gate.py
           python3 -m py_compile app/backend/security_regression_check.py
 
       - name: Build BIG PAW image with all regression gates
         run: docker build --no-cache -t bigpaw-safe-check .
 
-      - name: Verify protected page and method placement
+      - name: Verify protected pages and method placement
         run: |
-          docker run --rm --entrypoint python3 bigpaw-safe-check -c "from pathlib import Path; a=Path('/app/breeder-sales-handover.html').read_text(); p=Path('/app/puppy-detail.html').read_text(); s=Path('/app/backend/server.py').read_text(); compile(s,'/app/backend/server.py','exec'); ps=s.index('    def do_POST(self):'); ds=s.index('    def do_DELETE(self):'); xs=s.index('    def do_PATCH(self):'); post=s[ps:ds]; patch=s[xs:]; target=\"        if path=='/api/breeder/sales-handover-settings':\\n\"; assert 'auth-return-fix.js' in a; assert '.savebar{position:static;bottom:auto' in a; assert 'sales-handover-public.js' not in p; assert post.count(target)==1; assert target not in patch; print('SAFE_BRANCH_ACCEPTANCE_OK|server_syntax=valid|sales_save=POST|mobile_save_tap=preserved|puppy_detail=untouched')"
+          docker run --rm --entrypoint python3 bigpaw-safe-check -c "from pathlib import Path; a=Path('/app/breeder-sales-handover.html').read_text(); h=Path('/app/operator-support.html').read_text(); p=Path('/app/puppy-detail.html').read_text(); s=Path('/app/backend/server.py').read_text(); compile(s,'/app/backend/server.py','exec'); ps=s.index('    def do_POST(self):'); ds=s.index('    def do_DELETE(self):'); xs=s.index('    def do_PATCH(self):'); post=s[ps:ds]; delete=s[ds:xs]; patch=s[xs:]; target=\"        if path=='/api/breeder/sales-handover-settings':\\n\"; assert 'auth-return-fix.js' in a; assert '.savebar{position:static;bottom:auto' in a; assert 'sales-handover-public.js' not in p; assert post.count(target)==1; assert target not in patch; assert 'SUPPORT_RETENTION_DAYS' in s; assert \"status IN ('resolved','closed')\" in s; assert \"/api/operator/support/([^/]+)\" in delete; assert '180日後に自動削除' in h; assert '完了済み' in h; assert '再開する' in h; assert 'deleteTicket' in h; print('SAFE_BRANCH_ACCEPTANCE_OK|server_syntax=valid|sales_save=POST|support_retention=180d|support_manual_delete=completed_only|support_tabs=active_completed|puppy_detail=untouched')"
 
-      - name: Railway-equivalent production startup and real save smoke test
+      - name: Railway-equivalent production startup and real smoke tests
         run: |
           set -euo pipefail
           START="python3 backend/auth_cookie_hardening_patch.py && python3 backend/safari_gallery_runtime_patch.py && python3 backend/support_contact_runtime_patch.py && python3 backend/offsite_backup_runtime_patch.py && python3 backend/login_prompt_runtime_patch.py && python3 backend/direct_payment_runtime_patch.py && python3 backend/breeder_mobile_menu_runtime_patch.py && exec python3 backend/start_live.py"
@@ -40,6 +43,7 @@ jobs:
             -e BIGPAW_ADMIN_EMAIL=smoke@example.com \
             -e BIGPAW_ADMIN_PASSWORD='SmokeTestPassword123!' \
             -e BIGPAW_PAYMENT_MODE=manual \
+            -e BIGPAW_SUPPORT_RETENTION_DAYS=180 \
             bigpaw-safe-check sh -c "$START"
           trap 'docker rm -f bigpaw-smoke >/dev/null 2>&1 || true' EXIT
           ok=0
@@ -60,7 +64,9 @@ jobs:
           fi
           cat /tmp/health.json
           bash scripts/test-sales-handover-save.sh
+          bash scripts/test-operator-support-retention.sh
           docker logs bigpaw-smoke 2>&1 | tee /tmp/runtime.log
           grep -q 'SAFARI_GALLERY_HARDENING_OK' /tmp/runtime.log
           grep -q 'GLOBAL_MOBILE_MENU_OK' /tmp/runtime.log
-          echo 'RUNTIME_SMOKE_OK|health=200|railway_start_chain=passed|sales_save=passed'
+          grep -q 'SEARCH_REBUILD_LIVE_OK' /tmp/runtime.log
+          echo 'RUNTIME_SMOKE_OK|health=200|railway_start_chain=passed|sales_save=passed|support_retention=passed'
