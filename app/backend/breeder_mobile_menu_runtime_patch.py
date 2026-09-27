@@ -59,6 +59,10 @@ runpy.run_path(str(ROOT / 'backend' / 'sales_handover_medical_merge_runtime_patc
 # Saved settings and the known-good Safari gallery remain untouched.
 runpy.run_path(str(ROOT / 'backend' / 'sales_handover_vaccine_copy_runtime_patch.py'), run_name='__main__')
 
+# Separate reservation money from the remaining balance on public pages.
+# Stored breeder settings remain unchanged and the stable Safari gallery stays byte-identical.
+runpy.run_path(str(ROOT / 'backend' / 'sales_handover_reservation_balance_runtime_patch.py'), run_name='__main__')
+
 print(
     'GLOBAL_MOBILE_MENU_OK|roles=public_buyer_breeder_operator|menu=hamburger_drawer|touch=enabled'
     '|alerts=red_badges|alert_excluded=' + ','.join(alert_excluded)
