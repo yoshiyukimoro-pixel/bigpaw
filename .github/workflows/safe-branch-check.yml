@@ -1,0 +1,26 @@
+name: Safe branch build check
+
+on:
+  push:
+    branches:
+      - safe-sales-handover-settings
+  workflow_dispatch:
+
+jobs:
+  build-and-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Syntax check new safety code
+        run: |
+          python3 -m py_compile app/backend/sales_handover_settings_patch.py
+          python3 -m py_compile app/backend/security_regression_check.py
+
+      - name: Build BIG PAW image with all regression gates
+        run: docker build --no-cache -t bigpaw-safe-check .
+
+      - name: Verify protected page is present and puppy detail remains isolated
+        run: |
+          docker run --rm --entrypoint python3 bigpaw-safe-check -c "from pathlib import Path; a=Path('/app/breeder-sales-handover.html').read_text(); p=Path('/app/puppy-detail.html').read_text(); s=Path('/app/backend/server.py').read_text(); assert 'auth-return-fix.js' in a; assert 'sales-handover-public.js' not in p; assert \"if path=='/api/breeder/sales-handover-settings':\" in s; print('SAFE_BRANCH_ACCEPTANCE_OK')"
