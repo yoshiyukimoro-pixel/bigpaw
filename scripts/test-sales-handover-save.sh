@@ -35,3 +35,9 @@ docker exec bigpaw-smoke grep -Fq '生体代金から予約金を差し引いた
 docker exec bigpaw-smoke grep -Fq "!/(残金|キャンセル|返金)/.test(x)" /app/assets/puppy-sales-handover-public.js
 docker exec bigpaw-smoke grep -Fq "row('残金のお支払い',balanceTiming,balanceDetail)" /app/assets/sales-handover-public.js
 echo 'RESERVATION_BALANCE_PUBLIC_SMOKE_OK|reservation=reservation_only|balance=separate_row|cancel_duplicate_filtered|saved_source=preserved'
+
+docker exec bigpaw-smoke grep -Fq 'id="bigpaw-breeder-handover-blue-theme"' /app/breeder-sales-handover.html
+docker exec bigpaw-smoke grep -Fq 'background:#f3f8ff!important' /app/breeder-sales-handover.html
+docker exec bigpaw-smoke grep -Fq "'/breeder-sales-handover.html'" /app/mobile-global-nav.js
+docker exec bigpaw-smoke grep -Fq "fetch('/api/breeder/sales-handover-settings'" /app/breeder-sales-handover.html
+echo 'BREEDER_HANDOVER_BLUE_THEME_SMOKE_OK|page=blue|mobile_menu=breeder_blue|save_logic=preserved'
