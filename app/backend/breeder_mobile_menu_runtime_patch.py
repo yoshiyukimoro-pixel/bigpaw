@@ -55,6 +55,10 @@ runpy.run_path(str(ROOT / 'backend' / 'puppy_sales_handover_public_patch.py'), r
 # microchip cost as included, and verifies the stable Safari gallery is unchanged.
 runpy.run_path(str(ROOT / 'backend' / 'sales_handover_medical_merge_runtime_patch.py'), run_name='__main__')
 
+# Refine only the public vaccine wording after the medical merge has completed.
+# Saved settings and the known-good Safari gallery remain untouched.
+runpy.run_path(str(ROOT / 'backend' / 'sales_handover_vaccine_copy_runtime_patch.py'), run_name='__main__')
+
 print(
     'GLOBAL_MOBILE_MENU_OK|roles=public_buyer_breeder_operator|menu=hamburger_drawer|touch=enabled'
     '|alerts=red_badges|alert_excluded=' + ','.join(alert_excluded)
