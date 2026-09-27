@@ -111,7 +111,6 @@ route = """        if path=='/api/breeder/sales-handover-settings':
                 b=con.execute('SELECT id FROM breeders WHERE id=?',(str(body.get('breederId','')),)).fetchone()
             if not b: con.close(); return self.send_json({'error':'breeder_not_found'},404)
             clean=normalize_sales_handover_settings(body)
-            # Public condition text must not become a route around BIG PAW direct-contact rules.
             public_text='\n'.join(str(clean.get(k,'') or '') for k in SALES_HANDOVER_TEXT_LIMITS)
             if public_profile_has_direct_contact(public_text):
                 con.close(); return self.send_json({'error':'direct_contact_not_allowed','message':'販売・引渡し条件には電話番号・メール・LINE・SNS・外部URLなどの直接連絡先は記載できません。'},400)
@@ -137,7 +136,7 @@ assert auth.count(a) == 1, ('sales_handover_auth_marker', auth.count(a))
 auth = auth.replace(a,b,1)
 auth_path.write_text(auth,encoding='utf-8')
 
-# 6) Add a navigation entry. This only inserts a link; no existing action is replaced.
+# 6) Add navigation entries only; no existing action is replaced.
 for rel in ('breeder-mobile-nav.js','mobile-global-nav.js'):
     p=ROOT/rel
     text=p.read_text(encoding='utf-8')
@@ -147,7 +146,6 @@ for rel in ('breeder-mobile-nav.js','mobile-global-nav.js'):
     text=text.replace(anchor,addition,1)
     p.write_text(text,encoding='utf-8')
 
-# Desktop breeder dashboard: add one isolated shortcut beside profile editing.
 admin_path=ROOT/'admin.html'
 admin=admin_path.read_text(encoding='utf-8')
 anchor='<a class="btn btn-sub dashboard-action" href="breeder-profile-edit.html" style="margin-top:10px">🏠 犬舎プロフィールを編集</a>'
@@ -165,17 +163,24 @@ if tag not in detail:
     detail=detail.replace('</body>',tag+'</body>',1)
     detail_path.write_text(detail,encoding='utf-8')
 
-# 8) Extend the existing security gate so the new page is checked like every other breeder page.
-sec_path=ROOT/'backend'/'security_regression_check.py'
-sec=sec_path.read_text(encoding='utf-8')
-a="'breeder-deal-report.html','breeder-profile-edit.html','breeder-invoice.html','parent-dogs.html','health-records.html',"
-b="'breeder-deal-report.html','breeder-profile-edit.html','breeder-sales-handover.html','breeder-invoice.html','parent-dogs.html','health-records.html',"
-assert sec.count(a)==1, ('sales_handover_security_page_marker',sec.count(a))
-sec=sec.replace(a,b,1)
-needle="    'buyer_mypage_is_buyer_only': \"const buyerOnly=['/mypage.html','/my-page.html'];\" in auth,\n"
-extra=needle+"    'sales_handover_page_is_breeder_only': '/breeder-sales-handover.html' in auth and \"u=self.require(['breeder','operator'])\" in server,\n    'sales_handover_does_not_touch_puppy_detail': 'sales-handover-public.js' not in Path('/app/puppy-detail.html').read_text(encoding='utf-8'),\n"
-assert sec.count(needle)==1, ('sales_handover_security_check_marker',sec.count(needle))
-sec=sec.replace(needle,extra,1)
-sec_path.write_text(sec,encoding='utf-8')
+# 8) Self-contained build gate. In particular, the fragile puppy detail/gallery is not modified.
+server_check=server_path.read_text(encoding='utf-8')
+auth_check=auth_path.read_text(encoding='utf-8')
+page=(ROOT/'breeder-sales-handover.html').read_text(encoding='utf-8')
+puppy_detail=(ROOT/'puppy-detail.html').read_text(encoding='utf-8')
+checks={
+    'isolated_table':'CREATE TABLE IF NOT EXISTS breeder_sales_handover_settings' in server_check,
+    'own_get_route':"if path=='/api/breeder/sales-handover-settings':" in server_check,
+    'public_get_route':"/api/breeders/([^/]+)/sales-handover-settings" in server_check,
+    'write_is_role_guarded':"u=self.require(['breeder','operator'])" in server_check,
+    'page_is_breeder_guarded':'/breeder-sales-handover.html' in auth_check,
+    'page_loads_common_guard':'auth-return-fix.js' in page,
+    'dashboard_link':'breeder-sales-handover.html' in admin_path.read_text(encoding='utf-8'),
+    'public_renderer_on_breeder_detail':'sales-handover-public.js' in detail_path.read_text(encoding='utf-8'),
+    'puppy_detail_untouched':'sales-handover-public.js' not in puppy_detail and 'breeder-sales-handover' not in puppy_detail,
+}
+failed=[k for k,v in checks.items() if not v]
+if failed:
+    raise SystemExit('SALES_HANDOVER_SETTINGS_FAIL|'+','.join(failed))
 
 print('SALES_HANDOVER_SETTINGS_OK|storage=isolated_table|api=isolated|page=breeder_only|public=breeder_detail_only|puppy_detail=untouched',flush=True)
