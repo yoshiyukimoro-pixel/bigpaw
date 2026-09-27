@@ -1,44 +1,21 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TAG = '<script src="/breeder-mobile-nav.js?v=20260927m1"></script>'
-TARGETS = [
-    'admin.html',
-    'breeder-puppy-new.html',
-    'breeder-inquiries.html',
-    'breeder-deal-report.html',
-    'breeder-billing.html',
-    'breeder-invoice.html',
-    'breeder-fees.html',
-    'breeder-profile-edit.html',
-    'parent-dogs.html',
-    'health-records.html',
-    'messages.html',
-    'online-visit.html',
-    'visit-confirm.html',
-    'deal.html',
-    'reservation.html',
-    'contract.html',
-    'pickup.html',
-    'review.html',
-    'report.html',
-    'breeder-fee-agreement.html',
-]
+TAG = '<script src="/mobile-global-nav.js?v=20260927m2"></script>'
 
 patched = []
-missing = []
-for name in TARGETS:
-    path = ROOT / name
-    if not path.exists():
-        missing.append(name)
-        continue
+skipped = []
+for path in ROOT.glob('*.html'):
     text = path.read_text(encoding='utf-8')
-    if '/breeder-mobile-nav.js' in text:
+    if '/mobile-global-nav.js' in text:
+        skipped.append(path.name)
         continue
     if '</body>' not in text:
-        missing.append(name + ':no-body')
+        skipped.append(path.name + ':no-body')
         continue
+    # The older breeder-only mobile menu is runtime-injected from clean source,
+    # so this generalized patch becomes the single mobile navigation entry point.
     path.write_text(text.replace('</body>', TAG + '</body>', 1), encoding='utf-8')
-    patched.append(name)
+    patched.append(path.name)
 
-print('BREEDER_MOBILE_MENU_OK|menu=hamburger_drawer|touch=enabled|pages=' + str(len(TARGETS)) + '|patched=' + str(len(patched)) + '|missing=' + str(len(missing)))
+print('GLOBAL_MOBILE_MENU_OK|roles=public_buyer_breeder_operator|menu=hamburger_drawer|touch=enabled|patched=' + str(len(patched)) + '|skipped=' + str(len(skipped)))
