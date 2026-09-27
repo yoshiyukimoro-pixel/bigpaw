@@ -8,7 +8,7 @@
 <div class="actions"><a class="btn btn-sub" href="breeder-billing.html">← 請求一覧</a><button class="btn btn-main" onclick="window.print()">印刷 / PDF保存</button></div>
 <main id="doc" class="invoice"><p>読み込み中…</p></main>
 <script src="assets/api.js"></script><script>
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const yen=n=>'¥'+Number(n||0).toLocaleString('ja-JP');
 const date=n=>n?new Date(Number(n)*1000).toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}):'-';
 const pct=bps=>{const n=Number(bps||0)/100;return (Number.isInteger(n)?String(n):n.toFixed(2).replace(/0+$/,'').replace(/\.$/,''))+'%'};
