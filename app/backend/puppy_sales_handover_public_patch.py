@@ -3,10 +3,18 @@ from pathlib import Path
 
 ROOT=Path('/app')
 page_path=ROOT/'puppy-detail.html'
+asset_path=ROOT/'assets'/'puppy-sales-handover-public.js'
 s=page_path.read_text(encoding='utf-8')
+asset=asset_path.read_text(encoding='utf-8')
 
 tag='<script src="assets/puppy-sales-handover-public.js?v=20260928a"></script>'
 legacy='<script src="assets/sales-handover-public.js"></script>'
+
+# The renderer itself must stay independent and use the existing public breeder settings API.
+assert 'お迎えについて' in asset, 'renderer_heading_missing'
+assert '/sales-handover-settings' in asset, 'renderer_public_api_missing'
+assert 'breederId' in asset, 'renderer_breeder_link_missing'
+assert 'bigpawRealGallery' not in asset, 'renderer_must_not_touch_gallery'
 
 # Protect the known-good gallery block byte-for-byte. This patch may only append
 # one independent renderer script before </body>.
