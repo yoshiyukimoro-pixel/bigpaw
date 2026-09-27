@@ -1,4 +1,5 @@
 from pathlib import Path
+import runpy
 
 ROOT = Path(__file__).resolve().parent.parent
 NAV_TAG = '<script src="/mobile-global-nav.js?v=20260927m5"></script>'
@@ -43,6 +44,11 @@ for path in ROOT.glob('*.html'):
 
     path.write_text(text.replace('</body>', tag + '</body>', 1), encoding='utf-8')
     patched.append(path.name)
+
+# Add the sales/handover renderer only after the global menu patch has finished.
+# The dedicated patch verifies the known-good gallery JS block is byte-identical
+# before and after the new script tag is appended.
+runpy.run_path(str(ROOT / 'backend' / 'puppy_sales_handover_public_patch.py'), run_name='__main__')
 
 print(
     'GLOBAL_MOBILE_MENU_OK|roles=public_buyer_breeder_operator|menu=hamburger_drawer|touch=enabled'
