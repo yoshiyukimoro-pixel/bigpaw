@@ -55,10 +55,16 @@ function installStyle(){
   document.head.appendChild(st);
 }
 async function init(){
-  if(!window.BigPawBridge){setTimeout(init,40);return}
   if(document.getElementById('bigpawStableGallery'))return;
   let p;
-  try{p=await BigPawBridge.puppy(puppyId)}catch(_e){return}
+  try{
+    const r=await fetch('/api/puppies/'+encodeURIComponent(puppyId),{credentials:'omit',cache:'no-store'});
+    if(!r.ok)throw new Error('public puppy fetch failed');
+    p=await r.json();
+  }catch(_e){
+    if(!window.BigPawBridge){setTimeout(init,40);return}
+    try{p=await BigPawBridge.puppy(puppyId)}catch(_e2){return}
+  }
   const old=document.querySelector('.gallery,#bigpawRealGallery');
   if(!old)return;
   installStyle();
