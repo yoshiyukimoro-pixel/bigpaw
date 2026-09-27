@@ -63,6 +63,10 @@ runpy.run_path(str(ROOT / 'backend' / 'sales_handover_vaccine_copy_runtime_patch
 # Stored breeder settings remain unchanged and the stable Safari gallery stays byte-identical.
 runpy.run_path(str(ROOT / 'backend' / 'sales_handover_reservation_balance_runtime_patch.py'), run_name='__main__')
 
+# Keep breeder-only sales/handover settings visually in the breeder (blue) theme.
+# This patch changes presentation and mobile-menu role detection only; save/data logic is preserved.
+runpy.run_path(str(ROOT / 'backend' / 'breeder_handover_blue_theme_runtime_patch.py'), run_name='__main__')
+
 print(
     'GLOBAL_MOBILE_MENU_OK|roles=public_buyer_breeder_operator|menu=hamburger_drawer|touch=enabled'
     '|alerts=red_badges|alert_excluded=' + ','.join(alert_excluded)
