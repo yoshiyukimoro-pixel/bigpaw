@@ -6,11 +6,11 @@ MESSAGES = ROOT / 'messages.html'
 LOGIN = ROOT / 'login.html'
 
 m = MESSAGES.read_text(encoding='utf-8')
-marker = 'BIGPAW_LOGIN_PROMPT_V1'
+marker = 'BIGPAW_LOGIN_PROMPT_V2'
 
 if marker not in m:
     css_old = '</style></head><body>'
-    css_new = '''#loginPromptOverlay{position:fixed;inset:0;background:rgba(35,28,39,.42);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}#loginPromptOverlay.show{display:flex}#loginPromptBox{width:min(92vw,420px);background:#fff;border-radius:22px;padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.2);text-align:center}#loginPromptBox h3{margin:0 0 10px;font-size:23px;color:#59465f}#loginPromptBox p{margin:0 0 18px;color:#7d7080;line-height:1.7}#loginPromptActions{display:grid;gap:10px}#loginPromptActions .btn{width:100%;box-sizing:border-box}/* BIGPAW_LOGIN_PROMPT_V1 */</style></head><body>'''
+    css_new = '''#loginPromptOverlay{position:fixed;inset:0;background:rgba(35,28,39,.42);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}#loginPromptOverlay.show{display:flex}#loginPromptBox{width:min(92vw,420px);background:#fff;border-radius:22px;padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.2);text-align:center}#loginPromptBox h3{margin:0 0 10px;font-size:23px;color:#59465f}#loginPromptBox p{margin:0 0 18px;color:#7d7080;line-height:1.7}#loginPromptActions{display:grid;gap:10px}#loginPromptActions .btn{width:100%;box-sizing:border-box}/* BIGPAW_LOGIN_PROMPT_V2 */</style></head><body>'''
     if css_old not in m:
         raise RuntimeError('LOGIN_PROMPT_PATCH_FAIL|messages_style_marker_missing')
     m = m.replace(css_old, css_new, 1)
@@ -31,11 +31,35 @@ function hideLoginPrompt(){const o=document.getElementById('loginPromptOverlay')
         raise RuntimeError('LOGIN_PROMPT_PATCH_FAIL|messages_js_marker_missing')
     m = m.replace(js_old, js_new, 1)
 
-    catch_old = "try{me=await BigPawBridge.me().catch(()=>null);if(me)applyRoleUI();inquiries=await BigPawBridge.inquiries();if(me?.role==='operator'&&breederFilter)inquiries=inquiries.filter(x=>String(x.breeder_id||'')===String(breederFilter))}catch(e){threads.innerHTML='<div class=\"notice\">ログインするとメッセージを利用できます。</div>';return}"
-    catch_new = "try{me=await BigPawBridge.me().catch(()=>null);if(!me)throw new Error('not_authenticated');applyRoleUI();inquiries=await BigPawBridge.inquiries();if(me?.role==='operator'&&breederFilter)inquiries=inquiries.filter(x=>String(x.breeder_id||'')===String(breederFilter))}catch(e){roleNotice.textContent='ログインが必要です';threads.innerHTML='<div class=\"notice\">ログインするとメッセージを利用できます。</div>';showLoginPrompt();return}"
-    if catch_old not in m:
-        raise RuntimeError('LOGIN_PROMPT_PATCH_FAIL|messages_auth_marker_missing')
-    m = m.replace(catch_old, catch_new, 1)
+    old_draw = "async function drawThreads(){setStepActions(false);try{me=await BigPawBridge.me().catch(()=>null);if(me)applyRoleUI();inquiries=await BigPawBridge.inquiries();if(me?.role==='operator'&&breederFilter)inquiries=inquiries.filter(x=>String(x.breeder_id||'')===String(breederFilter))}catch(e){threads.innerHTML='<div class=\"notice\">ログインするとメッセージを利用できます。</div>';return}threads.innerHTML=inquiries.length?inquiries.map(x=>`<div class=\"thread ${selected===x.id?'active':''}\" onclick=\"openThread('${x.id}')\"><b>${BigPaw.esc(qName(x))}</b><div class=\"muted\">${BigPaw.esc(qBreeder(x))}・${BigPaw.esc(x.status)}</div></div>`).join(''):'<div class=\"notice\">まだ問い合わせはありません。</div>';const wanted=new URLSearchParams(location.search).get('inquiry')||'';const target=(wanted&&inquiries.find(x=>String(x.id)===String(wanted)))||inquiries[0]||null;if(target)await openThread(target.id)}"
+    new_draw = """async function drawThreads(){
+  setStepActions(false);
+  try{me=await BigPawBridge.me()}catch(e){me=null}
+  if(!me){
+    roleNotice.textContent='ログインが必要です';
+    threads.innerHTML='<div class=\"notice\">ログインするとメッセージを利用できます。</div>';
+    showLoginPrompt();
+    return;
+  }
+  hideLoginPrompt();
+  applyRoleUI();
+  try{
+    inquiries=await BigPawBridge.inquiries();
+    if(me?.role==='operator'&&breederFilter)inquiries=inquiries.filter(x=>String(x.breeder_id||'')===String(breederFilter));
+  }catch(e){
+    console.error('messages inquiries load failed',e);
+    roleNotice.textContent=me?.role==='breeder'?'ブリーダーとして返信中':me?.role==='operator'?'運営として確認中':'購入希望者としてメッセージ中';
+    threads.innerHTML='<div class=\"notice\">問い合わせを読み込めませんでした。<br><button type=\"button\" class=\"btn btn-sub\" style=\"margin-top:10px\" onclick=\"drawThreads()\">再読み込み</button></div>';
+    return;
+  }
+  threads.innerHTML=inquiries.length?inquiries.map(x=>`<div class=\"thread ${selected===x.id?'active':''}\" onclick=\"openThread('${x.id}')\"><b>${BigPaw.esc(qName(x))}</b><div class=\"muted\">${BigPaw.esc(qBreeder(x))}・${BigPaw.esc(x.status)}</div></div>`).join(''):'<div class=\"notice\">まだ問い合わせはありません。</div>';
+  const wanted=new URLSearchParams(location.search).get('inquiry')||'';
+  const target=(wanted&&inquiries.find(x=>String(x.id)===String(wanted)))||inquiries[0]||null;
+  if(target)await openThread(target.id);
+}"""
+    if old_draw not in m:
+        raise RuntimeError('LOGIN_PROMPT_PATCH_FAIL|messages_draw_marker_missing')
+    m = m.replace(old_draw, new_draw, 1)
     MESSAGES.write_text(m, encoding='utf-8')
 
 l = LOGIN.read_text(encoding='utf-8')
@@ -55,12 +79,11 @@ function safeNext(){const n=new URLSearchParams(location.search).get('next')||''
     l = l.replace(redirect_old, redirect_new, 1)
     LOGIN.write_text(l, encoding='utf-8')
 
-# Validation
 m2 = MESSAGES.read_text(encoding='utf-8')
 l2 = LOGIN.read_text(encoding='utf-8')
 assert marker in m2
 assert 'showLoginPrompt()' in m2
-assert 'login.html?next=' in m2
+assert '問い合わせを読み込めませんでした' in m2
 assert login_marker in l2
 assert 'const next=safeNext()' in l2
-print('LOGIN_PROMPT_OK|messages=modal|login_return=same_page|safe_next=same_origin', flush=True)
+print('LOGIN_PROMPT_OK|messages=modal_auth_only|load_error=separate|login_return=same_page|safe_next=same_origin', flush=True)
