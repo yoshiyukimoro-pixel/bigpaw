@@ -8,7 +8,7 @@ DETAIL = ROOT / 'puppy-detail.html'
 MARKER = 'SAFARI_DETAIL_GALLERY_HARDENING_v1'
 MEDIA_VERSION = '20260926safari1'
 ASSET_VERSION = '20260927swipe1'
-SWIPE_VERSION = '20260927swipe1'
+SWIPE_VERSION = '20260927swipe2'
 
 g = GALLERY.read_text(encoding='utf-8')
 
@@ -61,9 +61,9 @@ html, n = re.subn(
 )
 assert n == 1, ('stable_gallery_tag_count', n)
 
-# Add a separate pointer/touch swipe bridge. It only activates the existing
-# thumbnail buttons, so it cannot alter photo data, rendering, favorites, or
-# the rest of the puppy detail page.
+# Load one capture-phase touch bridge after the stable gallery. It owns mobile
+# swiping and suppresses the gallery's older bubbling touch listeners so one
+# gesture can only advance once.
 html = re.sub(
     r'<script src="assets/puppy-detail-swipe-fix\.js(?:\?v=[^"]*)?"></script>',
     '',
