@@ -9,7 +9,7 @@ SAVE_CODE=$(curl -sS -o /tmp/save.json -w '%{http_code}' \
   -H 'Referer: https://bigpaw.site/breeder-sales-handover.html' \
   -H 'Cookie: bigpaw_session=smoke-sales-session' \
   -H 'Content-Type: application/json' \
-  --data '{"pedigreeOrganizations":["JKC"],"vaccineIncluded":false,"reservationAmount":100000,"balanceTiming":"お引き渡し当日まで","sameDayVisit":false,"handoverText":"健康診断後にお引き渡し","minHandoverDays":57,"healthExamIncluded":true,"microchipIncluded":false,"cancellationPolicy":"予約条件に基づき対応"}' \
+  --data '{"pedigreeOrganizations":["JKC"],"vaccineIncluded":false,"vaccineNote":"1回目6種混合ワクチン\n2回目7種混合ワクチン\nワクチン接種代として別途10,000円","reservationAmount":100000,"balanceTiming":"お引き渡し当日まで","sameDayVisit":false,"handoverText":"健康診断後にお引き渡し","minHandoverDays":57,"healthExamIncluded":true,"microchipIncluded":false,"cancellationPolicy":"予約条件に基づき対応"}' \
   http://127.0.0.1:18080/api/breeder/sales-handover-settings)
 
 test "$SAVE_CODE" = "200"
@@ -20,4 +20,12 @@ GET_CODE=$(curl -sS -o /tmp/saved.json -w '%{http_code}' \
   http://127.0.0.1:18080/api/breeder/sales-handover-settings)
 
 test "$GET_CODE" = "200"
-python3 -c "import json; x=json.load(open('/tmp/saved.json')); assert x['configured'] is True; assert x['reservationAmount']==100000; assert x['minHandoverDays']==57; assert x['balanceTiming']=='お引き渡し当日まで'; assert x['vaccineIncluded'] is False; assert x['healthExamIncluded'] is True; assert x['microchipIncluded'] is True; print('SALES_HANDOVER_SAVE_SMOKE_OK|post=200|get=200|persistence=verified|microchip_forced_included=1')"
+python3 -c "import json; x=json.load(open('/tmp/saved.json')); assert x['configured'] is True; assert x['reservationAmount']==100000; assert x['minHandoverDays']==57; assert x['balanceTiming']=='お引き渡し当日まで'; assert x['vaccineIncluded'] is False; assert x['vaccineNote']=='1回目6種混合ワクチン\n2回目7種混合ワクチン\nワクチン接種代として別途10,000円'; assert x['healthExamIncluded'] is True; assert x['microchipIncluded'] is True; print('SALES_HANDOVER_SAVE_SMOKE_OK|post=200|get=200|persistence=verified|microchip_forced_included=1')"
+
+docker exec bigpaw-smoke grep -Fq '生体価格には含まれません' /app/assets/puppy-sales-handover-public.js
+docker exec bigpaw-smoke grep -Fq 'ワクチン代：別途 $1円' /app/assets/puppy-sales-handover-public.js
+if docker exec bigpaw-smoke grep -Fq '生体価格とは別途必要です' /app/assets/puppy-sales-handover-public.js; then
+  echo 'VACCINE_PUBLIC_COPY_FAIL|old_copy_still_present'
+  exit 1
+fi
+echo 'VACCINE_PUBLIC_COPY_SMOKE_OK|not_included=clear|fee_line=normalized|saved_note=preserved'
