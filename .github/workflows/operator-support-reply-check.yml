@@ -1,0 +1,24 @@
+name: Operator support reply safe check
+
+on:
+  push:
+    branches:
+      - feature/operator-support-reply-20260928
+  workflow_dispatch:
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Syntax check reply patch
+        run: python3 -m py_compile app/backend/operator_support_reply_patch.py
+
+      - name: Build BIG PAW image without deploying
+        run: docker build --no-cache -t bigpaw-support-reply-check .
+
+      - name: Verify reply feature and protected operator scope
+        run: |
+          docker run --rm --entrypoint python3 bigpaw-support-reply-check -c "from pathlib import Path; s=Path('/app/backend/server.py').read_text(); h=Path('/app/operator-support.html').read_text(); assert 'CREATE TABLE IF NOT EXISTS support_replies' in s; assert \"/api/operator/support/([^/]+)/reply\" in s; assert \"/api/operator/support/([^/]+)/replies\" in s; assert \"self.require(['operator'])\" in s; assert 'support_reply_sent' in s; assert '返信する' in h; assert '送信する' in h; assert '/operator/support/' in h; print('OPERATOR_SUPPORT_REPLY_ACCEPTANCE_OK')"
