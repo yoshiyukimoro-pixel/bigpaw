@@ -12,7 +12,7 @@ MARKER = 'SAFARI_DETAIL_GALLERY_HARDENING_v1'
 PUBLIC_API_MARKER = 'BIGPAW_PUBLIC_PUPPY_DETAIL_API_V2'
 ROLE_PREVIEW_MARKER = 'BIGPAW_PUBLIC_PREVIEW_ROLE_GUARD_V1'
 MEDIA_VERSION = '20260926safari1'
-ASSET_VERSION = '20260927restore3'
+ASSET_VERSION = '20260927restore4'
 
 # ---------------------------------------------------------------------------
 # Public puppy detail API.
@@ -45,6 +45,28 @@ if PUBLIC_API_MARKER not in server:
 # Stable public gallery.
 # ---------------------------------------------------------------------------
 g = GALLERY.read_text(encoding='utf-8')
+
+# imageUrl can be returned as /media/<file>?kind=... while photos contains the
+# same stored file as /uploads/<file>. Deduplicate by stored filename, not by
+# the literal URL, so the main image does not appear twice in the gallery.
+old_key = "  const key=u=>String(u||'').split('?')[0];"
+new_key = """  const key=u=>{
+    const raw=String(u||'').trim();
+    if(!raw)return '';
+    const clean=raw.split('#')[0].split('?')[0];
+    try{
+      const path=new URL(clean,location.origin).pathname;
+      const m=path.match(/^\\/(?:media|uploads)\\/([^/]+)$/);
+      return m?'file:'+decodeURIComponent(m[1]):path;
+    }catch(_e){
+      const m=clean.match(/^\\/(?:media|uploads)\\/([^/]+)$/);
+      return m?'file:'+decodeURIComponent(m[1]):clean;
+    }
+  };"""
+if old_key in g:
+    g = g.replace(old_key, new_key, 1)
+elif "return m?'file:'+decodeURIComponent(m[1]):path;" not in g:
+    raise RuntimeError('PUBLIC_GALLERY_DEDUPE_PATCH_FAIL')
 
 # Always use the explicitly public endpoint. Never fall back to authenticated
 # bridge data for gallery state.
@@ -251,6 +273,7 @@ checks = {
     'public_fetch_without_auth': "credentials:'omit'" in verify and "cache:'no-store'" in verify,
     'no_authenticated_gallery_fallback': 'BigPawBridge.puppy(puppyId)' not in verify,
     'mount_fallback': 'fallbackMount' in verify and "insertAdjacentElement('beforebegin',root)" in verify,
+    'stored_file_dedupe': "return m?'file:'+decodeURIComponent(m[1]):path;" in verify,
     'media_cache_bust': f"const MEDIA_V='{MEDIA_VERSION}';" in verify,
     'lazy_thumbs': 'function setupLazyThumbs()' in verify and 'setTimeout(loadAllThumbs,40);' not in verify,
     'pagehide_release': "window.addEventListener('pagehide',releaseStageImage)" in verify,
@@ -268,7 +291,7 @@ if failed:
 
 print(
     'SAFARI_GALLERY_HARDENING_OK|known_good_restore=20260926|swipe=original|thumb_tap=preserved'
-    '|gallery_data=explicit_public_api|auth_role_independent=1|mount_fallback=1'
+    '|gallery_data=explicit_public_api|auth_role_independent=1|mount_fallback=1|stored_file_dedupe=1'
     '|breeder_public_preview=1|buyer_actions_hidden_for_breeder=1'
     f'|asset={ASSET_VERSION}|media_cache_bust={MEDIA_VERSION}',
     flush=True,
