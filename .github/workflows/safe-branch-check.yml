@@ -16,6 +16,7 @@ jobs:
       - name: Syntax check new safety code
         run: |
           python3 -m py_compile app/backend/sales_handover_settings_patch.py
+          python3 -m py_compile app/backend/sales_handover_postbuild_fix.py
           python3 -m py_compile app/backend/security_regression_check.py
 
       - name: Build BIG PAW image with all regression gates
@@ -23,4 +24,39 @@ jobs:
 
       - name: Verify protected page is present and puppy detail remains isolated
         run: |
-          docker run --rm --entrypoint python3 bigpaw-safe-check -c "from pathlib import Path; a=Path('/app/breeder-sales-handover.html').read_text(); p=Path('/app/puppy-detail.html').read_text(); s=Path('/app/backend/server.py').read_text(); assert 'auth-return-fix.js' in a; assert 'sales-handover-public.js' not in p; assert \"if path=='/api/breeder/sales-handover-settings':\" in s; print('SAFE_BRANCH_ACCEPTANCE_OK')"
+          docker run --rm --entrypoint python3 bigpaw-safe-check -c "from pathlib import Path; a=Path('/app/breeder-sales-handover.html').read_text(); p=Path('/app/puppy-detail.html').read_text(); s=Path('/app/backend/server.py').read_text(); compile(s,'/app/backend/server.py','exec'); assert 'auth-return-fix.js' in a; assert 'sales-handover-public.js' not in p; assert \"if path=='/api/breeder/sales-handover-settings':\" in s; print('SAFE_BRANCH_ACCEPTANCE_OK|server_syntax=valid')"
+
+      - name: Railway-equivalent production startup smoke test
+        run: |
+          set -euo pipefail
+          START="python3 backend/auth_cookie_hardening_patch.py && python3 backend/safari_gallery_runtime_patch.py && python3 backend/support_contact_runtime_patch.py && python3 backend/offsite_backup_runtime_patch.py && python3 backend/login_prompt_runtime_patch.py && python3 backend/direct_payment_runtime_patch.py && python3 backend/breeder_mobile_menu_runtime_patch.py && exec python3 backend/start_live.py"
+          docker run -d --name bigpaw-smoke -p 18080:8080 \
+            -e PORT=8080 \
+            -e BIGPAW_ENV=production \
+            -e BIGPAW_DATA_DIR=/tmp/bigpaw-data \
+            -e BIGPAW_ADMIN_EMAIL=smoke@example.com \
+            -e BIGPAW_ADMIN_PASSWORD='SmokeTestPassword123!' \
+            -e BIGPAW_PAYMENT_MODE=manual \
+            bigpaw-safe-check sh -c "$START"
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/api/health >/tmp/health.json; then
+              ok=1
+              break
+            fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-smoke 2>/dev/null | grep -q true; then
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ok" != "1" ]; then
+            echo 'RUNTIME_SMOKE_FAIL'
+            docker logs bigpaw-smoke || true
+            exit 1
+          fi
+          cat /tmp/health.json
+          docker logs bigpaw-smoke 2>&1 | tee /tmp/runtime.log
+          grep -q 'SAFARI_GALLERY_HARDENING_OK' /tmp/runtime.log
+          grep -q 'GLOBAL_MOBILE_MENU_OK' /tmp/runtime.log
+          echo 'RUNTIME_SMOKE_OK|health=200|railway_start_chain=passed'
+          docker rm -f bigpaw-smoke >/dev/null
