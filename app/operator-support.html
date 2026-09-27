@@ -1,7 +1,101 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>運営問い合わせ管理｜BIG PAW</title><link rel="stylesheet" href="assets/style.css"><style>.admin-grid{display:grid;grid-template-columns:220px 1fr;min-height:100vh}.sidebar{background:linear-gradient(180deg,#6d5572,#5b4b62);color:#fff;padding:22px}.sidebar a{display:block;padding:10px 12px;border-radius:10px;margin:4px 0}.main{padding:28px}.ticket{padding:18px 0;border-bottom:1px solid #f0dbe5}.ticket p{white-space:pre-wrap}.reply-box{margin-top:14px;padding:14px;border:1px solid #ead8df;border-radius:14px;background:#fffdfd}.reply-box textarea{width:100%;min-height:150px;resize:vertical;box-sizing:border-box;padding:12px;border:1px solid #d9c8cf;border-radius:10px;font:inherit}.reply-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.reply-history{margin-top:14px}.reply-item{padding:10px 12px;border-radius:10px;background:#fff7fb;margin-top:8px}.reply-item p{margin:6px 0 0}.reply-meta{font-size:12px;color:#857580}@media(max-width:800px){.admin-grid{grid-template-columns:1fr}.sidebar{display:none}.main{padding:14px}.ticket .btn{min-height:48px}}</style></head><body><div class="admin-grid"><aside class="sidebar"><div class="logo"><span class="logo-mark">🐾</span>BIG PAW</div><p style="opacity:.7">運営管理</p><a href="operator-admin.html">ダッシュボード</a><a href="operator-support.html">お問い合わせ</a><a href="operator-deal-reports.html">成約申請</a><a href="operator-invoices.html">請求管理</a><a href="operator-automations.html">自動処理</a><a href="index.html">公開サイト ↗</a></aside><main class="main"><h1>運営お問い合わせ</h1><p class="muted">利用者・ブリーダーから届いた問い合わせを管理します。</p><div class="card pad"><div id="rows">読み込み中…</div></div></main></div><script src="assets/api.js"></script><script>
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const dt=t=>new Date(t*1000).toLocaleString('ja-JP');
-async function setStatus(id,status){let note='';if(status==='resolved')note=prompt('対応メモ（任意）')||'';await BigPawAPI.updateOperatorSupport(id,{status,operatorNote:note});load()}
-async function openReply(id){const box=document.getElementById('reply-'+id);if(!box)return;const isOpen=box.style.display!=='none';if(isOpen){box.style.display='none';return}box.style.display='block';const history=document.getElementById('history-'+id);history.innerHTML='返信履歴を読み込み中…';try{const list=await BigPawAPI.request('/operator/support/'+encodeURIComponent(id)+'/replies');history.innerHTML=list.length?'<b>返信履歴</b>'+list.map(r=>`<div class="reply-item"><div class="reply-meta">${esc(r.operator_name||'BIG PAW運営')}｜${dt(r.created_at)}</div><p>${esc(r.body)}</p></div>`).join(''):'<span class="muted">まだ返信履歴はありません。</span>'}catch(e){history.innerHTML='<span class="muted">返信履歴を読み込めませんでした。</span>'}}
-async function sendReply(id){const ta=document.getElementById('replytext-'+id);const btn=document.getElementById('sendreply-'+id);const body=(ta?.value||'').trim();if(!body){alert('返信内容を入力してください。');return}if(!confirm('この内容で返信メールを送信しますか？'))return;btn.disabled=true;btn.textContent='送信中…';try{await BigPawAPI.request('/operator/support/'+encodeURIComponent(id)+'/reply',{method:'POST',body:{body}});alert('返信メールを送信しました。');load()}catch(e){alert(e.message||'返信メールを送信できませんでした。');btn.disabled=false;btn.textContent='送信する'}}
-async function load(){try{const a=await BigPawAPI.operatorSupport();rows.innerHTML=a.length?a.map(x=>`<div class="ticket"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>${esc(x.subject)}</b> <span class="chip">${esc(x.status)}</span><br><span class="muted">${esc(x.category)}｜${esc(x.name)} &lt;${esc(x.email)}&gt;｜${dt(x.created_at)}</span></div></div><p>${esc(x.message)}</p>${x.operator_note?`<div class="notice">対応メモ：${esc(x.operator_note)}</div>`:''}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-main" type="button" onclick="openReply('${x.id}')">返信する</button><button class="btn btn-sub" type="button" onclick="setStatus('${x.id}','reviewing')">対応中</button><button class="btn btn-main" type="button" onclick="setStatus('${x.id}','resolved')">対応完了</button><button class="btn btn-sub" type="button" onclick="setStatus('${x.id}','closed')">クローズ</button></div><div class="reply-box" id="reply-${x.id}" style="display:none"><div><b>${esc(x.name)}さんへ返信</b><br><span class="muted">送信先：${esc(x.email)}</span></div><textarea id="replytext-${x.id}" placeholder="返信内容を入力してください"></textarea><div class="reply-actions"><button class="btn btn-main" id="sendreply-${x.id}" type="button" onclick="sendReply('${x.id}')">送信する</button><button class="btn btn-sub" type="button" onclick="openReply('${x.id}')">閉じる</button></div><div class="reply-history" id="history-${x.id}"></div></div></div>`).join(''):'お問い合わせはありません。'}catch(e){rows.innerHTML='運営アカウントでログインしてください。'}}load();
-</script><script src="/auth-return-fix.js"></script><style id="bigpaw-role-theme">body{background:#fff7fb!important}body.bigpaw-breeder-theme{background:#f3f8ff!important}body.bigpaw-operator-theme{background:#fffbea!important}</style><script>(function(){var p=location.pathname;if(p.indexOf("/operator-")>=0)document.body.classList.add("bigpaw-operator-theme");else if(p.indexOf("/breeder-")>=0||p.endsWith("/admin.html"))document.body.classList.add("bigpaw-breeder-theme");})();</script></body></html>
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>運営問い合わせ管理｜BIG PAW</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+.admin-grid{display:grid;grid-template-columns:220px 1fr;min-height:100vh}.sidebar{background:linear-gradient(180deg,#6d5572,#5b4b62);color:#fff;padding:22px}.sidebar a{display:block;padding:10px 12px;border-radius:10px;margin:4px 0}.main{padding:28px}.ticket{padding:18px 0;border-bottom:1px solid #f0dbe5}.ticket p{white-space:pre-wrap}.reply-box{margin-top:14px;padding:14px;border:1px solid #ead8df;border-radius:14px;background:#fffdfd}.reply-box textarea{width:100%;min-height:150px;resize:vertical;box-sizing:border-box;padding:12px;border:1px solid #d9c8cf;border-radius:10px;font:inherit}.reply-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.reply-history{margin-top:14px}.reply-item{padding:10px 12px;border-radius:10px;background:#fff7fb;margin-top:8px}.reply-item p{margin:6px 0 0}.reply-meta{font-size:12px;color:#857580}.support-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.support-tab{border:1px solid #ead8df;background:#fff;color:#5b4b62;border-radius:999px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer}.support-tab.active{background:#e58bb1;color:#fff;border-color:#e58bb1}.retention-note{padding:12px 14px;border-radius:12px;background:#fff7e7;color:#6d5b40;margin:8px 0 4px}.danger-btn{border-color:#d7a3a3!important;color:#9a3e3e!important;background:#fff!important}.completed-meta{font-size:13px;color:#8b7884;margin-top:8px}
+@media(max-width:800px){.admin-grid{grid-template-columns:1fr}.sidebar{display:none}.main{padding:14px}.ticket .btn{min-height:48px}.support-tab{min-height:44px}}
+</style>
+</head>
+<body>
+<div class="admin-grid">
+<aside class="sidebar"><div class="logo"><span class="logo-mark">🐾</span>BIG PAW</div><p style="opacity:.7">運営管理</p><a href="operator-admin.html">ダッシュボード</a><a href="operator-support.html">お問い合わせ</a><a href="operator-deal-reports.html">成約申請</a><a href="operator-invoices.html">請求管理</a><a href="operator-automations.html">自動処理</a><a href="index.html">公開サイト ↗</a></aside>
+<main class="main"><h1>運営お問い合わせ</h1><p class="muted">利用者・ブリーダーから届いた問い合わせを管理します。</p><div class="card pad"><div id="rows">読み込み中…</div></div></main>
+</div>
+<script src="assets/api.js"></script>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dt=t=>new Date(t*1000).toLocaleString('ja-JP');
+const STATUS_LABEL={open:'未対応',reviewing:'対応中',resolved:'対応完了',closed:'クローズ'};
+const isCompleted=x=>x.status==='resolved'||x.status==='closed';
+const rowsEl=document.getElementById('rows');
+let tickets=[];
+let currentView='active';
+
+function setView(view){currentView=view;render()}
+function deleteDate(x){const base=Number(x.updated_at||x.created_at||0);if(!base)return'';return new Date((base+180*86400)*1000).toLocaleDateString('ja-JP')}
+
+async function setStatus(id,status){
+  let note='';
+  if(status==='resolved')note=prompt('対応メモ（任意）')||'';
+  await BigPawAPI.updateOperatorSupport(id,{status,operatorNote:note});
+  await load();
+}
+
+async function fetchHistory(id,targetId){
+  const history=document.getElementById(targetId);
+  if(!history)return;
+  history.innerHTML='返信履歴を読み込み中…';
+  try{
+    const list=await BigPawAPI.request('/operator/support/'+encodeURIComponent(id)+'/replies');
+    history.innerHTML=list.length?'<b>返信履歴</b>'+list.map(r=>`<div class="reply-item"><div class="reply-meta">${esc(r.operator_name||'BIG PAW運営')}｜${dt(r.created_at)}</div><p>${esc(r.body)}</p></div>`).join(''):'<span class="muted">まだ返信履歴はありません。</span>';
+  }catch(e){history.innerHTML='<span class="muted">返信履歴を読み込めませんでした。</span>'}
+}
+
+async function openReply(id){
+  const box=document.getElementById('reply-'+id);if(!box)return;
+  const isOpen=box.style.display!=='none';
+  if(isOpen){box.style.display='none';return}
+  box.style.display='block';
+  await fetchHistory(id,'history-'+id);
+}
+
+async function toggleCompletedHistory(id){
+  const box=document.getElementById('completed-history-'+id);if(!box)return;
+  const opening=box.style.display==='none';
+  box.style.display=opening?'block':'none';
+  if(opening)await fetchHistory(id,'completed-history-content-'+id);
+}
+
+async function sendReply(id){
+  const ta=document.getElementById('replytext-'+id);const btn=document.getElementById('sendreply-'+id);const body=(ta?.value||'').trim();
+  if(!body){alert('返信内容を入力してください。');return}
+  if(!confirm('この内容で返信メールを送信しますか？'))return;
+  btn.disabled=true;btn.textContent='送信中…';
+  try{await BigPawAPI.request('/operator/support/'+encodeURIComponent(id)+'/reply',{method:'POST',body:{body}});alert('返信メールを送信しました。');await load()}
+  catch(e){alert(e.message||'返信メールを送信できませんでした。');btn.disabled=false;btn.textContent='送信する'}
+}
+
+async function deleteTicket(id){
+  if(!confirm('この問い合わせと返信履歴を完全に削除します。削除後は元に戻せません。削除しますか？'))return;
+  try{await BigPawAPI.request('/operator/support/'+encodeURIComponent(id),{method:'DELETE'});await load()}
+  catch(e){alert(e.message||'削除できませんでした。')}
+}
+
+function activeActions(x){return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-main" type="button" onclick="openReply('${x.id}')">返信する</button><button class="btn btn-sub" type="button" onclick="setStatus('${x.id}','reviewing')">対応中</button><button class="btn btn-main" type="button" onclick="setStatus('${x.id}','resolved')">対応完了</button><button class="btn btn-sub" type="button" onclick="setStatus('${x.id}','closed')">クローズ</button></div><div class="reply-box" id="reply-${x.id}" style="display:none"><div><b>${esc(x.name)}さんへ返信</b><br><span class="muted">送信先：${esc(x.email)}</span></div><textarea id="replytext-${x.id}" placeholder="返信内容を入力してください"></textarea><div class="reply-actions"><button class="btn btn-main" id="sendreply-${x.id}" type="button" onclick="sendReply('${x.id}')">送信する</button><button class="btn btn-sub" type="button" onclick="openReply('${x.id}')">閉じる</button></div><div class="reply-history" id="history-${x.id}"></div></div>`}
+
+function completedActions(x){return `<div class="completed-meta">自動削除予定：${esc(deleteDate(x))}（完了・クローズから180日後）</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-sub" type="button" onclick="toggleCompletedHistory('${x.id}')">返信履歴</button><button class="btn btn-main" type="button" onclick="setStatus('${x.id}','reviewing')">再開する</button><button class="btn btn-sub danger-btn" type="button" onclick="deleteTicket('${x.id}')">削除</button></div><div class="reply-box" id="completed-history-${x.id}" style="display:none"><div class="reply-history" id="completed-history-content-${x.id}"></div></div>`}
+
+function ticketHtml(x){return `<div class="ticket"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>${esc(x.subject)}</b> <span class="chip">${esc(STATUS_LABEL[x.status]||x.status)}</span><br><span class="muted">${esc(x.category)}｜${esc(x.name)} &lt;${esc(x.email)}&gt;｜${dt(x.created_at)}</span></div></div><p>${esc(x.message)}</p>${x.operator_note?`<div class="notice">対応メモ：${esc(x.operator_note)}</div>`:''}${isCompleted(x)?completedActions(x):activeActions(x)}</div>`}
+
+function render(){
+  const active=tickets.filter(x=>!isCompleted(x));
+  const completed=tickets.filter(isCompleted);
+  const list=currentView==='completed'?completed:active;
+  const tabs=`<div class="support-tabs"><button type="button" class="support-tab ${currentView==='active'?'active':''}" onclick="setView('active')">対応中 ${active.length}</button><button type="button" class="support-tab ${currentView==='completed'?'active':''}" onclick="setView('completed')">完了済み ${completed.length}</button></div>`;
+  const note=currentView==='completed'?'<div class="retention-note">対応完了・クローズした問い合わせはここに保管され、180日後に自動削除されます。必要に応じて手動削除もできます。</div>':'';
+  rowsEl.innerHTML=tabs+note+(list.length?list.map(ticketHtml).join(''):(currentView==='completed'?'完了済みの問い合わせはありません。':'対応が必要な問い合わせはありません。'));
+}
+
+async function load(){try{tickets=await BigPawAPI.operatorSupport();render()}catch(e){rowsEl.innerHTML='運営アカウントでログインしてください。'}}
+load();
+</script>
+<script src="/auth-return-fix.js"></script>
+<style id="bigpaw-role-theme">body{background:#fff7fb!important}body.bigpaw-breeder-theme{background:#f3f8ff!important}body.bigpaw-operator-theme{background:#fffbea!important}</style>
+<script>(function(){var p=location.pathname;if(p.indexOf('/operator-')>=0)document.body.classList.add('bigpaw-operator-theme');else if(p.indexOf('/breeder-')>=0||p.endsWith('/admin.html'))document.body.classList.add('bigpaw-breeder-theme');})();</script>
+</body>
+</html>
