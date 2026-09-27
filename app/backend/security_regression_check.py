@@ -9,6 +9,10 @@ exec(Path('/app/backend/breeder_application_notify_patch.py').read_text(encoding
 # source layout stops the build instead of partially changing production.
 exec(Path('/app/backend/operator_users_patch.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
 
+# Apply the isolated breeder sales/handover feature before the final regression
+# checks. The feature has its own build gate and does not modify puppy-detail/gallery.
+exec(Path('/app/backend/sales_handover_settings_patch.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
+
 server = Path('/app/backend/server.py').read_text(encoding='utf-8')
 auth = Path('/app/auth-return-fix.js').read_text(encoding='utf-8')
 
@@ -34,11 +38,14 @@ checks = {
     'operator_breeder_detail_is_guarded': "'/operator-breeder-detail.html'" in auth,
     'operator_launch_check_is_guarded': "'/launch-checklist.html'" in auth,
     'buyer_mypage_is_buyer_only': "const buyerOnly=['/mypage.html','/my-page.html'];" in auth,
+    'sales_handover_page_is_breeder_only': "'/breeder-sales-handover.html'" in auth,
+    'sales_handover_api_is_guarded': "if path=='/api/breeder/sales-handover-settings':\n            u=self.require(['breeder','operator'])" in server,
+    'sales_handover_keeps_puppy_detail_isolated': 'sales-handover-public.js' not in Path('/app/puppy-detail.html').read_text(encoding='utf-8'),
 }
 
 protected_pages=[
     'admin.html','breeder-puppy-new.html','breeder-inquiries.html','breeder-billing.html',
-    'breeder-deal-report.html','breeder-profile-edit.html','breeder-invoice.html','parent-dogs.html','health-records.html',
+    'breeder-deal-report.html','breeder-profile-edit.html','breeder-sales-handover.html','breeder-invoice.html','parent-dogs.html','health-records.html',
     'operator-admin.html','operator-users.html','operator-user-detail.html','operator-breeders.html','operator-breeder-detail.html','operator-listings.html',
     'operator-deals.html','operator-support.html','operator-deal-reports.html','operator-revenue.html',
     'operator-reports.html','operator-invoices.html','operator-automations.html','operator-audit.html',
@@ -54,6 +61,6 @@ if failed:
     raise SystemExit('SECURITY_REGRESSION_FAIL|' + '|'.join(failed))
 
 print(
-    'SECURITY_REGRESSION_OK|buyer_create_edit=blocked|breeder_cross_edit=blocked|parent_dog_update=owner_scoped|operator_role=preserved|operator_pages=guarded|operator_users=guarded|protected_entries=guarded',
+    'SECURITY_REGRESSION_OK|buyer_create_edit=blocked|breeder_cross_edit=blocked|parent_dog_update=owner_scoped|operator_role=preserved|operator_pages=guarded|operator_users=guarded|sales_handover=guarded|protected_entries=guarded',
     flush=True,
 )
