@@ -23,6 +23,8 @@ RUN ["python3", "backend/puppy_photo_consistency_patch.py"]
 RUN ["python3", "backend/profile_privacy_patch.py"]
 RUN ["python3", "backend/storage_capacity_patch.py"]
 RUN ["python3", "backend/operator_support_reply_patch.py"]
+RUN ["python3", "backend/sales_handover_post_route_fix.py"]
+RUN ["python3", "backend/final_release_gate.py"]
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
