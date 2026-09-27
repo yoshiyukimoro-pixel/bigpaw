@@ -67,7 +67,6 @@ BREEDER_DETAIL.write_text(bd, encoding='utf-8')
 pv = PUPPY_RENDERER.read_text(encoding='utf-8')
 bv = BREEDER_RENDERER.read_text(encoding='utf-8')
 checks = {
-    'puppy_not_included_copy': '混合ワクチン：'+"'" not in '',
     'puppy_clear_not_included': '生体価格には含まれません' in pv,
     'puppy_old_copy_removed': '生体価格とは別途必要です' not in pv,
     'puppy_fee_formatter': 'ワクチン代：別途 $1円' in pv,
