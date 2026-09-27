@@ -4,6 +4,11 @@ from pathlib import Path
 # show the pending application count on the operator dashboard.
 exec(Path('/app/backend/breeder_application_notify_patch.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
 
+# Apply operator-only registered-user management only after the existing core
+# patches have succeeded. This patch is assertion-guarded, so an unexpected
+# source layout stops the build instead of partially changing production.
+exec(Path('/app/backend/operator_users_patch.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
+
 server = Path('/app/backend/server.py').read_text(encoding='utf-8')
 auth = Path('/app/auth-return-fix.js').read_text(encoding='utf-8')
 
@@ -22,6 +27,10 @@ checks = {
     'login_returns_database_role': "'role':u['role']" in server,
     'operator_api_is_operator_only': "if path=='/api/operator/listings':\n            u=self.require(['operator']);" in server,
     'operator_breeders_api_is_operator_only': "if path=='/api/operator/breeders':\n            u=self.require(['operator']);" in server,
+    'operator_users_api_is_operator_only': "if path=='/api/operator/users':\n            u=self.require(['operator'])" in server,
+    'operator_user_detail_api_is_operator_only': "mu=re.fullmatch(r'/api/operator/users/([^/]+)',path)\n        if mu:\n            u=self.require(['operator'])" in server,
+    'operator_user_email_api_is_operator_only': "mu=re.fullmatch(r'/api/operator/users/([^/]+)/email',path)\n        if mu:\n            u=self.require(['operator'])" in server,
+    'operator_user_dashboard_link_exists': 'href="operator-users.html"' in Path('/app/operator-admin.html').read_text(encoding='utf-8'),
     'operator_breeder_detail_is_guarded': "'/operator-breeder-detail.html'" in auth,
     'operator_launch_check_is_guarded': "'/launch-checklist.html'" in auth,
     'buyer_mypage_is_buyer_only': "const buyerOnly=['/mypage.html','/my-page.html'];" in auth,
@@ -30,7 +39,7 @@ checks = {
 protected_pages=[
     'admin.html','breeder-puppy-new.html','breeder-inquiries.html','breeder-billing.html',
     'breeder-deal-report.html','breeder-profile-edit.html','breeder-invoice.html','parent-dogs.html','health-records.html',
-    'operator-admin.html','operator-breeders.html','operator-breeder-detail.html','operator-listings.html',
+    'operator-admin.html','operator-users.html','operator-user-detail.html','operator-breeders.html','operator-breeder-detail.html','operator-listings.html',
     'operator-deals.html','operator-support.html','operator-deal-reports.html','operator-revenue.html',
     'operator-reports.html','operator-invoices.html','operator-automations.html','operator-audit.html',
     'operator-backups.html','project-status.html','backend-status.html','launch-checklist.html','mypage.html'
@@ -45,6 +54,6 @@ if failed:
     raise SystemExit('SECURITY_REGRESSION_FAIL|' + '|'.join(failed))
 
 print(
-    'SECURITY_REGRESSION_OK|buyer_create_edit=blocked|breeder_cross_edit=blocked|parent_dog_update=owner_scoped|operator_role=preserved|operator_pages=guarded|protected_entries=guarded',
+    'SECURITY_REGRESSION_OK|buyer_create_edit=blocked|breeder_cross_edit=blocked|parent_dog_update=owner_scoped|operator_role=preserved|operator_pages=guarded|operator_users=guarded|protected_entries=guarded',
     flush=True,
 )
