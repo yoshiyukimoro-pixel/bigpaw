@@ -8,7 +8,7 @@
 <div class="actions"><a class="btn btn-sub" href="breeder-billing.html">← 請求一覧</a><button class="btn btn-main" onclick="window.print()">印刷 / PDF保存</button></div>
 <main id="doc" class="invoice"><p>読み込み中…</p></main>
 <script src="assets/api.js"></script><script>
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 const yen=n=>'¥'+Number(n||0).toLocaleString('ja-JP');
 const date=n=>n?new Date(Number(n)*1000).toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}):'-';
 const pct=bps=>{const n=Number(bps||0)/100;return (Number.isInteger(n)?String(n):n.toFixed(2).replace(/0+$/,'').replace(/\.$/,''))+'%'};
@@ -26,7 +26,7 @@ const pct=bps=>{const n=Number(bps||0)/100;return (Number.isInteger(n)?String(n)
  <div style="margin-top:30px"><span class="muted">ご請求金額（税込）</span><div class="amount">${yen(total)}</div><b>支払期限：${date(x.due_at)}</b> <span class="chip">請求日から${dueDays}日以内</span></div>
  <table class="invoice-table"><thead><tr><th>内容</th><th>対象</th><th>金額</th></tr></thead><tbody><tr><td>BIG PAW 成約手数料 ${rateLabel}（税込）</td><td>${esc(x.puppy_name)} / ${esc(x.breed)}<br><span class="muted">生体販売価格 ${yen(x.sale_amount)}</span></td><td>${yen(total)}</td></tr></tbody></table>
  <div class="totals"><div class="total-row"><span>税抜相当額</span><b>${yen(net)}</b></div><div class="total-row"><span>消費税相当額（10%）</span><b>${yen(tax)}</b></div><div class="total-row grand"><span>合計（税込）</span><span>${yen(total)}</span></div></div>
- <div class="bank"><b>お振込先</b><p>${bank?esc(bank):'BIG PAW運営の振込先口座が未設定です。'}${cfg.bankAccountHolder?'<br>口座名義　'+esc(cfg.bankAccountHolder):''}</p><small class="muted">振込手数料はブリーダー様のご負担となります。請求番号をお控えください。</small></div>
+ <div class="bank"><b>お振込先</b><p>${bank?esc(bank):'BIG PAW運営の振込先口座が未設定です。'}${cfg.bankAccountHolder?'<br>口座名義　'+esc(cfg.bankAccountHolder):''}</p><small class="muted">振込手数料はブリーダー様のご負担となります。<br>お振込名義は、BIG PAWにご登録のお名前（個人名・法人名）でお願いいたします。異なる名義でお振込みの場合は、入金確認のため請求番号と振込名義をBIG PAW運営へご連絡ください。<br>請求番号は、お問い合わせ・入金確認の際に使用しますのでお控えください。</small></div>
  <p class="muted" style="margin-top:22px">ステータス：${x.status==='paid'?'支払済み':x.status==='void'?'取消':'お支払い待ち'}</p>`;
 }catch(e){doc.innerHTML=`<h2>請求書を表示できません</h2><p class="muted">${esc(e.message||'ブリーダーアカウントでログインしてください。')}</p>`}})();
 </script></body></html>
