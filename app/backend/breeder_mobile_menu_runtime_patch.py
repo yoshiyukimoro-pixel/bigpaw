@@ -1,7 +1,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TAG = '<script src="/mobile-global-nav.js?v=20260927m3"></script><script src="/attention-alerts.js?v=20260927a1"></script>'
+TAG = '<script src="/mobile-global-nav.js?v=20260927m3"></script><script src="/attention-alerts.js?v=20260927a2"></script>'
 
 patched = []
 skipped = []
