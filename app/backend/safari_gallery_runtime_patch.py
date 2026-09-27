@@ -7,7 +7,7 @@ GALLERY = ROOT / 'assets' / 'puppy-detail-stable-gallery.js'
 DETAIL = ROOT / 'puppy-detail.html'
 MARKER = 'SAFARI_DETAIL_GALLERY_HARDENING_v1'
 MEDIA_VERSION = '20260926safari1'
-ASSET_VERSION = '20260927restore1'
+ASSET_VERSION = '20260927restore2'
 
 g = GALLERY.read_text(encoding='utf-8')
 
@@ -73,6 +73,7 @@ checks = {
     'swipe_preserved': "stage.addEventListener('touchstart'" in verify and "stage.addEventListener('touchend'" in verify,
     'thumb_tap_preserved': "b.onclick=e=>{e.preventDefault();show(i)}" in verify,
     'extra_swipe_bridge_removed': 'puppy-detail-swipe-fix.js' not in verify_html,
+    'public_fetch_without_auth': "credentials:'omit'" in verify and "cache:'no-store'" in verify,
 }
 failed = [k for k, ok in checks.items() if not ok]
 if failed:
@@ -80,7 +81,7 @@ if failed:
 
 print(
     'SAFARI_GALLERY_HARDENING_OK|known_good_restore=20260926|swipe=original|thumb_tap=preserved'
-    '|extra_swipe_bridge=removed|alerts_checked_separately=1'
+    '|extra_swipe_bridge=removed|alerts_checked_separately=1|gallery_data=public_unauthenticated'
     f'|asset={ASSET_VERSION}|media_cache_bust={MEDIA_VERSION}',
     flush=True,
 )
