@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - safe-sales-handover-settings
+      - fix-sales-handover-save-tap
   workflow_dispatch:
 
 jobs:
@@ -24,7 +25,7 @@ jobs:
 
       - name: Verify protected page is present and puppy detail remains isolated
         run: |
-          docker run --rm --entrypoint python3 bigpaw-safe-check -c "from pathlib import Path; a=Path('/app/breeder-sales-handover.html').read_text(); p=Path('/app/puppy-detail.html').read_text(); s=Path('/app/backend/server.py').read_text(); compile(s,'/app/backend/server.py','exec'); assert 'auth-return-fix.js' in a; assert 'sales-handover-public.js' not in p; assert \"if path=='/api/breeder/sales-handover-settings':\" in s; print('SAFE_BRANCH_ACCEPTANCE_OK|server_syntax=valid')"
+          docker run --rm --entrypoint python3 bigpaw-safe-check -c "from pathlib import Path; a=Path('/app/breeder-sales-handover.html').read_text(); p=Path('/app/puppy-detail.html').read_text(); s=Path('/app/backend/server.py').read_text(); compile(s,'/app/backend/server.py','exec'); assert 'auth-return-fix.js' in a; assert 'sales-handover-public.js' not in p; assert \"if path=='/api/breeder/sales-handover-settings':\" in s; assert '.savebar{position:static;bottom:auto' in a; assert \"addEventListener('click',save)\" in a; print('SAFE_BRANCH_ACCEPTANCE_OK|server_syntax=valid|mobile_save_tap=safe_flow')"
 
       - name: Railway-equivalent production startup smoke test
         run: |
