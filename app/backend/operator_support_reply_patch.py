@@ -51,15 +51,11 @@ get_new="""        if path=='/api/operator/support':
 assert s.count(get_old)==1, ('support_get_marker_count',s.count(get_old))
 s=s.replace(get_old,get_new,1)
 
-post_old="""    def do_POST(self):
+post_anchor="""    def do_POST(self):
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
         path=urlparse(self.path).path
-        m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
 """
-post_new="""    def do_POST(self):
-        if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
-        path=urlparse(self.path).path
-        msupport_reply=re.fullmatch(r'/api/operator/support/([^/]+)/reply',path)
+post_route="""        msupport_reply=re.fullmatch(r'/api/operator/support/([^/]+)/reply',path)
         if msupport_reply:
             u=self.require(['operator'])
             if not u:return
@@ -79,10 +75,9 @@ post_new="""    def do_POST(self):
             con.execute(\"UPDATE support_tickets SET status='reviewing',updated_at=? WHERE id=?\",(t,ticket['id']))
             audit(con,u['id'],'support_reply_sent','support_ticket',ticket['id'],rid); con.commit(); con.close()
             return self.send_json({'ok':True,'mailSent':True,'replyId':rid},201)
-        m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
 """
-assert s.count(post_old)==1, ('support_post_marker_count',s.count(post_old))
-s=s.replace(post_old,post_new,1)
+assert s.count(post_anchor)==1, ('support_post_anchor_count',s.count(post_anchor))
+s=s.replace(post_anchor,post_anchor+post_route,1)
 
 p.write_text(s,encoding='utf-8')
 print('OPERATOR_SUPPORT_REPLY_OK|history=enabled|email=enabled|status=reviewing',flush=True)
