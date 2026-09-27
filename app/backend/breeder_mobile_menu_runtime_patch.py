@@ -50,6 +50,11 @@ for path in ROOT.glob('*.html'):
 # before and after the new script tag is appended.
 runpy.run_path(str(ROOT / 'backend' / 'puppy_sales_handover_public_patch.py'), run_name='__main__')
 
+# Keep the medical-cost UI change isolated from the photo/gallery code.
+# This patch merges vaccine, microchip and health-exam display while enforcing
+# microchip cost as included, and verifies the stable Safari gallery is unchanged.
+runpy.run_path(str(ROOT / 'backend' / 'sales_handover_medical_merge_runtime_patch.py'), run_name='__main__')
+
 print(
     'GLOBAL_MOBILE_MENU_OK|roles=public_buyer_breeder_operator|menu=hamburger_drawer|touch=enabled'
     '|alerts=red_badges|alert_excluded=' + ','.join(alert_excluded)
