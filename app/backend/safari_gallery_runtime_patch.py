@@ -8,7 +8,7 @@ DETAIL = ROOT / 'puppy-detail.html'
 MARKER = 'SAFARI_DETAIL_GALLERY_HARDENING_v1'
 MEDIA_VERSION = '20260926safari1'
 ASSET_VERSION = '20260927swipe1'
-SWIPE_VERSION = '20260927native1'
+SWIPE_VERSION = '20260927native2'
 
 g = GALLERY.read_text(encoding='utf-8')
 
