@@ -67,6 +67,11 @@ runpy.run_path(str(ROOT / 'backend' / 'sales_handover_reservation_balance_runtim
 # This patch changes presentation and mobile-menu role detection only; save/data logic is preserved.
 runpy.run_path(str(ROOT / 'backend' / 'breeder_handover_blue_theme_runtime_patch.py'), run_name='__main__')
 
+# Allow a prospective breeder to begin from the breeder application page directly.
+# It reuses the existing account/register/login/application APIs; only the verification
+# email gets a breeder-flow return marker. Existing buyer registration remains unchanged.
+runpy.run_path(str(ROOT / 'backend' / 'direct_breeder_signup_runtime_patch.py'), run_name='__main__')
+
 print(
     'GLOBAL_MOBILE_MENU_OK|roles=public_buyer_breeder_operator|menu=hamburger_drawer|touch=enabled'
     '|alerts=red_badges|alert_excluded=' + ','.join(alert_excluded)
