@@ -12,6 +12,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Verify change scope and data path
         shell: bash
@@ -38,7 +40,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main --depth=1
+          git fetch origin main
           changed="$(git diff --name-only origin/main...HEAD | grep -v '^.github/workflows/puppy-description-linebreak-safety.yml$' || true)"
           test "$changed" = "app/assets/style.css"
           git diff --stat origin/main...HEAD
