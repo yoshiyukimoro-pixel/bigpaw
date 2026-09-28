@@ -4,3 +4,5 @@
 @media(max-width:540px){.wrap{padding:0 14px}.three,.dog-cards{grid-template-columns:1fr}.gallery{grid-template-rows:210px 100px}.ph{font-size:48px}.ph.main{font-size:110px}.table-row{grid-template-columns:115px 1fr}.nav{height:62px}.logo{font-size:19px}.hero-mini{padding:26px 0}.fact-grid{grid-template-columns:1fr 1fr}}
 /* iPhone/iPad Safari can lock up its compositor when a sticky blurred header sits above image-heavy detail pages. Keep the header opaque on iOS/WebKit; visual layout is unchanged. */
 @supports (-webkit-touch-callout:none){.site-header{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:#fff!important}html{scroll-behavior:auto}}
+/* Public puppy detail: preserve breeder-authored paragraphs without touching saved data or any gallery/favorite behavior. */
+#desc{white-space:pre-wrap;line-height:1.85;overflow-wrap:anywhere;word-break:normal}
