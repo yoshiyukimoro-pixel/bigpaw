@@ -4,14 +4,14 @@
 
   const path=location.pathname;
   const query=new URLSearchParams(location.search);
-  const operatorPages=['/operator-admin.html','/operator-breeders.html','/operator-breeder-detail.html','/operator-listings.html','/operator-reports.html','/operator-support.html','/operator-deal-reports.html','/operator-deals.html','/operator-revenue.html','/operator-invoices.html','/operator-audit.html','/operator-backups.html','/operator-automations.html','/project-status.html','/backend-status.html','/launch-checklist.html'];
+  const operatorPages=['/operator-admin.html','/operator-users.html','/operator-user-detail.html','/operator-breeders.html','/operator-breeder-detail.html','/operator-listings.html','/operator-reports.html','/operator-support.html','/operator-deal-reports.html','/operator-deals.html','/operator-revenue.html','/operator-invoices.html','/operator-audit.html','/operator-backups.html','/operator-automations.html','/project-status.html','/backend-status.html','/launch-checklist.html'];
   const breederPages=['/admin.html','/breeder-puppy-new.html','/breeder-inquiries.html','/breeder-deal-report.html','/breeder-billing.html','/breeder-invoice.html','/breeder-fees.html','/breeder-profile-edit.html','/parent-dogs.html','/breeder-fee-agreement.html'];
   const sharedDealPages=['/messages.html','/online-visit.html','/visit-confirm.html','/deal.html','/reservation.html','/contract.html','/pickup.html','/review.html','/report.html'];
 
   const menus={
     operator:{
       label:'運営管理',tone:'operator',items:[
-        ['🏠','ダッシュボード','/operator-admin.html'],['👥','ブリーダー管理','/operator-breeders.html'],['🐶','子犬掲載管理','/operator-listings.html'],['✅','成約申請','/operator-deal-reports.html'],['🤝','成約管理','/operator-deals.html'],['💴','売上・手数料','/operator-revenue.html'],['🧾','請求管理','/operator-invoices.html'],['💬','運営お問い合わせ','/operator-support.html'],['⚠️','通報・違反対応','/operator-reports.html'],['📋','監査ログ','/operator-audit.html'],['💾','バックアップ','/operator-backups.html'],['⚙️','自動処理モニター','/operator-automations.html'],['📊','開発状況','/project-status.html'],['🖥️','システム状態','/backend-status.html'],['🌐','公開サイト','/index.html']
+        ['🏠','ダッシュボード','/operator-admin.html'],['👤','登録ユーザー','/operator-users.html'],['👥','ブリーダー管理','/operator-breeders.html'],['🐶','子犬掲載管理','/operator-listings.html'],['✅','成約申請','/operator-deal-reports.html'],['🤝','成約管理','/operator-deals.html'],['💴','売上・手数料','/operator-revenue.html'],['🧾','請求管理','/operator-invoices.html'],['💬','運営お問い合わせ','/operator-support.html'],['⚠️','通報・違反対応','/operator-reports.html'],['📋','監査ログ','/operator-audit.html'],['💾','バックアップ','/operator-backups.html'],['⚙️','自動処理モニター','/operator-automations.html'],['📊','開発状況','/project-status.html'],['🖥️','システム状態','/backend-status.html'],['🌐','公開サイト','/index.html']
       ]
     },
     breeder:{
@@ -41,7 +41,7 @@
   }
 
   function choose(role){
-    if(operatorPages.some(p=>path.endsWith(p)) || (path.endsWith('/messages.html')&&query.get('mode')==='operator')) return 'operator';
+    if(((path.startsWith('/operator-')||path.includes('/operator-'))&&!path.endsWith('/operator-login.html')) || operatorPages.some(p=>path.endsWith(p)) || (path.endsWith('/messages.html')&&query.get('mode')==='operator')) return 'operator';
     if(breederPages.some(p=>path.endsWith(p))) return 'breeder';
     if(sharedDealPages.some(p=>path.endsWith(p)) && (role==='breeder'||role==='operator')) return role==='operator'?'operator':'breeder';
     if(role==='buyer') return 'buyer';
