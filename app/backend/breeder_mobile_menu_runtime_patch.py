@@ -2,7 +2,7 @@ from pathlib import Path
 import runpy
 
 ROOT = Path(__file__).resolve().parent.parent
-NAV_TAG = '<script src="/mobile-global-nav.js?v=20260927m5"></script>'
+NAV_TAG = '<script src="/mobile-global-nav.js?v=20260928m6"></script>'
 ALERT_TAG = '<script src="/attention-alerts.js?v=20260927a2"></script>'
 
 # The parent photo enhancement script redraws parent cards after page load.
