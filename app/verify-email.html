@@ -1,1 +1,67 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>メール確認｜BIG PAW</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="topbar">🐾 BIG PAW</div><header class="site-header"><div class="wrap nav"><a class="logo" href="index.html"><span class="logo-mark">🐾</span>BIG PAW</a><nav class="navlinks"><a href="account.html">アカウント</a></nav></div></header><main class="wrap"><section class="section" style="max-width:640px;margin:auto"><div class="card pad"><h1>メールアドレスの確認</h1><p class="muted">本人確認用のメール認証です。</p><div id="box"></div></div></section></main><script src="assets/api.js"></script><script>async function run(){const token=new URLSearchParams(location.search).get('token');try{if(token){await BigPawAPI.confirmEmailVerification(token);box.innerHTML='<div class="notice">メールアドレスを確認しました。</div><a class="btn btn-main btn-wide" href="mypage.html" style="margin-top:12px">マイページへ</a>';return}const me=await BigPawAPI.me();if(me.emailVerified){box.innerHTML='<div class="notice">すでに確認済みです。</div>';return}const r=await BigPawAPI.requestEmailVerification();let h='<div class="notice"><b>認証メールを送信しました。</b><br>登録したメールアドレスをご確認ください。通常は数分以内に届きます。<br><br><b>5分ほど待っても届かない場合</b>は、迷惑メールフォルダをご確認ください。あわせて <b>noreply@bigpaw.site</b> からのメールを受信できるよう、受信許可設定をご確認ください。</div>';if(r.devToken)h+=`<a class="btn btn-main btn-wide" style="margin-top:12px" href="verify-email.html?token=${encodeURIComponent(r.devToken)}">開発版：メール確認を完了する</a>`;box.innerHTML=h}catch(e){box.innerHTML='<div class="notice">先にログインしてください。</div><a class="btn btn-main btn-wide" href="login.html" style="margin-top:12px">ログイン</a>'}}run();</script><script src="/auth-return-fix.js"></script></body></html>
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>メール確認｜BIG PAW</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+body.breeder-flow{background:#f3f8ff}
+body.breeder-flow .topbar{background:linear-gradient(90deg,#55708c,#6f8eaa)}
+body.breeder-flow .logo-mark,body.breeder-flow .btn-main{background:linear-gradient(135deg,#4f7da5,#6e9bc0)}
+body.breeder-flow .notice{background:#eef6ff;border-color:#c5dced;color:#315f89}
+</style>
+</head>
+<body>
+<div class="topbar">🐾 BIG PAW</div>
+<header class="site-header"><div class="wrap nav"><a class="logo" href="index.html"><span class="logo-mark">🐾</span>BIG PAW</a><nav class="navlinks"><a href="account.html">アカウント</a></nav></div></header>
+<main class="wrap"><section class="section" style="max-width:640px;margin:auto"><div class="card pad"><h1>メールアドレスの確認</h1><p class="muted">本人確認用のメール認証です。</p><div id="box"></div></div></section></main>
+<script src="assets/api.js"></script>
+<script>
+const qs=new URLSearchParams(location.search);
+let storedBreederFlow=false;
+try{storedBreederFlow=localStorage.getItem('bigpaw_breeder_signup_pending')==='1'}catch(_e){}
+const breederFlow=qs.get('flow')==='breeder'||storedBreederFlow;
+if(breederFlow)document.body.classList.add('breeder-flow');
+
+function verifiedHtml(signedIn){
+  if(!breederFlow){
+    return '<div class="notice">メールアドレスを確認しました。</div><a class="btn btn-main btn-wide" href="mypage.html" style="margin-top:12px">マイページへ</a>';
+  }
+  const href=signedIn?'breeder-register.html?continue=1':'login.html?next=%2Fbreeder-register.html%3Fcontinue%3D1';
+  const label=signedIn?'ブリーダー申請へ進む':'ログインしてブリーダー申請へ進む';
+  return '<div class="notice"><b>メールアドレスを確認しました。</b><br>続いてブリーダー情報と第一種動物取扱業の登録情報を入力してください。</div><a class="btn btn-main btn-wide" href="'+href+'" style="margin-top:12px">'+label+'</a>';
+}
+
+async function signedInNow(){
+  try{await BigPawAPI.me();return true}catch(_e){return false}
+}
+
+async function run(){
+  const token=qs.get('token');
+  try{
+    if(token){
+      await BigPawAPI.confirmEmailVerification(token);
+      box.innerHTML=verifiedHtml(await signedInNow());
+      return;
+    }
+    const me=await BigPawAPI.me();
+    if(me.emailVerified){box.innerHTML=verifiedHtml(true);return}
+    const r=await BigPawAPI.requestEmailVerification();
+    let h='<div class="notice"><b>認証メールを送信しました。</b><br>登録したメールアドレスをご確認ください。通常は数分以内に届きます。<br><br><b>5分ほど待っても届かない場合</b>は、迷惑メールフォルダをご確認ください。あわせて <b>noreply@bigpaw.site</b> からのメールを受信できるよう、受信許可設定をご確認ください。</div>';
+    if(r.devToken){
+      const flow=breederFlow?'&flow=breeder':'';
+      h+=`<a class="btn btn-main btn-wide" style="margin-top:12px" href="verify-email.html?token=${encodeURIComponent(r.devToken)}${flow}">開発版：メール確認を完了する</a>`;
+    }
+    box.innerHTML=h;
+  }catch(e){
+    const next=breederFlow?'login.html?next=%2Fbreeder-register.html%3Fcontinue%3D1':'login.html';
+    box.innerHTML='<div class="notice">先にログインしてください。</div><a class="btn btn-main btn-wide" href="'+next+'" style="margin-top:12px">ログイン</a>';
+  }
+}
+run();
+</script>
+<script src="/auth-return-fix.js"></script>
+</body>
+</html>
