@@ -25,6 +25,7 @@ RUN ["python3", "backend/storage_capacity_patch.py"]
 RUN ["python3", "backend/operator_support_reply_patch.py"]
 RUN ["python3", "backend/sales_handover_post_route_fix.py"]
 RUN ["python3", "backend/operator_analytics_patch.py"]
+RUN ["python3", "backend/seo_search_visibility_patch.py"]
 RUN ["python3", "backend/final_release_gate.py"]
 ENV PORT=8080
 EXPOSE 8080
