@@ -77,13 +77,13 @@ def analytics_operator_payload():
         inquiry_today=one('SELECT COUNT(*) FROM inquiries WHERE created_at>=?',(today,))
         inquiry7=one('SELECT COUNT(*) FROM inquiries WHERE created_at>=?',(d7,))
         inquiry30=one('SELECT COUNT(*) FROM inquiries WHERE created_at>=?',(d30,))
-        pages=con.execute('''SELECT path,COUNT(*) views,COUNT(DISTINCT visitor_hash) visitors
+        pages=con.execute("""SELECT path,COUNT(*) views,COUNT(DISTINCT visitor_hash) visitors
                              FROM analytics_pageviews WHERE created_at>=?
-                             GROUP BY path ORDER BY views DESC,path LIMIT 5''',(d30,)).fetchall()
-        puppies=con.execute('''SELECT a.puppy_id,p.breed,p.name,COUNT(*) views,COUNT(DISTINCT a.visitor_hash) visitors
+                             GROUP BY path ORDER BY views DESC,path LIMIT 5""",(d30,)).fetchall()
+        puppies=con.execute("""SELECT a.puppy_id,p.breed,p.name,COUNT(*) views,COUNT(DISTINCT a.visitor_hash) visitors
                                FROM analytics_pageviews a LEFT JOIN puppies p ON p.id=a.puppy_id
                                WHERE a.created_at>=? AND a.path='/puppy-detail.html' AND a.puppy_id!=''
-                               GROUP BY a.puppy_id,p.breed,p.name ORDER BY views DESC,a.puppy_id LIMIT 5''',(d30,)).fetchall()
+                               GROUP BY a.puppy_id,p.breed,p.name ORDER BY views DESC,a.puppy_id LIMIT 5""",(d30,)).fetchall()
         first=con.execute('SELECT MIN(created_at) FROM analytics_pageviews').fetchone()[0]
         return {
             'today':{'visitors':today_vis,'pv':today_pv},
