@@ -7,16 +7,44 @@
 <title>メール確認｜BIG PAW</title>
 <link rel="stylesheet" href="assets/style.css">
 <style>
+body{background:#f6f8fb}
 body.breeder-flow{background:#f3f8ff}
 body.breeder-flow .topbar{background:linear-gradient(90deg,#55708c,#6f8eaa)}
 body.breeder-flow .logo-mark,body.breeder-flow .btn-main{background:linear-gradient(135deg,#4f7da5,#6e9bc0)}
-body.breeder-flow .notice{background:#eef6ff;border-color:#c5dced;color:#315f89}
+.verify-section{max-width:760px;margin:auto;padding-top:34px}
+.verify-card{background:#fff;border:1px solid #e8edf2;border-radius:24px;box-shadow:0 14px 40px rgba(35,55,75,.08);padding:38px 34px;text-align:center}
+.verify-icon{width:92px;height:92px;margin:0 auto 18px;border-radius:50%;background:#eaf8f0;display:grid;place-items:center;color:#23995c;font-size:45px;font-weight:900}
+.verify-card h1{font-size:clamp(28px,5vw,42px);line-height:1.25;margin:0 0 14px;color:#142033}
+.verify-lead{font-size:17px;line-height:1.8;margin:0 auto 24px;color:#263342}
+.mail-warning{display:flex;gap:16px;align-items:flex-start;text-align:left;background:#fff0f1;border:1px solid #ffd9dc;border-radius:18px;padding:20px 22px;margin:0 auto 22px;line-height:1.75;color:#1f2937}
+.warning-icon{flex:0 0 42px;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#ef3d46;color:#fff;font-size:25px;font-weight:900;margin-top:2px}
+.mail-warning p{margin:0;font-size:16px}
+.mail-warning p+p{margin-top:8px}
+.mail-address{color:#e31d27;font-weight:900;font-size:1.06em;word-break:break-all}
+.resend-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-width:min(100%,370px);font-size:17px;padding:14px 22px;border:0;border-radius:13px;background:linear-gradient(135deg,#2579df,#1267cf);color:#fff;font-weight:900;cursor:pointer;box-shadow:0 7px 18px rgba(31,112,211,.22)}
+.resend-btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+.resend-status{min-height:24px;margin:9px 0 0;font-size:13px;font-weight:800;color:#34704e}
+.check-box{margin-top:24px;text-align:left;background:#f7f9fc;border:1px solid #edf0f4;border-radius:17px;padding:20px 23px}
+.check-box h2{font-size:18px;margin:0 0 10px;color:#152238}
+.check-box ul{margin:0;padding-left:22px;color:#566171;line-height:1.85;font-size:14px}
+.dev-link{margin-top:14px}
+.confirmed-box{max-width:620px;margin:auto;text-align:left}
+@media(max-width:640px){
+  .verify-section{padding-top:18px}
+  .verify-card{padding:27px 18px;border-radius:19px}
+  .verify-icon{width:76px;height:76px;font-size:37px}
+  .verify-lead{font-size:15px}
+  .mail-warning{padding:17px 15px;gap:11px}
+  .warning-icon{flex-basis:36px;width:36px;height:36px;font-size:21px}
+  .mail-warning p{font-size:14px}
+  .check-box{padding:17px}
+}
 </style>
 </head>
 <body>
 <div class="topbar">🐾 BIG PAW</div>
 <header class="site-header"><div class="wrap nav"><a class="logo" href="index.html"><span class="logo-mark">🐾</span>BIG PAW</a><nav class="navlinks"><a href="account.html">アカウント</a></nav></div></header>
-<main class="wrap"><section class="section" style="max-width:640px;margin:auto"><div class="card pad"><h1>メールアドレスの確認</h1><p class="muted">本人確認用のメール認証です。</p><div id="box"></div></div></section></main>
+<main class="wrap"><section class="section verify-section"><div class="verify-card"><div id="box"></div></div></section></main>
 <script src="assets/api.js"></script>
 <script>
 const qs=new URLSearchParams(location.search);
@@ -24,18 +52,73 @@ let storedBreederFlow=false;
 try{storedBreederFlow=localStorage.getItem('bigpaw_breeder_signup_pending')==='1'}catch(_e){}
 const breederFlow=qs.get('flow')==='breeder'||storedBreederFlow;
 if(breederFlow)document.body.classList.add('breeder-flow');
+let lastDevToken='';
 
 function verifiedHtml(signedIn){
   if(!breederFlow){
-    return '<div class="notice">メールアドレスを確認しました。</div><a class="btn btn-main btn-wide" href="mypage.html" style="margin-top:12px">マイページへ</a>';
+    return '<div class="confirmed-box"><div class="notice"><b>メールアドレスを確認しました。</b></div><a class="btn btn-main btn-wide" href="mypage.html" style="margin-top:12px">マイページへ</a></div>';
   }
   const href=signedIn?'breeder-register.html?continue=1':'login.html?next=%2Fbreeder-register.html%3Fcontinue%3D1';
   const label=signedIn?'ブリーダー申請へ進む':'ログインしてブリーダー申請へ進む';
-  return '<div class="notice"><b>メールアドレスを確認しました。</b><br>続いてブリーダー情報と第一種動物取扱業の登録情報を入力してください。</div><a class="btn btn-main btn-wide" href="'+href+'" style="margin-top:12px">'+label+'</a>';
+  return '<div class="confirmed-box"><div class="notice"><b>メールアドレスを確認しました。</b><br>続いてブリーダー情報と第一種動物取扱業の登録情報を入力してください。</div><a class="btn btn-main btn-wide" href="'+href+'" style="margin-top:12px">'+label+'</a></div>';
+}
+
+function pendingHtml(devToken){
+  lastDevToken=devToken||'';
+  let dev='';
+  if(lastDevToken){
+    const flow=breederFlow?'&flow=breeder':'';
+    dev='<div class="dev-link"><a class="btn btn-sub btn-wide" href="verify-email.html?token='+encodeURIComponent(lastDevToken)+flow+'">開発版：メール確認を完了する</a></div>';
+  }
+  return `
+    <div class="verify-icon" aria-hidden="true">✉</div>
+    <h1>認証メールを送信しました</h1>
+    <p class="verify-lead">ご登録いただいたメールアドレスに、<br>認証用のリンクをお送りしました。</p>
+    <div class="mail-warning">
+      <div class="warning-icon" aria-hidden="true">!</div>
+      <div>
+        <p><b>数分待ってもメールが届かない場合は、迷惑メールフォルダをご確認ください。</b></p>
+        <p>また、<span class="mail-address">noreply@bigpaw.site</span> からのメールを受信できるよう、受信許可設定をお願いいたします。</p>
+      </div>
+    </div>
+    <button id="resendBtn" class="resend-btn" type="button" onclick="resendVerification()"><span aria-hidden="true">↻</span> 認証メールを再送する</button>
+    <div id="resendStatus" class="resend-status" aria-live="polite"></div>
+    <div class="check-box">
+      <h2>メールが届かない場合の確認事項</h2>
+      <ul>
+        <li>迷惑メールフォルダに振り分けられていないかご確認ください。</li>
+        <li>ドメイン指定受信を設定している場合は、<span class="mail-address">noreply@bigpaw.site</span> を受信許可してください。</li>
+        <li>登録したメールアドレスに誤りがないかご確認ください。</li>
+        <li>それでも届かない場合は、上の再送ボタンをお試しください。</li>
+      </ul>
+    </div>${dev}`;
 }
 
 async function signedInNow(){
   try{await BigPawAPI.me();return true}catch(_e){return false}
+}
+
+async function resendVerification(){
+  const btn=document.getElementById('resendBtn');
+  const status=document.getElementById('resendStatus');
+  if(!btn||btn.disabled)return;
+  btn.disabled=true;
+  status.textContent='再送しています…';
+  try{
+    const r=await BigPawAPI.requestEmailVerification();
+    if(r&&r.devToken)lastDevToken=r.devToken;
+    status.textContent='認証メールを再送しました。メールをご確認ください。';
+    let sec=30;
+    const original='<span aria-hidden="true">↻</span> 認証メールを再送する';
+    const timer=setInterval(()=>{
+      sec--;
+      if(sec<=0){clearInterval(timer);btn.disabled=false;btn.innerHTML=original;return}
+      btn.textContent='再送まで '+sec+'秒';
+    },1000);
+  }catch(e){
+    status.textContent='再送できませんでした。少し時間をおいてもう一度お試しください。';
+    btn.disabled=false;
+  }
 }
 
 async function run(){
@@ -49,15 +132,10 @@ async function run(){
     const me=await BigPawAPI.me();
     if(me.emailVerified){box.innerHTML=verifiedHtml(true);return}
     const r=await BigPawAPI.requestEmailVerification();
-    let h='<div class="notice"><b>認証メールを送信しました。</b><br>登録したメールアドレスをご確認ください。通常は数分以内に届きます。<br><br><b>5分ほど待っても届かない場合</b>は、迷惑メールフォルダをご確認ください。あわせて <b>noreply@bigpaw.site</b> からのメールを受信できるよう、受信許可設定をご確認ください。</div>';
-    if(r.devToken){
-      const flow=breederFlow?'&flow=breeder':'';
-      h+=`<a class="btn btn-main btn-wide" style="margin-top:12px" href="verify-email.html?token=${encodeURIComponent(r.devToken)}${flow}">開発版：メール確認を完了する</a>`;
-    }
-    box.innerHTML=h;
+    box.innerHTML=pendingHtml(r&&r.devToken);
   }catch(e){
     const next=breederFlow?'login.html?next=%2Fbreeder-register.html%3Fcontinue%3D1':'login.html';
-    box.innerHTML='<div class="notice">先にログインしてください。</div><a class="btn btn-main btn-wide" href="'+next+'" style="margin-top:12px">ログイン</a>';
+    box.innerHTML='<div class="confirmed-box"><div class="notice">先にログインしてください。</div><a class="btn btn-main btn-wide" href="'+next+'" style="margin-top:12px">ログイン</a></div>';
   }
 }
 run();
