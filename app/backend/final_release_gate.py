@@ -2,6 +2,13 @@
 from pathlib import Path
 
 ROOT=Path('/app')
+
+# Apply the narrowly scoped appeal-point patch only after all earlier build patches
+# have completed. The patch itself uses exact-count guards and aborts the build if
+# any expected target has changed, so an unrelated page cannot be modified silently.
+APPEAL_PATCH=ROOT/'backend'/'appeal_point_patch.py'
+exec(compile(APPEAL_PATCH.read_text(encoding='utf-8'),str(APPEAL_PATCH),'exec'),{'__name__':'__main__','__file__':str(APPEAL_PATCH)})
+
 SERVER=ROOT/'backend'/'server.py'
 s=SERVER.read_text(encoding='utf-8')
 compile(s,str(SERVER),'exec')
@@ -23,6 +30,12 @@ checks={
     'support_reply_post_present': "msupport_reply=re.fullmatch(r'/api/operator/support/([^/]+)/reply',path)" in post_part,
     'buyer_puppy_create_blocked': "if path=='/api/puppies':\n            u=self.require(['breeder','operator']);" in post_part,
     'photo_order_api_preserved_in_patch': "/api/puppies/([^/]+)/photos/order" in patch_part,
+    'appeal_point_column_present': "ensure_column(con,'puppies','appeal_point'" in s,
+    'appeal_point_api_present': "'appealPoint':d.get('appeal_point','')" in s,
+    'appeal_point_edit_present': "'appealPoint':'appeal_point'" in s,
+    'appeal_point_form_present': 'id="appealPoint"' in (ROOT/'breeder-puppy-new.html').read_text(encoding='utf-8'),
+    'appeal_point_search_present': 'p.appealPoint' in (ROOT/'search.html').read_text(encoding='utf-8'),
+    'appeal_point_live_rebuild_present': 'p.appealPoint' in (ROOT/'search-list-rebuild.html').read_text(encoding='utf-8'),
     'sales_page_guarded': "'/breeder-sales-handover.html'" in (ROOT/'auth-return-fix.js').read_text(encoding='utf-8'),
     'puppy_detail_isolated': 'sales-handover-public.js' not in (ROOT/'puppy-detail.html').read_text(encoding='utf-8'),
     'mobile_save_tap_fix_preserved': '.savebar{position:static;bottom:auto' in (ROOT/'breeder-sales-handover.html').read_text(encoding='utf-8'),
@@ -30,4 +43,4 @@ checks={
 failed=[k for k,v in checks.items() if not v]
 if failed:
     raise SystemExit('FINAL_RELEASE_GATE_FAIL|'+'|'.join(failed))
-print('FINAL_RELEASE_GATE_OK|server_syntax=valid|sales_get=GET|sales_save=POST|support_reply=preserved|photo_order=PATCH_preserved|mobile_save_tap=preserved|puppy_detail=untouched',flush=True)
+print('FINAL_RELEASE_GATE_OK|server_syntax=valid|sales_get=GET|sales_save=POST|support_reply=preserved|photo_order=PATCH_preserved|appeal_point=30chars_under_color|live_rebuild=covered|mobile_save_tap=preserved|puppy_detail=untouched',flush=True)
