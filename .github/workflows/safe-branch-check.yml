@@ -6,7 +6,6 @@ on:
       - safe-sales-handover-settings
       - fix-sales-handover-save-v2
       - safe-support-history-retention-180d
-      - feat/public-breed-kana-headings
   workflow_dispatch:
 
 jobs:
@@ -32,10 +31,6 @@ jobs:
       - name: Verify protected pages and method placement
         run: |
           docker run --rm --entrypoint python3 bigpaw-safe-check -c "from pathlib import Path; a=Path('/app/breeder-sales-handover.html').read_text(); h=Path('/app/operator-support.html').read_text(); p=Path('/app/puppy-detail.html').read_text(); s=Path('/app/backend/server.py').read_text(); compile(s,'/app/backend/server.py','exec'); ps=s.index('    def do_POST(self):'); ds=s.index('    def do_DELETE(self):'); xs=s.index('    def do_PATCH(self):'); post=s[ps:ds]; delete=s[ds:xs]; patch=s[xs:]; target=\"        if path=='/api/breeder/sales-handover-settings':\\n\"; assert 'auth-return-fix.js' in a; assert '.savebar{position:static;bottom:auto' in a; assert 'sales-handover-public.js' not in p; assert post.count(target)==1; assert target not in patch; assert 'SUPPORT_RETENTION_DAYS' in s; assert \"status IN ('resolved','closed')\" in s; assert \"/api/operator/support/([^/]+)\" in delete; assert '180日後に自動削除' in h; assert '完了済み' in h; assert '再開する' in h; assert 'deleteTicket' in h; print('SAFE_BRANCH_ACCEPTANCE_OK|server_syntax=valid|sales_save=POST|support_retention=180d|support_manual_delete=completed_only|support_tabs=active_completed|puppy_detail=untouched')"
-
-      - name: Verify breed headings and other label
-        run: |
-          docker run --rm --entrypoint python3 bigpaw-safe-check -c "from pathlib import Path; s=Path('/app/assets/breed-data.js').read_text(); assert \"['あ行','アイウエオヴ']\" in s; assert \"['か行','カキクケコガギグゲゴ']\" in s; assert \"heading.textContent=group\" in s; assert \"その他の犬種・ミックス犬\" in s; assert \"その他の大型犬・ミックス犬\" not in s; assert \"if(xo!==yo)return xo?1:-1;\" in s; print('BREED_HEADING_ACCEPTANCE_OK|hiragana_rows=1|other_last=1|label=other_breed_mix')"
 
       - name: Railway-equivalent production startup and real smoke tests
         run: |
