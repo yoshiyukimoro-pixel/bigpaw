@@ -64,7 +64,7 @@ window.BIGPAW_BREEDS = [
 (function(){
 'use strict';
 const OTHER_KEY='other';
-const OTHER_LABEL='その他の大型犬・ミックス犬';
+const OTHER_LABEL='その他の犬種・ミックス犬';
 const OTHER_SENTINEL='__bigpaw_other__';
 const path=location.pathname||'';
 
@@ -90,9 +90,24 @@ function installPickerSuggestions(){
     list.style.cssText='display:none;max-height:250px;overflow:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid #eee;background:#fff;padding:6px 14px 10px;box-sizing:border-box;flex:0 0 auto;';
     row.insertAdjacentElement('afterend',list);
 
+    const kanaRows=[
+      ['あ行','アイウエオヴ'],['か行','カキクケコガギグゲゴ'],['さ行','サシスセソザジズゼゾ'],
+      ['た行','タチツテトダヂヅデド'],['な行','ナニヌネノ'],['は行','ハヒフヘホバビブベボパピプペポ'],
+      ['ま行','マミムメモ'],['や行','ヤユヨ'],['ら行','ラリルレロ'],['わ行','ワヲン']
+    ];
+    function kanaRow(b){
+      if(!b||b.key===OTHER_KEY)return '';
+      if(b.key==='akita')return 'あ行';
+      const c=String(b.ja||'').charAt(0);
+      for(const [label,chars] of kanaRows){if(chars.includes(c))return label;}
+      return '';
+    }
+    const rowOrder=Object.fromEntries(kanaRows.map((r,i)=>[r[0],i]));
     const sorted=()=>[...(window.BIGPAW_BREEDS||[])].sort((x,y)=>{
       const xo=!!(x&&x.key===OTHER_KEY),yo=!!(y&&y.key===OTHER_KEY);
       if(xo!==yo)return xo?1:-1;
+      const xr=rowOrder[kanaRow(x)]??99,yr=rowOrder[kanaRow(y)]??99;
+      if(xr!==yr)return xr-yr;
       return String(x.ja||'').localeCompare(String(y.ja||''),'ja');
     });
     function render(){
@@ -105,7 +120,17 @@ function installPickerSuggestions(){
         empty.style.cssText='padding:12px 10px;color:#777;font-size:14px;';
         list.appendChild(empty);
       }else{
+        let lastRow='';
         items.forEach(b=>{
+          const group=kanaRow(b);
+          if(group&&group!==lastRow){
+            const heading=document.createElement('div');
+            heading.textContent=group;
+            heading.setAttribute('role','presentation');
+            heading.style.cssText='padding:10px 8px 6px;font-size:13px;font-weight:900;color:#8d4564;background:#fff;border-bottom:1px solid #f3e8ed;';
+            list.appendChild(heading);
+            lastRow=group;
+          }
           const btn=document.createElement('button');
           btn.type='button';
           btn.dataset.key=b.key;
@@ -188,7 +213,7 @@ function installBreederOther(){
   input.autocomplete='off';
   input.style.cssText='width:100%;box-sizing:border-box;';
   const hint=document.createElement('div');
-  hint.textContent='60犬種にない大型犬・ドゥードル・ミックス犬などの犬種名を入力してください。';
+  hint.textContent='60犬種にない犬種・ドゥードル・ミックス犬などの犬種名を入力してください。';
   hint.style.cssText='font-size:12px;color:#777;margin-top:5px;line-height:1.5;';
   wrap.append(label,input,hint);
   sel.insertAdjacentElement('afterend',wrap);
