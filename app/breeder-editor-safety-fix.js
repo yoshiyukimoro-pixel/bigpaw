@@ -27,8 +27,17 @@
     father:value('father'),
     mother:value('mother'),
     health:checked('health'),
+    appealPoint:value('appealPoint').trim(),
     desc:value('desc')
   });
+  async function verifyAppealPointPersistence(pid,expected){
+    const rows=await BigPawBridge.breederPuppies();
+    const row=Array.isArray(rows)?rows.find(x=>String(x?.id)===String(pid)):null;
+    if(!row) throw new Error('appeal_point_readback_missing');
+    const actual=String(row.appealPoint??'');
+    if(actual!==String(expected??'')) throw new Error('appeal_point_persistence_mismatch');
+    return row;
+  }
   async function deletePhoto(pid,photoId){
     return BigPawAPI.request('/puppies/'+encodeURIComponent(pid)+'/photos/'+encodeURIComponent(photoId),{method:'DELETE'});
   }
@@ -72,7 +81,8 @@
     if(btn){btn.disabled=true;btn.textContent='保存中…'}
     const pid=editId();
     try{
-      let puppy=pid?await BigPawBridge.updatePuppy(pid,payload()):await BigPawBridge.addPuppy(payload());
+      const data=payload();
+      let puppy=pid?await BigPawBridge.updatePuppy(pid,data):await BigPawBridge.addPuppy(data);
       const targetId=String(puppy?.id||pid||'');
       if(!targetId) throw new Error('puppy_id_missing');
       const files=[...(byId('photo')?.files||[])].slice(0,10);
@@ -81,11 +91,12 @@
       }else if(pid&&window.removeExistingMainRequested){
         await BigPawBridge.updatePuppy(targetId,{imageUrl:''});
       }
+      await verifyAppealPointPersistence(targetId,data.appealPoint);
       sessionStorage.removeItem('bigpawEditPuppyId');
       alert(pid?'変更を保存しました。':'子犬情報を掲載しました。');
       location.href='admin.html';
     }catch(x){
-      const msg=x?.message==='old_photo_cleanup_failed'?'新しい写真は保存されましたが、古い写真の整理に失敗しました。画面を再読み込みして写真を確認してください。':x?.message==='existing_photo_state_unavailable'?'現在の写真情報を確認できなかったため、写真は変更していません。画面を再読み込みしてからもう一度お試しください。':(x?.status===401?'ブリーダーとしてログインしてください。':'保存できませんでした：'+(x?.message||''));
+      const msg=x?.message==='old_photo_cleanup_failed'?'新しい写真は保存されましたが、古い写真の整理に失敗しました。画面を再読み込みして写真を確認してください。':x?.message==='existing_photo_state_unavailable'?'現在の写真情報を確認できなかったため、写真は変更していません。画面を再読み込みしてからもう一度お試しください。':x?.message==='appeal_point_persistence_mismatch'||x?.message==='appeal_point_readback_missing'?'アピールポイントの保存確認ができませんでした。変更は完了扱いにしていません。もう一度お試しください。':(x?.status===401?'ブリーダーとしてログインしてください。':'保存できませんでした：'+(x?.message||''));
       alert(msg);
     }finally{
       if(btn){btn.disabled=false;btn.textContent=original||'保存する'}
