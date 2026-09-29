@@ -143,7 +143,7 @@ function installPickerSuggestions(){
 
   const relabel=()=>{
     const b=document.getElementById('bpAllBreedsButton');
-    if(b)b.textContent='60犬種＋その他から選ぶ';
+    if(b&&b.textContent!=='60犬種＋その他から選ぶ')b.textContent='60犬種＋その他から選ぶ';
   };
   const labelObserver=new MutationObserver(relabel);
   labelObserver.observe(document.documentElement,{childList:true,subtree:true});
