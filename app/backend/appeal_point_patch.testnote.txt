@@ -1,0 +1,3 @@
+Expected release log markers:
+APPEAL_POINT_PATCH_OK|limit=30|breeder_input=enabled|public_search=under_color|initial_dog44_value=filled
+FINAL_RELEASE_GATE_OK|...|appeal_point=30chars_under_color|...
