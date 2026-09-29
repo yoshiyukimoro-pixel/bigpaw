@@ -7,7 +7,9 @@ on:
       - 'Dockerfile'
       - 'app/backend/appeal_point_patch.py'
       - 'app/backend/appeal_point_e2e_test.py'
+      - 'app/backend/appeal_runtime_override_test.py'
       - 'app/breeder-puppy-new.html'
+      - 'app/breeder-editor-safety-fix.js'
       - '.github/workflows/appeal-point-e2e.yml'
 
 jobs:
@@ -17,5 +19,7 @@ jobs:
     steps:
       - name: Checkout candidate branch
         uses: actions/checkout@v4
-      - name: Build final image and run isolated E2E save test
+      - name: Build final image and run isolated API E2E save test
         run: docker build --progress=plain -t bigpaw-appeal-e2e .
+      - name: Verify final breeder editor override also persists appeal point
+        run: docker run --rm bigpaw-appeal-e2e python3 backend/appeal_runtime_override_test.py
