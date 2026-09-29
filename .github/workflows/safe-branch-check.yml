@@ -6,7 +6,6 @@ on:
       - safe-sales-handover-settings
       - fix-sales-handover-save-v2
       - safe-support-history-retention-180d
-      - fix/other-breed-last
   workflow_dispatch:
 
 jobs:
