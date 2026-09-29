@@ -90,7 +90,11 @@ function installPickerSuggestions(){
     list.style.cssText='display:none;max-height:250px;overflow:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid #eee;background:#fff;padding:6px 14px 10px;box-sizing:border-box;flex:0 0 auto;';
     row.insertAdjacentElement('afterend',list);
 
-    const sorted=()=>[...(window.BIGPAW_BREEDS||[])].sort((x,y)=>String(x.ja||'').localeCompare(String(y.ja||''),'ja'));
+    const sorted=()=>[...(window.BIGPAW_BREEDS||[])].sort((x,y)=>{
+      const xo=!!(x&&x.key===OTHER_KEY),yo=!!(y&&y.key===OTHER_KEY);
+      if(xo!==yo)return xo?1:-1;
+      return String(x.ja||'').localeCompare(String(y.ja||''),'ja');
+    });
     function render(){
       const q=(input.value||'').trim().toLowerCase();
       const items=sorted().filter(b=>!q||String(b.ja||'').toLowerCase().includes(q));
