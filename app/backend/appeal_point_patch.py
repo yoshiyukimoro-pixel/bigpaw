@@ -82,7 +82,24 @@ init_marker = "initEdit();\nfunction bigpawBreedKey"
 init_replacement = "function syncAppealPointCount(){const e=document.getElementById('appealPoint'),c=document.getElementById('appealPointCount');if(!e||!c)return;let chars=Array.from(e.value||'');if(chars.length>30){e.value=chars.slice(0,30).join('');chars=Array.from(e.value)}c.textContent=chars.length+' / 30文字'}\nconst appealPointInput=document.getElementById('appealPoint');if(appealPointInput){appealPointInput.addEventListener('input',syncAppealPointCount);syncAppealPointCount()}\ninitEdit();\nfunction bigpawBreedKey"
 f = replace_once(f, init_marker, init_replacement, 'form_counter_runtime')
 
-if 'id="appealPoint"' not in f or f.count('appealPoint:appealPoint.value') != 2 or '30文字以内' not in f:
+# Never show a successful save message until the value has been read back from
+# the server. This prevents a false "saved" message if any future patch drops
+# the field from the update pipeline.
+verify_anchor = "async function savePuppy(e){e.preventDefault();"
+verify_helper = "async function verifyAppealPointPersistence(id,expected){const rows=await BigPawBridge.breederPuppies();const saved=rows.find(x=>String(x.id)===String(id));const actual=saved?String(saved.appealPoint||''):'';const wanted=String(expected||'').trim();if(!saved||actual!==wanted)throw new Error('アピールポイントの保存確認に失敗しました。保存完了にはしていません。');return saved}\n" + verify_anchor
+f = replace_once(f, verify_anchor, verify_helper, 'form_persistence_verify_helper')
+
+success_marker = "alert(editId?'変更を保存しました。':'子犬情報を掲載しました。');location.href='admin.html'"
+success_replacement = "if(editId)await verifyAppealPointPersistence(puppy.id,appealPoint.value);alert(editId?'変更を保存しました。':'子犬情報を掲載しました。');location.href='admin.html'"
+f = replace_once(f, success_marker, success_replacement, 'form_persistence_verify_before_success')
+
+if (
+    'id="appealPoint"' not in f
+    or f.count('appealPoint:appealPoint.value') != 2
+    or 'appealPoint:d.appealPoint' not in f
+    or 'verifyAppealPointPersistence' not in f
+    or '30文字以内' not in f
+):
     raise SystemExit('APPEAL_POINT_PATCH_FAIL|form_postcheck')
 FORM.write_text(f, encoding='utf-8')
 
@@ -120,4 +137,4 @@ if 'p.appealPoint' not in r or 'class=\"bp-appeal\"' not in r:
     raise SystemExit('APPEAL_POINT_PATCH_FAIL|rebuilt_search_postcheck')
 REBUILT_SEARCH.write_text(r, encoding='utf-8')
 
-print('APPEAL_POINT_PATCH_OK|limit=30|breeder_input=enabled|public_search=under_color|live_rebuilt_search=patched|initial_dog44_value=filled', flush=True)
+print('APPEAL_POINT_PATCH_OK|limit=30|breeder_input=enabled|edit_readback=enabled|save_verified_before_success=enabled|public_search=under_color|live_rebuilt_search=patched|initial_dog44_value=filled', flush=True)
