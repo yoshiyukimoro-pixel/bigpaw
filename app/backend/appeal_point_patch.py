@@ -23,6 +23,9 @@ def replace_n(text: str, old: str, new: str, expected: int, label: str) -> str:
 
 
 # -------------------- backend / persistence --------------------
+# This patch deliberately runs from final_release_gate.py, after all earlier
+# Docker build patches. Markers below therefore target the FINAL transformed
+# server/form shape, not the repository's raw source shape.
 s = SERVER.read_text(encoding='utf-8')
 
 column_marker = "    ensure_column(con,'puppies','published_at','INTEGER')\n"
@@ -31,20 +34,23 @@ column_block = column_marker + "    ensure_column(con,'puppies','appeal_point',\
     "    con.execute(\"UPDATE puppies SET appeal_point=? WHERE COALESCE(appeal_point,'')='' AND status='募集中' AND breed='スタンダードプードル' AND birth='2026-07-01' AND area='埼玉県' AND (breeder_name='DOG44' OR breeder_id IN (SELECT id FROM breeders WHERE kennel_name='DOG44'))\",(default_appeal,))\n"
 s = replace_once(s, column_marker, column_block, 'server_column_and_initial_value')
 
-json_marker = "      'adultMax':d['adult_max'],'health':bool(d['health']),'birth':d['birth'],'desc':d['description'],\n"
-json_replacement = "      'adultMax':d['adult_max'],'health':bool(d['health']),'birth':d['birth'],'desc':d['description'],'appealPoint':d.get('appeal_point',''),\n"
+# puppy_health_status_patch.py has already expanded puppy_json at this point.
+json_marker = "      'geneticTestStatus':d.get('genetic_test_status','') or '','birth':d['birth'],'desc':d['description'],\n"
+json_replacement = "      'geneticTestStatus':d.get('genetic_test_status','') or '','birth':d['birth'],'desc':d['description'],'appealPoint':d.get('appeal_point','') or '',\n"
 s = replace_once(s, json_marker, json_replacement, 'server_json_payload')
 
 create_marker = "            pid=make_id('p_'); breed=body.get('breed','その他大型犬'); gender=body.get('gender','男の子')\n"
 create_replacement = "            appeal_point=str(body.get('appealPoint','')).strip()\n            if len(appeal_point)>30: con.close(); return self.send_json({'error':'appeal_point_too_long','message':'アピールポイントは30文字以内で入力してください。'},400)\n" + create_marker
 s = replace_once(s, create_marker, create_replacement, 'server_create_validation')
 
+# Health-status persistence is already inserted immediately before this audit line.
 audit_marker = "            audit(con,u['id'],'puppy_created','puppy',pid,review_status); con.commit(); r=con.execute('SELECT * FROM puppies WHERE id=?',(pid,)).fetchone(); con.close(); return self.send_json(puppy_json(r),201)\n"
 audit_replacement = "            con.execute('UPDATE puppies SET appeal_point=? WHERE id=?',(appeal_point,pid))\n" + audit_marker
 s = replace_once(s, audit_marker, audit_replacement, 'server_create_store')
 
-allowed_marker = "            allowed={'status':'status','price':'price','desc':'description','name':'name','imageUrl':'image_url','breed':'breed','breedKey':'breed_key','gender':'gender','color':'color','birth':'birth','weight':'weight','adultMin':'adult_min','adultMax':'adult_max','father':'father','mother':'mother','health':'health'}\n"
-allowed_replacement = "            if 'appealPoint' in body:\n                body['appealPoint']=str(body.get('appealPoint','')).strip()\n                if len(body['appealPoint'])>30: con.close(); return self.send_json({'error':'appeal_point_too_long','message':'アピールポイントは30文字以内で入力してください。'},400)\n            allowed={'status':'status','price':'price','desc':'description','name':'name','imageUrl':'image_url','breed':'breed','breedKey':'breed_key','gender':'gender','color':'color','birth':'birth','weight':'weight','adultMin':'adult_min','adultMax':'adult_max','father':'father','mother':'mother','health':'health','appealPoint':'appeal_point'}\n"
+# The final allowed map already includes the four health-status fields.
+allowed_marker = "            allowed={'status':'status','price':'price','desc':'description','name':'name','imageUrl':'image_url','breed':'breed','breedKey':'breed_key','gender':'gender','color':'color','birth':'birth','weight':'weight','adultMin':'adult_min','adultMax':'adult_max','father':'father','mother':'mother','health':'health','healthStatus':'health_status','vaccineStatus':'vaccine_status','microchipStatus':'microchip_status','geneticTestStatus':'genetic_test_status'}\n"
+allowed_replacement = "            if 'appealPoint' in body:\n                body['appealPoint']=str(body.get('appealPoint','')).strip()\n                if len(body['appealPoint'])>30: con.close(); return self.send_json({'error':'appeal_point_too_long','message':'アピールポイントは30文字以内で入力してください。'},400)\n            allowed={'status':'status','price':'price','desc':'description','name':'name','imageUrl':'image_url','breed':'breed','breedKey':'breed_key','gender':'gender','color':'color','birth':'birth','weight':'weight','adultMin':'adult_min','adultMax':'adult_max','father':'father','mother':'mother','health':'health','healthStatus':'health_status','vaccineStatus':'vaccine_status','microchipStatus':'microchip_status','geneticTestStatus':'genetic_test_status','appealPoint':'appeal_point'}\n"
 s = replace_once(s, allowed_marker, allowed_replacement, 'server_edit_field')
 
 compile(s, str(SERVER), 'exec')
@@ -57,23 +63,26 @@ form_marker = '<div class="field" style="margin-top:18px"><label>紹介文</labe
 form_replacement = '<div class="field" style="margin-top:18px"><label>アピールポイント（30文字以内）</label><input id="appealPoint" type="text" placeholder="例：🐾良血統×即お迎え！2回目ワクチン完了でお散歩OK✨" autocomplete="off"><small id="appealPointCount" class="muted" style="display:block;margin-top:6px">0 / 30文字</small></div>' + form_marker
 f = replace_once(f, form_marker, form_replacement, 'form_field')
 
-edit_map_marker = 'mother:d.mother,desc:d.desc,status:d.status};'
-edit_map_replacement = 'mother:d.mother,appealPoint:d.appealPoint,desc:d.desc,status:d.status};'
+# puppy_health_status_patch.py extends the edit map after status, so patch the
+# stable parent/description segment instead of relying on the object ending.
+edit_map_marker = 'father:d.father,mother:d.mother,desc:d.desc,status:d.status,'
+edit_map_replacement = 'father:d.father,mother:d.mother,appealPoint:d.appealPoint,desc:d.desc,status:d.status,'
 f = replace_once(f, edit_map_marker, edit_map_replacement, 'form_edit_load')
 
-sync_marker = "Object.entries(m).forEach(([k,v])=>{const e=document.getElementById(k);if(e&&v!=null)e.value=v});health.checked=!!d.health;"
-sync_replacement = "Object.entries(m).forEach(([k,v])=>{const e=document.getElementById(k);if(e&&v!=null)e.value=v});syncAppealPointCount();health.checked=!!d.health;"
+sync_marker = "Object.entries(m).forEach(([k,v])=>{const e=document.getElementById(k);if(e&&v!=null)e.value=v});if(health)health.checked=!!d.health;"
+sync_replacement = "Object.entries(m).forEach(([k,v])=>{const e=document.getElementById(k);if(e&&v!=null)e.value=v});syncAppealPointCount();if(health)health.checked=!!d.health;"
 f = replace_once(f, sync_marker, sync_replacement, 'form_counter_after_edit_load')
 
-payload_marker = 'father:father.value,mother:mother.value,health:health.checked,desc:desc.value,area:'
-payload_replacement = 'father:father.value,mother:mother.value,health:health.checked,appealPoint:appealPoint.value,desc:desc.value,area:'
+# Both create and edit payloads have already been expanded with health statuses.
+payload_marker = "geneticTestStatus:document.getElementById('geneticTestStatus').value,desc:desc.value,area:"
+payload_replacement = "geneticTestStatus:document.getElementById('geneticTestStatus').value,appealPoint:appealPoint.value,desc:desc.value,area:"
 f = replace_n(f, payload_marker, payload_replacement, 2, 'form_save_payloads')
 
 init_marker = "initEdit();\nfunction bigpawBreedKey"
 init_replacement = "function syncAppealPointCount(){const e=document.getElementById('appealPoint'),c=document.getElementById('appealPointCount');if(!e||!c)return;let chars=Array.from(e.value||'');if(chars.length>30){e.value=chars.slice(0,30).join('');chars=Array.from(e.value)}c.textContent=chars.length+' / 30文字'}\nconst appealPointInput=document.getElementById('appealPoint');if(appealPointInput){appealPointInput.addEventListener('input',syncAppealPointCount);syncAppealPointCount()}\ninitEdit();\nfunction bigpawBreedKey"
 f = replace_once(f, init_marker, init_replacement, 'form_counter_runtime')
 
-if 'id="appealPoint"' not in f or 'appealPoint:appealPoint.value' not in f or '30文字以内' not in f:
+if 'id="appealPoint"' not in f or f.count('appealPoint:appealPoint.value') != 2 or '30文字以内' not in f:
     raise SystemExit('APPEAL_POINT_PATCH_FAIL|form_postcheck')
 FORM.write_text(f, encoding='utf-8')
 
@@ -93,6 +102,8 @@ if 'p.appealPoint' not in q or 'class="result-point"' not in q:
 SEARCH.write_text(q, encoding='utf-8')
 
 # -------------------- live rebuilt public search --------------------
+# start_live.py installs this file over search.html in production, so it must
+# independently contain the same appeal-point rendering.
 if not REBUILT_SEARCH.exists():
     raise SystemExit('APPEAL_POINT_PATCH_FAIL|rebuilt_search_missing')
 r = REBUILT_SEARCH.read_text(encoding='utf-8')
