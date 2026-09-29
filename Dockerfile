@@ -27,6 +27,7 @@ RUN ["python3", "backend/sales_handover_post_route_fix.py"]
 RUN ["python3", "backend/operator_analytics_patch.py"]
 RUN ["python3", "backend/seo_search_visibility_patch.py"]
 RUN ["python3", "backend/final_release_gate.py"]
+RUN ["python3", "backend/appeal_point_e2e_test.py"]
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
