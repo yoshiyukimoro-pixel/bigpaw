@@ -1,0 +1,21 @@
+name: Appeal Point E2E Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'app/backend/appeal_point_patch.py'
+      - 'app/backend/appeal_point_e2e_test.py'
+      - 'app/breeder-puppy-new.html'
+      - '.github/workflows/appeal-point-e2e.yml'
+
+jobs:
+  appeal-save-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout candidate branch
+        uses: actions/checkout@v4
+      - name: Build final image and run isolated E2E save test
+        run: docker build --progress=plain -t bigpaw-appeal-e2e .
