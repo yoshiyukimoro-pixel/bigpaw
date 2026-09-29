@@ -9,7 +9,6 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,15 +102,15 @@ def main() -> int:
             if public.get('appealPoint') != second:
                 raise AssertionError(f'public readback mismatch: {public.get("appealPoint")!r}')
 
-            # The UI must send appealPoint on both edit and create payloads, and must
-            # verify the saved value before showing success / navigating away.
             form = (ROOT / 'breeder-puppy-new.html').read_text(encoding='utf-8')
             if form.count('appealPoint:appealPoint.value') < 2:
                 raise AssertionError('appealPoint missing from create/edit UI payload')
+            if 'appealPoint:d.appealPoint' not in form:
+                raise AssertionError('appealPoint missing from edit-page hydration')
             if 'verifyAppealPointPersistence' not in form:
                 raise AssertionError('UI persistence verification guard is missing')
 
-            print('APPEAL_POINT_E2E_OK|login=breeder|patch=2x|breeder_readback=ok|public_readback=ok|ui_verify=ok', flush=True)
+            print('APPEAL_POINT_E2E_OK|login=breeder|patch=2x|breeder_readback=ok|public_readback=ok|edit_hydration=ok|ui_verify=ok', flush=True)
             return 0
         finally:
             proc.terminate()
