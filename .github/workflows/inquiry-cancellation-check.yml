@@ -1,0 +1,23 @@
+name: Inquiry cancellation safety check
+on:
+  push:
+    branches: [feature/transaction-cancellation-confirmation-20261004]
+  pull_request:
+    paths:
+      - 'app/backend/inquiry_cancellation*'
+      - 'app/assets/*cancellation*'
+      - 'app/*cancellation*.html'
+      - 'Dockerfile'
+      - '.github/workflows/inquiry-cancellation-check.yml'
+jobs:
+  build-and-regress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and whitespace
+        run: |
+          git diff --check
+          python3 -m py_compile app/backend/inquiry_cancellation.py app/backend/inquiry_cancellation_patch.py app/backend/inquiry_cancellation_test.py
+          for f in app/assets/*cancellation*.js; do node --check "$f"; done
+      - name: Docker build with existing and new regression gates
+        run: docker build --no-cache -t bigpaw-cancellation-safe .
