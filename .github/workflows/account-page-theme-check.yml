@@ -1,0 +1,24 @@
+name: Account page theme safety check
+on:
+  push:
+    branches: [fix/breeder-page-colors-20261004]
+  pull_request:
+    paths:
+      - 'app/notifications.html'
+      - 'app/breeder-fees.html'
+      - 'app/assets/account-page-theme.css'
+      - 'app/mobile-global-nav.js'
+      - 'scripts/test-inquiry-cancellation-browser.cjs'
+      - '.github/workflows/account-page-theme-check.yml'
+jobs:
+  build-and-regress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and whitespace
+        run: |
+          git diff --check
+          node --check app/mobile-global-nav.js
+          node --check scripts/test-inquiry-cancellation-browser.cjs
+      - name: Docker build with existing regression gates
+        run: docker build --no-cache -t bigpaw-account-theme-safe .
