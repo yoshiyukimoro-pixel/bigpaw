@@ -1,0 +1,32 @@
+name: Handover access safety check
+on:
+  push:
+    branches: [fix/operator-handover-settings-20261004]
+  pull_request:
+    paths:
+      - 'app/breeder-sales-handover.html'
+      - 'app/operator-breeder-detail.html'
+      - 'app/mobile-global-nav.js'
+      - 'app/backend/inquiry_cancellation_test.py'
+      - 'scripts/test-inquiry-cancellation-browser.cjs'
+      - '.github/workflows/handover-access-check.yml'
+jobs:
+  build-and-regress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and whitespace
+        run: |
+          git diff --check
+          node --check app/mobile-global-nav.js
+          python3 - <<'PY'
+          import re, subprocess
+          from pathlib import Path
+          for name in ('breeder-sales-handover.html','operator-breeder-detail.html'):
+              for index, source in enumerate(re.findall(r'<script>(.*?)</script>',Path('app',name).read_text(),re.S)):
+                  script=Path('/tmp')/(name+str(index)+'.js')
+                  script.write_text(source)
+                  subprocess.run(['node','--check',str(script)],check=True)
+          PY
+      - name: Docker build with all existing and new regression gates
+        run: docker build --no-cache -t bigpaw-handover-safe .
