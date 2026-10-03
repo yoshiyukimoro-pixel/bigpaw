@@ -199,6 +199,24 @@ try:
     check(any(p['id']==rp for p in expect('GET','/api/puppies?breed=standard&area=saitama')),'existing breed and prefecture search')
     expect('GET','/api/operator/breeders',user='u_admin');expect('GET','/api/operator/invoices',user='u_admin')
     expect('POST','/api/breeder/sales-handover-settings',{'reservationAmount':100000,'minHandoverDays':57,'healthExamIncluded':True,'microchipIncluded':True},'u_dog44')
+    # Handover access: own breeder settings and explicit operator target remain isolated.
+    settings='/api/breeder/sales-handover-settings'
+    own=expect('GET',settings,user='u_dog44')
+    check(own['breederId']=='b_dog44' and own['reservationAmount']==100000,'breeder settings read back without target selection')
+    expect('POST',settings,{'vaccineIncluded':False,'vaccineNote':'別犬舎：ワクチン代別途8000円','reservationAmount':50000},'u_out')
+    other=expect('GET',settings+'?breederId=b_out',user='u_admin')
+    check(other['breederId']=='b_out' and other['reservationAmount']==50000,'operator reads explicitly selected breeder settings')
+    check(expect('GET',settings+'?breederId=b_out',user='u_dog44')['breederId']=='b_dog44','breeder cannot switch settings owner through operator query')
+    expect('GET',settings,user='u_admin',status=404)
+    expect('GET',settings+'?breederId=missing',user='u_admin',status=404)
+    expect('GET',settings+'?breederId=b_dog44',user='u_demo',status=403)
+    expect('GET',settings,status=401)
+    expect('POST',settings,{'breederId':'b_out','reservationAmount':999},'u_demo',403)
+    check(expect('GET',settings,user='u_out')['reservationAmount']==50000,'unauthorized write never changes another breeder settings')
+    execute("INSERT INTO users(id,role,email,salt,password_hash,created_at) VALUES('u_settings_empty','breeder','settings-empty@example.invalid','s','h',?)",(int(time.time()),))
+    execute("INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status) VALUES('b_settings_empty','u_settings_empty','条件未登録犬舎','埼玉県','','','approved')")
+    check(expect('GET',settings+'?breederId=b_settings_empty',user='u_admin')['configured'] is False,'existing breeder without settings is unconfigured, not a loading error')
+    check(any(b['id']=='b_out' for b in expect('GET','/api/operator/breeders',user='u_admin')),'operator selector includes registered breeders')
     # Browser fixtures: one new inquiry for automatic close, another for operator mismatch.
     bi,bp,_=fixture('browser');mi,mp,_=fixture('browser-review')
     for _ in range(60):
