@@ -1,0 +1,1 @@
+(async()=>{try{const r=await BigPawAPI.request('/breeder/first-sale-benefit');const box=document.createElement('div');box.className='notice';box.style.margin='14px 0';box.textContent=r.used?'初回成約手数料無料：使用済み。次の成約から、お迎え完了時に5%を請求します。':'初回成約手数料無料：未使用。最初の成約申請1件に適用します。キャンセルしても特典は戻りません。';const main=document.querySelector('main');if(main)main.prepend(box)}catch(e){}})();
