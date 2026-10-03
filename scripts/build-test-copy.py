@@ -12,6 +12,12 @@ shutil.copytree(repo/'app',target)
 # Only staging copies: production still uses Docker's /app root.
 for p in (target/'backend').glob('*.py'):
     p.write_text(p.read_text().replace("'/app'",repr(str(target))).replace('"/app"',json.dumps(str(target))).replace("'/app/", "'"+str(target)+"/").replace('"/app/', '"'+str(target)+'/'))
+# Nested release gates must rebase the already translated root onto their own
+# disposable copy, rather than letting their hardcoded patches touch this tree.
+for p in (target/'backend').glob('*release_gate.py'):
+    s=p.read_text()
+    if 'shutil.copytree' in s and 'p.read_text().replace(' in s:
+        p.write_text(s.replace('p.read_text().replace(', 'p.read_text().replace(str(ROOT),str(app)).replace('))
 for line in (repo/'Dockerfile').read_text().splitlines():
     if not line.startswith('RUN ['): continue
     args=json.loads(line[4:])

@@ -19,7 +19,7 @@
  if(path.endsWith('/operator-admin.html')||path.endsWith('/operator-sale-confirmations.html')){
   const box=document.createElement('section');box.className='card pad';box.style.margin='16px 0';
   const link=make('operator-cancellations.html','取引中止申請の確認');box.append(link);document.querySelector('main')?.prepend(box);
-  BigPawAPI.request('/operator/inquiry-cancellations').then(r=>{const n=r.requests.filter(x=>['operator_review','unanswered'].includes(x.state)).length;link.textContent='取引中止申請の確認'+(n?'（要確認 '+n+'件）':'')}).catch(()=>{});
+  BigPawAPI.request('/operator/inquiry-cancellations/summary').then(r=>{const n=r.attention;link.textContent='取引中止申請の確認'+(n?'（要確認 '+n+'件）':'')}).catch(()=>{});
  }
  if(path.endsWith('/mypage.html')){const p=document.createElement('p');p.style.padding='12px 20px';p.append(make('buyer-cancellation-confirmation.html','取引中止申請の確認'));document.querySelector('main')?.append(p)}
  const watched=document.getElementById('inquiryList')||document.getElementById('who');

@@ -88,11 +88,12 @@
   }
 
   async function operatorMap(){
-    const [statsR,invR,repR]=await Promise.allSettled([api('/operator/stats'),api('/operator/invoices'),api('/operator/reports')]);
+    const [statsR,invR,repR,cancelR]=await Promise.allSettled([api('/operator/stats'),api('/operator/invoices'),api('/operator/reports'),api('/operator/inquiry-cancellations/summary')]);
     const stats=statsR.status==='fulfilled'?statsR.value:{};
     const inv=invR.status==='fulfilled'&&Array.isArray(invR.value)?invR.value:[];
     const reports=repR.status==='fulfilled'&&Array.isArray(repR.value)?repR.value:[];
     const m={
+      '/operator-cancellations.html':cancelR.status==='fulfilled'?n(cancelR.value.attention):0,
       '/operator-breeders.html':n(stats.pendingBreederApplications),
       '/messages.html?mode=operator':n(stats.unanswered),
       '/operator-deal-reports.html':n(stats.pendingDealReports),
@@ -184,7 +185,7 @@
   getRole().then(r=>{
     role=r;
     if(!role) return;
-    const go=()=>{waitForMenu();setInterval(refresh,30000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});document.addEventListener('click',e=>{if(e.target.closest('button')&&!e.target.closest('#bp-global-mobile-menu-button,#bp-global-mobile-menu-drawer'))setTimeout(refresh,1500)})};
+    const go=()=>{waitForMenu();setInterval(refresh,30000);window.addEventListener('focus',refresh);window.addEventListener('bigpaw:attention-refresh',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});document.addEventListener('click',e=>{if(e.target.closest('button')&&!e.target.closest('#bp-global-mobile-menu-button,#bp-global-mobile-menu-drawer'))setTimeout(refresh,1500)})};
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go,{once:true});else go();
   });
 })();

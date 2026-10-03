@@ -60,13 +60,17 @@ def install(g):
         c=db()
         try:
             # Snapshot existing data before the first additive schema migration.
-            if not c.execute("SELECT 1 FROM sqlite_master WHERE name='inquiry_cancellations'").fetchone():
+            columns={r['name'] for r in c.execute('PRAGMA table_info(inquiry_cancellations)')}
+            if not columns or 'operator_seen_at' not in columns or 'operator_seen_by' not in columns:
                 import sqlite3
-                target=g['BACKUPS']/('before-inquiry-cancellation-'+str(now())+'.sqlite3')
+                target=g['BACKUPS']/('before-inquiry-cancellation-'+str(now())+'-'+mid('')+'.sqlite3')
                 backup=sqlite3.connect(target)
                 try:c.backup(backup)
                 finally:backup.close()
-            c.executescript(SCHEMA); c.commit()
+            c.executescript(SCHEMA)
+            g['ensure_column'](c,'inquiry_cancellations','operator_seen_at','INTEGER')
+            g['ensure_column'](c,'inquiry_cancellations','operator_seen_by','TEXT')
+            c.commit()
         finally:c.close()
         print('INQUIRY_CANCELLATION_READY|schema=additive|reasons=required|buyer_link=7days|unanswered=operator_review',flush=True)
 
@@ -80,13 +84,25 @@ def install(g):
         audit(c,actor,'inquiry_cancellation_'+action,'inquiry',r['inquiry_id'],detail)
 
     def notify(c,r,title,ops=False):
-        url=base()+'/operator-cancellations.html' if ops else base()+'/breeder-cancellation.html?inquiry='+r['inquiry_id']
+        url=base()+'/operator-cancellations.html#request='+r['id'] if ops else base()+'/breeder-cancellation.html?inquiry='+r['inquiry_id']
         users=c.execute("SELECT id,email FROM users WHERE role='operator'").fetchall() if ops else c.execute('SELECT u.id,u.email FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?',(r['breeder_id'],)).fetchall()
+        body='問い合わせ '+r['inquiry_id']+'\n'+url
+        if ops:
+            current=view(c,c.execute('SELECT * FROM inquiry_cancellations WHERE id=?',(r['id'],)).fetchone())
+            body=('運営管理画面で取引中止申請を確認してください。\n\n犬舎：'+str(current['kennel_name'] or '')+
+                  '\n子犬：'+current['puppy_name']+'\n購入希望者：'+current['buyer_name']+
+                  '\n申請理由：'+current['breeder_reason_label']+'\n補足：'+current['breeder_note']+
+                  '\n購入希望者の回答：'+(current['buyer_reason_label'] or '未回答')+
+                  '\n\n【申請を確認する】\n'+url+'\n\n確認後は画面の「確認済みにする」を押してください。回答の食い違い・期限切れは判断が完了するまで要対応として表示されます。')
+        recipients=set()
         for u in users:
             c.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',(mid('n_'),u['id'],'inquiry_cancellation',title,'問い合わせ '+r['inquiry_id']+' / '+url,0,now()))
-            # Operator notifications go to the support mailbox configured for BIG PAW.
-            email=g.get('BIGPAW_SUPPORT_EMAIL') or __import__('os').environ.get('BIGPAW_SUPPORT_EMAIL') or u['email']
-            queue(c,'ic:'+r['id']+':'+title+':'+u['id'],email if ops else u['email'],title,'問い合わせ '+r['inquiry_id']+'\n'+url)
+            if not ops:queue(c,'ic:'+r['id']+':'+title+':'+u['id'],u['email'],title,body)
+            else:recipients.add((g.get('BIGPAW_SUPPORT_EMAIL') or __import__('os').environ.get('BIGPAW_SUPPORT_EMAIL') or 'info@bigpaw.site').strip().lower())
+        if ops:
+            recipients.add((g.get('BIGPAW_SUPPORT_EMAIL') or __import__('os').environ.get('BIGPAW_SUPPORT_EMAIL') or 'info@bigpaw.site').strip().lower())
+            event=c.execute('SELECT count(*) FROM inquiry_cancellation_history WHERE request_id=?',(r['id'],)).fetchone()[0]
+            for email in recipients:queue(c,'ic-operator:'+r['id']+':'+str(event)+':'+email,email,title,body)
 
     def risky(c,q):
         d=c.execute('SELECT * FROM deals WHERE inquiry_id=?',(q['id'],)).fetchone()
@@ -138,7 +154,7 @@ def install(g):
     def expire(c):
         rows=c.execute("SELECT * FROM inquiry_cancellations WHERE state='buyer_pending' AND expires_at<?",(now(),)).fetchall()
         for r in rows:
-            c.execute("UPDATE inquiry_cancellations SET state='unanswered' WHERE id=?",(r['id'],))
+            c.execute("UPDATE inquiry_cancellations SET state='unanswered',operator_seen_at=NULL,operator_seen_by=NULL WHERE id=?",(r['id'],))
             c.execute("UPDATE inquiries SET status='取引中止・運営確認中' WHERE id=?",(r['inquiry_id'],))
             history(c,r,None,'unanswered','7日間未回答。自動終了しません。')
             notify(c,r,'取引中止の確認が未回答です',True)
@@ -147,13 +163,18 @@ def install(g):
     def get(h):
         path=urlparse(h.path).path
         m=re.fullmatch(r'/api/inquiries/([^/]+)/cancellation',path)
-        if path not in ('/api/operator/inquiry-cancellations','/api/buyer/inquiry-cancellations','/api/cancellation-confirmation') and not m:return old_get(h)
+        if path not in ('/api/operator/inquiry-cancellations','/api/operator/inquiry-cancellations/summary','/api/buyer/inquiry-cancellations','/api/cancellation-confirmation') and not m:return old_get(h)
         c=db()
         try:
             if path=='/api/cancellation-confirmation':return h.send_json({'error':'use_post_view'},405)
             u=h.require(['operator'] if '/operator/' in path else ['buyer'] if '/buyer/' in path else ['breeder','buyer','operator'])
             if not u:return
             expire(c);c.commit()
+            if path=='/api/operator/inquiry-cancellations/summary':
+                rows=c.execute('SELECT operator_seen_at,state FROM inquiry_cancellations').fetchall()
+                return h.send_json({'attention':sum(r['operator_seen_at'] is None or r['state'] in ('operator_review','unanswered') for r in rows),
+                                    'unread':sum(r['operator_seen_at'] is None for r in rows),
+                                    'needsReview':sum(r['state'] in ('operator_review','unanswered') for r in rows)})
             if m:
                 q=h.inquiry_for_user(c,m.group(1),u)
                 if not q:return h.send_json({'error':'not_found'},404)
@@ -171,19 +192,27 @@ def install(g):
         answer=path=='/api/cancellation-confirmation/answer'
         public_view=path=='/api/cancellation-confirmation/view'
         resend=re.fullmatch(r'/api/operator/inquiry-cancellations/([^/]+)/resend',path)
+        acknowledge=re.fullmatch(r'/api/operator/inquiry-cancellations/([^/]+)/acknowledge',path)
         if re.fullmatch(r'/api/deals/[^/]+/cancel-report',path):
             return h.send_json({'error':'use_inquiry_cancellation','message':'問い合わせの「取引中止を申請」から理由を選択してください。'},409)
-        if not m and not answer and not public_view and not resend:
+        if not m and not answer and not public_view and not resend and not acknowledge:
             if mutation_guard(h,path):return
             return old_post(h)
         if not h.mutation_origin_allowed():return h.send_json({'error':'invalid_origin'},403)
-        u=None if (answer or public_view) else h.require(['operator'] if resend else ['breeder'])
+        u=None if (answer or public_view) else h.require(['operator'] if resend or acknowledge else ['breeder'])
         if not answer and not public_view and not u:return
         body=h.json_body()
         if not isinstance(body,dict):return h.send_json({'error':'invalid_body'},400)
         c=db()
         try:
             c.execute('BEGIN IMMEDIATE')
+            if acknowledge:
+                r=c.execute('SELECT * FROM inquiry_cancellations WHERE id=?',(acknowledge.group(1),)).fetchone()
+                if not r:return h.send_json({'error':'not_found'},404)
+                if r['operator_seen_at'] is None:
+                    c.execute('UPDATE inquiry_cancellations SET operator_seen_at=?,operator_seen_by=? WHERE id=?',(now(),u['id'],r['id']))
+                    history(c,r,u['id'],'operator_acknowledged','運営が申請内容を確認しました。')
+                c.commit();return h.send_json({'ok':True})
             if public_view:
                 r=lookup(c,body.get('token'))
                 if not r:return h.send_json({'message':'確認リンクが無効です。BIG PAW運営へお問い合わせください。'},404)
@@ -206,7 +235,7 @@ def install(g):
                 q=c.execute('SELECT * FROM inquiries WHERE id=?',(r['inquiry_id'],)).fetchone()
                 if MATCH.get(r['breeder_reason'])==reason and not risky(c,q):finish(c,r,r['buyer_id'])
                 else:
-                    c.execute("UPDATE inquiry_cancellations SET state='operator_review' WHERE id=?",(r['id'],))
+                    c.execute("UPDATE inquiry_cancellations SET state='operator_review',operator_seen_at=NULL,operator_seen_by=NULL WHERE id=?",(r['id'],))
                     c.execute("UPDATE inquiries SET status='取引中止・運営確認中' WHERE id=?",(r['inquiry_id'],))
                     notify(c,r,'取引中止申請の確認が必要です',True)
                     notify(c,r,'取引中止申請は運営確認中です')
@@ -248,7 +277,7 @@ def install(g):
                 if g.get('monitor_inquiry_cancellation'):g['monitor_inquiry_cancellation'](c,d)
             history(c,r,u['id'],'submitted',json.dumps({'reason':reason,'note':note.strip()},ensure_ascii=False))
             send_confirmation(c,r,token,'ic-confirm:'+rid)
-            notify(c,r,'取引中止申請を受け付けました',True)
+            notify(c,r,'取引中止申請が届きました。確認をお願いします',True)
             c.commit();return h.send_json({'ok':True,'state':'buyer_pending','id':rid})
         finally:
             c.close()
@@ -295,7 +324,7 @@ def install(g):
             r=c.execute('SELECT * FROM inquiry_cancellations WHERE id=?',(m.group(1),)).fetchone()
             if not r:return h.send_json({'error':'not_found'},404)
             if r['state'] not in ('operator_review','unanswered','buyer_pending'):return h.send_json({'message':'この申請は対応済みです。'},409)
-            c.execute('UPDATE inquiry_cancellations SET reviewed_by=?,reviewed_at=?,review_action=?,review_note=? WHERE id=?',(u['id'],now(),action,note.strip(),r['id']))
+            c.execute('UPDATE inquiry_cancellations SET reviewed_by=?,reviewed_at=?,review_action=?,review_note=?,operator_seen_at=?,operator_seen_by=? WHERE id=?',(u['id'],now(),action,note.strip(),now(),u['id'],r['id']))
             r=c.execute('SELECT * FROM inquiry_cancellations WHERE id=?',(r['id'],)).fetchone()
             if action=='approve':
                 if not finish(c,r,u['id']):return h.send_json({'message':'支払済み請求書があります。返金確認を先に行ってください。'},409)
