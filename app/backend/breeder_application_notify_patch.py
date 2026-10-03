@@ -11,7 +11,7 @@ old = """            con.commit(); r=con.execute('SELECT * FROM breeder_applicat
 
 new = """            con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=?',(aid,)).fetchone()
             applicant_email=u['email']
-            operator_emails=[str(x['email']).strip() for x in con.execute(\"SELECT email FROM users WHERE role='operator' AND COALESCE(email,'')<>''\").fetchall() if str(x['email']).strip()]
+            operator_emails=[os.environ.get('BIGPAW_APPLICATION_NOTIFY_EMAIL','info@bigpaw.site').strip() or 'info@bigpaw.site']
             con.close()
             applicant_sent=send_mail(applicant_email,'【BIG PAW】ブリーダー掲載申請を受け付けました',f\"\"\"{body.get('representative','')} 様
 
