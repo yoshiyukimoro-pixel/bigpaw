@@ -5,7 +5,7 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
  async function page(uid='',viewport={width:390,height:844}){
   const c=await browser.newContext({viewport});if(uid)await c.addCookies([{name:'bigpaw_session',value:'test-'+uid,domain:'bigpaw.site',path:'/',secure:true,httpOnly:true}]);
   const p=await c.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')console.log('BROWSER_CONSOLE',m.text())});p.on('dialog',d=>d.accept());
-  await p.route('https://bigpaw.site/**',async route=>{const req=route.request(),u=new URL(req.url()),headers={...(await req.allHeaders()),host:'bigpaw.site',...(uid?{cookie:'bigpaw_session=test-'+uid}:{})};const res=await c.request.fetch(cfg.base+u.pathname+u.search,{method:req.method(),headers,data:req.postDataBuffer()||undefined});await route.fulfill({response:res})});return p;
+  await p.route('https://bigpaw.site/**',async route=>{const req=route.request(),u=new URL(req.url()),headers={...(await req.allHeaders()),host:'bigpaw.site',cookie:uid?'bigpaw_session=test-'+uid:''};const res=await c.request.fetch(cfg.base+u.pathname+u.search,{method:req.method(),headers,data:req.postDataBuffer()||undefined,maxRedirects:0});await route.fulfill({response:res})});return p;
  }
  async function token(p,id){const r=await p.request.get(cfg.base+'/api/health');assert.equal(r.status(),200);const result=spawnSync('python3',['-c',"import sqlite3,re,sys; c=sqlite3.connect(sys.argv[1]); s=c.execute('SELECT body FROM sale_mail_outbox WHERE event_key=?',('ic-confirm:'+sys.argv[2],)).fetchone()[0]; print(re.search(r'#token=([\\w-]+)',s).group(1))",path.join(cfg.data,'bigpaw.sqlite3'),id],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);return result.stdout.trim()}
  async function attention(p){return p.evaluate(async()=>{const r=await fetch('/api/operator/inquiry-cancellations/summary');return r.json()})}
@@ -44,7 +44,7 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
  await op.setViewportSize({width:1280,height:900});await op.screenshot({path:path.join(cfg.work,'handover-operator-desktop.png'),fullPage:false});
  console.log('HANDOVER_ACCESS_BROWSER_OK|breeder_save_reload|operator_menu_select_readonly|failure_retry|selection_race|detail_deeplink|mobile_desktop');
  // Account page colors follow the session; pricing is always breeder blue.
- const guest=await page();
+ const guest=buyer;
  for(const [p,role,bg,cell,menu] of [[seller,'breeder','rgb(243, 248, 255)','rgb(237, 245, 255)','rgb(49, 95, 137)'],[loggedBuyer,'buyer','rgb(255, 250, 253)','rgb(255, 248, 252)','rgb(168, 79, 118)'],[op,'operator','rgb(255, 251, 234)','rgb(255, 247, 212)','rgb(112, 93, 0)']]){
   await p.setViewportSize({width:390,height:844});await p.goto('https://bigpaw.site/notifications.html');await p.waitForFunction(r=>document.documentElement.dataset.bpPageTheme===r,role);await p.waitForLoadState('networkidle');
   assert.equal(await p.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),bg,role+' notification body color');
@@ -58,9 +58,9 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
   await p.locator('#bp-global-mobile-menu-drawer .bp-close').click();assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'notification no horizontal clipping');
   if(role==='breeder')await p.screenshot({path:path.join(cfg.work,'notifications-breeder-blue-mobile.png'),fullPage:false});
  }
- await guest.goto('https://bigpaw.site/notifications.html');await guest.waitForURL('**/login.html');assert.equal(await guest.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 250, 253)','guest still redirected to pink login');
+ await guest.goto('https://bigpaw.site/notifications.html');await guest.waitForURL(url=>url.pathname==='/login.html');assert.equal(await guest.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 250, 253)','guest still redirected to pink login');
  for(const p of [seller,guest])for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
-  await p.setViewportSize(viewport);await p.goto('https://bigpaw.site/breeder-fees.html');await p.waitForFunction(()=>document.documentElement.dataset.bpPageTheme==='breeder');await p.waitForLoadState('networkidle');
+  await p.setViewportSize(viewport);await p.goto('https://bigpaw.site/breeder-fees.html');await p.locator('#bp-global-mobile-menu-button').waitFor({state:'attached'});await p.waitForFunction(()=>document.documentElement.dataset.bpPageTheme==='breeder'&&document.documentElement.dataset.bpMobileTone==='breeder');
   assert.equal(await p.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(243, 248, 255)','pricing blue body');
   assert.equal(await p.locator('.fact').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(237, 245, 255)','pricing blue facts');
   for(const selector of ['.topbar','.logo-mark','.hero-mini'])assert(!(await p.locator(selector).evaluate(e=>getComputedStyle(e).backgroundImage)).includes('239, 127, 168'),selector+' no pink gradient');
