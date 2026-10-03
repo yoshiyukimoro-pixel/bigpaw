@@ -43,6 +43,7 @@
   function choose(role){
     if(path.endsWith('/breeder-sales-handover.html')&&role==='operator') return 'operator';
     if(((path.startsWith('/operator-')||path.includes('/operator-'))&&!path.endsWith('/operator-login.html')) || operatorPages.some(p=>path.endsWith(p)) || (path.endsWith('/messages.html')&&query.get('mode')==='operator')) return 'operator';
+    if(path.endsWith('/notifications.html')&&(role==='breeder'||role==='operator')) return role;
     if(breederPages.some(p=>path.endsWith(p))) return 'breeder';
     if(sharedDealPages.some(p=>path.endsWith(p)) && (role==='breeder'||role==='operator')) return role==='operator'?'operator':'breeder';
     if(role==='buyer') return 'buyer';
@@ -76,6 +77,7 @@
     `;
     document.head.appendChild(style);
     document.documentElement.setAttribute('data-bp-mobile-tone',cfg.tone);
+    if(document.body.classList.contains('bp-account-page')) document.documentElement.setAttribute('data-bp-page-theme',cfg.tone);
 
     const btn=document.createElement('button');
     btn.id='bp-global-mobile-menu-button';btn.type='button';btn.setAttribute('aria-label',cfg.label+'を開く');btn.innerHTML='<span style="font-size:18px">☰</span><span>メニュー</span>';

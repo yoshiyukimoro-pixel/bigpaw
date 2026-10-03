@@ -43,5 +43,31 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
  await op.goto('https://bigpaw.site/operator-breeder-detail.html?id=b_dog44');await op.locator('#detail').waitFor({state:'visible'});await op.locator('#handoverLink').click();await op.locator('#settingsStatus').filter({hasText:'保存済み'}).waitFor();assert.equal(await op.locator('#settingsBreeder').inputValue(),'b_dog44');assert.equal(await op.locator('#reservationAmount').inputValue(),'100000','breeder detail link selects target');
  await op.setViewportSize({width:1280,height:900});await op.screenshot({path:path.join(cfg.work,'handover-operator-desktop.png'),fullPage:false});
  console.log('HANDOVER_ACCESS_BROWSER_OK|breeder_save_reload|operator_menu_select_readonly|failure_retry|selection_race|detail_deeplink|mobile_desktop');
+ // Account page colors follow the session; pricing is always breeder blue.
+ const guest=await page();
+ for(const [p,role,bg,cell,menu] of [[seller,'breeder','rgb(243, 248, 255)','rgb(237, 245, 255)','rgb(49, 95, 137)'],[loggedBuyer,'buyer','rgb(255, 250, 253)','rgb(255, 248, 252)','rgb(168, 79, 118)'],[op,'operator','rgb(255, 251, 234)','rgb(255, 247, 212)','rgb(112, 93, 0)']]){
+  await p.setViewportSize({width:390,height:844});await p.goto('https://bigpaw.site/notifications.html');await p.waitForFunction(r=>document.documentElement.dataset.bpPageTheme===r,role);await p.waitForLoadState('networkidle');
+  assert.equal(await p.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),bg,role+' notification body color');
+  assert.equal(await p.locator('#list .table-row>div').first().evaluate(e=>getComputedStyle(e).backgroundColor),cell,role+' notification rows');
+  assert.equal(await p.locator('#bp-global-mobile-menu-button').evaluate(e=>getComputedStyle(e).color),menu,role+' menu color');
+  const notificationRows=await p.evaluate(async()=>{const r=await fetch('/api/notifications');return r.ok?r.json():null});
+  if(notificationRows?.length)for(const row of notificationRows)assert((await p.locator('#list').innerText()).includes(row.title),'notification titles preserved');
+  else assert((await p.locator('#list').innerText()).includes(notificationRows?'新しい通知はありません':'ログイン'),'empty/unauthenticated notification state');
+  await p.locator('#bp-global-mobile-menu-button').click();assert(await p.locator('#bp-global-mobile-menu-drawer').isVisible());
+  if(role==='breeder')assert.equal(await p.locator('#bp-global-mobile-menu-drawer a[href="/notifications.html"]').count(),1,'breeder notification menu entry');
+  await p.locator('#bp-global-mobile-menu-drawer .bp-close').click();assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'notification no horizontal clipping');
+  if(role==='breeder')await p.screenshot({path:path.join(cfg.work,'notifications-breeder-blue-mobile.png'),fullPage:false});
+ }
+ await guest.goto('https://bigpaw.site/notifications.html');await guest.waitForURL('**/login.html');assert.equal(await guest.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 250, 253)','guest still redirected to pink login');
+ for(const p of [seller,guest])for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  await p.setViewportSize(viewport);await p.goto('https://bigpaw.site/breeder-fees.html');await p.waitForFunction(()=>document.documentElement.dataset.bpPageTheme==='breeder');await p.waitForLoadState('networkidle');
+  assert.equal(await p.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(243, 248, 255)','pricing blue body');
+  assert.equal(await p.locator('.fact').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(237, 245, 255)','pricing blue facts');
+  for(const selector of ['.topbar','.logo-mark','.hero-mini'])assert(!(await p.locator(selector).evaluate(e=>getComputedStyle(e).backgroundImage)).includes('239, 127, 168'),selector+' no pink gradient');
+  assert((await p.locator('main').innerText()).includes('5%（税込）'),'pricing unchanged');assert((await p.locator('main').innerText()).includes('7日以内'),'payment deadline unchanged');
+  assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'pricing no horizontal clipping');
+  if(p===seller)await p.screenshot({path:path.join(cfg.work,'fees-breeder-blue-'+viewport.width+'.png'),fullPage:false});
+ }
+ console.log('ACCOUNT_PAGE_THEME_BROWSER_OK|breeder_blue_notifications_fees|buyer_pink|operator_yellow|guest_login_guard|notification_content|mobile_desktop|menu|no_clipping');
  assert.deepEqual(errors,[],'no JavaScript exceptions');await browser.close();console.log('INQUIRY_CANCELLATION_BROWSER_OK|mobile_apply_email_answer|mismatch_operator_decision|desktop_mobile_200pct|existing_routes|operator_email_deeplink_unread_ack_badge_reraise_resolution|no_js_errors');
 })().catch(e=>{console.error(e);process.exit(1)});
