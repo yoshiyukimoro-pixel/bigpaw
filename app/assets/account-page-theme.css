@@ -63,3 +63,25 @@ html:is([data-bp-page-theme="buyer"],[data-bp-page-theme="public"]) body.bp-acco
   --ink:#5b4b62; --muted:#8f8195; --pink:#ef7fa8; --pink2:#ffe6f1;
   --cream:#fff8ee; --bg:#fffafd; --line:#f0dbe5;
 }
+
+
+/* Operator management pages: keep every management accent in the operator yellow family. */
+html[data-bp-page-theme="operator"] body.bp-account-page :is(.sidebar,.side) {
+  background:linear-gradient(180deg,#8f7825,#6f5d18)!important;
+  color:#fffdf4;
+}
+html[data-bp-page-theme="operator"] body.bp-account-page :is(.sidebar a,.side a) {color:#fffdf4}
+html[data-bp-page-theme="operator"] body.bp-account-page :is(.event,.report,.ticket) {border-bottom-color:var(--line)!important}
+html[data-bp-page-theme="operator"] body.bp-account-page .reply-box {
+  border-color:var(--line)!important; background:var(--card)!important;
+}
+html[data-bp-page-theme="operator"] body.bp-account-page .reply-box textarea {border-color:var(--line)!important}
+html[data-bp-page-theme="operator"] body.bp-account-page .reply-item {background:var(--account-soft)!important}
+html[data-bp-page-theme="operator"] body.bp-account-page .support-tab {
+  border-color:var(--line)!important; color:var(--account-text)!important;
+}
+html[data-bp-page-theme="operator"] body.bp-account-page .support-tab.active {
+  background:var(--account-accent)!important; border-color:var(--account-accent)!important; color:#fff!important;
+}
+html[data-bp-page-theme="operator"] body.bp-account-page :is(.reply-meta,.completed-meta) {color:var(--muted)!important}
+html[data-bp-page-theme="operator"] body.bp-account-page #err {color:var(--account-text)!important}

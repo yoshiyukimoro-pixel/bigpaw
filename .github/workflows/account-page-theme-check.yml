@@ -1,13 +1,17 @@
 name: Account page theme safety check
 on:
   push:
-    branches: [fix/breeder-page-colors-20261004, fix/breeder-management-colors-20261004]
+    branches: [fix/breeder-page-colors-20261004, fix/breeder-management-colors-20261004, fix/operator-management-colors-20261005]
   pull_request:
     paths:
       - 'app/notifications.html'
       - 'app/breeder-fees.html'
       - 'app/admin.html'
       - 'app/breeder-*.html'
+      - 'app/operator-*.html'
+      - 'app/project-status.html'
+      - 'app/backend-status.html'
+      - 'app/launch-checklist.html'
       - 'app/assets/account-page-theme.css'
       - 'app/mobile-global-nav.js'
       - 'scripts/test-inquiry-cancellation-browser.cjs'
