@@ -11,7 +11,8 @@ protected_markers = [
     "fetch('/api/breeder/sales-handover-settings'",
     "method:'POST'",
     "id=\"saveBtn\"",
-    "class=\"bigpaw-breeder-theme\"",
+    "class=\"bp-role-pending\"",
+    "document.body.classList.add('bigpaw-breeder-theme')",
 ]
 for marker in protected_markers:
     if marker not in page:
