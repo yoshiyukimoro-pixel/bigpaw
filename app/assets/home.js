@@ -13,6 +13,6 @@
   }
   window.applySearch=function(){const b=document.getElementById('breed').value,g=document.getElementById('gender').value,a=document.getElementById('area').value;const qs=new URLSearchParams();const bs=Array.isArray(window.BIGPAW_SELECTED_BREEDS)?window.BIGPAW_SELECTED_BREEDS:[];if(bs.length)qs.set('breed',bs.join(','));else if(b!=='all')qs.set('breed',b);if(g!=='all')qs.set('gender',g);if(a!=='all')qs.set('area',a);location.href='search.html?'+qs.toString()}
   window.quickBreed=function(b){location.href='search.html?breed='+encodeURIComponent(b)}
-  window.filterChip=function(btn,type){document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));btn.classList.add('active');let list=[...all];if(type==='male'||type==='female')list=list.filter(p=>p.genderKey===type);if(type==='health')list=list.filter(p=>p.health);renderHomePuppies(list.slice(0,6))}
+  window.filterChip=function(btn,type){document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));btn.classList.add('active');let list=[...all];if(type==='male'||type==='female')list=list.filter(p=>p.genderKey===type);if(type==='health')list=list.filter(p=>p.health);renderHomePuppies(list.slice(0,6))};
   (async()=>{try{all=await BigPawBridge.puppies();try{const fs=await BigPawBridge.favorites();favIds=new Set(fs.map(x=>String(x.id)))}catch(e){}renderHomePuppies(all.slice(0,6))}catch(e){all=BigPaw.getPuppies();renderHomePuppies(all.slice(0,6))}})();
 })();

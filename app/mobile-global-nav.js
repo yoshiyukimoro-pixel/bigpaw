@@ -81,6 +81,7 @@
 
     const btn=document.createElement('button');
     btn.id='bp-global-mobile-menu-button';btn.type='button';btn.setAttribute('aria-label',cfg.label+'を開く');btn.innerHTML='<span style="font-size:18px">☰</span><span>メニュー</span>';
+    btn.setAttribute('aria-controls','bp-global-mobile-menu-drawer');btn.setAttribute('aria-expanded','false');
     const overlay=document.createElement('div');overlay.id='bp-global-mobile-menu-overlay';
     const drawer=document.createElement('nav');drawer.id='bp-global-mobile-menu-drawer';drawer.setAttribute('aria-label',cfg.label);
 
@@ -94,13 +95,15 @@
       items.map(([icon,label,href])=>{const base=href.split('?')[0];const current=path===base;return `<a href="${href}" class="${current?'bp-current':''}"><span class="bp-icon">${icon}</span><span>${label}</span></a>`;}).join('')+
       (role?'<button class="bp-logout" type="button">ログアウト</button>':'');
 
-    const close=()=>document.body.classList.remove('bp-global-menu-open');
-    btn.addEventListener('click',()=>document.body.classList.add('bp-global-menu-open'));
+    const close=()=>{document.body.classList.remove('bp-global-menu-open');btn.setAttribute('aria-expanded','false')};
+    btn.addEventListener('click',()=>{document.body.classList.add('bp-global-menu-open');btn.setAttribute('aria-expanded','true')});
     overlay.addEventListener('click',close);drawer.querySelector('.bp-close').addEventListener('click',close);
     const logout=drawer.querySelector('.bp-logout');
     if(logout) logout.addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'include'});}catch(e){} location.replace('/login.html');});
     document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
     document.body.append(btn,overlay,drawer);
+    document.body.classList.add('bp-brand-menu-ready');
+    if(window.bigpawPlaceBrandMenu)window.bigpawPlaceBrandMenu();
   }
 
   currentRole().then(role=>{const kind=choose(role);const go=()=>mount(kind,role);if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go,{once:true});else go();});

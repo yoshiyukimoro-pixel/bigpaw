@@ -1,11 +1,11 @@
 const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}=require('child_process');const {chromium}=require('playwright');
 (async()=>{
  const cfg=JSON.parse(fs.readFileSync(process.argv[2]));const packaged=(await import(process.env.BIGPAW_TEST_CHROMIUM_MODULE)).default;
- const browser=await chromium.launch({executablePath:process.env.BIGPAW_TEST_CHROMIUM_PATH,args:packaged.args,headless:true});const errors=[],networkFailures=[];
+ const browser=await chromium.launch({executablePath:process.env.BIGPAW_TEST_CHROMIUM_PATH,args:packaged.args,headless:true});const errors=[],networkFailures=[];let closing=false;
  async function page(uid='',viewport={width:390,height:844}){
   const c=await browser.newContext({viewport});if(uid)await c.addCookies([{name:'bigpaw_session',value:'test-'+uid,domain:'bigpaw.site',path:'/',secure:true,httpOnly:true}]);
-  const p=await c.newPage();p.on('requestfailed',r=>networkFailures.push({host:new URL(r.url()).host,path:new URL(r.url()).pathname,error:r.failure()?.errorText}));p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')console.log('BROWSER_CONSOLE',m.text())});p.on('dialog',d=>d.accept());
-  await p.route('https://bigpaw.site/**',async route=>{const req=route.request(),u=new URL(req.url()),headers={...(await req.allHeaders()),host:'bigpaw.site',cookie:uid?'bigpaw_session=test-'+uid:''};const res=await c.request.fetch(cfg.base+u.pathname+u.search,{method:req.method(),headers,data:req.postDataBuffer()||undefined});await route.fulfill({response:res})});return p;
+  const p=await c.newPage();p.on('requestfailed',r=>networkFailures.push({host:new URL(r.url()).host,path:new URL(r.url()).pathname,error:r.failure()?.errorText}));p.on('pageerror',e=>{errors.push(e.stack||e.message);console.log('BROWSER_JS_ERROR',p.url(),e.stack||e.message)});p.on('console',m=>{if(m.type()==='error')console.log('BROWSER_CONSOLE',m.text())});p.on('dialog',d=>d.accept());
+  await p.route('https://bigpaw.site/**',async route=>{try{const req=route.request(),u=new URL(req.url()),headers={...(await req.allHeaders()),host:'bigpaw.site',cookie:uid?'bigpaw_session=test-'+uid:''};const res=await c.request.fetch(cfg.base+u.pathname+u.search,{method:req.method(),headers,data:req.postDataBuffer()||undefined});await route.fulfill({response:res})}catch(e){if(!closing||!/disposed|closed/i.test(e.message))throw e}});return p;
  }
  async function token(p,id){const r=await p.request.get(cfg.base+'/api/health');assert.equal(r.status(),200);const result=spawnSync('python3',['-c',"import sqlite3,re,sys; c=sqlite3.connect(sys.argv[1]); s=c.execute('SELECT body FROM sale_mail_outbox WHERE event_key=?',('ic-confirm:'+sys.argv[2],)).fetchone()[0]; print(re.search(r'#token=([\\w-]+)',s).group(1))",path.join(cfg.data,'bigpaw.sqlite3'),id],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);return result.stdout.trim()}
  async function attention(p){return p.evaluate(async()=>{const r=await fetch('/api/operator/inquiry-cancellations/summary');return r.json()})}
@@ -80,7 +80,7 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
   await p.setViewportSize(viewport);await p.goto('https://bigpaw.site/breeder-fees.html');await p.locator('#bp-global-mobile-menu-button').waitFor({state:'attached'});await p.waitForFunction(()=>document.documentElement.dataset.bpPageTheme==='breeder'&&document.documentElement.dataset.bpMobileTone==='breeder');
   assert.equal(await p.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(243, 248, 255)','pricing blue body');
   assert.equal(await p.locator('.fact').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(237, 245, 255)','pricing blue facts');
-  for(const selector of ['.topbar','.logo-mark','.hero-mini'])assert(!(await p.locator(selector).evaluate(e=>getComputedStyle(e).backgroundImage)).includes('239, 127, 168'),selector+' no pink gradient');
+  for(const selector of ['.topbar','.hero-mini'])assert(!(await p.locator(selector).evaluate(e=>getComputedStyle(e).backgroundImage)).includes('239, 127, 168'),selector+' no pink gradient');
   assert((await p.locator('main').innerText()).includes('5%（税込）'),'pricing unchanged');assert((await p.locator('main').innerText()).includes('7日以内'),'payment deadline unchanged');
   assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'pricing no horizontal clipping');
   if(p===seller)await p.screenshot({path:path.join(cfg.work,'fees-breeder-blue-'+viewport.width+'.png'),fullPage:false});
@@ -112,6 +112,7 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
  }
  await seller.goto('https://bigpaw.site/breeder-puppy-new.html?id='+cfg.regressionPuppy);await seller.waitForFunction(()=>document.getElementById('price').value==='310000');assert.equal(await seller.locator('#desc').inputValue(),'紹介文\n改行','existing edit data restored');
  console.log('BREEDER_MANAGEMENT_THEME_BROWSER_OK|dashboard_editor_report_billing_invoice_agreement_blue|steps_edit_data|billing_amounts|print_white|mobile_desktop');
+ await require('./test-global-brand-header.cjs')({page,cfg});
  console.log('BROWSER_NETWORK_FAILURES',JSON.stringify(networkFailures));assert.deepEqual(networkFailures.filter(r=>r.host==='bigpaw.site'&&!r.error?.includes('ERR_ABORTED')),[],'no failed same-origin resources');
- assert.deepEqual(errors,[],'no JavaScript exceptions');await browser.close();console.log('INQUIRY_CANCELLATION_BROWSER_OK|mobile_apply_email_answer|mismatch_operator_decision|desktop_mobile_200pct|existing_routes|operator_email_deeplink_unread_ack_badge_reraise_resolution|no_js_errors');
+ assert.deepEqual(errors,[],'no JavaScript exceptions');closing=true;await browser.close();console.log('INQUIRY_CANCELLATION_BROWSER_OK|mobile_apply_email_answer|mismatch_operator_decision|desktop_mobile_200pct|existing_routes|operator_email_deeplink_unread_ack_badge_reraise_resolution|no_js_errors');
 })().catch(e=>{console.error(e);process.exit(1)});
