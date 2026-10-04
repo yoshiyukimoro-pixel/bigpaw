@@ -134,6 +134,18 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
  await op.screenshot({path:path.join(cfg.work,'operator-yellow-support-mobile.png'),fullPage:false});
  await op.setViewportSize({width:1280,height:900});await op.goto('https://bigpaw.site/operator-admin.html');await op.screenshot({path:path.join(cfg.work,'operator-yellow-admin-desktop.png'),fullPage:false});
  console.log('OPERATOR_MANAGEMENT_THEME_BROWSER_OK|21_pages_yellow|mobile_desktop|topbar_buttons_sidebar_chips|support_tabs|no_clipping');
+ await op.setViewportSize({width:390,height:844});await op.goto('https://bigpaw.site/messages.html?mode=operator');await op.locator('.operator-view').waitFor();
+ assert.equal(await op.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 251, 234)','operator messages yellow body');
+ assert((await op.locator('.topbar').evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(198, 169, 67)'),'operator messages yellow topbar');
+ assert((await op.locator('.btn-main').first().evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(198, 169, 67)'),'operator messages yellow buttons');
+ if(await op.locator('.thread.active').count())assert.equal(await op.locator('.thread.active').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 249, 217)','operator messages active thread yellow');
+ await op.goto('https://bigpaw.site/breeder-sales-handover.html');await op.locator('#settingsStatus').waitFor();
+ assert.equal(await op.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 251, 234)','operator handover yellow body');
+ assert.equal(await op.locator('.btn-sub').first().evaluate(e=>getComputedStyle(e).color),'rgb(112, 93, 0)','operator handover yellow secondary action');
+ await op.goto('https://bigpaw.site/operator-users.html');await op.locator('.role-badge').first().waitFor();
+ assert.equal(await op.locator('.role-badge').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 247, 212)','operator role badge yellow');
+ console.log('OPERATOR_SHARED_THEME_BROWSER_OK|messages_handover_role_badges_yellow');
+
 
  await require('./test-global-brand-header.cjs')({page,cfg});
  console.log('BROWSER_NETWORK_FAILURES',JSON.stringify(networkFailures));assert.deepEqual(networkFailures.filter(r=>r.host==='bigpaw.site'&&!r.error?.includes('ERR_ABORTED')),[],'no failed same-origin resources');

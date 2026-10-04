@@ -12,6 +12,7 @@ on:
       - 'app/project-status.html'
       - 'app/backend-status.html'
       - 'app/launch-checklist.html'
+      - 'app/messages.html'
       - 'app/assets/account-page-theme.css'
       - 'app/mobile-global-nav.js'
       - 'scripts/test-inquiry-cancellation-browser.cjs'
