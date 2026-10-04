@@ -1,4 +1,4 @@
-/* Only the shared notifications and breeder pricing pages opt into this theme. */
+/* Only pages with bp-account-page opt into this account theme. */
 body.bp-account-page {
   --ink:#405a73; --muted:#708397; --pink:#5f8fc3; --pink2:#e7f1fb;
   --cream:#f7fbff; --bg:#f3f8ff; --line:#d6e3f0;
@@ -36,6 +36,28 @@ html:is([data-bp-page-theme="breeder"],[data-bp-page-theme="operator"],:not([dat
 }
 html:is([data-bp-page-theme="breeder"],[data-bp-page-theme="operator"],:not([data-bp-page-theme])) body.bp-account-page :is(.notice,.btn-sub) {
   color:var(--account-text);
+}
+html:is([data-bp-page-theme="breeder"],[data-bp-page-theme="operator"]) body.bp-account-page .status {
+  background:var(--pink2); color:var(--account-text);
+}
+html:is([data-bp-page-theme="breeder"],[data-bp-page-theme="operator"]) body.bp-account-page :is(.chip,.step.active,.tick,.bank) {
+  background:var(--account-soft); color:var(--account-text); border-color:var(--line);
+}
+html:is([data-bp-page-theme="breeder"],[data-bp-page-theme="operator"]) body.bp-account-page :is(.invoice,.invoice-table th,.invoice-table td,.rule,.grand) {
+  border-color:var(--line);
+}
+html:is([data-bp-page-theme="breeder"],[data-bp-page-theme="operator"]) body.bp-account-page #rows>div {
+  border-bottom-color:var(--line)!important;
+}
+html:is([data-bp-page-theme="breeder"],[data-bp-page-theme="operator"]) body.bp-account-page :is(.stat-action,.rule .big) {
+  color:var(--account-text);
+}
+html:is([data-bp-page-theme="breeder"],[data-bp-page-theme="operator"]) body.bp-account-page .side {
+  background:linear-gradient(180deg,#55708c,#45627f);
+}
+body.bp-account-page :is(input[type="checkbox"],input[type="radio"]) {accent-color:var(--pink)}
+@media print {
+  body.bp-account-page {background:#fff!important}
 }
 html:is([data-bp-page-theme="buyer"],[data-bp-page-theme="public"]) body.bp-account-page {
   --ink:#5b4b62; --muted:#8f8195; --pink:#ef7fa8; --pink2:#ffe6f1;

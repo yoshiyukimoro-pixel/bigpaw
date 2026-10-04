@@ -1,16 +1,33 @@
 const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}=require('child_process');const {chromium}=require('playwright');
 (async()=>{
  const cfg=JSON.parse(fs.readFileSync(process.argv[2]));const packaged=(await import(process.env.BIGPAW_TEST_CHROMIUM_MODULE)).default;
- const browser=await chromium.launch({executablePath:process.env.BIGPAW_TEST_CHROMIUM_PATH,args:packaged.args,headless:true});const errors=[];
+ const browser=await chromium.launch({executablePath:process.env.BIGPAW_TEST_CHROMIUM_PATH,args:packaged.args,headless:true});const errors=[],networkFailures=[];
  async function page(uid='',viewport={width:390,height:844}){
   const c=await browser.newContext({viewport});if(uid)await c.addCookies([{name:'bigpaw_session',value:'test-'+uid,domain:'bigpaw.site',path:'/',secure:true,httpOnly:true}]);
-  const p=await c.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')console.log('BROWSER_CONSOLE',m.text())});p.on('dialog',d=>d.accept());
-  await p.route('https://bigpaw.site/**',async route=>{const req=route.request(),u=new URL(req.url()),headers={...(await req.allHeaders()),host:'bigpaw.site',cookie:uid?'bigpaw_session=test-'+uid:''};const res=await c.request.fetch(cfg.base+u.pathname+u.search,{method:req.method(),headers,data:req.postDataBuffer()||undefined,maxRedirects:0});await route.fulfill({response:res})});return p;
+  const p=await c.newPage();p.on('requestfailed',r=>networkFailures.push({host:new URL(r.url()).host,path:new URL(r.url()).pathname,error:r.failure()?.errorText}));p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')console.log('BROWSER_CONSOLE',m.text())});p.on('dialog',d=>d.accept());
+  await p.route('https://bigpaw.site/**',async route=>{const req=route.request(),u=new URL(req.url()),headers={...(await req.allHeaders()),host:'bigpaw.site',cookie:uid?'bigpaw_session=test-'+uid:''};const res=await c.request.fetch(cfg.base+u.pathname+u.search,{method:req.method(),headers,data:req.postDataBuffer()||undefined});await route.fulfill({response:res})});return p;
  }
  async function token(p,id){const r=await p.request.get(cfg.base+'/api/health');assert.equal(r.status(),200);const result=spawnSync('python3',['-c',"import sqlite3,re,sys; c=sqlite3.connect(sys.argv[1]); s=c.execute('SELECT body FROM sale_mail_outbox WHERE event_key=?',('ic-confirm:'+sys.argv[2],)).fetchone()[0]; print(re.search(r'#token=([\\w-]+)',s).group(1))",path.join(cfg.data,'bigpaw.sqlite3'),id],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);return result.stdout.trim()}
  async function attention(p){return p.evaluate(async()=>{const r=await fetch('/api/operator/inquiry-cancellations/summary');return r.json()})}
  async function badge(p,count){await p.waitForFunction(n=>{const b=document.querySelector('#bp-global-mobile-menu-drawer a[href="/operator-cancellations.html"] .bp-attention-badge');return n?b?.textContent===String(n):!b},count)}
  const seller=await page('u_dog44');await seller.goto('https://bigpaw.site/breeder-inquiries.html');await seller.locator('[data-cancel-link]').first().waitFor();assert(await seller.getByRole('link',{name:'取引中止を申請・確認'}).count()>0,'entry links on inquiries');
+ // Inquiry management: every surface is blue and refresh preserves the counts.
+ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  await seller.setViewportSize(viewport);await seller.locator('#bp-global-mobile-menu-button').waitFor({state:'attached'});
+  assert.equal(await seller.locator('html').getAttribute('data-bp-page-theme'),'breeder');
+  for(const selector of ['.topbar','.btn-main'])assert((await seller.locator(selector).first().evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(95, 143, 195)'),selector+' breeder blue');
+  assert(await seller.locator('.logo .bigpaw-header-logo').evaluate(e=>e.complete&&e.naturalWidth>0),'existing brand logo renders');
+  assert((await seller.locator('.hero-mini').evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(237, 245, 255)'),'inquiry header blue');
+  assert.equal(await seller.locator('.card').first().evaluate(e=>getComputedStyle(e).borderColor),'rgb(214, 227, 240)','inquiry card border blue');
+  assert.equal(await seller.locator('.status').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(231, 241, 251)','inquiry status blue');
+  const rows=await seller.evaluate(async()=>(await fetch('/api/inquiries')).json());
+  assert.equal(await seller.locator('#total').innerText(),rows.length+'件','total matches API');assert.equal(await seller.locator('#unread').innerText(),rows.filter(x=>x.status==='未返信').length+'件','unread count unchanged');
+  const loaded=seller.waitForResponse(r=>new URL(r.url()).pathname==='/api/inquiries'&&r.request().method()==='GET');await seller.getByRole('button',{name:'更新',exact:true}).click();assert.equal((await loaded).status(),200);await seller.waitForFunction(n=>document.getElementById('total').textContent===n+'件',rows.length);
+  assert(await seller.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'inquiries no horizontal clipping');
+  await seller.screenshot({path:path.join(cfg.work,'inquiries-breeder-blue-'+viewport.width+'.png'),fullPage:false});
+ }
+ await seller.setViewportSize({width:390,height:844});
+ console.log('BREEDER_INQUIRIES_THEME_BROWSER_OK|header_cards_status_buttons_blue|mobile_desktop|refresh_counts|existing_action_links');
  await seller.goto('https://bigpaw.site/breeder-cancellation.html?inquiry='+cfg.browserInquiry);await seller.locator('#reason').selectOption('visited_no_contract');await seller.locator('#note').fill('見学後、ご家族で検討の上で見送り');await seller.locator('#accurate').check();await seller.getByRole('button',{name:'取引中止を申請する',exact:true}).click();await seller.locator('#current').filter({hasText:'購入希望者の確認待ち'}).waitFor();await seller.screenshot({path:path.join(cfg.work,'cancellation-seller-mobile.png'),fullPage:true});
  let r=await seller.evaluate(async id=>(await fetch('/api/inquiries/'+id+'/cancellation')).json(),cfg.browserInquiry);const t=await token(seller,r.request.id);
  const op=await page('u_admin',{width:1280,height:900});await op.goto('https://bigpaw.site/operator-admin.html');const initial=(await attention(op)).attention;await badge(op,initial);assert(initial>0,'fresh request contributes to menu alert');assert(await op.locator('#bp-global-mobile-menu-button .bp-attention-dot').count()>0,'hamburger shows alert');await op.goto('https://bigpaw.site/operator-cancellations.html#request='+r.request.id);await op.locator('[data-request="'+r.request.id+'"] [data-acknowledge]').click();await op.locator('#message').filter({hasText:'確認を記録しました'}).waitFor();await badge(op,initial-1);
@@ -69,5 +86,32 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
   if(p===seller)await p.screenshot({path:path.join(cfg.work,'fees-breeder-blue-'+viewport.width+'.png'),fullPage:false});
  }
  console.log('ACCOUNT_PAGE_THEME_BROWSER_OK|breeder_blue_notifications_fees|buyer_pink|operator_yellow|guest_login_guard|notification_content|mobile_desktop|menu|no_clipping');
+ // Breeder menu and its linked management pages share the same blue chrome.
+ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  await seller.setViewportSize(viewport);
+  for(const url of ['admin.html','breeder-puppy-new.html?new=1','breeder-deal-report.html','breeder-billing.html','breeder-fee-agreement.html']){
+   await seller.goto('https://bigpaw.site/'+url);await seller.locator('#bp-global-mobile-menu-button').waitFor({state:'attached'});
+   assert.equal(await seller.locator('html').getAttribute('data-bp-page-theme'),'breeder',url+' theme');assert.equal(await seller.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(243, 248, 255)',url+' body');
+   if(await seller.locator('.topbar').count())assert((await seller.locator('.topbar').evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(95, 143, 195)'),url+' blue header');
+   if(url.startsWith('breeder-puppy-new')){
+    await seller.locator('.stepbar .step[role="button"]').first().waitFor();assert.equal(await seller.locator('#breed').evaluate(e=>getComputedStyle(e).borderColor),'rgb(214, 227, 240)','editor blue field borders');assert.equal(await seller.locator('#photo').count(),1,'existing photo picker preserved');
+    for(let i=0;i<4;i++){await seller.locator('.stepbar .step').nth(i).click();assert.equal(await seller.locator('.stepbar .step.active').innerText(),await seller.locator('.stepbar .step').nth(i).innerText(),'editor step navigation');assert.equal(await seller.locator('.stepbar .step.active').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(237, 245, 255)','active editor step blue')}
+    await seller.locator('.stepbar .step').first().click();await seller.screenshot({path:path.join(cfg.work,'editor-blue-'+viewport.width+'.png'),fullPage:false});
+   }
+   if(url==='breeder-billing.html'){
+    await seller.locator('#summary .fact').first().waitFor();await seller.locator('.bp-first-sale-benefit').waitFor();const invoices=await seller.evaluate(async()=>(await fetch('/api/breeder/invoices')).json());
+    const outstanding=invoices.filter(x=>x.status==='issued').reduce((n,x)=>n+x.fee_amount,0),paid=invoices.filter(x=>x.status==='paid').reduce((n,x)=>n+x.fee_amount,0);
+    assert.equal(await seller.locator('#summary .fact b').nth(0).innerText(),outstanding.toLocaleString()+'円','unpaid balance unchanged');assert.equal(await seller.locator('#summary .fact b').nth(2).innerText(),paid.toLocaleString()+'円','paid total unchanged');
+    assert.equal(await seller.locator('#summary .fact').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(237, 245, 255)','billing facts blue');assert.equal(await seller.locator('.bp-first-sale-benefit').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(237, 245, 255)','first sale benefit blue');
+    await seller.screenshot({path:path.join(cfg.work,'billing-blue-'+viewport.width+'.png'),fullPage:false});
+    const invoice=invoices.find(x=>x.status==='issued');assert(invoice,'invoice fixture present');await seller.goto('https://bigpaw.site/breeder-invoice.html?id='+encodeURIComponent(invoice.id));await seller.locator('.bank').waitFor();
+    assert((await seller.locator('#doc').innerText()).includes(invoice.invoice_no),'invoice number preserved');assert((await seller.locator('.amount').innerText()).includes(invoice.fee_amount.toLocaleString()),'invoice amount preserved');assert.equal(await seller.locator('.bank').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(237, 245, 255)','invoice bank panel blue');
+    await seller.emulateMedia({media:'print'});assert.equal(await seller.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 255, 255)','invoice still prints on white');await seller.emulateMedia({media:'screen'});
+   }
+  }
+ }
+ await seller.goto('https://bigpaw.site/breeder-puppy-new.html?id='+cfg.regressionPuppy);await seller.waitForFunction(()=>document.getElementById('price').value==='310000');assert.equal(await seller.locator('#desc').inputValue(),'紹介文\n改行','existing edit data restored');
+ console.log('BREEDER_MANAGEMENT_THEME_BROWSER_OK|dashboard_editor_report_billing_invoice_agreement_blue|steps_edit_data|billing_amounts|print_white|mobile_desktop');
+ console.log('BROWSER_NETWORK_FAILURES',JSON.stringify(networkFailures));assert.deepEqual(networkFailures.filter(r=>r.host==='bigpaw.site'&&!r.error?.includes('ERR_ABORTED')),[],'no failed same-origin resources');
  assert.deepEqual(errors,[],'no JavaScript exceptions');await browser.close();console.log('INQUIRY_CANCELLATION_BROWSER_OK|mobile_apply_email_answer|mismatch_operator_decision|desktop_mobile_200pct|existing_routes|operator_email_deeplink_unread_ack_badge_reraise_resolution|no_js_errors');
 })().catch(e=>{console.error(e);process.exit(1)});
