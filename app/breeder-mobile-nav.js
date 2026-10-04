@@ -82,7 +82,7 @@
   }
 
   role().then(r=>{
-    if(r!=='breeder'&&r!=='operator') return;
+    if(r!=='breeder') return;
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mount,{once:true});
     else mount();
   });
