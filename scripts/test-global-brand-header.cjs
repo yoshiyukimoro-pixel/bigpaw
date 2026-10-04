@@ -31,6 +31,7 @@ module.exports=async({page,cfg})=>{
  for(const name of cfg.pages){
   const p=owner(name);await p.setViewportSize({width:390,height:844});const response=await p.goto(route(name));assert(response?.ok(),name+' HTTP success');await geometry(p,name+' mobile',390);checks++;
   if(name==='breed-guide-detail.html'){assert.equal(await p.locator('#breedName').innerText(),'スタンダードプードル');assert((await p.locator('#searchBreed').getAttribute('href')).includes('breed=standard-poodle'))}
+  if(name==='index.html')assert.equal(await p.evaluate(()=>{const b=document.createElement('button');window.filterChip(b,'all');return b.classList.contains('active')}),true,'home filter initializes without an ASI exception');
   await p.setViewportSize({width:1280,height:900});await geometry(p,name+' desktop',1280);checks++;
   if(checks%20===0)console.log('GLOBAL_HEADER_PAGES_CHECKED',checks/2);
  }
@@ -39,6 +40,7 @@ module.exports=async({page,cfg})=>{
   await p.screenshot({path:path.join(cfg.work,'global-header-'+name+'.png'),fullPage:false});
  }
  for(const p of [buyer,breeder,operator]){await p.setViewportSize({width:390,height:844});await p.goto(route('notifications.html'));await geometry(p,'notifications role',390);checks++}
+ await guests.goto('https://bigpaw.site/breed-guide-detail.html?breed=unknown');assert.equal(await guests.locator('#breedName').innerText(),'犬種を選択してください');assert(await guests.locator('.guide-grid').isHidden());
  // Brand loads even when session discovery fails; the public menu remains usable.
  await guests.route('**/api/me',r=>r.fulfill({status:503,contentType:'application/json',body:'{}'}));await guests.goto(route('breed-guide.html'));await geometry(guests,'session failure',320);await guests.unroute('**/api/me');checks++;
  console.log('GLOBAL_BRAND_HEADER_BROWSER_OK|pages='+cfg.pages.length+'|checks='+checks+'|mobile_desktop_narrow|menu_escape_scroll|logo_loaded|session_failure');

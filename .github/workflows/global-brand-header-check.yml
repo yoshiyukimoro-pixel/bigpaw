@@ -6,6 +6,7 @@ on:
     paths:
       - 'app/assets/global-brand-header.js'
       - 'app/breed-guide-detail.js'
+      - 'app/assets/home.js'
       - 'app/mobile-global-nav.js'
       - 'app/backend/breeder_mobile_menu_runtime_patch.py'
       - 'scripts/test-global-brand-header.cjs'
@@ -20,6 +21,7 @@ jobs:
           git diff --check
           node --check app/assets/global-brand-header.js
           node --check app/breed-guide-detail.js
+          node --check app/assets/home.js
           node --check app/mobile-global-nav.js
           node --check scripts/test-global-brand-header.cjs
           python3 -m py_compile app/backend/breeder_mobile_menu_runtime_patch.py

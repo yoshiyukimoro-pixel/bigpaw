@@ -8,7 +8,7 @@
   if(!breed){
     text('breedName','犬種を選択してください');
     text('breedLead','大型犬種ガイドの一覧から、確認したい犬種を選んでください。');
-    const grid=document.querySelector('.guide-grid');if(grid)grid.hidden=true;
+    const grid=document.querySelector('.guide-grid');if(grid){grid.hidden=true;grid.style.display='none'}
     const search=document.getElementById('searchBreed');if(search){search.href='breed-guide.html';search.textContent='大型犬種ガイドへ戻る'}
     return;
   }
