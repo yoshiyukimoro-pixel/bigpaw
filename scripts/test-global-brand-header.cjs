@@ -1,6 +1,8 @@
 const assert=require('assert'),path=require('path');
 module.exports=async({page,cfg})=>{
  const guests=await page(),buyer=await page('u_demo'),breeder=await page('u_dog44'),operator=await page('u_admin');
+ const resources=[];
+ for(const p of [guests,buyer,breeder,operator])p.on('response',r=>{const u=new URL(r.url());if(u.host==='bigpaw.site'&&r.status()>=400&&/\.(js|css)$/.test(u.pathname))resources.push({path:u.pathname,status:r.status()})});
  const breederPages=new Set(['admin.html','health-records.html','parent-dogs.html']);
  const buyerPages=new Set(['account.html','mypage.html','notifications.html','favorites.html','compare.html','messages.html','inquiry.html','deal.html','reservation.html','contract.html','pickup.html','review.html','report.html','visit-confirm.html','online-visit.html','buyer-sale-confirmation.html']);
  const operatorPages=new Set(['project-status.html','backend-status.html','launch-checklist.html']);
@@ -28,6 +30,7 @@ module.exports=async({page,cfg})=>{
  let checks=0;
  for(const name of cfg.pages){
   const p=owner(name);await p.setViewportSize({width:390,height:844});const response=await p.goto(route(name));assert(response?.ok(),name+' HTTP success');await geometry(p,name+' mobile',390);checks++;
+  if(name==='breed-guide-detail.html'){assert.equal(await p.locator('#breedName').innerText(),'スタンダードプードル');assert((await p.locator('#searchBreed').getAttribute('href')).includes('breed=standard-poodle'))}
   await p.setViewportSize({width:1280,height:900});await geometry(p,name+' desktop',1280);checks++;
   if(checks%20===0)console.log('GLOBAL_HEADER_PAGES_CHECKED',checks/2);
  }
@@ -39,5 +42,7 @@ module.exports=async({page,cfg})=>{
  // Brand loads even when session discovery fails; the public menu remains usable.
  await guests.route('**/api/me',r=>r.fulfill({status:503,contentType:'application/json',body:'{}'}));await guests.goto(route('breed-guide.html'));await geometry(guests,'session failure',320);await guests.unroute('**/api/me');checks++;
  console.log('GLOBAL_BRAND_HEADER_BROWSER_OK|pages='+cfg.pages.length+'|checks='+checks+'|mobile_desktop_narrow|menu_escape_scroll|logo_loaded|session_failure');
- for(const p of [guests,buyer,breeder,operator])await p.context().close();
+ assert.deepEqual(resources,[],'all page JavaScript and CSS resources load successfully');
+ // Packaged Chromium runs in one process. Close it once in the caller after
+ // collecting page errors; closing individual contexts can terminate siblings.
 };
