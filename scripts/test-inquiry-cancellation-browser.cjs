@@ -112,6 +112,29 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
  }
  await seller.goto('https://bigpaw.site/breeder-puppy-new.html?id='+cfg.regressionPuppy);await seller.waitForFunction(()=>document.getElementById('price').value==='310000');assert.equal(await seller.locator('#desc').inputValue(),'紹介文\n改行','existing edit data restored');
  console.log('BREEDER_MANAGEMENT_THEME_BROWSER_OK|dashboard_editor_report_billing_invoice_agreement_blue|steps_edit_data|billing_amounts|print_white|mobile_desktop');
+ // Operator management pages use the operator yellow theme on mobile and desktop.
+ const operatorThemePages=['operator-admin.html','operator-audit.html','operator-automations.html','operator-backups.html','operator-breeder-detail.html','operator-breeders.html','operator-cancellations.html','operator-deal-reports.html','operator-deals.html','operator-invoices.html','operator-listings.html','operator-login.html','operator-reports.html','operator-revenue.html','operator-sale-confirmations.html','operator-support.html','operator-user-detail.html','operator-users.html','project-status.html','backend-status.html','launch-checklist.html'];
+ const operatorThemeQuery={'operator-breeder-detail.html':'id=b_dog44','operator-user-detail.html':'id=u_demo'};
+ for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+  await op.setViewportSize(viewport);
+  for(const name of operatorThemePages){
+   const q=operatorThemeQuery[name]?'?'+operatorThemeQuery[name]:'';
+   await op.goto('https://bigpaw.site/'+name+q);await op.waitForLoadState('domcontentloaded');
+   assert.equal(await op.locator('html').getAttribute('data-bp-page-theme'),'operator',name+' operator theme marker');
+   assert.equal(await op.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 251, 234)',name+' yellow body');
+   if(await op.locator('.topbar').count())assert((await op.locator('.topbar').first().evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(198, 169, 67)'),name+' yellow topbar');
+   if(await op.locator('.btn-main').count())assert((await op.locator('.btn-main').first().evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(198, 169, 67)'),name+' yellow primary button');
+   if(await op.locator('.sidebar').count()&&viewport.width>800)assert((await op.locator('.sidebar').first().evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(143, 120, 37)'),name+' yellow sidebar');
+   if(await op.locator('.chip').count())assert.equal(await op.locator('.chip').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 247, 212)',name+' yellow chip');
+   assert(await op.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),name+' no horizontal clipping');
+  }
+ }
+ await op.setViewportSize({width:390,height:844});await op.goto('https://bigpaw.site/operator-support.html');await op.locator('.support-tab').first().waitFor();
+ assert.equal(await op.locator('.support-tab.active').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(198, 169, 67)','support active tab yellow');
+ await op.screenshot({path:path.join(cfg.work,'operator-yellow-support-mobile.png'),fullPage:false});
+ await op.setViewportSize({width:1280,height:900});await op.goto('https://bigpaw.site/operator-admin.html');await op.screenshot({path:path.join(cfg.work,'operator-yellow-admin-desktop.png'),fullPage:false});
+ console.log('OPERATOR_MANAGEMENT_THEME_BROWSER_OK|21_pages_yellow|mobile_desktop|topbar_buttons_sidebar_chips|support_tabs|no_clipping');
+
  await require('./test-global-brand-header.cjs')({page,cfg});
  console.log('BROWSER_NETWORK_FAILURES',JSON.stringify(networkFailures));assert.deepEqual(networkFailures.filter(r=>r.host==='bigpaw.site'&&!r.error?.includes('ERR_ABORTED')),[],'no failed same-origin resources');
  assert.deepEqual(errors,[],'no JavaScript exceptions');closing=true;await browser.close();console.log('INQUIRY_CANCELLATION_BROWSER_OK|mobile_apply_email_answer|mismatch_operator_decision|desktop_mobile_200pct|existing_routes|operator_email_deeplink_unread_ack_badge_reraise_resolution|no_js_errors');
