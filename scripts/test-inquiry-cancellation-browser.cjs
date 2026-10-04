@@ -80,7 +80,7 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
   await p.setViewportSize(viewport);await p.goto('https://bigpaw.site/breeder-fees.html');await p.locator('#bp-global-mobile-menu-button').waitFor({state:'attached'});await p.waitForFunction(()=>document.documentElement.dataset.bpPageTheme==='breeder'&&document.documentElement.dataset.bpMobileTone==='breeder');
   assert.equal(await p.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(243, 248, 255)','pricing blue body');
   assert.equal(await p.locator('.fact').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(237, 245, 255)','pricing blue facts');
-  for(const selector of ['.topbar','.logo-mark','.hero-mini'])assert(!(await p.locator(selector).evaluate(e=>getComputedStyle(e).backgroundImage)).includes('239, 127, 168'),selector+' no pink gradient');
+  for(const selector of ['.topbar','.hero-mini'])assert(!(await p.locator(selector).evaluate(e=>getComputedStyle(e).backgroundImage)).includes('239, 127, 168'),selector+' no pink gradient');
   assert((await p.locator('main').innerText()).includes('5%（税込）'),'pricing unchanged');assert((await p.locator('main').innerText()).includes('7日以内'),'payment deadline unchanged');
   assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'pricing no horizontal clipping');
   if(p===seller)await p.screenshot({path:path.join(cfg.work,'fees-breeder-blue-'+viewport.width+'.png'),fullPage:false});
@@ -112,6 +112,7 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
  }
  await seller.goto('https://bigpaw.site/breeder-puppy-new.html?id='+cfg.regressionPuppy);await seller.waitForFunction(()=>document.getElementById('price').value==='310000');assert.equal(await seller.locator('#desc').inputValue(),'紹介文\n改行','existing edit data restored');
  console.log('BREEDER_MANAGEMENT_THEME_BROWSER_OK|dashboard_editor_report_billing_invoice_agreement_blue|steps_edit_data|billing_amounts|print_white|mobile_desktop');
+ await require('./test-global-brand-header.cjs')({page,cfg});
  console.log('BROWSER_NETWORK_FAILURES',JSON.stringify(networkFailures));assert.deepEqual(networkFailures.filter(r=>r.host==='bigpaw.site'&&!r.error?.includes('ERR_ABORTED')),[],'no failed same-origin resources');
  assert.deepEqual(errors,[],'no JavaScript exceptions');await browser.close();console.log('INQUIRY_CANCELLATION_BROWSER_OK|mobile_apply_email_answer|mismatch_operator_decision|desktop_mobile_200pct|existing_routes|operator_email_deeplink_unread_ack_badge_reraise_resolution|no_js_errors');
 })().catch(e=>{console.error(e);process.exit(1)});

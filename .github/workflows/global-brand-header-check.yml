@@ -1,0 +1,25 @@
+name: Global brand header safety check
+on:
+  push:
+    branches: [fix/global-brand-header-20261004]
+  pull_request:
+    paths:
+      - 'app/assets/global-brand-header.js'
+      - 'app/mobile-global-nav.js'
+      - 'app/backend/breeder_mobile_menu_runtime_patch.py'
+      - 'scripts/test-global-brand-header.cjs'
+      - '.github/workflows/global-brand-header-check.yml'
+jobs:
+  build-and-regress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and whitespace
+        run: |
+          git diff --check
+          node --check app/assets/global-brand-header.js
+          node --check app/mobile-global-nav.js
+          node --check scripts/test-global-brand-header.cjs
+          python3 -m py_compile app/backend/breeder_mobile_menu_runtime_patch.py
+      - name: Docker build with existing regression gates
+        run: docker build --no-cache -t bigpaw-global-header-safe .
