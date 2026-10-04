@@ -225,10 +225,10 @@ try:
     captured=[json.loads(x) for x in (work/'mail.jsonl').read_text().splitlines()]
     check(any('【取引状況を確認する】' in x['text'] and '#token=' in x['text'] and '7日間' in x['text'] for x in captured),'buyer email contains direct confirmation link, seven-day term and stage reason')
     check(not query('SELECT 1 FROM sale_mail_outbox WHERE sent_at IS NULL'),'all local capture emails sent or retried')
-    context={'base':base,'work':str(work),'data':str(data),'browserInquiry':bi,'mismatchInquiry':mi,'regressionPuppy':rp,'port':port}
+    context={'base':base,'work':str(work),'data':str(data),'browserInquiry':bi,'mismatchInquiry':mi,'regressionPuppy':rp,'port':port,'pages':[p.name for p in sorted(app.glob('*.html'))]}
     context_path=work/'context.json';context_path.write_text(json.dumps(context));print('INQUIRY_CANCELLATION_HTTP_OK',context_path,flush=True)
     if os.environ.get('BIGPAW_TEST_CHROMIUM_PATH'):
-        subprocess.run(['node',str(Path(os.environ['BIGPAW_TEST_BROWSER_SCRIPT'])),str(context_path)],check=True,timeout=120,env=os.environ.copy())
+        subprocess.run(['node',str(Path(os.environ['BIGPAW_TEST_BROWSER_SCRIPT'])),str(context_path)],check=True,timeout=360,env=os.environ.copy())
 finally:
     server.write_text(raw)
     if process:process.terminate();process.wait(timeout=5)

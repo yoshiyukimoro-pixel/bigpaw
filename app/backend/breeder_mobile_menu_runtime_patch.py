@@ -2,7 +2,8 @@ from pathlib import Path
 import runpy
 
 ROOT = Path(__file__).resolve().parent.parent
-NAV_TAG = '<script src="/mobile-global-nav.js?v=20260928m6"></script>'
+NAV_TAG = '<script src="/mobile-global-nav.js?v=20261004h1"></script>'
+BRAND_TAG = '<script src="/assets/global-brand-header.js?v=20261004h1"></script>'
 ALERT_TAG = '<script src="/attention-alerts.js?v=20260927a2"></script>'
 
 # The parent photo enhancement script redraws parent cards after page load.
@@ -26,6 +27,11 @@ skipped = []
 alert_excluded = []
 for path in ROOT.glob('*.html'):
     text = path.read_text(encoding='utf-8')
+    # Ensure branding on every HTML page, including pages already carrying the menu.
+    # Only append a script tag; all existing scripts (especially galleries) stay intact.
+    if '</body>' in text and '/assets/global-brand-header.js' not in text:
+        text = text.replace('</body>', BRAND_TAG + '</body>', 1)
+        path.write_text(text, encoding='utf-8')
     if '/mobile-global-nav.js' in text:
         skipped.append(path.name)
         continue
