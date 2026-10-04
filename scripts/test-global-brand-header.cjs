@@ -29,6 +29,7 @@ module.exports=async({page,cfg})=>{
  for(const name of cfg.pages){
   const p=owner(name);await p.setViewportSize({width:390,height:844});const response=await p.goto(route(name));assert(response?.ok(),name+' HTTP success');await geometry(p,name+' mobile',390);checks++;
   await p.setViewportSize({width:1280,height:900});await geometry(p,name+' desktop',1280);checks++;
+  if(checks%20===0)console.log('GLOBAL_HEADER_PAGES_CHECKED',checks/2);
  }
  for(const [p,name] of [[guests,'breed-guide.html'],[buyer,'mypage.html'],[breeder,'admin.html'],[operator,'operator-admin.html']]){
   await p.setViewportSize({width:320,height:740});await p.goto(route(name));await geometry(p,name+' narrow',320);checks++;

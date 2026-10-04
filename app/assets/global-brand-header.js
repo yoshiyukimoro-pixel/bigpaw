@@ -6,19 +6,21 @@
   function mount(){
     const style=document.createElement('style');
     style.textContent=`
-      .bp-brand-header{position:sticky!important;top:0!important;z-index:100!important;background:#fff!important;border-bottom:1px solid var(--line,#efd0df)}
+      .bp-brand-header{position:sticky!important;top:0!important;z-index:20!important;background:#fff!important;border-bottom:1px solid var(--line,#efd0df)}
       .bp-brand-header>.bp-brand-nav{display:flex!important;align-items:center!important;gap:18px;min-height:68px;height:auto!important;box-sizing:border-box;margin:0 auto;max-width:1120px;padding:5px 20px}
       .bp-brand-header .logo{display:flex!important;align-items:center!important;flex:0 0 auto!important;font-size:0!important;line-height:0!important;margin:0!important}
       .bp-brand-header .bigpaw-header-logo{display:block!important;width:150px!important;height:58px!important;object-fit:contain!important}
       .bp-brand-header.bp-brand-added .bp-brand-nav{max-width:none;padding-right:150px}
       @media(max-width:900px){
         .bp-brand-header>.bp-brand-nav{position:relative;flex-wrap:wrap!important;gap:0;min-height:62px;padding:8px 14px!important}
-        .bp-brand-header .logo{margin-right:118px!important}
+        .bp-brand-header .logo{flex-basis:calc(100% - 118px)!important;margin-right:118px!important}
         .bp-brand-header .bigpaw-header-logo{width:118px!important;height:46px!important}
         .bp-brand-header .navlinks{flex:0 0 100%;margin:0!important;justify-content:flex-end;gap:10px;padding-top:6px;padding-bottom:2px;flex-wrap:wrap}
         .bp-brand-header .navlinks a:not(.nav-cta){display:none}
         .bp-brand-header .navlinks:not(:has(.nav-cta)){display:none}
+        .bp-brand-header .bp-brand-nav>.nav-cta{margin:6px 0 2px auto}
         body.bp-brand-menu-ready #bigpaw-admin-logout{display:none!important}
+        body.bp-brand-menu-ready #bp-global-mobile-menu-button{height:44px!important;min-height:44px!important;line-height:1.2!important}
       }
       @media print{.bp-brand-header{position:static!important}#bp-global-mobile-menu-button,#bp-global-mobile-menu-drawer,#bp-global-mobile-menu-overlay{display:none!important}}
     `;
