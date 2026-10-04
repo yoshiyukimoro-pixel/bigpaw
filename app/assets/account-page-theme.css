@@ -85,3 +85,5 @@ html[data-bp-page-theme="operator"] body.bp-account-page .support-tab.active {
 }
 html[data-bp-page-theme="operator"] body.bp-account-page :is(.reply-meta,.completed-meta) {color:var(--muted)!important}
 html[data-bp-page-theme="operator"] body.bp-account-page #err {color:var(--account-text)!important}
+
+html[data-bp-page-theme="operator"] body.bp-account-page .role-badge {background:var(--account-soft)!important;color:var(--account-text)!important;border-color:var(--line)!important}
