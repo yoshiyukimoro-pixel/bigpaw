@@ -106,6 +106,7 @@ try:
     # A historical closed request must not block a newer continued request from starting a fresh cancellation.
     hi,_,_=fixture('history-reopened')
     old=submit(hi,'visit_not_held')
+    expect('POST','/api/operator/inquiry-cancellations/'+old['id']+'/acknowledge',{},'u_admin')
     execute("UPDATE inquiry_cancellations SET state='closed' WHERE id=?",(old['id'],))
     execute("UPDATE inquiries SET status='取引終了' WHERE id=?",(hi,))
     execute("INSERT INTO inquiry_cancellations(id,inquiry_id,breeder_id,buyer_id,breeder_reason,breeder_note,state,previous_inquiry_status,token_hash,expires_at,created_at) SELECT ?,inquiry_id,breeder_id,buyer_id,breeder_reason,breeder_note,'continued','取引終了',?, ?, ? FROM inquiry_cancellations WHERE id=?",('ic-history-continued','f'*64,int(time.time())+86400,int(time.time())+1,old['id']))
@@ -114,6 +115,7 @@ try:
     check(fresh.get('alreadySubmitted') is not True and fresh.get('state')=='buyer_pending','latest continued cancellation permits a fresh cancellation submission')
     check(len(query("SELECT * FROM inquiry_cancellations WHERE inquiry_id=?",(hi,)))==3,'fresh cancellation is stored after historical closed and continued records')
     check(len(query("SELECT * FROM sale_mail_outbox WHERE event_key=?",('ic-confirm:'+fresh['id'],)))==1,'fresh cancellation queues a new buyer confirmation email')
+    expect('POST','/api/operator/inquiry-cancellations/'+fresh['id']+'/acknowledge',{},'u_admin')
     summary=lambda:expect('GET','/api/operator/inquiry-cancellations/summary',user='u_admin')
     acknowledge=lambda rid:expect('POST','/api/operator/inquiry-cancellations/'+rid+'/acknowledge',{},'u_admin')
     check(summary()=={'attention':1,'unread':1,'needsReview':0},'new submission immediately alerts operator before buyer response')
