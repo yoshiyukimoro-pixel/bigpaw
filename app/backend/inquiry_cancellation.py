@@ -328,14 +328,15 @@ def install(g):
         body=h.json_body()
         if not isinstance(body,dict):return h.send_json({'error':'invalid_body'},400)
         action,note=body.get('action'),body.get('note','')
-        if action not in ('approve','continue','request_details','confirm_sale') or not isinstance(note,str) or not note.strip() or len(note)>1000:return h.send_json({'message':'判断と確認した内容を入力してください。'},400)
+        if action not in ('approve','continue','request_details','confirm_sale') or not isinstance(note,str) or len(note)>1000 or (action!='approve' and not note.strip()):return h.send_json({'message':'判断と確認した内容を入力してください。'},400)
+        decision_note=note.strip() or '運営が申請内容と回答を確認し、取引中止を承認しました。'
         c=db()
         try:
             c.execute('BEGIN IMMEDIATE')
             r=c.execute('SELECT * FROM inquiry_cancellations WHERE id=?',(m.group(1),)).fetchone()
             if not r:return h.send_json({'error':'not_found'},404)
             if r['state'] not in ('operator_review','unanswered','buyer_pending'):return h.send_json({'message':'この申請は対応済みです。'},409)
-            c.execute('UPDATE inquiry_cancellations SET reviewed_by=?,reviewed_at=?,review_action=?,review_note=?,operator_seen_at=?,operator_seen_by=? WHERE id=?',(u['id'],now(),action,note.strip(),now(),u['id'],r['id']))
+            c.execute('UPDATE inquiry_cancellations SET reviewed_by=?,reviewed_at=?,review_action=?,review_note=?,operator_seen_at=?,operator_seen_by=? WHERE id=?',(u['id'],now(),action,decision_note,now(),u['id'],r['id']))
             r=c.execute('SELECT * FROM inquiry_cancellations WHERE id=?',(r['id'],)).fetchone()
             if action=='approve':
                 if not finish(c,r,u['id']):return h.send_json({'message':'支払済み請求書があります。返金確認を先に行ってください。'},409)
@@ -344,9 +345,9 @@ def install(g):
                 notify(c,r,'取引中止申請について確認をお願いします')
                 breeder=c.execute('SELECT user_id FROM breeders WHERE id=?',(r['breeder_id'],)).fetchone()
                 for uid in (breeder['user_id'],r['buyer_id']):
-                    c.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',(mid('n_'),uid,'inquiry_cancellation','運営から取引状況の確認',note.strip(),0,now()))
+                    c.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',(mid('n_'),uid,'inquiry_cancellation','運営から取引状況の確認',decision_note,0,now()))
                     email=c.execute('SELECT email FROM users WHERE id=?',(uid,)).fetchone()['email']
-                    queue(c,'ic-details:'+mid('e_'),email,'取引状況について運営からの確認',note.strip()+'\n\n'+base()+'/messages.html?inquiry='+r['inquiry_id'])
+                    queue(c,'ic-details:'+mid('e_'),email,'取引状況について運営からの確認',decision_note+'\n\n'+base()+'/messages.html?inquiry='+r['inquiry_id'])
             else:
                 c.execute("UPDATE inquiry_cancellations SET state=? WHERE id=?",('sale_review' if action=='confirm_sale' else 'continued',r['id']))
                 c.execute('UPDATE inquiries SET status=? WHERE id=?',(r['previous_inquiry_status'],r['inquiry_id']))
@@ -356,7 +357,7 @@ def install(g):
                     c.execute('UPDATE sale_workflow SET state=?,updated_at=? WHERE deal_id=?',(r['previous_workflow_state'] or 'needs_correction',now(),d['id']))
                 notify(c,r,'取引中止申請を差し戻しました' if action=='continue' else '成約・お迎えの報告をお願いします')
                 # Sale confirmation follows the existing amount, pickup and fee process, never a guessed charge.
-            history(c,r,u['id'],'operator_'+action,note.strip());c.commit()
+            history(c,r,u['id'],'operator_'+action,decision_note);c.commit()
             return h.send_json({'ok':True,'state':c.execute('SELECT state FROM inquiry_cancellations WHERE id=?',(r['id'],)).fetchone()['state']})
         finally:c.close();threading.Thread(target=g['flush_sale_workflow_mail'],daemon=True).start()
 
