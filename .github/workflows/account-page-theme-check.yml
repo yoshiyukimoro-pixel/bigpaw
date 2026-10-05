@@ -16,6 +16,7 @@ on:
       - 'app/assets/account-page-theme.css'
       - 'app/mobile-global-nav.js'
       - 'scripts/test-inquiry-cancellation-browser.cjs'
+      - 'scripts/test-breeder-dashboard-inquiry-count.cjs'
       - '.github/workflows/account-page-theme-check.yml'
 jobs:
   build-and-regress:
@@ -27,5 +28,6 @@ jobs:
           git diff --check
           node --check app/mobile-global-nav.js
           node --check scripts/test-inquiry-cancellation-browser.cjs
+          node scripts/test-breeder-dashboard-inquiry-count.cjs
       - name: Docker build with existing regression gates
         run: docker build --no-cache -t bigpaw-account-theme-safe .
