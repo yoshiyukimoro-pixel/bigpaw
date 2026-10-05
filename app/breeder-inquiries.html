@@ -2,11 +2,11 @@
 let closedRows=[];
 function rowHtml(x,archived=false){
  const puppy=x.puppy_name||x.puppyName||'子犬',date=x.preferred_date||x.preferredDate||x.date1||'',msg=x.message||'メッセージなし';
- const markBtn=!archived&&x.status==='未返信'?\`<button class="btn btn-sub" onclick='mark(\${JSON.stringify(x.id)},"返信済み")'>返信済みにする</button> \`:'';
+ const markBtn=!archived&&x.status==='未返信'?`<button class="btn btn-sub" onclick='mark(${JSON.stringify(x.id)},"返信済み")'>返信済みにする</button> `:'';
  const actions=archived
-  ?\`<a class="btn btn-sub" href="messages.html?inquiry=\${encodeURIComponent(x.id)}">やり取りを見る</a> <a class="btn btn-sub" href="breeder-cancellation.html?inquiry=\${encodeURIComponent(x.id)}">取引中止内容</a>\`
-  :\`\${markBtn}<a class="btn btn-main" href="messages.html?inquiry=\${encodeURIComponent(x.id)}">メッセージ</a> <a class="btn btn-sub" href="visit-confirm.html?inquiry=\${encodeURIComponent(x.id)}">見学日程</a> <a class="btn btn-sub" href="online-visit.html?inquiry=\${encodeURIComponent(x.id)}">オンライン見学</a> <a class="btn btn-sub" href="breeder-deal-report.html?inquiry=\${encodeURIComponent(x.id)}">成約申請</a>\`;
- return \`<div class="table-row"><div><span class="status">\${BigPaw.esc(x.status)}</span></div><div><b>\${BigPaw.esc(puppy)}</b>｜\${BigPaw.esc(x.name||'購入希望者')}さん<br><span class="muted">\${date?'希望日 '+BigPaw.esc(date):'希望日未指定'}</span><br>\${BigPaw.esc(msg)}<div style="margin-top:9px">\${actions}</div></div></div>\`;
+  ?`<a class="btn btn-sub" href="messages.html?inquiry=${encodeURIComponent(x.id)}">やり取りを見る</a> <a class="btn btn-sub" href="breeder-cancellation.html?inquiry=${encodeURIComponent(x.id)}">取引中止内容</a>`
+  :`${markBtn}<a class="btn btn-main" href="messages.html?inquiry=${encodeURIComponent(x.id)}">メッセージ</a> <a class="btn btn-sub" href="visit-confirm.html?inquiry=${encodeURIComponent(x.id)}">見学日程</a> <a class="btn btn-sub" href="online-visit.html?inquiry=${encodeURIComponent(x.id)}">オンライン見学</a> <a class="btn btn-sub" href="breeder-deal-report.html?inquiry=${encodeURIComponent(x.id)}">成約申請</a>`;
+ return `<div class="table-row"><div><span class="status">${BigPaw.esc(x.status)}</span></div><div><b>${BigPaw.esc(puppy)}</b>｜${BigPaw.esc(x.name||'購入希望者')}さん<br><span class="muted">${date?'希望日 '+BigPaw.esc(date):'希望日未指定'}</span><br>${BigPaw.esc(msg)}<div style="margin-top:9px">${actions}</div></div></div>`;
 }
 function toggleClosed(){
  closedHistory.hidden=!closedHistory.hidden;
@@ -19,7 +19,7 @@ async function render(){try{
  unread.textContent=active.filter(x=>x.status==='未返信').length+'件';
  visits.textContent=active.filter(x=>x.preferred_date||x.preferredDate||x.date1||x.status==='見学調整中'||x.status==='見学確定').length+'件';
  total.textContent=active.length+'件';
- inquiryList.innerHTML=active.length?active.map(x=>rowHtml(x,false)).join(''):\`<div class="empty"><div class="big">💬</div><h2>対応中の問い合わせはありません</h2></div>\`;
+ inquiryList.innerHTML=active.length?active.map(x=>rowHtml(x,false)).join(''):`<div class="empty"><div class="big">💬</div><h2>対応中の問い合わせはありません</h2></div>`;
  closedToggleWrap.style.display=closedRows.length?'block':'none';
  closedToggle.textContent='取引終了履歴を見る（'+closedRows.length+'件）';
  closedHistory.hidden=true;
