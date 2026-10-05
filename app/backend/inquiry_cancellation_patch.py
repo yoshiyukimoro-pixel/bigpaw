@@ -28,13 +28,13 @@ p.write_text(s)
 
 # Keep new UI links independent of gallery, uploads and existing page handlers.
 for name in ('breeder-inquiries.html','messages.html','operator-admin.html','operator-sale-confirmations.html','mypage.html'):
-    p=ROOT/name;s=p.read_text();tag='<script src="assets/inquiry-cancellation-links.js"></script>'
+    p=ROOT/name;s=p.read_text();tag='<script src="assets/inquiry-cancellation-links.js?v=20261006b1"></script>'
     if tag not in s:
         assert '</body>' in s
         s=s.replace('</body>',tag+'</body>',1);p.write_text(s)
 p=ROOT/'breeder-deal-report.html';s=p.read_text()
 a="workflow.querySelectorAll('[data-cancel]').forEach(el=>el.onclick=()=>cancelSale(el.dataset.cancel));"
-b="workflow.querySelectorAll('[data-cancel]').forEach(el=>{el.textContent='取引中止を申請';el.onclick=async()=>{try{const d=await api('/inquiries');const match=await Promise.all(d.map(async q=>{const deal=await BigPawAPI.deal(q.id).catch(()=>null);return deal?.id===el.dataset.cancel?q.id:null}));const id=match.find(Boolean);if(id)location.href='breeder-cancellation.html?inquiry='+encodeURIComponent(id);else msg('対象の問い合わせを問い合わせ管理から選んでください。')}catch(e){msg(e.message)}}});"
+b="workflow.querySelectorAll('[data-cancel]').forEach(el=>{el.textContent='取引中止を申請';el.onclick=async()=>{try{const d=await api('/inquiries');const match=await Promise.all(d.map(async q=>{const deal=await BigPawAPI.deal(q.id).catch(()=>null);return deal?.id===el.dataset.cancel?q.id:null}));const id=match.find(Boolean);if(id)location.href='breeder-cancellation.html?ui=20261006b1&inquiry='+encodeURIComponent(id);else msg('対象の問い合わせを問い合わせ管理から選んでください。')}catch(e){msg(e.message)}}});"
 if a in s:s=s.replace(a,b,1);p.write_text(s)
 print('INQUIRY_CANCELLATION_INSTALLED|isolated_module|legacy_cancel_route=guided|history_retained')
 
