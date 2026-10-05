@@ -7,7 +7,7 @@
    document.querySelectorAll('#inquiryList .table-row').forEach(row=>{
     if(row.querySelector('[data-cancel-link]'))return;
     const ref=row.querySelector('a[href*="messages.html?inquiry="]');if(!ref)return;
-    const id=new URL(ref.href).searchParams.get('inquiry');const a=make('breeder-cancellation.html?inquiry='+encodeURIComponent(id),'取引中止を申請・確認');a.dataset.cancelLink='1';ref.parentNode.append(' ',a);
+    const id=new URL(ref.href).searchParams.get('inquiry');const a=make('breeder-cancellation.html?ui=20261006b1&inquiry='+encodeURIComponent(id),'取引中止を申請・確認');a.dataset.cancelLink='1';ref.parentNode.append(' ',a);
    });
   }
   if(path.endsWith('/messages.html')&&typeof me!=='undefined'&&me?.role==='breeder'&&typeof selected!=='undefined'&&selected){
