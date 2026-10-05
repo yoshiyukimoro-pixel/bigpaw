@@ -258,7 +258,7 @@ try:
     check(expect('GET',settings+'?breederId=b_settings_empty',user='u_admin')['configured'] is False,'existing breeder without settings is unconfigured, not a loading error')
     check(any(b['id']=='b_out' for b in expect('GET','/api/operator/breeders',user='u_admin')),'operator selector includes registered breeders')
     # Browser fixtures: one new inquiry for automatic close, another for operator mismatch.
-    bi,bp,_=fixture('browser');mi,mp,_=fixture('browser-review')
+    bi,bp,_=fixture('browser');mi,mp,_=fixture('browser-review');sold_i,_,_=fixture('browser-sold',False,'成約済み')
     for _ in range(60):
         if not query('SELECT 1 FROM sale_mail_outbox WHERE sent_at IS NULL'):break
         time.sleep(.05)
@@ -269,9 +269,9 @@ try:
     links=(app/'assets/inquiry-cancellation-links.js').read_text();patch=(app/'backend/inquiry_cancellation_patch.py').read_text()
     check('breeder-cancellation.html?ui=20261006b1&inquiry=' in links and 'inquiry-cancellation-links.js?v=20261006b1' in patch,'breeder cancellation entry points are versioned against stale Safari restores')
     inquiries_page=(app/'breeder-inquiries.html').read_text()
-    check("const active=q.filter(x=>x.status!=='取引終了')" in inquiries_page,'closed cancellations are excluded from active breeder inquiry list')
+    check("const active=q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み')" in inquiries_page,'closed cancellations and completed sales are excluded from active breeder inquiry list')
     check("closedRows=q.filter(x=>x.status==='取引終了')" in inquiries_page and '取引終了履歴を見る' in inquiries_page,'closed cancellations remain available in a separate history view')
-    context={'base':base,'work':str(work),'data':str(data),'browserInquiry':bi,'mismatchInquiry':mi,'regressionPuppy':rp,'port':port,'pages':[p.name for p in sorted(app.glob('*.html'))]}
+    context={'base':base,'work':str(work),'data':str(data),'browserInquiry':bi,'mismatchInquiry':mi,'soldInquiry':sold_i,'regressionPuppy':rp,'port':port,'pages':[p.name for p in sorted(app.glob('*.html'))]}
     context_path=work/'context.json';context_path.write_text(json.dumps(context));print('INQUIRY_CANCELLATION_HTTP_OK',context_path,flush=True)
     if os.environ.get('BIGPAW_TEST_CHROMIUM_PATH'):
         subprocess.run(['node',str(Path(os.environ['BIGPAW_TEST_BROWSER_SCRIPT'])),str(context_path)],check=True,timeout=360,env=os.environ.copy())
