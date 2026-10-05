@@ -199,7 +199,7 @@ def install(g):
             if mutation_guard(h,path):return
             return old_post(h)
         if not h.mutation_origin_allowed():return h.send_json({'error':'invalid_origin'},403)
-        u=None if (answer or public_view) else h.require(['operator'] if resend or acknowledge else ['breeder'])
+        u=None if (answer or public_view) else h.require(['operator'] if resend or acknowledge else ['breeder','operator'])
         if not answer and not public_view and not u:return
         body=h.json_body()
         if not isinstance(body,dict):return h.send_json({'error':'invalid_body'},400)
@@ -275,7 +275,7 @@ def install(g):
                 c.execute("UPDATE sale_workflow SET state='cancellation_pending',updated_at=? WHERE deal_id=?",(now(),d['id']))
                 c.execute("UPDATE sale_confirmations SET state='superseded' WHERE deal_id=? AND state='pending'",(d['id'],))
                 if g.get('monitor_inquiry_cancellation'):g['monitor_inquiry_cancellation'](c,d)
-            history(c,r,u['id'],'submitted',json.dumps({'reason':reason,'note':note.strip()},ensure_ascii=False))
+            history(c,r,u['id'],'submitted',json.dumps({'reason':reason,'note':note.strip(),'submittedByRole':u['role']},ensure_ascii=False))
             send_confirmation(c,r,token,'ic-confirm:'+rid)
             notify(c,r,'取引中止申請が届きました。確認をお願いします',True)
             c.commit();return h.send_json({'ok':True,'state':'buyer_pending','id':rid})
