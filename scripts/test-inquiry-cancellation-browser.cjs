@@ -20,14 +20,15 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
   assert((await seller.locator('.hero-mini').evaluate(e=>getComputedStyle(e).backgroundImage)).includes('rgb(237, 245, 255)'),'inquiry header blue');
   assert.equal(await seller.locator('.card').first().evaluate(e=>getComputedStyle(e).borderColor),'rgb(214, 227, 240)','inquiry card border blue');
   assert.equal(await seller.locator('.status').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(231, 241, 251)','inquiry status blue');
-  const rows=await seller.evaluate(async()=>(await fetch('/api/inquiries')).json());
-  assert.equal(await seller.locator('#total').innerText(),rows.length+'件','total matches API');assert.equal(await seller.locator('#unread').innerText(),rows.filter(x=>x.status==='未返信').length+'件','unread count unchanged');
-  const loaded=seller.waitForResponse(r=>new URL(r.url()).pathname==='/api/inquiries'&&r.request().method()==='GET');await seller.getByRole('button',{name:'更新',exact:true}).click();assert.equal((await loaded).status(),200);await seller.waitForFunction(n=>document.getElementById('total').textContent===n+'件',rows.length);
+  const rows=await seller.evaluate(async()=>(await fetch('/api/inquiries')).json()),activeRows=rows.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み');
+  assert.equal(await seller.locator('#total').innerText(),activeRows.length+'件','total excludes completed/closed inquiries');assert.equal(await seller.locator('#unread').innerText(),activeRows.filter(x=>x.status==='未返信').length+'件','unread count excludes completed/closed inquiries');
+  assert(!(await seller.locator('#inquiryList').innerText()).includes('試験犬 browser-sold'),'completed sale is hidden from inquiry management');
+  const loaded=seller.waitForResponse(r=>new URL(r.url()).pathname==='/api/inquiries'&&r.request().method()==='GET');await seller.getByRole('button',{name:'更新',exact:true}).click();assert.equal((await loaded).status(),200);await seller.waitForFunction(n=>document.getElementById('total').textContent===n+'件',activeRows.length);
   assert(await seller.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'inquiries no horizontal clipping');
   await seller.screenshot({path:path.join(cfg.work,'inquiries-breeder-blue-'+viewport.width+'.png'),fullPage:false});
  }
  await seller.setViewportSize({width:390,height:844});
- console.log('BREEDER_INQUIRIES_THEME_BROWSER_OK|header_cards_status_buttons_blue|mobile_desktop|refresh_counts|existing_action_links');
+ console.log('BREEDER_INQUIRIES_THEME_BROWSER_OK|completed_sales_hidden|header_cards_status_buttons_blue|mobile_desktop|refresh_counts|existing_action_links');
  await seller.goto('https://bigpaw.site/breeder-cancellation.html?inquiry='+cfg.browserInquiry);await seller.locator('#reason').selectOption('visited_no_contract');await seller.locator('#note').fill('見学後、ご家族で検討の上で見送り');await seller.locator('#accurate').check();await seller.getByRole('button',{name:'取引中止を申請する',exact:true}).click();await seller.locator('#current').filter({hasText:'購入希望者の確認待ち'}).waitFor();await seller.screenshot({path:path.join(cfg.work,'cancellation-seller-mobile.png'),fullPage:true});
  let r=await seller.evaluate(async id=>(await fetch('/api/inquiries/'+id+'/cancellation')).json(),cfg.browserInquiry);const t=await token(seller,r.request.id);
  const op=await page('u_admin',{width:1280,height:900});await op.goto('https://bigpaw.site/operator-admin.html');const initial=(await attention(op)).attention;await badge(op,initial);assert(initial>0,'fresh request contributes to menu alert');assert(await op.locator('#bp-global-mobile-menu-button .bp-attention-dot').count()>0,'hamburger shows alert');await op.goto('https://bigpaw.site/operator-cancellations.html#request='+r.request.id);await op.locator('[data-request="'+r.request.id+'"] [data-acknowledge]').click();await op.locator('#message').filter({hasText:'確認を記録しました'}).waitFor();await badge(op,initial-1);
