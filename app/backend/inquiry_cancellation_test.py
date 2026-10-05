@@ -180,12 +180,16 @@ try:
         check(query('SELECT operator_seen_at FROM inquiry_cancellations WHERE id=?',(r['id'],))[0]['operator_seen_at'] is None,'buyer mismatch raises a fresh unread alert')
         before=summary()['attention'];acknowledge(r['id']);check(summary()['attention']==before,'acknowledged mismatch remains alert until decision')
     before=summary()['attention']
-    review(mismatch[0][0]);review(mismatch[1][0],'continue')
+    blank_approve=expect('PATCH','/api/operator/inquiry-cancellations/'+mismatch[0][0],{'action':'approve','note':''},'u_admin')
+    check(blank_approve.get('state')=='closed','operator can approve cancellation without typing a reason')
+    approved_row=query('SELECT review_note,operator_seen_at FROM inquiry_cancellations WHERE id=?',(mismatch[0][0],))[0]
+    check(bool(approved_row['review_note']) and approved_row['operator_seen_at'] is not None,'blank approval stores an audited default reason and clears unread state')
+    review(mismatch[1][0],'continue')
     check(summary()['attention']==before-2,'operator completion clears only resolved alerts')
     expect('PATCH','/api/inquiries/'+mismatch[1][1],{'status':'返信済み'},'u_dog44')
     review(mismatch[2][0],'confirm_sale');check(not query('SELECT * FROM commission_invoices'),'operator sale decision never guesses purchase amount or issues invoice')
     expect('PATCH','/api/operator/inquiry-cancellations/'+mismatch[3][0],{'action':'approve','note':'不可'},'u_dog44',403)
-    expect('PATCH','/api/operator/inquiry-cancellations/'+mismatch[3][0],{'action':'approve','note':''},'u_admin',400)
+    expect('PATCH','/api/operator/inquiry-cancellations/'+mismatch[3][0],{'action':'continue','note':''},'u_admin',400)
     review(mismatch[3][0],'request_details','双方へ現在の状況を確認します。')
     # Even matching answers with real signed contract/payment are reviewed by operator.
     iq,pp,dd=fixture('signed',True);execute("INSERT INTO contracts(id,deal_id,version,buyer_signed_at,breeder_signed_at,status,updated_at) VALUES('ic-contract',?,'v1',?,NULL,'draft',?)",(dd,int(time.time()),int(time.time())))
@@ -258,7 +262,7 @@ try:
     check(expect('GET',settings+'?breederId=b_settings_empty',user='u_admin')['configured'] is False,'existing breeder without settings is unconfigured, not a loading error')
     check(any(b['id']=='b_out' for b in expect('GET','/api/operator/breeders',user='u_admin')),'operator selector includes registered breeders')
     # Browser fixtures: one new inquiry for automatic close, another for operator mismatch.
-    bi,bp,_=fixture('browser');mi,mp,_=fixture('browser-review');sold_i,_,_=fixture('browser-sold',False,'成約済み')
+    bi,bp,_=fixture('browser');mi,mp,_=fixture('browser-review');ai,ap,_=fixture('browser-approve');sold_i,_,_=fixture('browser-sold',False,'成約済み')
     for _ in range(60):
         if not query('SELECT 1 FROM sale_mail_outbox WHERE sent_at IS NULL'):break
         time.sleep(.05)
@@ -271,7 +275,10 @@ try:
     inquiries_page=(app/'breeder-inquiries.html').read_text()
     check("const active=q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み')" in inquiries_page,'closed cancellations and completed sales are excluded from active breeder inquiry list')
     check("closedRows=q.filter(x=>x.status==='取引終了')" in inquiries_page and '取引終了履歴を見る' in inquiries_page,'closed cancellations remain available in a separate history view')
-    context={'base':base,'work':str(work),'data':str(data),'browserInquiry':bi,'mismatchInquiry':mi,'soldInquiry':sold_i,'regressionPuppy':rp,'port':port,'pages':[p.name for p in sorted(app.glob('*.html'))]}
+    operator_ui=(app/'assets/operator-cancellations.js').read_text();operator_page=(app/'operator-cancellations.html').read_text()
+    check("action==='approve'?'運営が申請内容と回答を確認し、取引中止を承認しました。':''" in operator_ui and "operator-cancellations.html?decision=approved" in operator_ui,'operator approval works without typed note and navigates after success')
+    check('assets/operator-cancellations.js?v=20261006a1' in operator_page,'operator cancellation UI cache is versioned')
+    context={'base':base,'work':str(work),'data':str(data),'browserInquiry':bi,'mismatchInquiry':mi,'approveInquiry':ai,'soldInquiry':sold_i,'regressionPuppy':rp,'port':port,'pages':[p.name for p in sorted(app.glob('*.html'))]}
     context_path=work/'context.json';context_path.write_text(json.dumps(context));print('INQUIRY_CANCELLATION_HTTP_OK',context_path,flush=True)
     if os.environ.get('BIGPAW_TEST_CHROMIUM_PATH'):
         subprocess.run(['node',str(Path(os.environ['BIGPAW_TEST_BROWSER_SCRIPT'])),str(context_path)],check=True,timeout=360,env=os.environ.copy())
