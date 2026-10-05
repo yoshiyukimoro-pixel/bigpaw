@@ -260,11 +260,22 @@ def install(g):
                 sent=c.execute("SELECT sent_at,attempts FROM sale_mail_outbox WHERE event_key=?",('ic-confirm:'+latest['id'],)).fetchone()
                 return h.send_json({'ok':True,'state':latest['state'],'id':latest['id'],'alreadySubmitted':True,'mail':dict(sent) if sent else None})
             buyer=c.execute("SELECT id,email FROM users WHERE id=? AND role='buyer'",(q['buyer_id'],)).fetchone()
-            if not buyer or not buyer['email']:return h.send_json({'message':'購入希望者の確認先がありません。運営へお問い合わせください。'},409)
+            if not buyer or not buyer['email']:return h.send_json({'error':'buyer_email_missing','message':'購入希望者の確認先がありません。運営へお問い合わせください。'},409)
             d=c.execute('SELECT * FROM deals WHERE inquiry_id=?',(q['id'],)).fetchone()
-            if d and d['status'] in ('completed','cancelled'):return h.send_json({'message':'成約済み・終了済みの取引は運営へお問い合わせください。'},409)
             w=c.execute('SELECT * FROM sale_workflow WHERE deal_id=?',(d['id'],)).fetchone() if d else None
-            if w and w['state']=='disputed':return h.send_json({'message':'この取引は運営確認中です。'},409)
+            # Heal old records where an operator continuation was saved after an earlier
+            # cancellation had already left the deal/workflow in cancelled state.
+            # Only restore the recorded pre-cancellation state when there is no paid,
+            # signed, completed or invoiced transaction risk.
+            if latest and latest['state'] in ('continued','sale_review') and d and d['status']=='cancelled' and not risky(c,q):
+                restored_deal=latest['previous_deal_status'] or 'negotiating'
+                restored_workflow=latest['previous_workflow_state'] or 'needs_correction'
+                c.execute('UPDATE deals SET status=? WHERE id=?',(restored_deal,d['id']))
+                if w:c.execute('UPDATE sale_workflow SET state=?,updated_at=? WHERE deal_id=?',(restored_workflow,now(),d['id']))
+                d=c.execute('SELECT * FROM deals WHERE id=?',(d['id'],)).fetchone()
+                w=c.execute('SELECT * FROM sale_workflow WHERE deal_id=?',(d['id'],)).fetchone() if d else None
+            if d and d['status'] in ('completed','cancelled'):return h.send_json({'error':'deal_closed','message':'成約済み・終了済みの取引は運営へお問い合わせください。'},409)
+            if w and w['state']=='disputed':return h.send_json({'error':'deal_under_review','message':'この取引は運営確認中です。'},409)
             token=secrets.token_urlsafe(32);rid=mid('ic_')
             c.execute('INSERT INTO inquiry_cancellations(id,inquiry_id,breeder_id,buyer_id,breeder_reason,breeder_note,previous_inquiry_status,previous_deal_status,previous_workflow_state,token_hash,expires_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
                       (rid,q['id'],q['breeder_id'],q['buyer_id'],reason,note.strip(),q['status'],d['status'] if d else None,w['state'] if w else None,hashlib.sha256(token.encode()).hexdigest(),now()+7*86400,now()))
