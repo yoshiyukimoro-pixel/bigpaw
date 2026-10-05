@@ -26,7 +26,7 @@
     confirmEmailVerification(token){return this.request('/email-verification/confirm',{method:'POST',body:{token}})},
     breeders(){return this.request('/breeders')},
     breeder(id){return this.request('/breeders/'+encodeURIComponent(id))},
-    breederPuppies(){return this.request('/breeder/puppies')},
+    breederPuppies(params={}){const q=new URLSearchParams(Object.entries(params).filter(([,v])=>v));return this.request('/breeder/puppies'+(q.toString()?'?'+q:''))},
     puppies(params={}){const q=new URLSearchParams(Object.entries(params).filter(([,v])=>v));return this.request('/puppies'+(q.toString()?'?'+q:''))},
     puppy(id){return this.request('/puppies/'+encodeURIComponent(id))},
     addPuppy(v){return this.request('/puppies',{method:'POST',body:v})},
