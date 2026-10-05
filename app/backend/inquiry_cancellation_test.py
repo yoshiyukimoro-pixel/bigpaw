@@ -86,6 +86,13 @@ try:
     execute("INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status) VALUES('b_out','u_out','別犬舎','埼玉県','','','approved')")
     execute('INSERT INTO sessions VALUES(?,?,?,?)',('test-u_out','u_out',int(time.time()),int(time.time())+86400))
     expect('POST',url,{'reason':'visited_no_contract','agreeAccurateReporting':True},'u_out',404)
+    # Operators can use the breeder cancellation screen while administering a kennel; the action stays audited.
+    oi,_,_=fixture('operator-submit')
+    orow=expect('POST','/api/inquiries/'+oi+'/cancellation',{'reason':'visit_not_held','agreeAccurateReporting':True},'u_admin')
+    check(query('SELECT actor_id FROM inquiry_cancellation_history WHERE request_id=? AND action=\'submitted\'',(orow['id'],))[0]['actor_id']=='u_admin','operator-submitted cancellation is audited to the operator account')
+    expect('POST','/api/operator/inquiry-cancellations/'+orow['id']+'/acknowledge',{},'u_admin')
+    answer(orow['id'],'visit_not_held')
+    check(query('SELECT state FROM inquiry_cancellations WHERE id=?',(orow['id'],))[0]['state']=='closed','operator submission follows the same buyer-confirmation close workflow')
     with concurrent.futures.ThreadPoolExecutor(2) as pool:
         results=list(pool.map(lambda _:req('POST',url,{'reason':'visited_no_contract','agreeAccurateReporting':True},'u_dog44'),range(2)))
     check(all(r[0]==200 for r in results),'simultaneous duplicate applications succeed idempotently')
@@ -225,6 +232,7 @@ try:
     captured=[json.loads(x) for x in (work/'mail.jsonl').read_text().splitlines()]
     check(any('【取引状況を確認する】' in x['text'] and '#token=' in x['text'] and '7日間' in x['text'] for x in captured),'buyer email contains direct confirmation link, seven-day term and stage reason')
     check(not query('SELECT 1 FROM sale_mail_outbox WHERE sent_at IS NULL'),'all local capture emails sent or retried')
+    ui=(app/'assets/breeder-cancellation.js').read_text();check("location.replace('breeder-inquiries.html?cancellation=submitted')" in ui,'successful cancellation returns to inquiry list')
     context={'base':base,'work':str(work),'data':str(data),'browserInquiry':bi,'mismatchInquiry':mi,'regressionPuppy':rp,'port':port,'pages':[p.name for p in sorted(app.glob('*.html'))]}
     context_path=work/'context.json';context_path.write_text(json.dumps(context));print('INQUIRY_CANCELLATION_HTTP_OK',context_path,flush=True)
     if os.environ.get('BIGPAW_TEST_CHROMIUM_PATH'):

@@ -11,6 +11,6 @@
   $('listingAction').innerHTML=c?.state==='closed'?'<a class="btn btn-sub" href="admin.html">子犬の募集状況を確認・変更する</a>':'';
  }catch(e){msg(e.status===401||e.status===403?'ブリーダーアカウントでログインしてください。':e.message);$('current').innerHTML='<a class="btn btn-sub" href="login.html?next='+encodeURIComponent(location.pathname+location.search)+'">ログイン</a>'}}
  $('form').onsubmit=async e=>{e.preventDefault();if(busy)return;if($('reason').value==='other'&&!$('note').value.trim())return msg('「その他」の内容を入力してください。');if(!confirm('この内容で取引中止を申請し、購入希望者へ確認メールを送りますか？'))return;busy=true;$('submit').disabled=true;
- try{await BigPawAPI.request('/inquiries/'+encodeURIComponent(id)+'/cancellation',{method:'POST',body:{reason:$('reason').value,note:$('note').value,agreeAccurateReporting:$('accurate').checked}});msg('申請しました。購入希望者の確認待ちです。');await load()}catch(e){msg(e.message)}finally{busy=false;$('submit').disabled=false}};
+ try{await BigPawAPI.request('/inquiries/'+encodeURIComponent(id)+'/cancellation',{method:'POST',body:{reason:$('reason').value,note:$('note').value,agreeAccurateReporting:$('accurate').checked}});msg('申請しました。購入希望者の確認待ちです。');location.replace('breeder-inquiries.html?cancellation=submitted')}catch(e){msg(e.status===403?'この画面から申請できません。ログイン権限を確認してください。':e.message)}finally{busy=false;$('submit').disabled=false}};
  await load();
 })();
