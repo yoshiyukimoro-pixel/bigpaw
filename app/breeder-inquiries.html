@@ -15,7 +15,7 @@ function toggleClosed(){
 }
 async function render(){try{
  const q=await BigPawBridge.inquiries();
- const active=q.filter(x=>x.status!=='取引終了');
+ const active=q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み');
  closedRows=q.filter(x=>x.status==='取引終了');
  unread.textContent=active.filter(x=>x.status==='未返信').length+'件';
  visits.textContent=active.filter(x=>x.preferred_date||x.preferredDate||x.date1||x.status==='見学調整中'||x.status==='見学確定').length+'件';
