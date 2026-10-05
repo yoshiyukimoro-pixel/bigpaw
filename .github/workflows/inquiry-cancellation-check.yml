@@ -7,8 +7,10 @@ on:
       - 'app/backend/inquiry_cancellation*'
       - 'app/assets/*cancellation*'
       - 'app/*cancellation*.html'
+      - 'app/breeder-inquiries.html'
       - 'app/attention-alerts.js'
       - 'scripts/test-inquiry-cancellation-browser.cjs'
+      - 'scripts/test-breeder-cancellation-ui.cjs'
       - 'Dockerfile'
       - '.github/workflows/inquiry-cancellation-check.yml'
 jobs:
@@ -21,5 +23,6 @@ jobs:
           git diff --check
           python3 -m py_compile app/backend/inquiry_cancellation.py app/backend/inquiry_cancellation_patch.py app/backend/inquiry_cancellation_test.py
           for f in app/assets/*cancellation*.js app/attention-alerts.js; do node --check "$f"; done
+          node scripts/test-breeder-cancellation-ui.cjs
       - name: Docker build with existing and new regression gates
         run: docker build --no-cache -t bigpaw-cancellation-safe .

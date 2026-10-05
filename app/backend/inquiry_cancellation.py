@@ -257,8 +257,8 @@ def install(g):
             if body.get('agreeAccurateReporting') is not True:return h.send_json({'message':'正確な申告の確認にチェックしてください。'},400)
             existing=c.execute("SELECT * FROM inquiry_cancellations WHERE inquiry_id=? AND state IN ('buyer_pending','operator_review','unanswered','closed') ORDER BY created_at DESC,rowid DESC LIMIT 1",(q['id'],)).fetchone()
             if existing:
-                if existing['state']=='buyer_pending' and existing['breeder_reason']==reason and existing['breeder_note']==note.strip():return h.send_json({'ok':True,'state':existing['state'],'alreadySubmitted':True})
-                return h.send_json({'message':'この問い合わせは中止申請済みです。運営の確認をお待ちください。'},409)
+                sent=c.execute("SELECT sent_at,attempts FROM sale_mail_outbox WHERE event_key=?",('ic-confirm:'+existing['id'],)).fetchone()
+                return h.send_json({'ok':True,'state':existing['state'],'id':existing['id'],'alreadySubmitted':True,'mail':dict(sent) if sent else None})
             buyer=c.execute("SELECT id,email FROM users WHERE id=? AND role='buyer'",(q['buyer_id'],)).fetchone()
             if not buyer or not buyer['email']:return h.send_json({'message':'購入希望者の確認先がありません。運営へお問い合わせください。'},409)
             d=c.execute('SELECT * FROM deals WHERE inquiry_id=?',(q['id'],)).fetchone()
