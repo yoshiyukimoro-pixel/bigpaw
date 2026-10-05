@@ -233,6 +233,9 @@ try:
     check(any('【取引状況を確認する】' in x['text'] and '#token=' in x['text'] and '7日間' in x['text'] for x in captured),'buyer email contains direct confirmation link, seven-day term and stage reason')
     check(not query('SELECT 1 FROM sale_mail_outbox WHERE sent_at IS NULL'),'all local capture emails sent or retried')
     ui=(app/'assets/breeder-cancellation.js').read_text();page=(app/'breeder-cancellation.html').read_text();check("window.location.href='breeder-inquiries.html?cancellation=submitted'" in ui,'successful cancellation returns to inquiry list');check('assets/breeder-cancellation.js?v=20261006a1' in page,'cancellation page cache-busts redirect script')
+    inquiries_page=(app/'breeder-inquiries.html').read_text()
+    check("const active=q.filter(x=>x.status!=='取引終了')" in inquiries_page,'closed cancellations are excluded from active breeder inquiry list')
+    check("closedRows=q.filter(x=>x.status==='取引終了')" in inquiries_page and '取引終了履歴を見る' in inquiries_page,'closed cancellations remain available in a separate history view')
     context={'base':base,'work':str(work),'data':str(data),'browserInquiry':bi,'mismatchInquiry':mi,'regressionPuppy':rp,'port':port,'pages':[p.name for p in sorted(app.glob('*.html'))]}
     context_path=work/'context.json';context_path.write_text(json.dumps(context));print('INQUIRY_CANCELLATION_HTTP_OK',context_path,flush=True)
     if os.environ.get('BIGPAW_TEST_CHROMIUM_PATH'):
