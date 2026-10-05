@@ -272,6 +272,8 @@ try:
     ui=(app/'assets/breeder-cancellation.js').read_text();page=(app/'breeder-cancellation.html').read_text();check("'breeder-inquiries.html?cancellation='+(r.alreadySubmitted?'already':'submitted')" in ui,'successful or repeated cancellation returns to inquiry list');check('assets/breeder-cancellation.js?v=20261006c1' in page,'cancellation page cache-busts redirect script')
     links=(app/'assets/inquiry-cancellation-links.js').read_text();patch=(app/'backend/inquiry_cancellation_patch.py').read_text()
     check('breeder-cancellation.html?ui=20261006b1&inquiry=' in links and 'inquiry-cancellation-links.js?v=20261006b1' in patch,'breeder cancellation entry points are versioned against stale Safari restores')
+    admin_page=(app/'admin.html').read_text()
+    check("active=q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み')" in admin_page and 'sInquiry.textContent=active.length' in admin_page,'dashboard inquiry count uses the same active-only filter as inquiry management')
     inquiries_page=(app/'breeder-inquiries.html').read_text()
     check("const active=q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み')" in inquiries_page,'closed cancellations and completed sales are excluded from active breeder inquiry list')
     check("closedRows=q.filter(x=>x.status==='取引終了')" in inquiries_page and '取引終了履歴を見る' in inquiries_page,'closed cancellations remain available in a separate history view')
