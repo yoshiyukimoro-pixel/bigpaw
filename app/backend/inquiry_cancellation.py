@@ -255,10 +255,10 @@ def install(g):
             reason=body.get('reason');note=body.get('note','')
             if not isinstance(reason,str) or reason not in BREEDER_REASONS or not isinstance(note,str) or len(note)>1000 or (reason=='other' and not note.strip()):return h.send_json({'message':'中止理由を選択してください。「その他」は補足を入力してください。'},400)
             if body.get('agreeAccurateReporting') is not True:return h.send_json({'message':'正確な申告の確認にチェックしてください。'},400)
-            existing=c.execute("SELECT * FROM inquiry_cancellations WHERE inquiry_id=? AND state IN ('buyer_pending','operator_review','unanswered','closed') ORDER BY created_at DESC,rowid DESC LIMIT 1",(q['id'],)).fetchone()
-            if existing:
-                sent=c.execute("SELECT sent_at,attempts FROM sale_mail_outbox WHERE event_key=?",('ic-confirm:'+existing['id'],)).fetchone()
-                return h.send_json({'ok':True,'state':existing['state'],'id':existing['id'],'alreadySubmitted':True,'mail':dict(sent) if sent else None})
+            latest=c.execute("SELECT * FROM inquiry_cancellations WHERE inquiry_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1",(q['id'],)).fetchone()
+            if latest and latest['state'] in ('buyer_pending','operator_review','unanswered','closed'):
+                sent=c.execute("SELECT sent_at,attempts FROM sale_mail_outbox WHERE event_key=?",('ic-confirm:'+latest['id'],)).fetchone()
+                return h.send_json({'ok':True,'state':latest['state'],'id':latest['id'],'alreadySubmitted':True,'mail':dict(sent) if sent else None})
             buyer=c.execute("SELECT id,email FROM users WHERE id=? AND role='buyer'",(q['buyer_id'],)).fetchone()
             if not buyer or not buyer['email']:return h.send_json({'message':'購入希望者の確認先がありません。運営へお問い合わせください。'},409)
             d=c.execute('SELECT * FROM deals WHERE inquiry_id=?',(q['id'],)).fetchone()
