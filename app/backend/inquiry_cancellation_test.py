@@ -240,7 +240,7 @@ try:
     captured=[json.loads(x) for x in (work/'mail.jsonl').read_text().splitlines()]
     check(any('【取引状況を確認する】' in x['text'] and '#token=' in x['text'] and '7日間' in x['text'] for x in captured),'buyer email contains direct confirmation link, seven-day term and stage reason')
     check(not query('SELECT 1 FROM sale_mail_outbox WHERE sent_at IS NULL'),'all local capture emails sent or retried')
-    ui=(app/'assets/breeder-cancellation.js').read_text();page=(app/'breeder-cancellation.html').read_text();check("'breeder-inquiries.html?cancellation='+(r.alreadySubmitted?'already':'submitted')" in ui,'successful or repeated cancellation returns to inquiry list');check('assets/breeder-cancellation.js?v=20261006a1' in page,'cancellation page cache-busts redirect script')
+    ui=(app/'assets/breeder-cancellation.js').read_text();page=(app/'breeder-cancellation.html').read_text();check("'breeder-inquiries.html?cancellation='+(r.alreadySubmitted?'already':'submitted')" in ui,'successful or repeated cancellation returns to inquiry list');check('assets/breeder-cancellation.js?v=20261006a2' in page,'cancellation page cache-busts redirect script')
     inquiries_page=(app/'breeder-inquiries.html').read_text()
     check("const active=q.filter(x=>x.status!=='取引終了')" in inquiries_page,'closed cancellations are excluded from active breeder inquiry list')
     check("closedRows=q.filter(x=>x.status==='取引終了')" in inquiries_page and '取引終了履歴を見る' in inquiries_page,'closed cancellations remain available in a separate history view')
