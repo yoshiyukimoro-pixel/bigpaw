@@ -28,6 +28,11 @@ const fs=require('fs'),assert=require('assert'),path=require('path'),{spawnSync}
   await seller.screenshot({path:path.join(cfg.work,'inquiries-breeder-blue-'+viewport.width+'.png'),fullPage:false});
  }
  await seller.setViewportSize({width:390,height:844});
+ const dashboardRows=await seller.evaluate(async()=>(await fetch('/api/inquiries')).json()),dashboardActive=dashboardRows.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み');
+ await seller.goto('https://bigpaw.site/admin.html');await seller.locator('#sInquiry').waitFor();await seller.waitForFunction(n=>document.getElementById('sInquiry').textContent===String(n),dashboardActive.length);
+ assert.equal(await seller.locator('#sInquiry').innerText(),String(dashboardActive.length),'dashboard inquiry count matches active inquiry management count');
+ console.log('BREEDER_DASHBOARD_INQUIRY_COUNT_OK|closed_and_completed_excluded|matches_management');
+ await seller.goto('https://bigpaw.site/breeder-inquiries.html');
  console.log('BREEDER_INQUIRIES_THEME_BROWSER_OK|completed_sales_hidden|header_cards_status_buttons_blue|mobile_desktop|refresh_counts|existing_action_links');
  await seller.goto('https://bigpaw.site/breeder-cancellation.html?inquiry='+cfg.browserInquiry);await seller.locator('#reason').selectOption('visited_no_contract');await seller.locator('#note').fill('見学後、ご家族で検討の上で見送り');await seller.locator('#accurate').check();await seller.getByRole('button',{name:'取引中止を申請する',exact:true}).click();await seller.locator('#current').filter({hasText:'購入希望者の確認待ち'}).waitFor();await seller.screenshot({path:path.join(cfg.work,'cancellation-seller-mobile.png'),fullPage:true});
  let r=await seller.evaluate(async id=>(await fetch('/api/inquiries/'+id+'/cancellation')).json(),cfg.browserInquiry);const t=await token(seller,r.request.id);
