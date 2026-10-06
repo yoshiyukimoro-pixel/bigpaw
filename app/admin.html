@@ -14,9 +14,10 @@ async function load(){
    const requested=new URLSearchParams(location.search).get('breederId')||'';
    operatorBreeder.innerHTML='<option value="">選択してください</option>'+breeders.map(b=>`<option value="${BigPaw.esc(b.id)}">${BigPaw.esc(b.kennel_name||b.id)}</option>`).join('');
    operatorBreeder.onchange=()=>setOperatorScope(operatorBreeder.value);
-   const selected=breeders.find(b=>String(b.id)===String(requested));
+   const dog44=breeders.filter(b=>String(b.kennel_name||'').trim().toUpperCase()==='DOG44');
+   const selected=breeders.find(b=>String(b.id)===String(requested))||(!requested&&dog44.length===1?dog44[0]:null);
    if(!selected){
-    operatorScopeId='';operatorScopeName='';kennelModeLabel.textContent='運営確認モード｜ブリーダー未選択';billingSuspend.style.display='none';dogs=[];render();sInquiry.textContent='0';dogList.innerHTML='<div class="pad muted">運営確認モードでは、上の「確認するブリーダー」から1件選択してください。他のブリーダーの子犬は混在表示しません。</div>';return;
+    operatorScopeId='';operatorScopeName='';kennelModeLabel.textContent='運営確認モード｜ブリーダー未選択';billingSuspend.style.display='none';dogs=[];render();sInquiry.textContent='0';dogList.innerHTML='<div class="pad muted">確認するブリーダーを選択してください。他のブリーダーの子犬は混在表示しません。</div>';return;
    }
    operatorScopeId=String(selected.id);operatorScopeName=selected.kennel_name||selected.id;operatorBreeder.value=operatorScopeId;kennelModeLabel.textContent=operatorScopeName+'｜運営確認モード';
    dogs=(await BigPawAPI.breederPuppies({breederId:operatorScopeId})).filter(x=>String(x.breederId||'')===operatorScopeId);
