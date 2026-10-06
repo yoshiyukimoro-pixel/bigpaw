@@ -282,6 +282,7 @@ try:
     admin_page=(app/'admin.html').read_text();api_page=(app/'assets/api.js').read_text();operator_detail=(app/'operator-breeder-detail.html').read_text()
     check("function activeInquiries(q){return q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み')}" in admin_page and 'sInquiry.textContent=activeInquiries(q).length' in admin_page,'dashboard inquiry count uses the same active-only filter as inquiry management')
     check("BigPawAPI.breederPuppies({breederId:operatorScopeId})" in admin_page and ".filter(x=>String(x.breederId||'')===operatorScopeId)" in admin_page,'operator breeder dashboard is scoped defensively to one breeder')
+    check("const dog44=breeders.filter(b=>String(b.kennel_name||'').trim().toUpperCase()==='DOG44')" in admin_page and "(!requested&&dog44.length===1?dog44[0]:null)" in admin_page,'direct operator breeder dashboard defaults to the unique DOG44 kennel')
     check("breederPuppies(params={})" in api_page and "BigPawAPI.breederPuppies({breederId:id})" in operator_detail and "admin.html?breederId=" in operator_detail,'operator breeder preview passes an explicit breeder scope end to end')
     inquiries_page=(app/'breeder-inquiries.html').read_text()
     check("const active=q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み')" in inquiries_page,'closed cancellations and completed sales are excluded from active breeder inquiry list')
