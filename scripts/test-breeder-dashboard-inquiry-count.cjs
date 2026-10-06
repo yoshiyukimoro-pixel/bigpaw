@@ -53,10 +53,20 @@ async function run({role='breeder',inquiries=[],breeders=[],breederId='',puppyRo
     {id:'p_dog44',breederId:'b_dog44',name:'DOG44の子犬',breed:'スタンダードプードル',gender:'男の子',color:'ブラック',status:'募集中',price:300000},
     {id:'p_other',breederId:'b_other',name:'他人の子犬',breed:'スタンダードプードル',gender:'女の子',color:'ホワイト',status:'募集中',price:320000}
   ];
-  r=await run({role:'operator',breeders,puppyRows:mixedPuppies});
-  assert.equal(r.calls.some(x=>x.kind==='breederPuppies'),false,'operator without an explicit breeder does not load any puppy list');
-  assert(r.ctx.dogList.innerHTML.includes('1件選択してください'),'operator without scope is asked to select one breeder');
-  assert.equal(r.ctx.sOpen.textContent,'0','unscoped operator view shows zero puppies');
+  r=await run({
+    role:'operator',breeders,puppyRows:mixedPuppies,
+    inquiries:[
+      {breeder_id:'b_dog44',status:'未返信'},
+      {breeder_id:'b_other',status:'未返信'}
+    ]
+  });
+  let autoCall=r.calls.find(x=>x.kind==='breederPuppies');
+  assert(autoCall&&autoCall.params.breederId==='b_dog44','operator opening breeder management directly defaults to DOG44');
+  assert(r.ctx.dogList.innerHTML.includes('DOG44の子犬'),'direct operator breeder management shows DOG44 puppy');
+  assert(!r.ctx.dogList.innerHTML.includes('他人の子犬'),'direct operator breeder management never shows another breeder puppy');
+  assert.equal(r.ctx.sOpen.textContent,'1','direct operator view counts only DOG44 puppies');
+  assert.equal(r.ctx.sInquiry.textContent,'1','direct operator view counts only DOG44 inquiries');
+  assert(r.ctx.kennelModeLabel.textContent.includes('DOG44'),'direct operator view is visibly scoped to DOG44');
 
   r=await run({
     role:'operator',breeders,breederId:'b_dog44',puppyRows:mixedPuppies,
@@ -74,5 +84,5 @@ async function run({role='breeder',inquiries=[],breeders=[],breederId='',puppyRo
   assert.equal(r.ctx.sInquiry.textContent,'1','only selected breeder active inquiries are counted');
   assert(r.ctx.kennelModeLabel.textContent.includes('DOG44'),'operator scope is visibly labeled with selected kennel');
 
-  console.log('BREEDER_DASHBOARD_SCOPE_UI_OK|historical_count|operator_requires_scope|selected_only|other_breeder_hidden|inquiries_scoped');
+  console.log('BREEDER_DASHBOARD_SCOPE_UI_OK|historical_count|operator_defaults_dog44|selected_only|other_breeder_hidden|inquiries_scoped');
 })().catch(e=>{console.error(e);process.exit(1)});
