@@ -863,7 +863,7 @@ class Handler(SimpleHTTPRequestHandler):
                     if not con.execute('SELECT 1 FROM breeders WHERE id=?',(bid,)).fetchone(): con.close(); return self.send_json({'error':'breeder_not_found'},404)
                     rows=con.execute('SELECT * FROM puppies WHERE breeder_id=? ORDER BY created_at DESC',(bid,)).fetchall()
                 else:
-                    rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall()
+                    rows=[]
             con.close(); return self.send_json([puppy_json(r) for r in rows])
         if path=='/api/breeder-profile':
             u=self.require(['breeder','operator']);
