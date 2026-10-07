@@ -6,6 +6,7 @@ on:
       - safe-sales-handover-settings
       - fix-sales-handover-save-v2
       - safe-support-history-retention-180d
+      - fix-photo-append-existing-20261008
   workflow_dispatch:
 
 jobs:
@@ -24,6 +25,65 @@ jobs:
           python3 -m py_compile app/backend/operator_support_retention_patch.py
           python3 -m py_compile app/backend/final_release_gate.py
           python3 -m py_compile app/backend/security_regression_check.py
+
+      - name: Verify breeder photo append regression
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const vm=require('vm');
+          const src=fs.readFileSync('app/breeder-editor-safety-fix.js','utf8');
+          const old=[
+            {id:'old1',url:'/uploads/old1.jpg',isMain:true},
+            {id:'old2',url:'/uploads/old2.jpg',isMain:false},
+            {id:'old3',url:'/uploads/old3.jpg',isMain:false},
+          ];
+          const calls={deletes:0,uploads:0,mainUpdates:0};
+          const fields={
+            color:{value:'ブラック'},gender:{value:'男の子'},status:{value:'募集中'},
+            breed:{value:'スタンダードプードル'},birth:{value:'2026-07-01'},price:{value:'220000'},
+            weight:{value:'10'},adultMin:{value:'25'},adultMax:{value:'30'},
+            father:{value:'クラージュ'},mother:{value:'ミルク'},health:{checked:true},
+            appealPoint:{value:''},desc:{value:'test'},photo:{files:[{name:'new.jpg'}]}
+          };
+          const sandbox={
+            window:{}, URLSearchParams, console,
+            location:{search:'?id=p1',href:''},
+            sessionStorage:{removeItem(){}},
+            alert(){},
+            document:{
+              getElementById(id){return fields[id]||null},
+              querySelector(){return null}
+            },
+            BigPawAPI:{
+              async request(url,opt={}){
+                if(url==='/puppies/p1/photos'&&!opt.method) return old.map(x=>({...x}));
+                if(opt.method==='DELETE'){calls.deletes++;throw new Error('existing photo delete must not happen')}
+                throw new Error('unexpected request '+url+' '+JSON.stringify(opt));
+              }
+            },
+            BigPawBridge:{
+              async updatePuppy(id,data){if(Object.prototype.hasOwnProperty.call(data,'imageUrl'))calls.mainUpdates++;return {id,...data}},
+              async addPuppy(data){return {id:'p1',...data}},
+              async upload(){calls.uploads++;return {id:'new1',url:'/uploads/new1.jpg'}},
+              async breederPuppies(){return [{id:'p1',appealPoint:''}]}
+            }
+          };
+          sandbox.window.BigPawBridge=sandbox.BigPawBridge;
+          sandbox.window.BigPawAPI=sandbox.BigPawAPI;
+          sandbox.window.BIGPAW_BREEDS=[];
+          vm.createContext(sandbox);
+          vm.runInContext(src,sandbox);
+          const btn={disabled:false,textContent:'保存'};
+          sandbox.window.savePuppy({preventDefault(){},submitter:btn,target:{querySelector(){return btn}}}).then(()=>{
+            if(calls.deletes!==0) throw new Error('old photos were deleted');
+            if(calls.uploads!==1) throw new Error('new photo was not uploaded exactly once');
+            if(calls.mainUpdates!==0) throw new Error('existing main photo was unexpectedly replaced');
+            const p=sandbox.window.persistedPhotos;
+            if(!Array.isArray(p)||p.length!==4) throw new Error('expected 3 existing + 1 new = 4 photos');
+            if(p[0].id!=='old1'||!p[0].isMain||p[3].id!=='new1') throw new Error('photo order/main preservation failed');
+            console.log('BREEDER_PHOTO_APPEND_OK|existing=3|added=1|total=4|old_deleted=0|main_preserved=1');
+          }).catch(e=>{console.error(e);process.exit(1)});
+          NODE
 
       - name: Build BIG PAW image with all regression gates
         run: docker build --no-cache -t bigpaw-safe-check .
