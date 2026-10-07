@@ -1,0 +1,47 @@
+name: Photo append safety check
+on:
+  push:
+    branches:
+      - fix-photo-append-20261008
+  workflow_dispatch:
+
+jobs:
+  photo-append-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Behavioral test for edit photo append
+        run: node scripts/test-photo-append.js
+      - name: Build production-equivalent image
+        run: docker build --no-cache -t bigpaw-photo-append-check .
+      - name: Verify built image keeps append semantics
+        run: |
+          set -euo pipefail
+          cid="$(docker create bigpaw-photo-append-check)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid":/app/breeder-editor-safety-fix.js /tmp/breeder-editor-safety-fix.js
+          grep -q "async function appendPhotos" /tmp/breeder-editor-safety-fix.js
+          ! grep -q "old_photo_cleanup_failed" /tmp/breeder-editor-safety-fix.js
+          grep -q "const combined=\[...orderedOld,...uploaded\]" /tmp/breeder-editor-safety-fix.js
+          grep -q "photo_limit_exceeded" /tmp/breeder-editor-safety-fix.js
+          echo "BUILT_IMAGE_APPEND_SEMANTICS_OK"
+      - name: Production startup smoke
+        run: |
+          set -euo pipefail
+          START="python3 backend/auth_cookie_hardening_patch.py && python3 backend/safari_gallery_runtime_patch.py && python3 backend/support_contact_runtime_patch.py && python3 backend/offsite_backup_runtime_patch.py && python3 backend/login_prompt_runtime_patch.py && python3 backend/direct_payment_runtime_patch.py && python3 backend/breeder_mobile_menu_runtime_patch.py && exec python3 backend/start_live.py"
+          docker run -d --name bigpaw-photo-smoke -p 18082:8080             -e PORT=8080             -e BIGPAW_ENV=production             -e BIGPAW_DATA_DIR=/tmp/bigpaw-data             -e BIGPAW_ADMIN_EMAIL=smoke@example.com             -e BIGPAW_ADMIN_PASSWORD='SmokeTestPassword123!'             -e BIGPAW_PAYMENT_MODE=manual             bigpaw-photo-append-check sh -c "$START"
+          trap 'docker rm -f bigpaw-photo-smoke >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18082/api/health >/tmp/health.json; then ok=1; break; fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-photo-smoke 2>/dev/null | grep -q true; then break; fi
+            sleep 1
+          done
+          test "$ok" = 1
+          cat /tmp/health.json
+          curl -fsS http://127.0.0.1:18082/breeder-puppy-new.html >/tmp/editor.html
+          grep -q "breeder-puppy-new" /tmp/editor.html
+          docker logs bigpaw-photo-smoke 2>&1 | tee /tmp/runtime.log
+          grep -q "SAFARI_GALLERY_HARDENING_OK" /tmp/runtime.log
+          grep -q "GLOBAL_MOBILE_MENU_OK" /tmp/runtime.log
+          echo "PHOTO_APPEND_RUNTIME_SMOKE_OK"
