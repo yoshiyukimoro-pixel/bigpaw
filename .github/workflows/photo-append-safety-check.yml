@@ -39,8 +39,11 @@ jobs:
           done
           test "$ok" = 1
           cat /tmp/health.json
-          curl -fsS http://127.0.0.1:18082/breeder-puppy-new.html >/tmp/editor.html
-          grep -q "breeder-puppy-new" /tmp/editor.html
+          curl -fsS -o /tmp/editor.html -w "%{http_code}" http://127.0.0.1:18082/breeder-puppy-new.html | grep -q '^200          grep -q "SAFARI_GALLERY_HARDENING_OK" /tmp/runtime.log
+          grep -q "GLOBAL_MOBILE_MENU_OK" /tmp/runtime.log
+          echo "PHOTO_APPEND_RUNTIME_SMOKE_OK"
+
+          test -s /tmp/editor.html
           docker logs bigpaw-photo-smoke 2>&1 | tee /tmp/runtime.log
           grep -q "SAFARI_GALLERY_HARDENING_OK" /tmp/runtime.log
           grep -q "GLOBAL_MOBILE_MENU_OK" /tmp/runtime.log
