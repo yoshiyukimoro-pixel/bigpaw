@@ -44,10 +44,13 @@
   async function cleanupNew(pid,uploaded){
     for(const p of uploaded){try{await deletePhoto(pid,p.id)}catch(e){}}
   }
-  async function replacePhotos(pid,files){
+  async function appendPhotos(pid,files){
     if(!files.length) return null;
     const old=await BigPawAPI.request('/puppies/'+encodeURIComponent(pid)+'/photos');
     if(!Array.isArray(old)) throw new Error('existing_photo_state_unavailable');
+    const room=Math.max(0,10-old.length);
+    if(room===0) throw new Error('photo_limit_reached');
+    if(files.length>room) throw new Error('photo_limit_exceeded');
     const uploaded=[];
     try{
       for(const f of files){
@@ -55,23 +58,25 @@
         if(!up||!up.id||!up.url) throw new Error('photo_upload_failed');
         uploaded.push(up);
       }
+      const currentMain=old.find(p=>p&&p.isMain);
+      const orderedOld=currentMain
+        ? [currentMain,...old.filter(p=>p!==currentMain)]
+        : old.slice();
+      const combined=[...orderedOld,...uploaded];
+      await BigPawAPI.request('/puppies/'+encodeURIComponent(pid)+'/photos/order',{
+        method:'PATCH',
+        body:{ids:combined.map(x=>String(x.id))}
+      });
+      window.persistedPhotos=combined.map((x,i)=>({
+        ...x,
+        isMain:i===0
+      }));
+      if(typeof window.renderPersistedPhotos==='function') window.renderPersistedPhotos();
+      return uploaded;
     }catch(e){
       await cleanupNew(pid,uploaded);
       throw e;
     }
-    await BigPawBridge.updatePuppy(pid,{imageUrl:uploaded[0].url});
-    const failed=[];
-    for(const p of old){
-      if(!p?.id) continue;
-      try{await deletePhoto(pid,p.id)}catch(e){
-        try{await deletePhoto(pid,p.id)}catch(e2){failed.push(p.id)}
-      }
-    }
-    if(failed.length) throw new Error('old_photo_cleanup_failed');
-    await BigPawAPI.request('/puppies/'+encodeURIComponent(pid)+'/photos/order',{method:'PATCH',body:{ids:uploaded.map(x=>String(x.id))}});
-    window.persistedPhotos=uploaded.map((x,i)=>({id:x.id,url:x.url,isMain:i===0}));
-    if(typeof window.renderPersistedPhotos==='function') window.renderPersistedPhotos();
-    return uploaded;
   }
 
   window.savePuppy=async function(e){
@@ -87,7 +92,7 @@
       if(!targetId) throw new Error('puppy_id_missing');
       const files=[...(byId('photo')?.files||[])].slice(0,10);
       if(files.length){
-        await replacePhotos(targetId,files);
+        await appendPhotos(targetId,files);
       }else if(pid&&window.removeExistingMainRequested){
         await BigPawBridge.updatePuppy(targetId,{imageUrl:''});
       }
@@ -96,7 +101,7 @@
       alert(pid?'変更を保存しました。':'子犬情報を掲載しました。');
       location.href='admin.html';
     }catch(x){
-      const msg=x?.message==='old_photo_cleanup_failed'?'新しい写真は保存されましたが、古い写真の整理に失敗しました。画面を再読み込みして写真を確認してください。':x?.message==='existing_photo_state_unavailable'?'現在の写真情報を確認できなかったため、写真は変更していません。画面を再読み込みしてからもう一度お試しください。':x?.message==='appeal_point_persistence_mismatch'||x?.message==='appeal_point_readback_missing'?'アピールポイントの保存確認ができませんでした。変更は完了扱いにしていません。もう一度お試しください。':(x?.status===401?'ブリーダーとしてログインしてください。':'保存できませんでした：'+(x?.message||''));
+      const msg=x?.message==='photo_limit_reached'?'写真は最大10枚まで登録できます。不要な写真を削除してから追加してください。':x?.message==='photo_limit_exceeded'?'追加すると写真が10枚を超えるため保存していません。登録済み写真を含めて最大10枚までです。':x?.message==='existing_photo_state_unavailable'?'現在の写真情報を確認できなかったため、写真は変更していません。画面を再読み込みしてからもう一度お試しください。':x?.message==='appeal_point_persistence_mismatch'||x?.message==='appeal_point_readback_missing'?'アピールポイントの保存確認ができませんでした。変更は完了扱いにしていません。もう一度お試しください。':(x?.status===401?'ブリーダーとしてログインしてください。':'保存できませんでした：'+(x?.message||''));
       alert(msg);
     }finally{
       if(btn){btn.disabled=false;btn.textContent=original||'保存する'}
