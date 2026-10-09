@@ -40,7 +40,7 @@ status,_=call('POST','/api/email-verification/confirm',{'token':ver['devToken']}
 ok(status==200,'email_verified')
 app={'kennelName':'通知検証犬舎','representative':'試験 太郎','prefecture':'埼玉県','primaryBreed':'スタンダードプードル','registrationNo':'TEST-001','expiresOn':'2027-10-10','registrationProofUrl':'/uploads/test-proof.jpg'}
 status,error=call('POST','/api/breeder-applications',app,token)
-ok(status==400 and error.get('error')=='commission_terms_consent_required','fee_terms_required')
+ok(status==400 and error.get('error')=='commission_terms_consent_required','fee_terms_required_'+str(status)+'_'+str(error.get('error')))
 app['agreeCommissionTerms']=True
 status,submitted=call('POST','/api/breeder-applications',app,token)
 ok(status==201 and submitted.get('status')=='pending','application_created')
