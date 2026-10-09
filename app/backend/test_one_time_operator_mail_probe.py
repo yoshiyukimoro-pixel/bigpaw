@@ -93,6 +93,32 @@ class OperatorMailProbeTests(unittest.TestCase):
         self.assertEqual((event, mail_id), ("delivered", "test1"))
         self.assertTrue(all(r.get_method() == "GET" for r in recorded))
 
+    def test_subject_only_isolation_keeps_exact_same_body(self):
+        sent = []
+        def sender(to, subject, body):
+            sent.append((to, subject, body))
+            return True
+        with tempfile.TemporaryDirectory() as directory:
+            first = probe.send_once("20261010-subject-A", directory, sender,
+                                    mode="breeder_application")
+            second = probe.send_once("20261010-subject-B", directory, sender,
+                                     mode="breeder_subject_isolation")
+            self.assertEqual(first, ("provider_accepted", True))
+            self.assertEqual(second, ("provider_accepted", True))
+            self.assertEqual(len(sent), 2)
+            self.assertEqual(sent[0][0], sent[1][0])
+            self.assertEqual(sent[0][0], "info@bigpaw.site")
+            self.assertEqual(sent[0][1], "【BIG PAW】新しいブリーダー掲載申請")
+            self.assertEqual(sent[1][1], "【BIG PAW】申請のお知らせ・件名変更テスト 20261010-subject-B")
+            self.assertIn("新しいブリーダー掲載申請が届きました。", sent[0][2])
+            # The body content is the same apart from the test ID footer.
+            body0 = sent[0][2].replace("20261010-subject-A", "{ID}")
+            body1 = sent[1][2].replace("20261010-subject-B", "{ID}")
+            self.assertEqual(body0, body1)
+            self.assertEqual(probe.send_once("20261010-subject-B", directory, sender,
+                                             mode="breeder_subject_isolation"),
+                             ("already_attempted", False))
+
     def test_reject_invalid_identifier_before_sending(self):
         sent = []
         with tempfile.TemporaryDirectory() as directory:
