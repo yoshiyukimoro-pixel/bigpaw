@@ -37,13 +37,15 @@ def live_send_mail():
 
 
 def subject_for(probe_id, mode="basic"):
+    if mode == "breeder_subject_isolation":
+        return "【BIG PAW】申請のお知らせ・件名変更テスト " + probe_id
     if mode == "breeder_application":
         return "【BIG PAW】新しいブリーダー掲載申請"
     return "【BIG PAW】ブリーダー申請通知メール配信テスト " + probe_id
 
 
 def test_message(probe_id, mode="basic"):
-    if mode == "breeder_application":
+    if mode in ("breeder_application", "breeder_subject_isolation"):
         return (
             "【テストメール：実際のブリーダー申請はありません】\n"
             "新しいブリーダー掲載申請が届きました。\n\n"
@@ -73,7 +75,7 @@ def send_once(probe_id, data_dir, sender, mode="basic"):
     """Return (result, mail_accepted) and never send twice per persistent marker."""
     if not isinstance(probe_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{8,64}", probe_id):
         return "invalid_probe_id", False
-    if mode not in ("basic", "breeder_application"):
+    if mode not in ("basic", "breeder_application", "breeder_subject_isolation"):
         return "invalid_mode", False
     folder = Path(data_dir)
     folder.mkdir(parents=True, exist_ok=True)
@@ -126,7 +128,7 @@ def check_resend_status(probe_id, key, opener=urlopen, sleeper=time.sleep, attem
                 continue
             # The genuine application subject is shared by other messages. Only
             # consider messages created after this test began; never inspect bodies.
-            if mode == "breeder_application":
+            if mode in ("breeder_application", "breeder_subject_isolation"):
                 try:
                     created = datetime.fromisoformat(str(item.get("created_at", "")).replace("Z", "+00:00"))
                     if created.tzinfo is None or created.timestamp() < float(since_timestamp or 0):
@@ -150,7 +152,7 @@ def main():
         print("BIGPAW_MAIL_TEST|result=unavailable|reason=no_resend_key", flush=True)
         return 0
     mode = os.environ.get(MODE_KEY, "basic").strip() or "basic"
-    if mode not in ("basic", "breeder_application"):
+    if mode not in ("basic", "breeder_application", "breeder_subject_isolation"):
         print("BIGPAW_MAIL_TEST|result=invalid_mode", flush=True)
         return 0
     data = os.environ.get("BIGPAW_DATA_DIR", "/tmp").strip() or "/tmp"
