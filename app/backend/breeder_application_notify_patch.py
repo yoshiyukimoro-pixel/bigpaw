@@ -9,7 +9,13 @@ old = """            con.commit(); r=con.execute('SELECT * FROM breeder_applicat
             return self.send_json(dict(r),201)
 """
 
-new = """            con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=?',(aid,)).fetchone()
+new = """            # Include operator in-app notifications in the same transaction.
+            operator_rows=con.execute("SELECT id FROM users WHERE role='operator'").fetchall()
+            for operator in operator_rows:
+                con.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',
+                            (make_id('n_'),operator['id'],'breeder_application',
+                             '新しいブリーダー掲載申請',str(body.get('kennelName','')).strip()+' / 審査待ち',0,now()))
+            con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=?',(aid,)).fetchone()
             applicant_email=u['email']
             operator_emails=[os.environ.get('BIGPAW_APPLICATION_NOTIFY_EMAIL','info@bigpaw.site').strip() or 'info@bigpaw.site']
             con.close()
@@ -44,7 +50,7 @@ BIG PAW
 運営管理画面から申請内容と登録証の写しを確認し、承認または差し戻しを行ってください。
 {PUBLIC_BASE_URL}/operator-breeders.html\"\"\"):
                     operator_sent+=1
-            print('BREEDER_APPLICATION_MAIL_RESULT|applicant='+str(bool(applicant_sent)).lower()+'|operators='+str(operator_sent)+'/'+str(len(set(operator_emails))),flush=True)
+            print('BREEDER_APPLICATION_MAIL_RESULT|applicant='+str(bool(applicant_sent)).lower()+'|operators='+str(operator_sent)+'/'+str(len(set(operator_emails)))+'|in_app='+str(len(operator_rows)),flush=True)
             return self.send_json(dict(r),201)
 """
 
