@@ -146,6 +146,17 @@ def delayed_verify() -> None:
     heal_search('post_server_start')
 
 
+def audit_operator_delivery_events() -> None:
+    """Read-only Resend audit: never blocks startup, never sends test mail."""
+    try:
+        subprocess.run(
+            [sys.executable, str(ROOT / 'backend' / 'resend_operator_delivery_audit.py')],
+            cwd=str(ROOT), timeout=35, check=False, env=os.environ.copy(),
+        )
+    except Exception as exc:
+        print('BREEDER_OPERATOR_MAIL_AUDIT|result=unavailable|reason=' + type(exc).__name__, flush=True)
+
+
 def main() -> int:
     heal_search('pre_server_start')
     child = subprocess.Popen([sys.executable, str(ROOT / 'backend' / 'server.py')], cwd=str(ROOT), env=os.environ.copy())
@@ -161,6 +172,9 @@ def main() -> int:
     signal.signal(signal.SIGINT, forward)
     verifier = threading.Thread(target=delayed_verify, daemon=True)
     verifier.start()
+    if os.environ.get('RESEND_API_KEY'):
+        delivery_audit = threading.Thread(target=audit_operator_delivery_events, daemon=True)
+        delivery_audit.start()
     return child.wait()
 
 

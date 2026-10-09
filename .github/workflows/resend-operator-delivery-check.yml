@@ -1,0 +1,58 @@
+name: Resend breeder operator delivery audit and regression
+on:
+  push:
+    branches:
+      - fix/resend-breeder-delivery-diagnostics-20261010
+  pull_request:
+    paths:
+      - app/backend/start_live.py
+      - app/backend/resend_operator_delivery_audit.py
+      - app/backend/test_resend_operator_delivery_audit.py
+      - .github/workflows/resend-operator-delivery-check.yml
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify source syntax and isolated delivery audit
+        run: |
+          set -euo pipefail
+          python3 -m py_compile app/backend/start_live.py app/backend/server.py app/backend/resend_operator_delivery_audit.py app/backend/test_resend_operator_delivery_audit.py
+          python3 app/backend/test_resend_operator_delivery_audit.py
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('app/backend/start_live.py').read_text()
+          p=Path('app/backend/resend_operator_delivery_audit.py').read_text()
+          assert "threading.Thread(target=audit_operator_delivery_events, daemon=True)" in s
+          assert "if os.environ.get('RESEND_API_KEY')" in s
+          assert 'https://api.resend.com/emails' in p
+          assert 'method="POST"' not in p
+          assert 'info@bigpaw.site' in p
+          print('READ_ONLY_MAIL_AUDIT_SOURCE_OK')
+          PY
+      - name: Run the full existing Docker build regression gates
+        run: |
+          set -euo pipefail
+          if docker build --no-cache -t bigpaw-delivery-audit-check .; then
+            echo 'DOCKER_HUB_BUILD_OK'
+          else
+            echo 'Docker Hub unavailable; use official python base from ECR Public.'
+            sed 's@^FROM python:3.13-slim$@FROM public.ecr.aws/docker/library/python:3.13-slim@' Dockerfile > Dockerfile.ci
+            docker build --no-cache -f Dockerfile.ci -t bigpaw-delivery-audit-check .
+            echo 'ECR_MIRROR_BUILD_OK'
+          fi
+      - name: Verify existing operator alert and backend health are untouched
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-delivery-audit-smoke -p 18080:8080 -e BIGPAW_DATA_DIR=/tmp/bigpaw-audit-data -e BIGPAW_ENV=development -e BIGPAW_DEV_LINKS=1 -e PORT=8080 bigpaw-delivery-audit-check python3 backend/server.py
+          trap 'docker rm -f bigpaw-delivery-audit-smoke >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:18080/api/health >/dev/null; then ready=1; break; fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-delivery-audit-smoke | grep -q true; then break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then docker logs bigpaw-delivery-audit-smoke; exit 1; fi
+          curl -fsS http://127.0.0.1:18080/operator-admin.html | grep -q 'breederApplicationAlert'
+          echo 'BIGPAW_EXISTING_OPERATOR_ALERT_AND_HEALTH_OK'
