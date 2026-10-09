@@ -8,6 +8,7 @@ application, user account, or production database row is created.
 from __future__ import annotations
 
 import ast
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,7 @@ from urllib.error import HTTPError, URLError
 
 TARGET = "info@bigpaw.site"
 ENV_KEY = "BIGPAW_ONE_TIME_MAIL_PROBE_ID"
+MODE_KEY = "BIGPAW_ONE_TIME_MAIL_PROBE_MODE"
 API_URL = "https://api.resend.com/emails?limit=100"
 FINAL_EVENTS = {"delivered", "bounced", "complained", "failed", "canceled"}
 
@@ -34,14 +36,45 @@ def live_send_mail():
     return scope["send_mail"]
 
 
-def subject_for(probe_id):
+def subject_for(probe_id, mode="basic"):
+    if mode == "breeder_application":
+        return "【BIG PAW】新しいブリーダー掲載申請"
     return "【BIG PAW】ブリーダー申請通知メール配信テスト " + probe_id
 
 
-def send_once(probe_id, data_dir, sender):
+def test_message(probe_id, mode="basic"):
+    if mode == "breeder_application":
+        return (
+            "【テストメール：実際のブリーダー申請はありません】\n"
+            "新しいブリーダー掲載申請が届きました。\n\n"
+            "犬舎名: 配信確認テスト犬舎（架空）\n"
+            "代表者: テスト 太郎（架空）\n"
+            "都道府県: 埼玉県（テスト）\n"
+            "主な取扱犬種: スタンダードプードル（テスト）\n"
+            "第一種動物取扱業 登録番号: TEST-ONLY\n"
+            "申請者メール: test-only@example.invalid\n\n"
+            "運営管理画面から申請内容と登録証の写しを確認し、承認または差し戻しを行ってください。\n"
+            "https://bigpaw.site/operator-breeders.html\n\n"
+            "【これは配信試験であり、実際の申請データは作成していません】\n"
+            "テスト識別番号: " + probe_id + "\n"
+        )
+    return (
+        "これはBIG PAW運営による自動通知メールの配信テストです。\n"
+        "実際のブリーダー申請があったわけではありません。\n\n"
+        "送信元: BIG PAW <noreply@bigpaw.site>\n"
+        "宛先: info@bigpaw.site\n"
+        "テスト識別番号: " + probe_id + "\n\n"
+        "このメールが表示されれば、BIG PAWからの自動メールを受信できています。\n"
+        "BIG PAW https://bigpaw.site/\n"
+    )
+
+
+def send_once(probe_id, data_dir, sender, mode="basic"):
     """Return (result, mail_accepted) and never send twice per persistent marker."""
     if not isinstance(probe_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{8,64}", probe_id):
         return "invalid_probe_id", False
+    if mode not in ("basic", "breeder_application"):
+        return "invalid_mode", False
     folder = Path(data_dir)
     folder.mkdir(parents=True, exist_ok=True)
     marker = folder / (".bigpaw-mail-test-" + probe_id + ".once")
@@ -51,26 +84,18 @@ def send_once(probe_id, data_dir, sender):
         return "already_attempted", False
     with os.fdopen(fd, "w", encoding="utf-8") as out:
         out.write("attempt_reserved\n")
-    message = (
-        "これはBIG PAW運営による自動通知メールの配信テストです。\n"
-        "実際のブリーダー申請があったわけではありません。\n\n"
-        "送信元: BIG PAW <noreply@bigpaw.site>\n"
-        "宛先: info@bigpaw.site\n"
-        "テスト識別番号: " + probe_id + "\n\n"
-        "このメールが表示されれば、BIG PAWからの自動メールを受信できています。\n"
-        "BIG PAW https://bigpaw.site/\n"
-    )
+    message = test_message(probe_id, mode)
     try:
-        accepted = bool(sender(TARGET, subject_for(probe_id), message))
+        accepted = bool(sender(TARGET, subject_for(probe_id, mode), message))
     except Exception as exc:
         print("BIGPAW_MAIL_TEST|result=mailer_exception|kind=" + type(exc).__name__, flush=True)
         return "mailer_exception", False
     return ("provider_accepted" if accepted else "provider_rejected"), accepted
 
 
-def check_resend_status(probe_id, key, opener=urlopen, sleeper=time.sleep, attempts=7):
+def check_resend_status(probe_id, key, opener=urlopen, sleeper=time.sleep, attempts=7, mode="basic", since_timestamp=None):
     """Inspect the provider event without reading inbox messages or personal mail."""
-    wanted_subject = subject_for(probe_id)
+    wanted_subject = subject_for(probe_id, mode)
     last_event = "not_found"
     last_id = ""
     for n in range(attempts):
@@ -99,6 +124,15 @@ def check_resend_status(probe_id, key, opener=urlopen, sleeper=time.sleep, attem
                 recipients = [recipients]
             if TARGET not in {str(a).strip().lower() for a in recipients}:
                 continue
+            # The genuine application subject is shared by other messages. Only
+            # consider messages created after this test began; never inspect bodies.
+            if mode == "breeder_application":
+                try:
+                    created = datetime.fromisoformat(str(item.get("created_at", "")).replace("Z", "+00:00"))
+                    if created.tzinfo is None or created.timestamp() < float(since_timestamp or 0):
+                        continue
+                except (ValueError, OverflowError, TypeError):
+                    continue
             last_event = str(item.get("last_event") or "unknown")[:60].lower()
             last_id = str(item.get("id") or "")[:100]
             if last_event in FINAL_EVENTS:
@@ -115,11 +149,16 @@ def main():
     if not key:
         print("BIGPAW_MAIL_TEST|result=unavailable|reason=no_resend_key", flush=True)
         return 0
+    mode = os.environ.get(MODE_KEY, "basic").strip() or "basic"
+    if mode not in ("basic", "breeder_application"):
+        print("BIGPAW_MAIL_TEST|result=invalid_mode", flush=True)
+        return 0
     data = os.environ.get("BIGPAW_DATA_DIR", "/tmp").strip() or "/tmp"
-    result, accepted = send_once(probe_id, data, live_send_mail())
-    print("BIGPAW_MAIL_TEST|result=" + result + "|target=info@bigpaw.site", flush=True)
+    test_started = time.time() - 2
+    result, accepted = send_once(probe_id, data, live_send_mail(), mode=mode)
+    print("BIGPAW_MAIL_TEST|result=" + result + "|target=info@bigpaw.site|mode=" + mode, flush=True)
     if accepted:
-        event, provider_id = check_resend_status(probe_id, key)
+        event, provider_id = check_resend_status(probe_id, key, mode=mode, since_timestamp=test_started)
         print("BIGPAW_MAIL_TEST_DELIVERY|event=" + event + "|provider_id=" + provider_id, flush=True)
     return 0
 
