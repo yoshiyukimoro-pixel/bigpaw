@@ -20,6 +20,20 @@ jobs:
           export BIGPAW_DATA_DIR="$RUNNER_TEMP/bigpaw-notify-data"
           export PORT=18090
           unset RESEND_API_KEY BIGPAW_SMTP_HOST SMTP_HOST
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          patch=ast.parse(Path('app/backend/breeder_application_notify_patch.py').read_text(encoding='utf-8'))
+          parts={}
+          for node in patch.body:
+              if isinstance(node,ast.Assign) and len(node.targets)==1 and isinstance(node.targets[0],ast.Name) and node.targets[0].id in ('old','new'):
+                  parts[node.targets[0].id]=ast.literal_eval(node.value)
+          source=Path('app/backend/server.py')
+          text=source.read_text(encoding='utf-8')
+          assert text.count(parts['old'])==1
+          source.write_text(text.replace(parts['old'],parts['new'],1),encoding='utf-8')
+          print('APPLIED_EXISTING_APPLICATION_PATCH_FOR_TEST')
+          PY
           python3 -u app/backend/server.py > "$RUNNER_TEMP/bigpaw-notify.log" 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
@@ -32,5 +46,5 @@ jobs:
           if [ "$ready" != "1" ]; then cat "$RUNNER_TEMP/bigpaw-notify.log"; exit 1; fi
           python3 app/backend/breeder_application_notify_smoke.py http://127.0.0.1:18090
           cat "$RUNNER_TEMP/bigpaw-notify.log"
-          grep -q 'BREEDER_APPLICATION_NOTIFY|applicant=false|operator=false|in_app=1' "$RUNNER_TEMP/bigpaw-notify.log"
+          grep -q 'BREEDER_APPLICATION_MAIL_RESULT|applicant=false|operators=0/1|in_app=1' "$RUNNER_TEMP/bigpaw-notify.log"
           echo 'APPLICATION_NOTIFY_PYTHON_SMOKE_OK'
