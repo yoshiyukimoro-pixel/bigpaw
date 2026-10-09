@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - fix/one-time-bigpaw-mail-probe-20261010
+      - fix/breeder-application-exact-mail-test-20261010
   pull_request:
     paths:
       - app/backend/one_time_operator_mail_probe.py
@@ -31,6 +32,9 @@ jobs:
           assert 'os.O_EXCL' in p
           assert 'RESEND_API_KEY' in p
           assert 'if not probe_id:' in p
+          assert '【BIG PAW】新しいブリーダー掲載申請' in p
+          assert 'test-only@example.invalid' in p
+          assert 'mode == "breeder_application"' in p
           print('ONE_SHOT_PROBE_SAFETY_OK')
           PY
       - name: Full existing production Docker build and all release gates
