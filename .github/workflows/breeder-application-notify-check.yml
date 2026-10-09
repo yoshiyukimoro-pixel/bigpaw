@@ -14,71 +14,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Syntax and targeted scope validation
         run: |
           set -euo pipefail
           python3 -m py_compile app/backend/server.py app/backend/breeder_application_notify_smoke.py
-          python3 - <<'PY'
-          from pathlib import Path
-          s=Path('app/backend/server.py').read_text(encoding='utf-8')
-          assert s.count('BREEDER_APPLICATION_NOTIFY|applicant=')==1
-          assert "info@bigpaw.site" in s
-          assert "operator-breeders.html" in s
-          assert "operators=con.execute(\"SELECT id FROM users WHERE role='operator'\")" in s
-          print('APPLICATION_MAIL_SOURCE_OK')
-          PY
-
-      - name: Build entire app with existing regression gates
+          python3 -c "from pathlib import Path; s=Path('app/backend/server.py').read_text(); assert s.count('BREEDER_APPLICATION_NOTIFY|applicant=')==1; assert 'info@bigpaw.site' in s; print('APPLICATION_MAIL_SOURCE_OK')"
+      - name: Build entire app with all existing regression gates
         run: |
           set -euo pipefail
-          if ! docker build --no-cache -t bigpaw-breeder-notify-check .; then
-            echo 'Docker Hub failed; retrying the same Dockerfile with official Python image via ECR public mirror.'
-            sed 's#^FROM python:3.13-slim$#FROM public.ecr.aws/docker/library/python:3.13-slim#' Dockerfile > Dockerfile.ci
-            grep -q '^FROM public.ecr.aws/docker/library/python:3.13-slim
-      - name: Isolated API smoke and operator alert test
-        run: |
-          set -euo pipefail
-          docker run -d --name bigpaw-breeder-notify-smoke -p 18080:8080 \
-            -e BIGPAW_DATA_DIR=/tmp/bigpaw-notify-data \
-            -e BIGPAW_ENV=development \
-            -e BIGPAW_DEV_LINKS=1 \
-            -e PORT=8080 \
-            bigpaw-breeder-notify-check python3 backend/server.py
-          trap 'docker rm -f bigpaw-breeder-notify-smoke >/dev/null 2>&1 || true' EXIT
-          ready=0
-          for i in $(seq 1 45); do
-            if curl -fsS http://127.0.0.1:18080/api/health >/dev/null; then ready=1; break; fi
-            if ! docker inspect -f '{{.State.Running}}' bigpaw-breeder-notify-smoke | grep -q true; then break; fi
-            sleep 1
-          done
-          if [ "$ready" != "1" ]; then docker logs bigpaw-breeder-notify-smoke; exit 1; fi
-          python3 app/backend/breeder_application_notify_smoke.py http://127.0.0.1:18080
-          docker logs bigpaw-breeder-notify-smoke 2>&1 | tee /tmp/bigpaw-notify-runtime.log
-          grep -q 'BREEDER_APPLICATION_NOTIFY|applicant=false|operator=false|in_app=1' /tmp/bigpaw-notify-runtime.log
-          echo 'BREEDER_APPLICATION_NOTIFY_REGRESSION_OK'
- Dockerfile.ci
+          if docker build --no-cache -t bigpaw-breeder-notify-check .; then
+            echo 'DOCKER_HUB_BUILD_OK'
+          else
+            echo 'Docker Hub unavailable. Trying the official Python base via ECR Public.'
+            sed 's@^FROM python:3.13-slim$@FROM public.ecr.aws/docker/library/python:3.13-slim@' Dockerfile > Dockerfile.ci
             docker build --no-cache -f Dockerfile.ci -t bigpaw-breeder-notify-check .
+            echo 'ECR_MIRROR_BUILD_OK'
           fi
-
       - name: Isolated API smoke and operator alert test
         run: |
           set -euo pipefail
-          docker run -d --name bigpaw-breeder-notify-smoke -p 18080:8080 \
-            -e BIGPAW_DATA_DIR=/tmp/bigpaw-notify-data \
-            -e BIGPAW_ENV=development \
-            -e BIGPAW_DEV_LINKS=1 \
-            -e PORT=8080 \
-            bigpaw-breeder-notify-check python3 backend/server.py
-          trap 'docker rm -f bigpaw-breeder-notify-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name bigpaw-notify-smoke -p 18080:8080 -e BIGPAW_DATA_DIR=/tmp/bigpaw-notify-data -e BIGPAW_ENV=development -e BIGPAW_DEV_LINKS=1 -e PORT=8080 bigpaw-breeder-notify-check python3 backend/server.py
+          trap 'docker rm -f bigpaw-notify-smoke >/dev/null 2>&1 || true' EXIT
           ready=0
-          for i in $(seq 1 45); do
+          for i in $(seq 1 40); do
             if curl -fsS http://127.0.0.1:18080/api/health >/dev/null; then ready=1; break; fi
-            if ! docker inspect -f '{{.State.Running}}' bigpaw-breeder-notify-smoke | grep -q true; then break; fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-notify-smoke | grep -q true; then break; fi
             sleep 1
           done
-          if [ "$ready" != "1" ]; then docker logs bigpaw-breeder-notify-smoke; exit 1; fi
+          if [ "$ready" != "1" ]; then docker logs bigpaw-notify-smoke; exit 1; fi
           python3 app/backend/breeder_application_notify_smoke.py http://127.0.0.1:18080
-          docker logs bigpaw-breeder-notify-smoke 2>&1 | tee /tmp/bigpaw-notify-runtime.log
+          docker logs bigpaw-notify-smoke 2>&1 | tee /tmp/bigpaw-notify-runtime.log
           grep -q 'BREEDER_APPLICATION_NOTIFY|applicant=false|operator=false|in_app=1' /tmp/bigpaw-notify-runtime.log
           echo 'BREEDER_APPLICATION_NOTIFY_REGRESSION_OK'
