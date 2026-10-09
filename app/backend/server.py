@@ -1272,9 +1272,27 @@ https://www.bigpaw.site/'''
             if not con.execute('SELECT 1 FROM breeder_fee_acceptances WHERE user_id=? AND version=?',(u['id'],COMMISSION_TERMS_VERSION)).fetchone():
                 con.execute('INSERT INTO breeder_fee_acceptances VALUES(?,?,?,?,?,?)',(make_id('bfa_'),u['id'],COMMISSION_TERMS_VERSION,COMMISSION_RATE_BPS,COMMISSION_DUE_DAYS,now()))
                 audit(con,u['id'],'commission_terms_accepted','user',u['id'],f'{COMMISSION_TERMS_VERSION}:{COMMISSION_RATE_BPS}:{COMMISSION_DUE_DAYS}')
+            # Keep the in-app operator alert in the same transaction as the application.
+            operators=con.execute("SELECT id FROM users WHERE role='operator'").fetchall()
+            for operator in operators:
+                con.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',
+                            (make_id('n_'),operator['id'],'breeder_application',
+                             '新しいブリーダー掲載申請',str(body['kennelName']).strip()+' / 審査待ち',0,now()))
             con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=?',(aid,)).fetchone()
             applicant_email=u['email']
             con.close()
+            receipt_sent=send_mail(
+                applicant_email,
+                '【BIG PAW】ブリーダー掲載申請を受け付けました',
+                f"BIG PAWへのブリーダー掲載申請を受け付けました。\\n\\n犬舎名: {str(body['kennelName']).strip()}\\n\\n申請内容を確認後、審査結果をお知らせします。\\n{PUBLIC_BASE_URL}/"
+            )
+            operator_email=(os.environ.get('BIGPAW_APPLICATION_NOTIFY_EMAIL') or 'info@bigpaw.site').strip()
+            notify_sent=send_mail(
+                operator_email,
+                '【BIG PAW】新しいブリーダー掲載申請が届きました',
+                f"新しいブリーダー掲載申請が届きました。\\n\\n犬舎名: {str(body['kennelName']).strip()}\\n代表者: {str(body['representative']).strip()}\\n都道府県: {str(body['prefecture']).strip()}\\n申請者メール: {applicant_email}\\n\\n運営管理画面から申請内容と登録証を確認してください。\\n{PUBLIC_BASE_URL}/operator-breeders.html"
+            )
+            print('BREEDER_APPLICATION_NOTIFY|applicant='+str(bool(receipt_sent)).lower()+'|operator='+str(bool(notify_sent)).lower()+'|in_app='+str(len(operators)),flush=True)
             return self.send_json(dict(r),201)
         m=re.fullmatch(r'/api/deals/([^/]+)/completion-report',path)
         if m:
