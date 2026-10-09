@@ -1,0 +1,36 @@
+name: Breeder application isolated Python smoke
+on:
+  push:
+    branches:
+      - fix/breeder-application-admin-email-20261010
+
+jobs:
+  notification-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax
+        run: |
+          python3 -m py_compile app/backend/server.py app/backend/breeder_application_notify_smoke.py
+      - name: Run isolated app and test new application notification
+        run: |
+          set -euo pipefail
+          export BIGPAW_ENV=development
+          export BIGPAW_DEV_LINKS=1
+          export BIGPAW_DATA_DIR="$RUNNER_TEMP/bigpaw-notify-data"
+          export PORT=18090
+          unset RESEND_API_KEY BIGPAW_SMTP_HOST SMTP_HOST
+          python3 -u app/backend/server.py > "$RUNNER_TEMP/bigpaw-notify.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:18090/api/health >/dev/null; then ready=1; break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then cat "$RUNNER_TEMP/bigpaw-notify.log"; exit 1; fi
+          python3 app/backend/breeder_application_notify_smoke.py http://127.0.0.1:18090
+          cat "$RUNNER_TEMP/bigpaw-notify.log"
+          grep -q 'BREEDER_APPLICATION_NOTIFY|applicant=false|operator=false|in_app=1' "$RUNNER_TEMP/bigpaw-notify.log"
+          echo 'APPLICATION_NOTIFY_PYTHON_SMOKE_OK'
