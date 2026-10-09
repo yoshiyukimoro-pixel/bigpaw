@@ -157,6 +157,17 @@ def audit_operator_delivery_events() -> None:
         print('BREEDER_OPERATOR_MAIL_AUDIT|result=unavailable|reason=' + type(exc).__name__, flush=True)
 
 
+def run_one_time_operator_mail_probe() -> None:
+    """Opt-in test via the real mailer; isolated from the production HTTP server."""
+    try:
+        subprocess.run(
+            [sys.executable, str(ROOT / 'backend' / 'one_time_operator_mail_probe.py')],
+            cwd=str(ROOT), timeout=60, check=False, env=os.environ.copy(),
+        )
+    except Exception as exc:
+        print('BIGPAW_MAIL_TEST|result=probe_exception|kind=' + type(exc).__name__, flush=True)
+
+
 def main() -> int:
     heal_search('pre_server_start')
     child = subprocess.Popen([sys.executable, str(ROOT / 'backend' / 'server.py')], cwd=str(ROOT), env=os.environ.copy())
@@ -175,6 +186,9 @@ def main() -> int:
     if os.environ.get('RESEND_API_KEY'):
         delivery_audit = threading.Thread(target=audit_operator_delivery_events, daemon=True)
         delivery_audit.start()
+    if os.environ.get('BIGPAW_ONE_TIME_MAIL_PROBE_ID'):
+        mail_probe = threading.Thread(target=run_one_time_operator_mail_probe, daemon=True)
+        mail_probe.start()
     return child.wait()
 
 
