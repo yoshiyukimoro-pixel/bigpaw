@@ -17,8 +17,8 @@ jobs:
       - name: Syntax and targeted scope validation
         run: |
           set -euo pipefail
-          python3 -m py_compile app/backend/server.py app/backend/breeder_application_notify_smoke.py
-          python3 -c "from pathlib import Path; s=Path('app/backend/server.py').read_text(); assert s.count('BREEDER_APPLICATION_NOTIFY|applicant=')==1; assert 'info@bigpaw.site' in s; print('APPLICATION_MAIL_SOURCE_OK')"
+          python3 -m py_compile app/backend/server.py app/backend/breeder_application_notify_patch.py app/backend/breeder_application_notify_smoke.py
+          python3 -c "from pathlib import Path; s=Path('app/backend/breeder_application_notify_patch.py').read_text(); assert s.count('BREEDER_APPLICATION_MAIL_RESULT|applicant=')==1; assert 'info@bigpaw.site' in s; assert 'in_app=' in s; print('APPLICATION_MAIL_PATCH_SOURCE_OK')"
       - name: Build entire app with all existing regression gates
         run: |
           set -euo pipefail
@@ -44,5 +44,5 @@ jobs:
           if [ "$ready" != "1" ]; then docker logs bigpaw-notify-smoke; exit 1; fi
           python3 app/backend/breeder_application_notify_smoke.py http://127.0.0.1:18080
           docker logs bigpaw-notify-smoke 2>&1 | tee /tmp/bigpaw-notify-runtime.log
-          grep -q 'BREEDER_APPLICATION_NOTIFY|applicant=false|operator=false|in_app=1' /tmp/bigpaw-notify-runtime.log
+          grep -q 'BREEDER_APPLICATION_MAIL_RESULT|applicant=false|operators=0/1|in_app=1' /tmp/bigpaw-notify-runtime.log
           echo 'BREEDER_APPLICATION_NOTIFY_REGRESSION_OK'
