@@ -1284,13 +1284,13 @@ https://www.bigpaw.site/'''
             receipt_sent=send_mail(
                 applicant_email,
                 '【BIG PAW】ブリーダー掲載申請を受け付けました',
-                f"BIG PAWへのブリーダー掲載申請を受け付けました。\\n\\n犬舎名: {str(body['kennelName']).strip()}\\n\\n申請内容を確認後、審査結果をお知らせします。\\n{PUBLIC_BASE_URL}/"
+                f"BIG PAWへのブリーダー掲載申請を受け付けました。\n\n犬舎名: {str(body['kennelName']).strip()}\n\n申請内容を確認後、審査結果をお知らせします。\n{PUBLIC_BASE_URL}/"
             )
             operator_email=(os.environ.get('BIGPAW_APPLICATION_NOTIFY_EMAIL') or 'info@bigpaw.site').strip()
             notify_sent=send_mail(
                 operator_email,
                 '【BIG PAW】新しいブリーダー掲載申請が届きました',
-                f"新しいブリーダー掲載申請が届きました。\\n\\n犬舎名: {str(body['kennelName']).strip()}\\n代表者: {str(body['representative']).strip()}\\n都道府県: {str(body['prefecture']).strip()}\\n申請者メール: {applicant_email}\\n\\n運営管理画面から申請内容と登録証を確認してください。\\n{PUBLIC_BASE_URL}/operator-breeders.html"
+                f"新しいブリーダー掲載申請が届きました。\n\n犬舎名: {str(body['kennelName']).strip()}\n代表者: {str(body['representative']).strip()}\n都道府県: {str(body['prefecture']).strip()}\n申請者メール: {applicant_email}\n\n運営管理画面から申請内容と登録証を確認してください。\n{PUBLIC_BASE_URL}/operator-breeders.html"
             )
             print('BREEDER_APPLICATION_NOTIFY|applicant='+str(bool(receipt_sent)).lower()+'|operator='+str(bool(notify_sent)).lower()+'|in_app='+str(len(operators)),flush=True)
             return self.send_json(dict(r),201)
