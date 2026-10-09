@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - fix/resend-breeder-delivery-diagnostics-20261010
+      - fix/resend-sending-domain-audit-20261010
   pull_request:
     paths:
       - app/backend/start_live.py
