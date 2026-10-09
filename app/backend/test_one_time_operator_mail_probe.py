@@ -39,6 +39,60 @@ class OperatorMailProbeTests(unittest.TestCase):
             markers = list(Path(directory).glob(".bigpaw-mail-test-*.once"))
             self.assertEqual(len(markers), 1)
 
+    def test_real_application_subject_and_body_are_safe(self):
+        sent = []
+        def sender(to, subject, body):
+            sent.append((to, subject, body))
+            return True
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(
+                probe.send_once("20261010-realistic-1", directory, sender,
+                                mode="breeder_application"),
+                ("provider_accepted", True),
+            )
+            self.assertEqual(len(sent), 1)
+            self.assertEqual(sent[0][0], "info@bigpaw.site")
+            self.assertEqual(sent[0][1], "【BIG PAW】新しいブリーダー掲載申請")
+            self.assertIn("新しいブリーダー掲載申請が届きました。", sent[0][2])
+            self.assertIn("実際のブリーダー申請はありません", sent[0][2])
+            self.assertIn("test-only@example.invalid", sent[0][2])
+            self.assertIn("operator-breeders.html", sent[0][2])
+            self.assertEqual(
+                probe.send_once("20261010-realistic-1", directory, sender,
+                                mode="breeder_application"),
+                ("already_attempted", False),
+            )
+
+    def test_real_subject_delivery_audit_skips_older_notifications(self):
+        recorded = []
+        pages = [
+            {"data": [
+                {"id": "old", "to": ["info@bigpaw.site"],
+                 "subject": "【BIG PAW】新しいブリーダー掲載申請",
+                 "created_at": "2026-10-09T13:07:07+00:00", "last_event": "delivered"},
+                {"id": "test1", "to": ["info@bigpaw.site"],
+                 "subject": "【BIG PAW】新しいブリーダー掲載申請",
+                 "created_at": "2026-10-10T00:00:02+00:00", "last_event": "sent"},
+            ]},
+            {"data": [
+                {"id": "test1", "to": ["info@bigpaw.site"],
+                 "subject": "【BIG PAW】新しいブリーダー掲載申請",
+                 "created_at": "2026-10-10T00:00:02+00:00", "last_event": "delivered"},
+            ]},
+        ]
+        def opener(req, timeout):
+            recorded.append(req)
+            return FakeResponse(json.dumps(pages[len(recorded) - 1]).encode("utf-8"))
+        from datetime import datetime
+        lower_bound = datetime.fromisoformat("2026-10-10T00:00:00+00:00").timestamp()
+        event, mail_id = probe.check_resend_status(
+            "20261010-realistic-1", "fake-key", opener=opener,
+            sleeper=lambda _: None, mode="breeder_application",
+            since_timestamp=lower_bound,
+        )
+        self.assertEqual((event, mail_id), ("delivered", "test1"))
+        self.assertTrue(all(r.get_method() == "GET" for r in recorded))
+
     def test_reject_invalid_identifier_before_sending(self):
         sent = []
         with tempfile.TemporaryDirectory() as directory:
