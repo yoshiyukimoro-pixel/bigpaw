@@ -64,6 +64,70 @@ def fetch_recent(key, opener=urlopen, limit_pages=3):
     return found
 
 
+def fetch_sender_domain_status(key, opener=urlopen):
+    """Read sending-domain SPF/DKIM verification, never its DNS values."""
+    headers = {
+        "Authorization": "Bearer " + key,
+        "Accept": "application/json",
+        "User-Agent": "BIGPAW-Operator-Mail-Diagnostics/1.0",
+    }
+    with opener(Request("https://api.resend.com/domains", headers=headers), timeout=8) as response:
+        domain_list = json.load(response)
+    rows = domain_list.get("data") or []
+    if not isinstance(rows, list):
+        raise ValueError("unexpected domain list")
+    domain = next((d for d in rows if isinstance(d, dict)
+                   and str(d.get("name", "")).strip().lower() == "bigpaw.site"), None)
+    if not domain:
+        return {"status": "missing", "sending": "unknown", "records": {}}
+    identifier = str(domain.get("id") or "")
+    if not identifier or not all(c.isalnum() or c == "-" for c in identifier):
+        raise ValueError("invalid domain identifier")
+    with opener(Request("https://api.resend.com/domains/" + identifier,
+                        headers=headers), timeout=8) as response:
+        details = json.load(response)
+    records = {}
+    for item in details.get("records") or []:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("record") or "").upper()
+        if kind not in {"SPF", "DKIM", "DMARC"}:
+            continue
+        status = str(item.get("status") or "unknown").lower()
+        if status not in {"verified", "pending", "not_started", "failed", "temporarily_failed"}:
+            status = "unknown"
+        if kind not in records:
+            records[kind] = []
+        records[kind].append(status)
+    capabilities = details.get("capabilities") or domain.get("capabilities") or {}
+    raw_domain_status = str(details.get("status") or domain.get("status") or "unknown").lower()
+    raw_sending_status = str(capabilities.get("sending") or "unknown").lower()
+    return {
+        "status": raw_domain_status if raw_domain_status in
+        {"verified", "partially_verified", "pending", "not_started", "failed", "temporarily_failed"}
+        else "unknown",
+        "sending": raw_sending_status if raw_sending_status in {"enabled", "disabled"} else "unknown",
+        "records": records,
+    }
+
+
+def audit_sender_domain(key):
+    try:
+        domain = fetch_sender_domain_status(key)
+    except HTTPError as exc:
+        print("BIGPAW_RESEND_DOMAIN_AUDIT|result=unavailable|reason=http_" + str(exc.code), flush=True)
+        return
+    except (URLError, TimeoutError, ValueError, OSError) as exc:
+        print("BIGPAW_RESEND_DOMAIN_AUDIT|result=unavailable|reason=" + type(exc).__name__, flush=True)
+        return
+    print("BIGPAW_RESEND_DOMAIN_AUDIT|result=ok|status=" + domain["status"] +
+          "|sending=" + domain["sending"], flush=True)
+    for kind in ("SPF", "DKIM", "DMARC"):
+        statuses = domain["records"].get(kind) or []
+        print("BIGPAW_RESEND_DOMAIN_RECORD|type=" + kind +
+              "|status=" + (",".join(statuses) if statuses else "unreported"), flush=True)
+
+
 def main() -> int:
     key = (os.environ.get("RESEND_API_KEY") or "").strip()
     if not key:
@@ -81,6 +145,7 @@ def main() -> int:
     for item in entries[:15]:
         print("BREEDER_OPERATOR_MAIL_STATUS|event=" + item["event"] +
               "|sent_at=" + item["sent_at"] + "|provider_id=" + item["id"], flush=True)
+    audit_sender_domain(key)
     return 0
 
 

@@ -57,6 +57,48 @@ class DeliveryAuditTest(unittest.TestCase):
         self.assertIn("after=x1", requests[1].full_url)
         self.assertEqual([r.get_method() for r in requests], ["GET", "GET"])
 
+    def test_domain_verification_is_read_only_and_omits_dns_secrets(self):
+        requests = []
+        pages = [
+            {"data": [
+                {"id": "ignored-id", "name": "other.example", "status": "verified"},
+                {"id": "bigpaw-domain-id", "name": "bigpaw.site",
+                 "status": "verified", "capabilities": {"sending": "enabled"}},
+            ]},
+            {"id": "bigpaw-domain-id", "name": "bigpaw.site", "status": "verified",
+             "capabilities": {"sending": "enabled"},
+             "records": [
+                {"record": "DKIM", "status": "verified", "value": "secret-public-key"},
+                {"record": "SPF", "status": "failed", "value": "unwanted-record-value"},
+                {"record": "SPF", "status": "verified", "value": "unwanted-record-value2"},
+                {"record": "Tracking", "status": "verified", "value": "tracking.example"},
+             ]},
+        ]
+        def opener(req, timeout):
+            requests.append(req)
+            return FakeResponse(json.dumps(pages[len(requests) - 1]).encode("utf-8"))
+        result = audit.fetch_sender_domain_status("fake-key", opener=opener)
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["sending"], "enabled")
+        self.assertEqual(result["records"]["SPF"], ["failed", "verified"])
+        self.assertEqual(result["records"]["DKIM"], ["verified"])
+        self.assertNotIn("secret-public-key", json.dumps(result))
+        self.assertNotIn("unwanted-record-value", json.dumps(result))
+        self.assertEqual([x.get_method() for x in requests], ["GET", "GET"])
+        self.assertEqual(requests[1].full_url, "https://api.resend.com/domains/bigpaw-domain-id")
+
+    def test_missing_domain_is_reported_without_leak(self):
+        def opener(_req, timeout):
+            return FakeResponse(b'{"data": []}')
+        result = audit.fetch_sender_domain_status("fake-key", opener=opener)
+        self.assertEqual(result["status"], "missing")
+        self.assertEqual(result["records"], {})
+
+    def test_domain_permission_denied_does_not_crash(self):
+        with patch.object(audit, "fetch_sender_domain_status", side_effect=HTTPError(
+                "https://api.resend.com/domains", 403, "Forbidden", {}, None)):
+            audit.audit_sender_domain("fake-token")
+
     def test_missing_key_requires_no_remote_call(self):
         with patch.dict(audit.os.environ, {"RESEND_API_KEY": ""}):
             self.assertEqual(audit.main(), 0)
