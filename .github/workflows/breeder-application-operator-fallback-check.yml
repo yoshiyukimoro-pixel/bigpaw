@@ -1,0 +1,59 @@
+name: Breeder application operator email backup regression
+on:
+  push:
+    branches:
+      - fix/breeder-application-operator-email-fallback-20261010
+  pull_request:
+    paths:
+      - app/backend/breeder_application_notify_patch.py
+      - app/backend/breeder_application_notify_smoke.py
+      - .github/workflows/breeder-application-operator-fallback-check.yml
+jobs:
+  all-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python syntax, primary address and role scoping
+        run: |
+          set -euo pipefail
+          python3 -m py_compile app/backend/breeder_application_notify_patch.py app/backend/breeder_application_notify_smoke.py app/backend/server.py
+          python3 - <<'PY'
+          from pathlib import Path
+          patch=Path('app/backend/breeder_application_notify_patch.py').read_text()
+          assert "BIGPAW_APPLICATION_NOTIFY_EMAIL','info@bigpaw.site" in patch
+          assert 'operator_emails={primary_email}' in patch
+          assert "SELECT email FROM users WHERE role='operator'" in patch
+          assert 'operator_emails.add(alternate)' in patch
+          assert 'operator_emails=sorted(operator_emails)' in patch
+          assert 'for operator_email in operator_emails:' in patch
+          assert 'BREEDER_APPLICATION_MAIL_RESULT|applicant=' in patch
+          print('BREEDER_APPLICATION_BACKUP_ROLE_SCOPE_OK')
+          PY
+      - name: Full Docker build and existing release gates
+        run: |
+          set -euo pipefail
+          if docker build --no-cache -t bigpaw-operator-mail-backup .; then
+            echo 'DOCKER_HUB_BUILD_OK'
+          else
+            echo 'Docker Hub unavailable, retry official base via ECR Public'
+            sed 's@^FROM python:3.13-slim$@FROM public.ecr.aws/docker/library/python:3.13-slim@' Dockerfile > Dockerfile.ci
+            docker build --no-cache -f Dockerfile.ci -t bigpaw-operator-mail-backup .
+            echo 'ECR_MIRROR_BUILD_OK'
+          fi
+      - name: End-to-end application request and operator alert
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-notify-regression -p 18080:8080 -e BIGPAW_DATA_DIR=/tmp/bigpaw-notify-test -e BIGPAW_ENV=development -e BIGPAW_DEV_LINKS=1 -e PORT=8080 bigpaw-operator-mail-backup python3 backend/server.py
+          trap 'docker rm -f bigpaw-notify-regression >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for i in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:18080/api/health >/dev/null; then ready=1; break; fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-notify-regression | grep -q true; then break; fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then docker logs bigpaw-notify-regression; exit 1; fi
+          python3 app/backend/breeder_application_notify_smoke.py http://127.0.0.1:18080
+          docker logs bigpaw-notify-regression 2>&1 | tee /tmp/mail-notification-test.log
+          grep -q 'BREEDER_APPLICATION_MAIL_RESULT|applicant=false|operators=0/2' /tmp/mail-notification-test.log
+          curl -fsS http://127.0.0.1:18080/operator-admin.html | grep -q 'breederApplicationAlert'
+          echo 'BREEDER_APPLICATION_OPERATOR_BACKUP_E2E_OK'

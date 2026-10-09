@@ -11,7 +11,17 @@ old = """            con.commit(); r=con.execute('SELECT * FROM breeder_applicat
 
 new = """            con.commit(); r=con.execute('SELECT * FROM breeder_applications WHERE id=?',(aid,)).fetchone()
             applicant_email=u['email']
-            operator_emails=[os.environ.get('BIGPAW_APPLICATION_NOTIFY_EMAIL','info@bigpaw.site').strip() or 'info@bigpaw.site']
+            # Keep info@bigpaw.site as the primary destination. Also notify
+            # registered operators through their own account email as a separate
+            # delivery route when an iCloud inbox silently hides Resend mail.
+            # Only operator-role accounts receive breeder application details.
+            primary_email=os.environ.get('BIGPAW_APPLICATION_NOTIFY_EMAIL','info@bigpaw.site').strip().lower() or 'info@bigpaw.site'
+            operator_emails={primary_email}
+            for op in con.execute("SELECT email FROM users WHERE role='operator'").fetchall():
+                alternate=str(op['email'] or '').strip().lower()
+                if alternate and '@' in alternate:
+                    operator_emails.add(alternate)
+            operator_emails=sorted(operator_emails)
             con.close()
             applicant_sent=send_mail(applicant_email,'【BIG PAW】ブリーダー掲載申請を受け付けました',f\"\"\"{body.get('representative','')} 様
 
@@ -31,7 +41,7 @@ BIG PAW
             if not applicant_sent:
                 print('BREEDER_APPLICATION_RECEIPT_MAIL_FAILED|user='+str(u['id']),flush=True)
             operator_sent=0
-            for operator_email in sorted(set(operator_emails)):
+            for operator_email in operator_emails:
                 if send_mail(operator_email,'【BIG PAW】新しいブリーダー掲載申請',f\"\"\"新しいブリーダー掲載申請が届きました。
 
 犬舎名: {body.get('kennelName','')}
@@ -44,7 +54,7 @@ BIG PAW
 運営管理画面から申請内容と登録証の写しを確認し、承認または差し戻しを行ってください。
 {PUBLIC_BASE_URL}/operator-breeders.html\"\"\"):
                     operator_sent+=1
-            print('BREEDER_APPLICATION_MAIL_RESULT|applicant='+str(bool(applicant_sent)).lower()+'|operators='+str(operator_sent)+'/'+str(len(set(operator_emails))),flush=True)
+            print('BREEDER_APPLICATION_MAIL_RESULT|applicant='+str(bool(applicant_sent)).lower()+'|operators='+str(operator_sent)+'/'+str(len(operator_emails)),flush=True)
             return self.send_json(dict(r),201)
 """
 
