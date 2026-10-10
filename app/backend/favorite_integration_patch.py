@@ -30,6 +30,8 @@ from favorite_updates import (
 replace_once("    ensure_column(con,'users','email_verified','INTEGER NOT NULL DEFAULT 0')",
 """    ensure_column(con,'users','email_verified','INTEGER NOT NULL DEFAULT 0')
     ensure_column(con,'users','favorite_email_enabled','INTEGER NOT NULL DEFAULT 0')
+    ensure_column(con,'users','favorite_email_choice_made','INTEGER NOT NULL DEFAULT 0')
+    ensure_column(con,'users','favorite_email_consented_at','INTEGER')
     ensure_favorite_schema(con)""")
 replace_once("def run_automations_once():\n",
 """def run_automations_once():
@@ -42,7 +44,7 @@ get_anchor="""        if path=='/api/favorites':
 replace_once(get_anchor,'''        if path=='/api/favorite-notifications/settings':
             u=self.require(['buyer'])
             if not u:return
-            return self.send_json({'enabled':bool(u.get('favorite_email_enabled',0))})
+            return self.send_json({'enabled':bool(u.get('favorite_email_enabled',0)),'choiceMade':bool(u.get('favorite_email_choice_made',0))})
         if path=='/api/breeder/engagement':
             u=self.require(['breeder','operator'])
             if not u:return
@@ -76,6 +78,22 @@ replace_once(post_anchor,'''        vm=re.fullmatch(r'/api/puppies/([^/]+)/view'
             con.commit();con.close()
             return self.send_json({'ok':True,'counted':counted})
 '''+post_anchor)
+# The main favorite route is intentionally patched after the existing listing-security gate.
+# A normal favorite POST from other pages cannot opt in without an explicit consent field.
+replace_once(
+    """            pid=m.group(1); con=db(); found=con.execute('SELECT 1 FROM favorites WHERE user_id=? AND puppy_id=?',(u['id'],pid)).fetchone()""",
+    """            pid=m.group(1); body=self.json_body(); con=db(); found=con.execute('SELECT 1 FROM favorites WHERE user_id=? AND puppy_id=?',(u['id'],pid)).fetchone()"""
+)
+replace_once(
+    """                con.execute('INSERT INTO favorites VALUES(?,?,?)',(u['id'],pid,now())); value=True""",
+    """                con.execute('INSERT INTO favorites VALUES(?,?,?)',(u['id'],pid,now())); value=True
+                # Only an explicitly labeled user action may enroll new subscribers.
+                # An earlier opt-out is never automatically reversed.
+                if isinstance(body,dict) and body.get('subscribeToFavoriteUpdates') is True:
+                    changed=con.execute('UPDATE users SET favorite_email_enabled=1,favorite_email_choice_made=1,favorite_email_consented_at=? WHERE id=? AND favorite_email_choice_made=0',(now(),u['id'])).rowcount
+                    if changed: audit(con,u['id'],'favorite_email_consent','user',u['id'],'favorite_button_explicit')"""
+)
+
 replace_once("""            con.execute('INSERT INTO uploads VALUES(?,?,?,?,?,?,?)',(upid,u['id'],(None if puppy_id=='breeder-proof' else puppy_id or None),original,stored,mime,now())); con.commit(); con.close()""",
 """            con.execute('INSERT INTO uploads VALUES(?,?,?,?,?,?,?)',(upid,u['id'],(None if puppy_id=='breeder-proof' else puppy_id or None),original,stored,mime,now()))
             if puppy_id and puppy_id!='breeder-proof':
@@ -96,7 +114,8 @@ replace_once(patch_anchor,'''    def do_PATCH(self):
                 return self.send_json({'error':'enabled_boolean_required'},400)
             enabled=int(body['enabled'])
             con=db()
-            con.execute('UPDATE users SET favorite_email_enabled=? WHERE id=?',(enabled,u['id']))
+            con.execute('UPDATE users SET favorite_email_enabled=?,favorite_email_choice_made=1,favorite_email_consented_at=CASE WHEN ?=1 THEN ? ELSE favorite_email_consented_at END WHERE id=?',(enabled,enabled,now(),u['id']))
+            audit(con,u['id'],'favorite_email_preference','user',u['id'],'enabled' if enabled else 'disabled')
             con.commit();con.close()
             return self.send_json({'enabled':bool(enabled)})
         if path=='/api/me':''')
