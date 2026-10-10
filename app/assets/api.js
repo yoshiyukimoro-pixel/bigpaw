@@ -32,7 +32,7 @@
     addPuppy(v){return this.request('/puppies',{method:'POST',body:v})},
     updatePuppy(id,v){return this.request('/puppies/'+encodeURIComponent(id),{method:'PATCH',body:v})},
     favorites(){return this.request('/favorites')},
-    toggleFavorite(id){return this.request('/favorites/'+encodeURIComponent(id),{method:'POST'})},
+    toggleFavorite(id,options={}){return this.request('/favorites/'+encodeURIComponent(id),{method:'POST',body:options})},
     inquiries(){return this.request('/inquiries')},
     addInquiry(v){return this.request('/inquiries',{method:'POST',body:v})},
     updateInquiry(id,v){return this.request('/inquiries/'+encodeURIComponent(id),{method:'PATCH',body:v})},
