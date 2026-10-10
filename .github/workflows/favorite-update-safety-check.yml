@@ -17,6 +17,7 @@ jobs:
           set -euo pipefail
           python3 -m py_compile app/backend/favorite_updates.py app/backend/favorite_integration_patch.py app/backend/test_favorite_updates.py
           node --check app/assets/puppy-view-tracker.js
+          node scripts/test-favorite-ui.js
           (cd app/backend && python3 -m unittest test_favorite_updates -v)
           node scripts/test-photo-append.js
           node scripts/test-global-brand-header.cjs
@@ -25,7 +26,7 @@ jobs:
       - name: Verify integrated source and templates in built image
         run: |
           set -euo pipefail
-          docker run --rm --entrypoint python3 bigpaw-favorite-check -c "from pathlib import Path; s=Path('/app/backend/server.py').read_text(); compile(s,'server.py','exec'); assert "if path=='/api/breeder/engagement':" in s; assert "if path=='/api/favorite-notifications/settings':" in s; assert "queue_favorite_change(con,puppy_id,'photo'" in s; assert "record_puppy_view(" in s; assert 'deliver_favorite_updates(db,PUBLIC_BASE_URL)' in s; a=Path('/app/admin.html').read_text(); assert 'favoriteCount' in a and 'viewerCount' in a; p=Path('/app/puppy-detail.html').read_text(); assert 'puppy-view-tracker.js' in p; print('FEATURE_BUILD_MARKERS_OK')"
+          docker run --rm --entrypoint python3 bigpaw-favorite-check /app/backend/favorite_build_gate.py
       - name: Live API integration and authorization smoke
         run: |
           set -euo pipefail
