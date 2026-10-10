@@ -27,6 +27,7 @@
     btn.textContent='♡ お気に入り確認中…';
 
     let loggedIn=true;
+    let unavailable=false;
     let saved=false;
     let preference={enabled:false,choiceMade:true};
     const help=document.createElement('p');
@@ -39,7 +40,9 @@
           ?'♡ お気に入り登録＆変更メールを受け取る'
           :'♡ お気に入りに保存');
       btn.style.background=saved?'#fff1f7':'#fff';
-      if(!loggedIn){
+      if(unavailable){
+        help.textContent='お気に入りの状態を確認できませんでした。ページを更新してください。';
+      }else if(!loggedIn){
         help.textContent='お気に入りの登録にはログインが必要です。';
       }else if(!preference.choiceMade){
         help.textContent='お気に入り登録すると、この子を含むお気に入りの子犬の写真・価格・紹介文・募集状況の変更をメールでお知らせします。登録で受信に同意したことになります。後から設定で停止できます。';
@@ -58,12 +61,13 @@
       preference={enabled:!!prefs.enabled,choiceMade:!!prefs.choiceMade};
     }catch(e){
       loggedIn=e.status!==401;
+      unavailable=loggedIn;
       // Unavailable settings must not be construed as consent.
       preference={enabled:false,choiceMade:true};
       saved=false;
     }
     paint();
-    btn.disabled=false;
+    btn.disabled=unavailable;
 
     btn.onclick=async()=>{
       if(!loggedIn){location.href='/login.html';return;}
