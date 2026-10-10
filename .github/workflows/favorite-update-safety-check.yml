@@ -1,0 +1,101 @@
+name: Favorite notifications and breeder engagement safety
+
+on:
+  push:
+    branches:
+      - feature/favorite-update-email-20261011
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks and dedicated unit tests
+        run: |
+          set -euo pipefail
+          python3 -m py_compile app/backend/favorite_updates.py app/backend/favorite_integration_patch.py app/backend/test_favorite_updates.py
+          node --check app/assets/puppy-view-tracker.js
+          node scripts/test-favorite-ui.js
+          (cd app/backend && python3 -m unittest test_favorite_updates -v)
+          node scripts/test-photo-append.js
+          node scripts/test-global-brand-header.cjs
+      - name: Build full production Docker image and run existing release gates
+        run: docker build --no-cache --progress plain -t bigpaw-favorite-check .
+      - name: Verify integrated source and templates in built image
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint python3 bigpaw-favorite-check /app/backend/favorite_build_gate.py
+      - name: Live API integration and authorization smoke
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-favorite-smoke -p 18087:8080 \
+            -e PORT=8080 -e BIGPAW_ENV=development \
+            -e BIGPAW_DATA_DIR=/tmp/bigpaw-feature-test \
+            bigpaw-favorite-check python3 backend/server.py
+          trap 'docker rm -f bigpaw-favorite-smoke >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:18087/api/health >/tmp/favorite-health.json; then ok=1;break;fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-favorite-smoke 2>/dev/null | grep -q true;then break;fi
+            sleep 1
+          done
+          test "$ok" = 1
+          base=http://127.0.0.1:18087
+          status="$(curl -sS -o /dev/null -w '%{http_code}' "$base/api/breeder/engagement")"
+          test "$status" = 401
+          status="$(curl -sS -o /dev/null -w '%{http_code}' "$base/api/favorite-notifications/settings")"
+          test "$status" = 401
+          curl -fsS -c /tmp/buyer.txt -H 'Content-Type: application/json' \
+            -d '{"email":"demo@bigpaw.jp","password":"demo1234"}' "$base/api/login" >/tmp/buyer.json
+          curl -fsS -c /tmp/breeder.txt -H 'Content-Type: application/json' \
+            -d '{"email":"dog44@bigpaw.jp","password":"demo1234"}' "$base/api/login" >/tmp/breeder.json
+          curl -fsS -b /tmp/buyer.txt -H 'Content-Type: application/json' \
+            -X PATCH -d '{"enabled":true}' "$base/api/favorite-notifications/settings" >/tmp/settings.json
+          curl -fsS -b /tmp/buyer.txt -X POST "$base/api/favorites/p1" >/tmp/favorite.json
+          curl -fsS -H 'Content-Type: application/json' -X POST \
+            -d '{"visitorId":"browser_test_abc123456"}' "$base/api/puppies/p1/view" >/tmp/view1.json
+          curl -fsS -H 'Content-Type: application/json' -X POST \
+            -d '{"visitorId":"browser_test_abc123456"}' "$base/api/puppies/p1/view" >/tmp/view2.json
+          curl -fsS -b /tmp/breeder.txt "$base/api/breeder/engagement" >/tmp/stats.json
+          status="$(curl -sS -b /tmp/buyer.txt -o /dev/null -w '%{http_code}' "$base/api/breeder/engagement")"
+          test "$status" = 403
+          curl -fsS -b /tmp/breeder.txt -H 'Content-Type: application/json' -X PATCH \
+            -d '{"price":240000}' "$base/api/puppies/p1" >/tmp/edited.json
+          docker exec bigpaw-favorite-smoke python3 -c "import sqlite3; d=sqlite3.connect('/tmp/bigpaw-feature-test/bigpaw.sqlite3'); n=d.execute('SELECT COUNT(*) FROM favorite_change_batches').fetchone()[0]; assert n==1,n; print('SAVED_CHANGE_QUEUED_OK')"
+          python3 - <<'PY'
+          import json
+          def check(path):return json.load(open(path))
+          assert check('/tmp/settings.json')['enabled'] is True
+          assert check('/tmp/favorite.json')['favorite'] is True
+          stats=check('/tmp/stats.json')['puppies']['p1']
+          assert stats['favoriteCount']==1,stats
+          assert stats['viewCount']==2,stats
+          assert stats['viewerCount']==1,stats
+          assert check('/tmp/edited.json')['price']==240000
+          print('API_E2E_OK|buyer_consent=1|favorite=1|page_views=2|unique_viewers=1|scoped_stats=1|queued_changes=1')
+          PY
+      - name: Production-equivalent startup regression
+        run: |
+          set -euo pipefail
+          START="python3 backend/auth_cookie_hardening_patch.py && python3 backend/safari_gallery_runtime_patch.py && python3 backend/support_contact_runtime_patch.py && python3 backend/offsite_backup_runtime_patch.py && python3 backend/login_prompt_runtime_patch.py && python3 backend/direct_payment_runtime_patch.py && python3 backend/breeder_mobile_menu_runtime_patch.py && exec python3 backend/start_live.py"
+          docker run -d --name bigpaw-favorite-prod-smoke -p 18088:8080 \
+            -e PORT=8080 -e BIGPAW_ENV=production \
+            -e BIGPAW_DATA_DIR=/tmp/bigpaw-prod-smoke \
+            -e BIGPAW_ADMIN_EMAIL=smoke@example.com \
+            -e BIGPAW_ADMIN_PASSWORD='SmokeTestPassword123!' \
+            -e BIGPAW_PAYMENT_MODE=manual \
+            bigpaw-favorite-check sh -c "$START"
+          trap 'docker rm -f bigpaw-favorite-prod-smoke >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:18088/api/health >/tmp/prod-health.json; then ok=1;break;fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-favorite-prod-smoke 2>/dev/null | grep -q true;then break;fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ];then docker logs bigpaw-favorite-prod-smoke;exit 1;fi
+          docker logs bigpaw-favorite-prod-smoke >/tmp/favorite-runtime.log 2>&1
+          grep -q 'GLOBAL_MOBILE_MENU_OK' /tmp/favorite-runtime.log
+          grep -q 'SEARCH_REBUILD_LIVE_OK' /tmp/favorite-runtime.log
+          echo 'PRODUCTION_RUNTIME_REGRESSION_OK'

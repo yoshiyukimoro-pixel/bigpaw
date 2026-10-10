@@ -32,6 +32,8 @@ RUN ["python3", "backend/first_sale_workflow_patch.py"]
 RUN ["python3", "backend/first_sale_release_gate.py"]
 RUN ["python3", "backend/inquiry_cancellation_patch.py"]
 RUN ["python3", "backend/inquiry_cancellation_release_gate.py"]
+RUN ["python3", "backend/favorite_integration_patch.py"]
+RUN ["python3", "-m", "py_compile", "backend/favorite_updates.py", "backend/server.py"]
 ENV PORT=8080
 EXPOSE 8080
 CMD ["python3", "backend/server.py"]
