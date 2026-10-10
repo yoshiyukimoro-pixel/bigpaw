@@ -147,7 +147,8 @@ def mail_content(puppy,batch,base):
     parts.extend([f"募集状況：{status}",f"詳しく見る：{link}",f"通知設定：{settings}"])
     plain='\n'.join(parts)
     safe=lambda x: html.escape(str(x),quote=True)
-    details=(f'<p style="margin:8px 0"><strong>価格：{safe(f"{int(batch[\'first_price\']):,}円")} → {safe(new_price)}</strong></p>'
+    old_price_label=f"{int(batch['first_price']):,}円" if batch['first_price'] is not None else ''
+    details=(f'<p style="margin:8px 0"><strong>価格：{safe(old_price_label)} → {safe(new_price)}</strong></p>'
         if 'price' in kinds and batch['first_price'] is not None else
         f'<p style="margin:8px 0">現在の価格：<strong>{safe(new_price)}</strong></p>')
     photo_html=(f'<a href="{safe(link)}"><img src="{safe(image)}" alt="{safe(name)}" '
@@ -206,10 +207,10 @@ def deliver_due(db_connect, base_url, sender=None, timestamp=None, limit=12):
     con=db_connect(); processed=0; sent=0; failed=0
     try:
         batches=con.execute("""SELECT * FROM favorite_change_batches
-            WHERE status='pending' AND due_at<=? ORDER BY due_at LIMIT ?""",(when,limit)).fetchall()
+            WHERE status IN ('pending','retry_wait') AND due_at<=? ORDER BY due_at LIMIT ?""",(when,limit)).fetchall()
         for batch in batches:
             claimed=con.execute("""UPDATE favorite_change_batches SET status='sending'
-                WHERE id=? AND status='pending'""",(batch['id'],)).rowcount
+                WHERE id=? AND status IN ('pending','retry_wait')""",(batch['id'],)).rowcount
             con.commit()
             if not claimed:continue
             puppy=con.execute("""SELECT p.* FROM puppies p
@@ -255,10 +256,5 @@ def deliver_due(db_connect, base_url, sender=None, timestamp=None, limit=12):
             else:
                 con.execute("UPDATE favorite_change_batches SET status='done' WHERE id=?",(batch['id'],))
             con.commit();processed+=1
-        retry=con.execute("SELECT id FROM favorite_change_batches WHERE status='retry_wait' AND due_at<=? LIMIT ?",(when,limit)).fetchall()
-        for item in retry:
-            # Retrying batches use unique row id, while pending can collect newer edits.
-            con.execute("UPDATE favorite_change_batches SET status='pending' WHERE id=? AND NOT EXISTS (SELECT 1 FROM favorite_change_batches v WHERE v.puppy_id=(SELECT puppy_id FROM favorite_change_batches WHERE id=?) AND v.status='pending')",(item['id'],item['id']))
-        con.commit()
         return {'batches':processed,'sent':sent,'failed':failed}
     finally: con.close()
