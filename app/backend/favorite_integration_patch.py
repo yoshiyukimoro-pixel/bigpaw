@@ -31,10 +31,12 @@ replace_once("    ensure_column(con,'users','email_verified','INTEGER NOT NULL D
 """    ensure_column(con,'users','email_verified','INTEGER NOT NULL DEFAULT 0')
     ensure_column(con,'users','favorite_email_enabled','INTEGER NOT NULL DEFAULT 0')
     ensure_favorite_schema(con)""")
-replace_once("        con.commit()\n        return {'billingReminders':reminders,'completionNudges':nudges,'visibilityChanges':len(changes),'backup':backup}",
-"""        con.commit()
-        favorite_mails=deliver_favorite_updates(db,PUBLIC_BASE_URL)
-        return {'billingReminders':reminders,'completionNudges':nudges,'visibilityChanges':len(changes),'backup':backup,'favoriteUpdates':favorite_mails}""")
+replace_once("def run_automations_once():\n",
+"""def run_automations_once():
+    # Run favorite digests from the existing automation cycle, without changing
+    # the return shape or clobbering other runtime-added automation jobs.
+    deliver_favorite_updates(db,PUBLIC_BASE_URL)
+""")
 get_anchor="""        if path=='/api/favorites':
             u=self.require(['buyer']);"""
 replace_once(get_anchor,'''        if path=='/api/favorite-notifications/settings':
