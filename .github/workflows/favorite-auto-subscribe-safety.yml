@@ -1,0 +1,111 @@
+name: Favorite auto-subscribe consent safety
+
+on:
+  push:
+    branches:
+      - feature/favorite-mail-auto-on-consent-20261011
+  pull_request:
+    paths:
+      - 'app/backend/favorite_integration_patch.py'
+      - 'app/puppy-detail-favorites-fix.js'
+      - 'app/assets/api.js'
+      - 'app/favorites.html'
+      - 'app/assets/favorites-mail-activation.js'
+      - '.github/workflows/favorite-auto-subscribe-safety.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Javascript Python and existing regression checks
+        run: |
+          set -euo pipefail
+          git diff --check
+          python3 -m py_compile app/backend/favorite_integration_patch.py app/backend/favorite_updates.py
+          node --check app/puppy-detail-favorites-fix.js
+          node --check app/assets/api.js
+          node --check app/assets/favorites-mail-activation.js
+          node scripts/test-favorite-ui.js
+          node scripts/test-photo-append.js
+          node scripts/test-global-brand-header.cjs
+          (cd app/backend && python3 -m unittest test_favorite_updates -v)
+      - name: Docker build with entire original release regression gates
+        run: docker build --no-cache --progress plain -t bigpaw-fav-consent-check .
+      - name: Validate transformed server consent logic
+        run: |
+          docker run --rm --entrypoint python3 bigpaw-fav-consent-check -c "from pathlib import Path; s=Path('/app/backend/server.py').read_text(); compile(s,'server.py','exec'); assert 'favorite_email_choice_made' in s; assert 'favorite_email_consented_at' in s; assert 'subscribeToFavoriteUpdates' in s; assert 'favorite_button_explicit' in s; print('FAVORITE_CONSENT_BUILD_OK')"
+      - name: End to end buyer and breeder behavior with private demo database
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-fav-consent-smoke -p 18089:8080 \
+            -e PORT=8080 -e BIGPAW_ENV=development \
+            -e BIGPAW_DATA_DIR=/tmp/bigpaw-consent-smoke \
+            bigpaw-fav-consent-check python3 backend/server.py
+          trap 'docker rm -f bigpaw-fav-consent-smoke >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 50);do
+            if curl -fsS http://127.0.0.1:18089/api/health >/tmp/bpc-health;then ok=1;break;fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-fav-consent-smoke 2>/dev/null | grep -q true;then break;fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ];then docker logs bigpaw-fav-consent-smoke;exit 1;fi
+          base=http://127.0.0.1:18089
+          curl -fsS -c /tmp/bpc-buyer-cookie -H 'Content-Type: application/json' \
+            -d '{"email":"demo@bigpaw.jp","password":"demo1234"}' "$base/api/login" >/tmp/bpc-login
+          curl -fsS -c /tmp/bpc-breeder-cookie -H 'Content-Type: application/json' \
+            -d '{"email":"dog44@bigpaw.jp","password":"demo1234"}' "$base/api/login" >/tmp/bpc-breeder
+          curl -fsS -b /tmp/bpc-buyer-cookie "$base/api/favorite-notifications/settings" >/tmp/bpc-before
+          curl -fsS -b /tmp/bpc-buyer-cookie -X POST -H 'Content-Type: application/json' \
+            -d '{"subscribeToFavoriteUpdates":true}' "$base/api/favorites/p1" >/tmp/bpc-added
+          curl -fsS -b /tmp/bpc-buyer-cookie "$base/api/favorite-notifications/settings" >/tmp/bpc-after
+          curl -fsS -b /tmp/bpc-breeder-cookie -H 'Content-Type: application/json' \
+            -X PATCH -d '{"price":249000}' "$base/api/puppies/p1" >/tmp/bpc-price
+          curl -fsS -b /tmp/bpc-buyer-cookie -X PATCH -H 'Content-Type: application/json' \
+            -d '{"enabled":false}' "$base/api/favorite-notifications/settings" >/tmp/bpc-disabled
+          curl -fsS -b /tmp/bpc-buyer-cookie -X POST "$base/api/favorites/p1" >/tmp/bpc-removed
+          curl -fsS -b /tmp/bpc-buyer-cookie -X POST -H 'Content-Type: application/json' \
+            -d '{"subscribeToFavoriteUpdates":true}' "$base/api/favorites/p1" >/tmp/bpc-readded
+          curl -fsS -b /tmp/bpc-buyer-cookie "$base/api/favorite-notifications/settings" >/tmp/bpc-optout-preserved
+          docker exec bigpaw-fav-consent-smoke python3 -c "import sqlite3; c=sqlite3.connect('/tmp/bigpaw-consent-smoke/bigpaw.sqlite3'); r=c.execute(\"SELECT favorite_email_enabled,favorite_email_choice_made,favorite_email_consented_at FROM users WHERE id='u_demo'\").fetchone(); assert r[0]==0 and r[1]==1 and r[2],r; assert c.execute(\"SELECT COUNT(*) FROM favorite_change_batches WHERE puppy_id='p1'\").fetchone()[0]>=1; print('FAVORITE_CONSENT_PERSISTED_AND_QUEUE_OK')"
+          python3 - <<'PY'
+          import json
+          def val(p):return json.load(open(p))
+          assert val('/tmp/bpc-before')=={'enabled':False,'choiceMade':False}
+          assert val('/tmp/bpc-added')['favorite'] is True
+          assert val('/tmp/bpc-after')=={'enabled':True,'choiceMade':True}
+          assert val('/tmp/bpc-price')['price']==249000
+          assert val('/tmp/bpc-disabled')['enabled'] is False
+          assert val('/tmp/bpc-removed')['favorite'] is False
+          assert val('/tmp/bpc-readded')['favorite'] is True
+          assert val('/tmp/bpc-optout-preserved')=={'enabled':False,'choiceMade':True}
+          print('FAVORITE_CONSENT_E2E_OK|explicit_opt_in=1|existing_opt_out_preserved=1|edit_queue=1')
+          PY
+      - name: Production-equivalent runtime and original feature test
+        run: |
+          set -euo pipefail
+          START="python3 backend/auth_cookie_hardening_patch.py && python3 backend/safari_gallery_runtime_patch.py && python3 backend/support_contact_runtime_patch.py && python3 backend/offsite_backup_runtime_patch.py && python3 backend/login_prompt_runtime_patch.py && python3 backend/direct_payment_runtime_patch.py && python3 backend/breeder_mobile_menu_runtime_patch.py && exec python3 backend/start_live.py"
+          docker run -d --name bigpaw-fav-consent-prod -p 18090:8080 \
+            -e PORT=8080 -e BIGPAW_ENV=production \
+            -e BIGPAW_DATA_DIR=/tmp/bigpaw-consent-prod \
+            -e BIGPAW_ADMIN_EMAIL=smoke@example.com \
+            -e BIGPAW_ADMIN_PASSWORD='SmokeTestPassword123!' \
+            -e BIGPAW_PAYMENT_MODE=manual \
+            bigpaw-fav-consent-check sh -c "$START"
+          trap 'docker rm -f bigpaw-fav-consent-prod >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 50);do
+            if curl -fsS http://127.0.0.1:18090/api/health >/tmp/bpc-prod-health;then ok=1;break;fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-fav-consent-prod 2>/dev/null | grep -q true;then break;fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ];then docker logs bigpaw-fav-consent-prod;exit 1;fi
+          html="$(curl -fsS http://127.0.0.1:18090/puppy-detail-favorites-fix.js)"
+          echo "$html" | grep -q 'subscribeToFavoriteUpdates'
+          curl -fsS http://127.0.0.1:18090/favorites.html | grep -q 'favorites-mail-activation'
+          docker logs bigpaw-fav-consent-prod >/tmp/bpc-runtime 2>&1
+          grep -q 'GLOBAL_MOBILE_MENU_OK' /tmp/bpc-runtime
+          grep -q 'SEARCH_REBUILD_LIVE_OK' /tmp/bpc-runtime
+          echo 'FAVORITE_RUNTIME_REGRESSION_OK'
