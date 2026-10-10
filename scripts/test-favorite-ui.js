@@ -21,7 +21,8 @@ const dashboard=check('app/admin.html');
 const puppy=check('app/puppy-detail.html');
 assert(account.includes('favoriteUpdateMail'));
 assert(account.includes('/favorite-notifications/settings'));
-assert(favorites.includes('メール通知のON・OFF'));
+assert(favorites.includes('通知設定 →'))
+assert(favorites.includes('favorites-mail-activation.js'));
 assert(dashboard.includes('engagementStats'));
 assert(dashboard.includes('favoriteCount')&&dashboard.includes('viewCount')&&dashboard.includes('viewerCount'));
 assert(dashboard.includes('operatorScopeId')&&dashboard.includes('breederId='));
