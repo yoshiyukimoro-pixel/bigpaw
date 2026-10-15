@@ -19,6 +19,7 @@ jobs:
           python3 -m py_compile app/backend/operator_ai_listing.py app/backend/operator_ai_listing_patch.py app/backend/operator_ai_listing_ui_patch.py app/backend/operator_ai_listing_integration.py
           python3 app/backend/test_operator_ai_listing.py
           node --check app/assets/operator-ai-listing.js
+          node scripts/test-operator-ai-ui.cjs
           node scripts/test-breeder-dashboard-inquiry-count.cjs
           node scripts/test-operator-proxy-ui.cjs
       - name: Full Docker build including existing release gates
