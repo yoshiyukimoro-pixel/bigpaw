@@ -1,0 +1,75 @@
+name: Operator proxy listing safety check
+
+on:
+  push:
+    branches:
+      - fix/operator-proxy-breeder-listing-20261015
+  workflow_dispatch:
+
+jobs:
+  proxy-listing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+
+      - name: Validate new source and page scripts
+        run: |
+          set -euo pipefail
+          python3 -m py_compile app/backend/operator_proxy_listing_patch.py app/backend/operator_proxy_listing_integration.py
+          node --check app/assets/operator-proxy-listing.js
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.active = False
+                  self.scripts = []
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script":
+                      self.active = not dict(attrs).get("src")
+                      if self.active: self.scripts.append("")
+              def handle_data(self, data):
+                  if self.active: self.scripts[-1] += data
+              def handle_endtag(self, tag):
+                  if tag == "script": self.active = False
+          for file in ["app/admin.html","app/breeder-puppy-new.html"]:
+              parser=Scripts()
+              parser.feed(Path(file).read_text(encoding="utf-8"))
+              for i,s in enumerate(parser.scripts):
+                  if not s.strip():continue
+                  target=Path("/tmp/bigpaw-check-%s-%s.js"%(Path(file).stem,i))
+                  target.write_text(s,encoding="utf-8")
+                  subprocess.run(["node","--check",str(target)],check=True)
+          print("OPERATOR_PROXY_INLINE_SCRIPT_SYNTAX_OK")
+          PY
+
+      - name: Build production-equivalent image and existing release gates
+        run: docker build --no-cache -t bigpaw-operator-proxy-check .
+
+      - name: Smoke-test isolated database and cross-breeder ownership
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-proxy-test -p 18085:8080 \
+            -e PORT=8080 \
+            -e BIGPAW_ENV=development \
+            -e BIGPAW_DATA_DIR=/tmp/bigpaw-operator-proxy-test \
+            bigpaw-operator-proxy-check python3 backend/server.py
+          trap 'docker rm -f bigpaw-proxy-test >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:18085/api/health >/dev/null 2>&1; then ok=1; break; fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-proxy-test 2>/dev/null | grep -q true; then break; fi
+            sleep 1
+          done
+          if [ "$ok" != "1" ]; then
+            docker logs bigpaw-proxy-test || true
+            exit 1
+          fi
+          python3 app/backend/operator_proxy_listing_integration.py http://127.0.0.1:18085
+          python3 app/backend/smoke_test.py http://127.0.0.1:18085
+          docker logs bigpaw-proxy-test 2>&1 | tail -n 40
+          echo 'OPERATOR_PROXY_REGRESSION_OK'
