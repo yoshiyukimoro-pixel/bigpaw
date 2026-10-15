@@ -12,6 +12,7 @@
     ['🩺','健康情報','/health-records.html'],
     ['🏡','犬舎プロフィール','/breeder-profile-edit.html'],
     ['💳','料金・手数料','/breeder-fees.html'],
+    ['📩','運営へお問い合わせ','/breeder-support.html'],
     ['🌐','公開サイト','/index.html']
   ];
 

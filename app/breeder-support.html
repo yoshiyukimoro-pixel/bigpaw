@@ -1,0 +1,37 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>運営へのお問い合わせ｜BIG PAW ブリーダー管理</title><link rel="stylesheet" href="assets/style.css"></head><body class="bigpaw-breeder-theme"><div class="topbar">🐾 BIG PAW｜ブリーダー管理</div><header class="site-header"><div class="wrap nav"><a class="logo" href="index.html"><span class="logo-mark">🐾</span>BIG PAW</a><nav class="navlinks"><a href="admin.html">ブリーダー管理</a></nav></div></header><main class="wrap"><p style="margin:18px 0"><a href="admin.html">← ブリーダー管理に戻る</a></p><section class="section" style="max-width:760px;margin:auto"><form class="card pad" id="form"><h1>📩 運営へお問い合わせ</h1><p class="muted">掲載・操作方法・成約・請求など、運営へ直接ご相談いただけます。</p><div class="notice" style="margin:14px 0">ブリーダー専用お問い合わせフォームです。<br>メール：<a href="mailto:info@bigpaw.site">info@bigpaw.site</a></div><div class="form-grid"><div class="field"><label>お名前</label><input id="name" required maxlength="100" autocomplete="name"></div><div class="field"><label>メールアドレス</label><input id="email" type="email" required maxlength="254" autocomplete="email"></div><div class="field"><label>カテゴリ</label><select id="category"><option>ブリーダー掲載について</option><option>サイト利用について</option><option>成約・請求について</option><option>掲載内容・トラブルについて</option><option>その他</option></select></div><div class="field"><label>件名</label><input id="subject" required maxlength="200"></div></div><div class="field"><label>お問い合わせ内容</label><textarea id="message" required maxlength="5000" style="min-height:180px"></textarea></div><div id="result"></div><button class="btn btn-main btn-wide" type="submit">送信する</button></form></section></main><footer><div class="wrap foot"><b>BIG PAW｜ブリーダー管理</b><small><a href="admin.html">管理画面に戻る</a></small></div></footer><script src="assets/api.js"></script><style>body{background:#f3f8ff!important;color:#254765}.topbar{background:#dcecff!important;color:#235580!important}.site-header,.card{background:#fff!important}.card{border:1px solid #c9dff2!important;box-shadow:0 5px 22px #1d4d8010}.btn-main{background:#246da8!important;border-color:#246da8!important;color:white!important}.notice{background:#eaf4ff!important;border-color:#bddbf5!important;color:#28547b!important}a{color:#246da8}input:focus,select:focus,textarea:focus{outline-color:#3988c9}</style><script>
+(()=>{
+  const formEl=document.getElementById('form');
+  let breederAuthorized=false;
+  const submitButton=formEl.querySelector('button[type="submit"]');
+  submitButton.disabled=true;
+  BigPawAPI.me().then(me=>{if(me.role!=='breeder')throw new Error('role');breederAuthorized=true;submitButton.disabled=false;if(me.email)document.getElementById('email').value=me.email;if(me.kennel_name||me.name)document.getElementById('name').value=me.kennel_name||me.name;}).catch(()=>{formEl.innerHTML='<h1>ブリーダーログインが必要です</h1><p>このページはブリーダー専用です。</p><a class="btn btn-main" href="login.html">ログインする</a>';});
+  const nameEl=document.getElementById('name');
+  const emailEl=document.getElementById('email');
+  const categoryEl=document.getElementById('category');
+  const subjectEl=document.getElementById('subject');
+  const messageEl=document.getElementById('message');
+  const resultEl=document.getElementById('result');
+  formEl.addEventListener('submit',async e=>{
+    e.preventDefault();
+    if(!breederAuthorized)return;
+    const btn=formEl.querySelector('button[type="submit"]');
+    btn.disabled=true;
+    resultEl.innerHTML='';
+    try{
+      const r=await BigPawAPI.sendSupport({
+        name:nameEl.value.trim(),
+        email:emailEl.value.trim(),
+        category:categoryEl.value,
+        subject:subjectEl.value.trim(),
+        message:messageEl.value.trim()
+      });
+      resultEl.innerHTML=`<div class="notice">お問い合わせを受け付けました。受付番号：<b>${String(r.id).replace(/[&<>"']/g,'')}</b></div>`;
+      formEl.reset();
+      BigPawAPI.me().then(me=>{if(me&&me.role==='breeder'){if(me.email)emailEl.value=me.email;if(me.kennel_name||me.name)nameEl.value=me.kennel_name||me.name;}}).catch(()=>{});
+    }catch(x){
+      const msg=(x&&x.status===429&&x.data&&x.data.message)?x.data.message:'送信できませんでした。入力内容をご確認のうえ、時間をおいてお試しください。';
+      resultEl.innerHTML=`<div class="notice">${String(msg).replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]))}</div>`;
+    }finally{btn.disabled=false}
+  });
+})();
+</script></body></html>
