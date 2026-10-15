@@ -5,6 +5,7 @@ on:
     branches:
       - fix/operator-proxy-breeder-listing-20261015
       - fix/operator-proxy-ui-binding-20261015
+      - fix/operator-proxy-runtime-save-20261015
   workflow_dispatch:
 
 jobs:
@@ -21,6 +22,9 @@ jobs:
           python3 -m py_compile app/backend/operator_proxy_listing_patch.py app/backend/operator_proxy_listing_integration.py
           node --check app/assets/operator-proxy-listing.js
           node scripts/test-operator-proxy-ui.cjs
+          node --check app/breeder-editor-safety-fix.js
+          node --check scripts/test-operator-runtime-save-e2e.cjs
+          node app/backend/appeal_runtime_override_node_test.js
           node scripts/test-breeder-dashboard-inquiry-count.cjs
           python3 - <<'PY'
           from html.parser import HTMLParser
@@ -74,6 +78,7 @@ jobs:
             exit 1
           fi
           python3 app/backend/operator_proxy_listing_integration.py http://127.0.0.1:18085
+          node scripts/test-operator-runtime-save-e2e.cjs http://127.0.0.1:18085
           # The Docker image build already runs the maintained regression gates,
           # including photos, favorites, search, breeder management and payments.
           # The old smoke_test.py assumes pre-release pending status and is outdated.
