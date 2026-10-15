@@ -1,0 +1,45 @@
+name: AI operator listing safety checks
+
+on:
+  push:
+    branches:
+      - feat/operator-ai-assisted-listing-20261015
+  workflow_dispatch:
+
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Syntax and isolated unit tests
+        run: |
+          set -euo pipefail
+          python3 -m py_compile app/backend/operator_ai_listing.py app/backend/operator_ai_listing_patch.py app/backend/operator_ai_listing_ui_patch.py app/backend/operator_ai_listing_integration.py
+          python3 app/backend/test_operator_ai_listing.py
+          node --check app/assets/operator-ai-listing.js
+          node scripts/test-breeder-dashboard-inquiry-count.cjs
+          node scripts/test-operator-proxy-ui.cjs
+      - name: Full Docker build including existing release gates
+        run: docker build --no-cache -t bigpaw-ai-assisted-test .
+      - name: Test production-equivalent code against isolated development database
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-ai-assisted-test -p 18087:8080 \
+            -e PORT=8080 \
+            -e BIGPAW_ENV=development \
+            -e BIGPAW_DATA_DIR=/tmp/bigpaw-ai-regression \
+            bigpaw-ai-assisted-test python3 backend/server.py
+          trap 'docker rm -f bigpaw-ai-assisted-test >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:18087/api/health >/dev/null; then ok=1; break; fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-ai-assisted-test 2>/dev/null | grep -q true; then break; fi
+            sleep 1
+          done
+          if [ "$ok" != "1" ]; then docker logs bigpaw-ai-assisted-test; exit 1; fi
+          python3 app/backend/operator_proxy_listing_integration.py http://127.0.0.1:18087
+          python3 app/backend/operator_ai_listing_integration.py http://127.0.0.1:18087
+          docker logs bigpaw-ai-assisted-test | tail -n 25
+          echo 'OPERATOR_AI_LISTING_ALL_GATES_PASSED'
