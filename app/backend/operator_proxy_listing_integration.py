@@ -45,7 +45,10 @@ def breeder(tag, prefecture, operator):
         "kennelName":"代理掲載" + tag + "犬舎", "representative":"試験 " + tag,
         "prefecture":prefecture,"primaryBreed":"サモエド",
         "registrationNo":"PROXY-"+tag+"-"+suffix,"expiresOn":"2027-12-31",
-        "profile":"代理掲載所有者試験",
+        "profile":"大型犬の健康に配慮して飼育しています。",
+        "visitAddress":prefecture+"架空市試験区一丁目",
+        "visitPhone":"090-0000-0000",
+        "visitAccess":"車でのアクセス可",
         "registrationProofUrl":"/uploads/smoke-registration-proof.jpg",
         "agreeCommissionTerms":True
     }, token)
