@@ -6,17 +6,15 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const {URLSearchParams}=require('node:url');
-const BASE=process.env.BIGPAW_PROXY_TEST_BASE||'';
-const TOKEN=process.env.BIGPAW_PROXY_TEST_TOKEN||'';
-const KENNEL_A=process.env.BIGPAW_PROXY_TEST_BREEDER_A||'';
-const KENNEL_B=process.env.BIGPAW_PROXY_TEST_BREEDER_B||'';
-if(!/^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/.test(BASE)||!TOKEN||!KENNEL_A||!KENNEL_B||KENNEL_A===KENNEL_B)
+const BASE=process.argv[2]||'';
+let TOKEN='',KENNEL_A='',KENNEL_B='';
+if(!/^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/.test(BASE))
   throw Error('ISOLATED_LOCAL_TEST_ONLY');
 const proxySource=fs.readFileSync('app/assets/operator-proxy-listing.js','utf8');
 const saveSource=fs.readFileSync('app/breeder-editor-safety-fix.js','utf8');
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
 async function api(method,path,body){
-  const h={Authorization:'Bearer '+TOKEN};
+  const h=TOKEN?{Authorization:'Bearer '+TOKEN}:{};
   let payload;
   if(body!==undefined){h['Content-Type']='application/json';payload=JSON.stringify(body)}
   const response=await fetch(BASE+'/api'+path,{method,headers:h,body:payload});
@@ -95,6 +93,16 @@ async function createScenario({scope=KENNEL_A,verified=true,photos=1}={}){
   return {context,window,location,alerts,created,seen,ids,submit};
 }
 async function run(){
+  // Authenticate only to the disposable development instance; the preceding
+  // proxy test already created these synthetic A and B kennel fixtures.
+  const login=await api('POST','/login',{email:'admin@bigpaw.jp',password:'admin1234'});
+  TOKEN=login.token;
+  assert(TOKEN,'isolated operator credentials verified');
+  const listings=await api('GET','/operator/listings');
+  const a=listings.find(x=>String(x.breeder||'').includes('代理掲載A犬舎'));
+  const b=listings.find(x=>String(x.breeder||'').includes('代理掲載B犬舎'));
+  assert(a?.breederId&&b?.breederId&&a.breederId!==b.breederId,'synthetic test breeders must exist');
+  KENNEL_A=a.breederId;KENNEL_B=b.breederId;
   // A mismatched account MUST fail before the first POST.
   let s=await createScenario({verified:false});
   await s.window.savePuppy({preventDefault(){},submitter:s.submit});
