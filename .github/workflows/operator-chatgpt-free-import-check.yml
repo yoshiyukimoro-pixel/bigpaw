@@ -1,0 +1,43 @@
+name: Free ChatGPT operator import safety check
+
+on:
+  push:
+    branches:
+      - feat/operator-free-chatgpt-import-20261015
+  workflow_dispatch:
+
+jobs:
+  free-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+      - name: Free-import UI and existing safeguards
+        run: |
+          set -euo pipefail
+          python3 -m py_compile app/backend/operator_chatgpt_free_import_patch.py
+          node --check app/assets/operator-chatgpt-free-import.js
+          node scripts/test-operator-chatgpt-free-import.cjs
+          node scripts/test-operator-proxy-ui.cjs
+          node scripts/test-breeder-dashboard-inquiry-count.cjs
+      - name: Full Docker build and existing regression gates
+        run: docker build --no-cache -t bigpaw-free-import-regression .
+      - name: Proxy listing and photo smoke in disposable database
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-free-import-test -p 18085:8080 \
+            -e PORT=8080 -e BIGPAW_ENV=development \
+            -e BIGPAW_DATA_DIR=/tmp/bigpaw-free-test \
+            bigpaw-free-import-regression python3 backend/server.py
+          trap 'docker rm -f bigpaw-free-import-test >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:18085/api/health >/dev/null 2>&1; then ok=1; break; fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-free-import-test 2>/dev/null | grep -q true; then break; fi
+            sleep 1
+          done
+          if [ "$ok" != "1" ]; then docker logs bigpaw-free-import-test; exit 1; fi
+          python3 app/backend/operator_proxy_listing_integration.py http://127.0.0.1:18085
+          docker logs bigpaw-free-import-test | tail -n 25
+          echo 'CHATGPT_FREE_IMPORT_ALL_GATES_PASSED'
