@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/operator-proxy-breeder-listing-20261015
+      - fix/operator-proxy-ui-binding-20261015
   workflow_dispatch:
 
 jobs:
@@ -19,6 +20,8 @@ jobs:
           set -euo pipefail
           python3 -m py_compile app/backend/operator_proxy_listing_patch.py app/backend/operator_proxy_listing_integration.py
           node --check app/assets/operator-proxy-listing.js
+          node scripts/test-operator-proxy-ui.cjs
+          node scripts/test-breeder-dashboard-inquiry-count.cjs
           python3 - <<'PY'
           from html.parser import HTMLParser
           from pathlib import Path
