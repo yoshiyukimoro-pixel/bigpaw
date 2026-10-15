@@ -37,15 +37,18 @@ async function simulate({role='operator',scope='b_miyamoto',verified='b_miyamoto
  }
  const parts={};for(const key of ['bpFreeJson','bpFreeImport','bpFreeFeedback','bpFreeReviewed'])parts[key]=el();
  const panel=el('SECTION');panel.querySelector=(query)=>parts[query.slice(1)];
- const form=el('FORM');form.querySelector=()=>null;form.insertBefore=(node)=>form.child=node;
+ const form=el('FORM'),publishButton=el('BUTTON');
+ form.querySelector=(q)=>q==='button.btn-wide'?publishButton:null;
+ form.insertBefore=(node)=>{if(node.id==='bpFreeListingPanel')form.child=node;else form.publishHint=node;};
  const document={createElement:()=>panel,querySelector:q=>q==='form'?form:null,getElementById:id=>elements[id]||null};
  const calls=[];
+ elements.photo=el('INPUT');elements.photo.files=[{name:'dog-1.jpg'}];
  const ctx={document,window:{bigpawProxyId:verified},URLSearchParams,Option:function(t,v){this.textContent=t;this.value=v},
    Date,Event:class{constructor(type){this.type=type}},location:{search:scope?'?breederId='+scope:''},
    BigPawAPI:{me:async()=>{calls.push('me');return {role}}},
    editId};
  await vm.runInNewContext(source,ctx,{filename:'operator-chatgpt-free-import.js'});
- return {ctx,form,panel,parts,elements,calls};
+ return {ctx,form,panel,parts,elements,calls,publishButton};
 }
 function importData(sim,data){
  sim.parts.bpFreeJson.value=JSON.stringify(data);
@@ -79,9 +82,23 @@ function submit(sim){
  assert(s.parts.bpFreeFeedback.textContent.includes('価格内訳'),'warnings shown');
  let e=submit(s);
  assert(e.prevented&&e.stopped,'publish blocked until review');
+ // Clicking bottom button must tell mobile Safari users why submission stops.
+ let clickEvent={preventDefault(){this.prevented=true},stopImmediatePropagation(){this.stopped=true}};
+ s.publishButton.listeners.click(clickEvent);
+ assert(clickEvent.prevented&&clickEvent.stopped,'click is blocked before form submission');
+ assert(s.form.publishHint.textContent.includes('チェック'),'check explanation shown beside publish button');
  s.parts.bpFreeReviewed.checked=true;
  e=submit(s);
- assert(!e.prevented,'publish allowed after completing review');
+ assert(!e.prevented,'publish allowed after completing review with photo');
+ // Missing photos must be stated clearly and block accidental publication.
+ s.elements.photo.files=[];
+ clickEvent={preventDefault(){this.prevented=true},stopImmediatePropagation(){this.stopped=true}};
+ s.publishButton.listeners.click(clickEvent);
+ assert(clickEvent.prevented,'photo-less attempted publish is stopped');
+ assert(s.form.publishHint.textContent.includes('写真を1枚以上'),'photo explanation shown beside button');
+ s.elements.photo.files=[{name:'dog-1.jpg'}];
+ e=submit(s);
+ assert(!e.prevented,'valid photo and reviewed checkbox allow publishing');
  // Import again with incomplete information: old dog data must not remain.
  importData(s,{fields:{name:'別の子',breed:'サモエド'},missing:['性別','税込価格']});
  assert.strictEqual(s.elements.puppyName.value,'別の子');
