@@ -12,8 +12,15 @@
     return b?b.key:({'スタンダードプードル':'standard-poodle','ゴールデンレトリバー':'golden-retriever','ラブラドールレトリバー':'labrador-retriever'}[name]||name);
   };
   const editId=()=>new URLSearchParams(location.search).get('id')||'';
+  // This runtime handler overrides the older inline form handler.
+  // Only send a selected breeder when the URL and verified selection agree.
+  const operatorTarget=()=>{
+    const requested=new URLSearchParams(location.search).get('breederId')||'';
+    return requested&&String(window.bigpawProxyId||'')===requested?requested:'';
+  };
   const payload=()=>({
-    name:value('color')+'の'+value('gender'),
+    ...(operatorTarget()?{breederId:operatorTarget()}:{}),
+    name:value('puppyName').trim()||(value('color')+'の'+value('gender')),
     status:value('status')||'募集中',
     breed:value('breed'),
     breedKey:breedKey(value('breed')),
@@ -30,10 +37,11 @@
     appealPoint:value('appealPoint').trim(),
     desc:value('desc')
   });
-  async function verifyAppealPointPersistence(pid,expected){
-    const rows=await BigPawBridge.breederPuppies();
+  async function verifyAppealPointPersistence(pid,expected,breederId){
+    const rows=breederId?await BigPawAPI.breederPuppies({breederId}):await BigPawBridge.breederPuppies();
     const row=Array.isArray(rows)?rows.find(x=>String(x?.id)===String(pid)):null;
     if(!row) throw new Error('appeal_point_readback_missing');
+    if(breederId&&String(row.breederId||'')!==breederId) throw new Error('operator_breeder_scope_mismatch');
     const actual=String(row.appealPoint??'');
     if(actual!==String(expected??'')) throw new Error('appeal_point_persistence_mismatch');
     return row;
@@ -86,8 +94,12 @@
     if(btn){btn.disabled=true;btn.textContent='保存中…'}
     const pid=editId();
     try{
+      const requested=new URLSearchParams(location.search).get('breederId')||'';
+      if(!pid&&requested&&!operatorTarget()) throw new Error('operator_breeder_selection_required');
       const data=payload();
       let puppy=pid?await BigPawBridge.updatePuppy(pid,data):await BigPawBridge.addPuppy(data);
+      if(!pid&&data.breederId&&String(puppy?.breederId||'')!==String(data.breederId))
+        throw new Error('operator_breeder_scope_mismatch');
       const targetId=String(puppy?.id||pid||'');
       if(!targetId) throw new Error('puppy_id_missing');
       const files=[...(byId('photo')?.files||[])].slice(0,10);
@@ -96,12 +108,12 @@
       }else if(pid&&window.removeExistingMainRequested){
         await BigPawBridge.updatePuppy(targetId,{imageUrl:''});
       }
-      await verifyAppealPointPersistence(targetId,data.appealPoint);
+      await verifyAppealPointPersistence(targetId,data.appealPoint,pid?'':data.breederId||'');
       sessionStorage.removeItem('bigpawEditPuppyId');
       alert(pid?'変更を保存しました。':'子犬情報を掲載しました。');
-      location.href='admin.html';
+      location.href='admin.html'+(!pid&&data.breederId?'?breederId='+encodeURIComponent(data.breederId):'');
     }catch(x){
-      const msg=x?.message==='photo_limit_reached'?'写真は最大10枚まで登録できます。不要な写真を削除してから追加してください。':x?.message==='photo_limit_exceeded'?'追加すると写真が10枚を超えるため保存していません。登録済み写真を含めて最大10枚までです。':x?.message==='existing_photo_state_unavailable'?'現在の写真情報を確認できなかったため、写真は変更していません。画面を再読み込みしてからもう一度お試しください。':x?.message==='appeal_point_persistence_mismatch'||x?.message==='appeal_point_readback_missing'?'アピールポイントの保存確認ができませんでした。変更は完了扱いにしていません。もう一度お試しください。':(x?.status===401?'ブリーダーとしてログインしてください。':'保存できませんでした：'+(x?.message||''));
+      const msg=x?.message==='operator_breeder_selection_required'||x?.data?.error==='operator_breeder_selection_required'?'掲載先の犬舎を確認できません。運営のブリーダー管理から犬舎を選び直してください。':x?.message==='operator_breeder_scope_mismatch'?'犬舎の保存先が一致しません。公開が正しい犬舎か運営一覧で確認してください。':x?.message==='photo_limit_reached'?'写真は最大10枚まで登録できます。不要な写真を削除してから追加してください。':x?.message==='photo_limit_exceeded'?'追加すると写真が10枚を超えるため保存していません。登録済み写真を含めて最大10枚までです。':x?.message==='existing_photo_state_unavailable'?'現在の写真情報を確認できなかったため、写真は変更していません。画面を再読み込みしてからもう一度お試しください。':x?.message==='appeal_point_persistence_mismatch'||x?.message==='appeal_point_readback_missing'?'アピールポイントの保存確認ができませんでした。変更は完了扱いにしていません。もう一度お試しください。':(x?.status===401?'ブリーダーとしてログインしてください。':'保存できませんでした：'+(x?.message||''));
       alert(msg);
     }finally{
       if(btn){btn.disabled=false;btn.textContent=original||'保存する'}
