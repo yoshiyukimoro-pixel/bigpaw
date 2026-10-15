@@ -53,8 +53,8 @@ if "OPERATOR_PROXY_LISTING_UI_V1" not in html:
         "return_to_selected_kennel",
     )
     replace_once(
-        '<script id="bigpaw-final-photo-editor">',
-        '<!-- OPERATOR_PROXY_LISTING_UI_V1 --><script src="assets/operator-proxy-listing.js"></script><script id="bigpaw-final-photo-editor">',
+        '</body>',
+        '<!-- OPERATOR_PROXY_LISTING_UI_V1 --><script src="assets/operator-proxy-listing.js"></script></body>',
         "script_load",
     )
     page.write_text(html, encoding="utf-8")
