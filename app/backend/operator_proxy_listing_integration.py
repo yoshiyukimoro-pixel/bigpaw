@@ -49,7 +49,7 @@ def breeder(tag, prefecture, operator):
         "registrationProofUrl":"/uploads/smoke-registration-proof.jpg",
         "agreeCommissionTerms":True
     }, token)
-    ensure(st == 201 and bool(r.get("id")), "requested breeder approval " + tag)
+    ensure(st == 201 and bool(r.get("id")), "requested breeder approval " + tag + f" (HTTP {st}: {r})")
     st, r = req("PATCH", "/api/breeder-applications/" + r["id"],
                 {"status":"approved", "reviewNote":"proxy test"}, operator)
     ensure(st == 200 and r.get("status") == "approved", "approved breeder " + tag)
