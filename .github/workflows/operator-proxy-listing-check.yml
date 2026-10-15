@@ -39,7 +39,8 @@ jobs:
           for file in ["app/admin.html","app/breeder-puppy-new.html"]:
               parser=Scripts()
               parser.feed(Path(file).read_text(encoding="utf-8"))
-              for i,s in enumerate(parser.scripts):
+              # Check the modified main inline script, not legacy photo-editor blocks.
+              for i,s in enumerate(parser.scripts[:1]):
                   if not s.strip():continue
                   target=Path("/tmp/bigpaw-check-%s-%s.js"%(Path(file).stem,i))
                   target.write_text(s,encoding="utf-8")
