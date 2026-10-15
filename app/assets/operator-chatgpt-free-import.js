@@ -73,7 +73,7 @@
       el.value=s;
     }else if(k==='birth'){
       const s=String(value);
-      const d=new Date(s+'T00:00:00');
+      const d=new Date(s+'T00:00:00Z');
       if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==s){
         warnings.push('生年月日を確認してください');return
       }
