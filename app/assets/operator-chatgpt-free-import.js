@@ -130,21 +130,61 @@
     reviewed.checked=false;
     message(note.join('\n'),warnings.length>0);
   });
-  form.addEventListener('submit',function(event){
-    if(!imported)return; // Existing non-AI operator publishing remains unchanged.
+  // A browser can skip the form's submit event when a required control is
+  // invalid. Validate on the button CLICK too, so a mobile user always learns
+  // why nothing was published (even if Safari blocks native submission).
+  const publishButton=form.querySelector('button.btn-wide');
+  const publishHint=document.createElement('div');
+  publishHint.id='bpFreePublishFeedback';
+  publishHint.setAttribute('role','alert');
+  publishHint.setAttribute('aria-live','assertive');
+  publishHint.style.cssText='display:none;border:2px solid #dc8d8d;background:#fff6f6;color:#8d2020;border-radius:12px;padding:12px;margin:12px 0;font-size:14px;white-space:pre-wrap;line-height:1.7';
+  if(publishButton)form.insertBefore(publishHint,publishButton);
+  function blockers(){
+    const problems=[];
+    if(!checkScope())problems.push('掲載先の犬舎を確認できません。ブリーダー管理画面から開き直してください。');
     const required=[
-      ['breed','犬種'],['gender','性別'],['birth','生年月日'],['price','税込価格'],
-      ['desc','紹介文']
+      ['breed','犬種'],['gender','性別'],['birth','生年月日'],
+      ['price','税込価格'],['desc','紹介文']
     ];
-    const absent=required.filter(([k])=>{
-      const val=String(target(k)?.value||'').trim();
-      return !val||(k==='price'&&!(Number(val)>0));
-    }).map(([,name])=>name);
-    if(absent.length||!reviewed.checked){
-      event.preventDefault();event.stopImmediatePropagation();
-      message((absent.length?'必須項目を確認してください：'+absent.join('、')+'\n':'')
-        +'掲載先の犬舎・価格・写真・紹介文を確認し、チェックを入れてから掲載してください。',true);
-      panel.scrollIntoView({behavior:'smooth',block:'start'});
+    for(const [key,label] of required){
+      const value=String(target(key)?.value||'').trim();
+      if(!value||(key==='price'&&!(Number(value)>0)))problems.push(label+'が未入力です。');
     }
+    const files=document.getElementById('photo')?.files?.length||0;
+    const selected=(typeof selectedPhotos!=='undefined'&&Array.isArray(selectedPhotos))?selectedPhotos.length:files;
+    if(selected<1)problems.push('掲載写真を1枚以上選んでください（最大10枚）。');
+    if(!reviewed.checked)problems.push('画面上部の「掲載先の犬舎、金額、文章、健康情報、写真を自分で確認しました」にチェックを入れてください。');
+    return problems;
+  }
+  function verify(event){
+    if(!imported)return false;  // Ordinary manual operator listing not changed.
+    const problems=blockers();
+    if(!problems.length){
+      publishHint.textContent='';
+      publishHint.style.display='none';
+      return false;
+    }
+    if(event){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+    const txt='まだ掲載できません。次の内容を確認してね。\n・'+problems.join('\n・');
+    publishHint.textContent=txt;
+    publishHint.style.display='block';
+    message(txt,true);
+    return true;
+  }
+  if(publishButton)publishButton.addEventListener('click',verify,true);
+  form.addEventListener('submit',verify,true);
+  // Native HTML5 validation fires "invalid" on the field and suppresses
+  // submit. Keep the explanation visible beside the publish button.
+  form.addEventListener('invalid',function(){
+    if(!imported)return;
+    const problems=blockers();
+    publishHint.textContent=problems.length
+      ?'掲載できない理由：\n・'+problems.join('\n・')
+      :'必須項目を確認してください。赤枠などで示された項目を修正してね。';
+    publishHint.style.display='block';
   },true);
 })();
