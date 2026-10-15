@@ -56,10 +56,8 @@ payload_old="health:health.checked,desc:desc.value"
 payload_new="health:document.getElementById('healthStatus').value.indexOf('実施済み')===0,healthStatus:document.getElementById('healthStatus').value,vaccineStatus:document.getElementById('vaccineStatus').value,microchipStatus:document.getElementById('microchipStatus').value,geneticTestStatus:document.getElementById('geneticTestStatus').value,desc:desc.value"
 if payload_old in h:
     h=h.replace(payload_old,payload_new)
-shared_payload = 'const payload={' in h and 'BigPawBridge.addPuppy(payload)' in h and 'BigPawBridge.updatePuppy(editId,{...payload' in h
-expected_payload_occurrences = 1 if shared_payload else 2
-if h.count('healthStatus:document.getElementById') < expected_payload_occurrences:
-    raise SystemExit('save payload health status fields missing')
+if h.count('healthStatus:document.getElementById')<2:
+    raise SystemExit('save payload status fields not injected twice')
 
 # Final guard: whatever save path calls BigPawBridge, always attach the four current selections.
 # This prevents later page patches from accidentally dropping the status fields again.
