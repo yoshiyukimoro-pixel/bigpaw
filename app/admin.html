@@ -21,7 +21,7 @@ async function load(){
    }
    operatorScopeId=String(selected.id);operatorScopeName=selected.kennel_name||selected.id;operatorBreeder.value=operatorScopeId;kennelModeLabel.textContent=operatorScopeName+'｜運営確認モード';
    // Preserve the selected kennel when opening the new-listing editor.
-   document.querySelectorAll('a[href="breeder-puppy-new.html"]').forEach(a=>{a.href='breeder-puppy-new.html?breederId='+encodeURIComponent(operatorScopeId)});
+   if(typeof document!=='undefined' && document.querySelectorAll) document.querySelectorAll('a[href="breeder-puppy-new.html"]').forEach(a=>{a.href='breeder-puppy-new.html?breederId='+encodeURIComponent(operatorScopeId)});
    dogs=(await BigPawAPI.breederPuppies({breederId:operatorScopeId})).filter(x=>String(x.breederId||'')===operatorScopeId);
    try{bp=await BigPawAPI.request('/breeder-profile?id='+encodeURIComponent(operatorScopeId))}catch(e){}
    try{q=(await BigPawBridge.inquiries()).filter(x=>String(x.breeder_id||'')===operatorScopeId)}catch(e){q=[]}

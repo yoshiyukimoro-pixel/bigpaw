@@ -21,6 +21,7 @@
     const target=await BigPawAPI.request('/breeder-profile?id='+encodeURIComponent(selectedId));
     if(!target||String(target.id)!==String(selectedId)||target.review_status!=='approved')
       throw new Error('承認済みブリーダーを選択してください。');
+    window.bigpawProxyId=selectedId;
     notice.textContent='運営代理掲載：'+target.kennel_name+'（'+target.prefecture+'）の掲載犬として登録します。';
     document.querySelector('h1').textContent='代理掲載｜'+target.kennel_name;
     // A newly selected kennel must not inherit DOG44 puppy details or parents.

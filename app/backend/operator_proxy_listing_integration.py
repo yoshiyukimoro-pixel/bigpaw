@@ -97,6 +97,31 @@ ensure(created.get("name") == "ヤンヤン" and created.get("birth") == "2024-0
 ensure(created.get("reviewStatus") == "approved",
        "existing operator publication path is unchanged")
 
+# Exercise the same two-step image save path used by the operator form.
+import base64
+png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==")
+boundary = "BIGPAWproxy" + uuid.uuid4().hex
+multipart = (
+    ("--"+boundary+"\r\nContent-Disposition: form-data; name=\"puppyId\"\r\n\r\n"+pid+"\r\n").encode()
+    + ("--"+boundary+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\"proxy.png\"\r\nContent-Type: image/png\r\n\r\n").encode()
+    + png + ("\r\n--"+boundary+"--\r\n").encode()
+)
+upload_request = urllib.request.Request(
+    BASE+"/api/uploads",data=multipart,method="POST",
+    headers={"Content-Type":"multipart/form-data; boundary="+boundary,
+             "Authorization":"Bearer "+operator}
+)
+with urllib.request.urlopen(upload_request,timeout=10) as response:
+    uploaded=json.loads(response.read())
+ensure(response.status==201 and uploaded.get("url") and uploaded.get("id"),
+       "operator can upload photo for selected breeder dog")
+st, changed = req("PATCH","/api/puppies/"+pid,{"imageUrl":uploaded["url"]},operator)
+ensure(st==200 and changed.get("breederId")==aid and changed.get("imageUrl")==uploaded["url"],
+       "operator photo update retains target breeder ownership")
+st, photos = req("GET","/api/puppies/"+pid+"/photos",token=a_token)
+ensure(st==200 and any(p.get("url")==uploaded["url"] for p in photos),
+       "photo is visible to the selected breeder")
+
 st, a_list = req("GET", "/api/breeder/puppies", token=a_token)
 st2, b_list = req("GET", "/api/breeder/puppies", token=b_token)
 ensure(st == 200 and st2 == 200 and any(p["id"] == pid for p in a_list)
