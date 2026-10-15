@@ -4,7 +4,7 @@
   let breederAuthorized=false;
   const submitButton=formEl.querySelector('button[type="submit"]');
   submitButton.disabled=true;
-  fetch('/api/me',{credentials:'include'}).then(async r=>{if(!r.ok)throw new Error('auth');const me=await r.json();if(me.role!=='breeder')throw new Error('role');breederAuthorized=true;submitButton.disabled=false;if(me.email)document.getElementById('email').value=me.email;if(me.kennel_name||me.name)document.getElementById('name').value=me.kennel_name||me.name;}).catch(()=>{formEl.innerHTML='<h1>ブリーダーログインが必要です</h1><p>このページはブリーダー専用です。</p><a class="btn btn-main" href="login.html">ログインする</a>';});
+  BigPawAPI.me().then(me=>{if(me.role!=='breeder')throw new Error('role');breederAuthorized=true;submitButton.disabled=false;if(me.email)document.getElementById('email').value=me.email;if(me.kennel_name||me.name)document.getElementById('name').value=me.kennel_name||me.name;}).catch(()=>{formEl.innerHTML='<h1>ブリーダーログインが必要です</h1><p>このページはブリーダー専用です。</p><a class="btn btn-main" href="login.html">ログインする</a>';});
   const nameEl=document.getElementById('name');
   const emailEl=document.getElementById('email');
   const categoryEl=document.getElementById('category');
@@ -27,7 +27,7 @@
       });
       resultEl.innerHTML=`<div class="notice">お問い合わせを受け付けました。受付番号：<b>${String(r.id).replace(/[&<>"']/g,'')}</b></div>`;
       formEl.reset();
-      fetch('/api/me',{credentials:'include'}).then(r=>r.ok?r.json():null).then(me=>{if(me&&me.role==='breeder'){if(me.email)emailEl.value=me.email;if(me.kennel_name||me.name)nameEl.value=me.kennel_name||me.name;}}).catch(()=>{});
+      BigPawAPI.me().then(me=>{if(me&&me.role==='breeder'){if(me.email)emailEl.value=me.email;if(me.kennel_name||me.name)nameEl.value=me.kennel_name||me.name;}}).catch(()=>{});
     }catch(x){
       const msg=(x&&x.status===429&&x.data&&x.data.message)?x.data.message:'送信できませんでした。入力内容をご確認のうえ、時間をおいてお試しください。';
       resultEl.innerHTML=`<div class="notice">${String(msg).replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]))}</div>`;
