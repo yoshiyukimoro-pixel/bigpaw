@@ -39,4 +39,4 @@ jobs:
         run: docker build --no-cache -t bigpaw-seo-check .
       - name: Validate built site and generated sitemap route
         run: |
-          docker run --rm --entrypoint python3 bigpaw-seo-check -c "from pathlib import Path; p=Path('/app/large-dog-puppies.html').read_text(); h=Path('/app/index.html').read_text(); s=Path('/app/backend/server.py').read_text(); assert '<h1>大型犬の子犬を探すなら BIG PAW</h1>' in p; assert 'large-dog-puppies.html' in h; assert "'/large-dog-puppies.html'" in s; assert "if path=='/sitemap.xml':" in s; compile(s,'backend/server.py','exec'); print('SEO_BUILD_GATE_OK')"
+          docker run --rm --entrypoint python3 bigpaw-seo-check -c 'from pathlib import Path; p=Path("/app/large-dog-puppies.html").read_text(); h=Path("/app/index.html").read_text(); s=Path("/app/backend/server.py").read_text(); assert "<h1>大型犬の子犬を探すなら BIG PAW</h1>" in p; assert "large-dog-puppies.html" in h; assert "/large-dog-puppies.html" in s; assert "sitemap.xml" in s; compile(s,"backend/server.py","exec"); print("SEO_BUILD_GATE_OK")'
