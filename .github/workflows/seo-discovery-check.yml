@@ -1,0 +1,42 @@
+name: SEO discoverability and regression gate
+on:
+  push:
+    branches:
+      - seo-large-dog-discovery-20261017
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/large-dog-puppies.html'
+      - 'app/index.html'
+      - 'app/backend/seo_search_visibility_patch.py'
+      - '.github/workflows/seo-discovery-check.yml'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify SEO source and Python syntax
+        run: |
+          python3 -m py_compile app/backend/seo_search_visibility_patch.py
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('app/index.html').read_text(encoding='utf-8')
+          p=Path('app/large-dog-puppies.html').read_text(encoding='utf-8')
+          s=Path('app/backend/seo_search_visibility_patch.py').read_text(encoding='utf-8')
+          assert 'href="large-dog-puppies.html"' in h
+          assert p.count('name="description"')==1
+          assert p.count('rel="canonical"')==1
+          assert 'https://bigpaw.site/large-dog-puppies.html' in p
+          assert '<h1>大型犬の子犬を探すなら BIG PAW</h1>' in p
+          assert "s=s.replace(old,new,1)" in s
+          assert "'/large-dog-puppies.html'" in s
+          print('SEO_SOURCE_CHECK_OK')
+          PY
+      - name: Full application build and existing release gates
+        run: docker build --no-cache -t bigpaw-seo-check .
+      - name: Validate built site and generated sitemap route
+        run: |
+          docker run --rm --entrypoint python3 bigpaw-seo-check -c 'from pathlib import Path; p=Path("/app/large-dog-puppies.html").read_text(); h=Path("/app/index.html").read_text(); s=Path("/app/backend/server.py").read_text(); assert "<h1>大型犬の子犬を探すなら BIG PAW</h1>" in p; assert "large-dog-puppies.html" in h; assert "/large-dog-puppies.html" in s; assert "sitemap.xml" in s; compile(s,"backend/server.py","exec"); print("SEO_BUILD_GATE_OK")'

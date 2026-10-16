@@ -149,9 +149,10 @@ if p.exists():
 server=ROOT/'backend/server.py'
 s=server.read_text(encoding='utf-8')
 old="static=['/','/search.html','/breeders.html','/breed-guide.html','/breed-standard-poodle.html','/cost-simulator.html','/match.html','/faq.html','/contact.html','/privacy.html','/terms.html','/legal-notice.html','/breeder-fees.html']"
-new="static=['/','/search.html','/breeders.html','/breed-guide.html','/breed-standard-poodle.html','/cost-simulator.html','/match.html','/faq.html','/contact.html','/privacy.html','/terms.html','/legal-notice.html','/breeder-fees.html']"
+new=old.replace("'/breed-standard-poodle.html'", "'/breed-standard-poodle.html','/large-dog-puppies.html'")
 if old not in s:
     raise SystemExit(('seo_sitemap_static_anchor_missing',s.count("static=['/','/search.html'")))
+s=s.replace(old,new,1)
 # Static list is already sound; add a stable lastmod-free sitemap header and keep dynamic listings discoverable.
 # Also advertise the canonical host in robots.txt through the existing sitemap line.
 robots_old='Sitemap: {PUBLIC_BASE_URL}/sitemap.xml\\n"'
