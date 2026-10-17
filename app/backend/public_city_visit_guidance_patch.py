@@ -99,8 +99,7 @@ h=p.read_text(encoding='utf-8')
 h=replace_once(h,'<span>所在地（都道府県）</span>','<span>所在地（市まで公開）</span>','breeder_detail_location_label')
 h=replace_once(h,"area.textContent=b.prefecture||'';pref.textContent=b.prefecture||'-';",
                  "area.textContent=b.public_area||b.prefecture||'';pref.textContent=b.public_area||b.prefecture||'-';",'breeder_detail_city')
-h=replace_once(h,"name.textContent=","document.getElementById('name').textContent=",'breeder_detail_name_missing_id')
-# Replace the second "name.textContent" too, and the error handler version.
+assert h.count("name.textContent=")==3, ('breeder_detail_name_cases',h.count("name.textContent="))
 h=h.replace("name.textContent=","document.getElementById('name').textContent=")
 h=h.replace("profile.textContent=","document.getElementById('profile').textContent=")
 h=replace_once(h,'犬舎名・住所・電話番号・SNS等の直接連絡先は公開していません。お問い合わせ・見学調整はBIG PAW内で行います。',
