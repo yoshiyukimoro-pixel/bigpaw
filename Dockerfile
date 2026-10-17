@@ -41,6 +41,7 @@ RUN ["python3", "backend/public_city_visit_guidance_test.py"]
 RUN ["python3", "backend/breeder_legal_disclosure_patch.py"]
 RUN ["python3", "backend/breeder_legal_disclosure_ui_patch.py"]
 RUN ["python3", "backend/breeder_legal_disclosure_test.py"]
+RUN ["python3", "backend/breeder_legal_disclosure_http_test.py"]
 RUN ["python3", "-m", "py_compile", "backend/favorite_updates.py", "backend/server.py"]
 ENV PORT=8080
 EXPOSE 8080
