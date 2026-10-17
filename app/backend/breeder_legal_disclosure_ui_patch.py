@@ -10,7 +10,7 @@ def once(src,old,new,label):
 # address and business registration number, are already entered in the form.
 p=ROOT/'breeder-register.html'
 h=p.read_text(encoding='utf-8')
-h=once(h,'犬舎名（運営管理用） *','犬舎名（法定表示として詳細ページに公開） *','signup_kennel_label')
+h=once(h,'犬舎名（運営審査用・非公開） *','犬舎名（法定表示として詳細ページに公開） *','signup_kennel_label')
 h=once(h,'本人確認・審査のため運営のみが使用します。一般ユーザーには公開されません。',
        '一覧には犬舎名を表示しませんが、法律で必要なブリーダー詳細の法定表示欄には掲載します。','signup_kennel_explanation')
 h=once(h,'第一種動物取扱業 登録番号（非公開） *','第一種動物取扱業 登録番号（法定表示で公開） *','signup_registration_label')
