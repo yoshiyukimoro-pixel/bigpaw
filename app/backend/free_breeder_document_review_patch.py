@@ -25,7 +25,7 @@ replacement=marker+"""
                 stored=Path(urlparse(proof.group(1)).path).name
                 proof_row=con.execute("SELECT stored_name,mime FROM uploads WHERE user_id=? AND stored_name=? AND puppy_id IS NULL",
                                       (a['user_id'],stored)).fetchone()
-                if not proof_row or not str(proof_row['mime'] or '').startswith('image/') or not (UPLOADS/stored).is_file():
+                if not proof_row or not str(proof_row['mime_type'] or '').startswith('image/') or not (UPLOADS/stored).is_file():
                     con.close()
                     return self.send_json({'error':'registration_proof_missing'},409)
                 audit(con,u['id'],'breeder_registration_proof_manually_checked','breeder_application',a['id'],
