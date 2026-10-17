@@ -137,7 +137,13 @@ PATCH_ADDITION="""        if path=='/api/breeder/legal-display':
             if not all((operator_name,registration_date,expires_on,manager,business_type,
                         str(b['kennel_name'] or '').strip(),str(b['visit_address'] or '').strip(),str(b['registration_no'] or '').strip())):
                 con.close(); return self.send_json({'error':'legal_required_fields'},400)
-            if not all(re.fullmatch(r'\\d{4}-\\d{2}-\\d{2}',x) for x in (registration_date,expires_on)) or registration_date>expires_on or '販売' not in business_type:
+            try:
+                import datetime as _legal_datetime
+                reg_dt=_legal_datetime.date.fromisoformat(registration_date)
+                exp_dt=_legal_datetime.date.fromisoformat(expires_on)
+            except ValueError:
+                con.close(); return self.send_json({'error':'invalid_legal_ad_fields'},400)
+            if reg_dt>exp_dt or '販売' not in business_type:
                 con.close(); return self.send_json({'error':'invalid_legal_ad_fields'},400)
             con.execute('''INSERT INTO breeder_legal_disclosures(
                 breeder_id,operator_name,registration_date,expires_on,animal_manager,business_type,confirmed,updated_at)
