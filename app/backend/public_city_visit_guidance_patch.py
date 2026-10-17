@@ -98,7 +98,7 @@ SERVER.write_text(s,encoding='utf-8')
 p=ROOT/'breeders.html'
 h=p.read_text(encoding='utf-8')
 h=replace_once(h,'placeholder="都道府県・紹介文"','placeholder="都道府県・市・紹介文"','breeders_placeholder')
-h=replace_once(h,"(\x60\x24{x.prefecture||''} \x24{x.profile||''}\x60)", "(\x60\x24{x.public_area||x.prefecture||''} \x24{x.profile||''}\x60)",'breeders_filter')
+h=replace_once(h,"${x.prefecture||''}", "${x.public_area||x.prefecture||''}",'breeders_filter')
 p.write_text(h,encoding='utf-8')
 
 p=ROOT/'breeder-detail.html'
