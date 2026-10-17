@@ -23,7 +23,7 @@ replacement=marker+"""
                     con.close()
                     return self.send_json({'error':'registration_proof_required'},409)
                 stored=Path(urlparse(proof.group(1)).path).name
-                proof_row=con.execute("SELECT stored_name,mime FROM uploads WHERE user_id=? AND stored_name=? AND puppy_id IS NULL",
+                proof_row=con.execute("SELECT stored_name,mime_type FROM uploads WHERE user_id=? AND stored_name=? AND puppy_id IS NULL",
                                       (a['user_id'],stored)).fetchone()
                 if not proof_row or not str(proof_row['mime_type'] or '').startswith('image/') or not (UPLOADS/stored).is_file():
                     con.close()
