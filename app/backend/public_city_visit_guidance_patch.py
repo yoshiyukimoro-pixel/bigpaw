@@ -61,6 +61,11 @@ s=replace_once(s,
     "    d['kennel_name']=(pref+'のBIGPAW認定ブリーダー') if pref else 'BIGPAW認定ブリーダー'",
     "    d['kennel_name']=(public_area+'のBIGPAW認定ブリーダー') if public_area else 'BIGPAW認定ブリーダー'",
     'public_breeder_label')
+s=replace_once(s,
+    "'instagram','sns','website','url'):",
+    "'instagram','sns','website','url','visit_address','visit_phone','visit_access'):",
+    'protect_private_visit_fields')
+
 
 old_puppy="""    area=(d.get('area') or '').strip()
     d['breeder']=(area+'のBIGPAW認定ブリーダー') if area else 'BIGPAW認定ブリーダー'
