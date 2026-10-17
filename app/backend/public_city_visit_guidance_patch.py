@@ -78,10 +78,10 @@ s=replace_once(s,
     'sql="SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.review_status=',
     'sql="SELECT p.*,b.prefecture AS public_prefecture,b.visit_address AS public_visit_address FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.review_status=',
     'public_puppies_join')
-s=replace_once(s,
-    'con.execute("SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status=',
-    'con.execute("SELECT p.*,b.prefecture AS public_prefecture,b.visit_address AS public_visit_address FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status=',
-    'public_puppy_detail_join')
+old_detail_query='con.execute("SELECT p.* FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status='
+new_detail_query='con.execute("SELECT p.*,b.prefecture AS public_prefecture,b.visit_address AS public_visit_address FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status='
+assert s.count(old_detail_query)==2, ('public_puppy_detail_and_photo_join',s.count(old_detail_query))
+s=s.replace(old_detail_query,new_detail_query,2)
 s=replace_once(s,
     "puppies=con.execute(\"SELECT * FROM puppies WHERE breeder_id=? AND review_status='approved' ORDER BY created_at DESC\",(b['id'],)).fetchall()",
     "puppies=con.execute(\"SELECT p.*,b.prefecture AS public_prefecture,b.visit_address AS public_visit_address FROM puppies p JOIN breeders b ON b.id=p.breeder_id WHERE p.breeder_id=? AND p.review_status='approved' ORDER BY p.created_at DESC\",(b['id'],)).fetchall()",
