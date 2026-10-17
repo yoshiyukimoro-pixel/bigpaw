@@ -79,6 +79,14 @@ new="""    const legalFieldIds=['legalOfficeName','legalOperatorName','legalBusi
         renderLegalConfirmation();
       }
     };
+    // Hook successful existing profile saves without coupling to their UI messages.
+    // This also catches registration-number and address changes that revoke consent.
+    const saveProfileOriginal=BigPawAPI.updateBreederProfile.bind(BigPawAPI);
+    BigPawAPI.updateBreederProfile=async(...args)=>{
+      const result=await saveProfileOriginal(...args);
+      await window.refreshLegalReviewAfterProfileSave?.();
+      return result;
+    };
     renderLegalConfirmation();
     field('legalDisplayForm').addEventListener('submit',async function(e){"""
 s=once(s,old,new,'consent_is_required_only_for_changes')
@@ -97,9 +105,5 @@ new="""        const nowStatus=await BigPawAPI.request('/breeder/legal-status').
         renderLegalConfirmation();
         await window.refreshBreederLegalAlert?.();"""
 s=once(s,old,new,'clear_checkbox_and_hide_after_success')
-# If the main profile was updated and revoked the server confirmation, reveal the
-# legal confirm section; unchanged main-form submissions keep the check hidden.
-needle="msg.innerHTML='<div class=\"notice\">✓ 保存しました。所在地は都道府県まで一般公開され、見学先情報は対面見学確定後の購入希望者にだけ表示されます。</div>';"
-s=once(s,needle,needle+"await window.refreshLegalReviewAfterProfileSave?.();",'main_profile_save_sync')
 P.write_text(s,encoding='utf-8')
 print('LEGAL_RECONFIRM_ONLY_ON_CHANGE_OK|confirmed_unchanged_hidden|new_changes_require_consent|after_confirm_auto_hidden|profile_revalidation|existing_alert_preserved',flush=True)
