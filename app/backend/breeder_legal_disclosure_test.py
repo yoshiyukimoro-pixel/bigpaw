@@ -58,4 +58,11 @@ assert cols['confirmed'][4]=='0','LEGAL_OPT_IN_DEFAULT'
 con.execute('INSERT INTO breeder_legal_disclosures (breeder_id,operator_name,registration_date,expires_on,animal_manager,business_type,confirmed,updated_at) VALUES(?,?,?,?,?,?,?,?)',('b_test','代表者','2024-01-01','2029-12-31','責任者','販売',1,1))
 assert con.execute('SELECT confirmed FROM breeder_legal_disclosures WHERE breeder_id=?',('b_test',)).fetchone()[0]==1,'LEGAL_TABLE_PERSISTENCE'
 con.close()
+# Public legal information follows customer-requested bottom-of-page layout.
+breeder_page=allpages['breeder-detail.html']
+assert breeder_page.index('id="reviews"') < breeder_page.index('id="breederLegalDetails"') < breeder_page.index('</main>'), 'LEGAL_SECTION_NOT_AT_BOTTOM'
+# JS must produce an array of [field,label] tuples, not JS comma-operator expressions.
+ui_patch=(ROOT/'backend/breeder_legal_disclosure_ui_patch.py').read_text(encoding='utf-8')
+assert "dumps([list(x) for x in labels]" in ui_patch, 'JS_LEGAL_PAIR_SERIALIZATION_MISSING'
+assert "const LEGAL_LABELS=[[" in breeder_page,'MALFORMED_JS_LEGAL_ARRAY'
 print('BREEDER_LEGAL_DISCLOSURE_GATE_OK|eight_statutory_fields|explicit_consent|approved_only|public_display_breeder_and_puppy|auto_visit_preserved|no_duplicate_address|existing_unconfirmed_safe',flush=True)
