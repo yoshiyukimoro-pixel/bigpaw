@@ -82,6 +82,10 @@ new="""    const legalFieldIds=['legalOfficeName','legalOperatorName','legalBusi
     renderLegalConfirmation();
     field('legalDisplayForm').addEventListener('submit',async function(e){"""
 s=once(s,old,new,'consent_is_required_only_for_changes')
+s=once(s,
+   "      e.preventDefault();\n      const btn=field('legalDisplaySave');",
+   "      e.preventDefault();\n      if(published && legalSnapshot()===savedSnapshot){\n        note.textContent='✓ 法定表示は公開確認済みです。変更がなければ再確認は不要です。';\n        return;\n      }\n      const btn=field('legalDisplaySave');",
+   'prevent_unchanged_enter_submission')
 # On successful PATCH, update from the server's saved authoritative state:
 # do not use localStorage and do not mark expired/incomplete data complete.
 old="""        note.textContent='✓ 法定情報を保存・公開しました。';
