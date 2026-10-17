@@ -62,8 +62,8 @@ s=replace_once(s,
     "    d['kennel_name']=(public_area+'のBIGPAW認定ブリーダー') if public_area else 'BIGPAW認定ブリーダー'",
     'public_breeder_label')
 s=replace_once(s,
-    "'instagram','sns','website','url'):",
-    "'instagram','sns','website','url','visit_address','visit_phone','visit_access'):",
+    "    private_visit=(d.get('visit_address') or '').strip() if 'visit_address' in d else ''",
+    "    private_visit=(d.get('visit_address') or '').strip() if 'visit_address' in d else ''\\n    for _private in ('visit_address','visit_phone','visit_access'):\\n        d.pop(_private,None)".replace('\\n','\n'),
     'protect_private_visit_fields')
 
 
