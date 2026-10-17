@@ -24,6 +24,7 @@ assert "'missingCount':len(missing)" in server
 assert "id=\"breederLegalAlert\"" in admin
 assert "await refreshBreederLegalAlert();" in admin
 assert "state.complete){panel.style.display='none'" in admin
+assert "panel.style.display='block'" in admin,'LOGIN_AND_INCOMPLETE_SHOW_ALERT'
 assert "me?.role!=='breeder'" in admin
 assert 'breeder-profile-edit.html#legalDisplayForm' in admin
 assert 'id="legalCompletionAlert"' in edit
