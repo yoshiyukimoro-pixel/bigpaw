@@ -36,6 +36,8 @@ RUN ["python3", "backend/favorite_integration_patch.py"]
 RUN ["python3", "backend/operator_proxy_listing_patch.py"]
 RUN ["python3", "backend/operator_proxy_listing_ui_patch.py"]
 RUN ["python3", "backend/operator_chatgpt_free_import_patch.py"]
+RUN ["python3", "backend/public_city_visit_guidance_patch.py"]
+RUN ["python3", "backend/public_city_visit_guidance_test.py"]
 RUN ["python3", "-m", "py_compile", "backend/favorite_updates.py", "backend/server.py"]
 ENV PORT=8080
 EXPOSE 8080
