@@ -7,7 +7,9 @@ def change(a,b):
     s=s.replace(a,b,1)
 
 change('<div class="field"><label><input type="checkbox" id="legalPublicConfirm" required>',
-       '<div class="field" id="legalConsentRow"><label><input type="checkbox" id="legalPublicConfirm" required>')
+       '<div class="field" id="legalConsentRow" style="display:none"><label><input type="checkbox" id="legalPublicConfirm" required>')
+change('<button type="submit" id="legalDisplaySave" class="btn btn-main btn-wide">',
+       '<button type="submit" id="legalDisplaySave" class="btn btn-main btn-wide" style="display:none">')
 change("  const note=field('legalDisplayStatus');\n  try{", """  const note=field('legalDisplayStatus');
   const tracked=['legalOfficeName','legalOperatorName','legalBusinessType','legalRegistrationDateEdit','legalExpiresOn','legalAnimalManagerEdit'];
   const snapshot=()=>JSON.stringify(tracked.map(id=>field(id).value.trim()));
