@@ -59,16 +59,10 @@ s=replace_once(s,
     "    d['kennel_name']=(public_area+'のBIGPAW認定ブリーダー') if public_area else 'BIGPAW認定ブリーダー'",
     'public_breeder_label')
 
-old_puppy="""def public_puppy_json(r):
-    d=puppy_json(r)
-    if not d: return None
-    area=(d.get('area') or '').strip()
+old_puppy="""    area=(d.get('area') or '').strip()
     d['breeder']=(area+'のBIGPAW認定ブリーダー') if area else 'BIGPAW認定ブリーダー'
     return d"""
-new_puppy="""def public_puppy_json(r):
-    d=puppy_json(r)
-    if not d: return None
-    fields=r.keys() if hasattr(r,'keys') else ()
+new_puppy="""    fields=r.keys() if hasattr(r,'keys') else ()
     if 'public_prefecture' in fields:
         area=city_level_public_location(r['public_prefecture'],r['public_visit_address'])
     else:
