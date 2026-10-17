@@ -71,7 +71,7 @@ with tempfile.TemporaryDirectory(prefix='bigpaw-legal-http-') as scratch:
                'directory excludes office address and legal registration details')
             ok('埼玉県さいたま市' in serialized,'directory city-level location displayed')
 
-            valid={'operatorName':'サンプル事業者','registrationDate':'2024-04-01',
+            valid={'operatorName':'サンプル事業者','officeName':'ドックフォーティーフォー','registrationDate':'2024-04-01',
                    'expiresOn':'2029-03-31','animalManager':'試験責任者',
                    'businessType':'販売','confirmPublicDisclosure':True}
             status,blocked=req(base,'/api/breeder/legal-display','PATCH',valid)
@@ -88,6 +88,11 @@ with tempfile.TemporaryDirectory(prefix='bigpaw-legal-http-') as scratch:
             status,legal=req(base,'/api/breeders/b_dog44/legal')
             ok(status==200 and legal.get('officeAddress')=='埼玉県さいたま市西区仮所在地1-2-3',
                'confirmed legal office location published only on legal endpoint')
+            ok(legal.get('officeName')=='ドックフォーティーフォー',
+               'legal office name is independent of kennel brand')
+            with sqlite3.connect(Path(scratch)/'bigpaw.sqlite3',timeout=15) as con:
+                kennel=con.execute("SELECT kennel_name FROM breeders WHERE id='b_dog44'").fetchone()[0]
+                ok(kennel=='DOG44','updating legal office name must not rename DOG44 or puppy brand')
             ok(legal.get('registrationNo')=='SAMPLE-LEGAL-001' and
                legal.get('operatorName')=='サンプル事業者' and
                legal.get('animalManager')=='試験責任者' and
