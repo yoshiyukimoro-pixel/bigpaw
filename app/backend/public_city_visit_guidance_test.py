@@ -44,6 +44,22 @@ for p,a,want in positive+negative:
     got=city(p,a)
     assert got==want,('CITY_ONLY_FAIL',p,a,got,want)
 assert pref('埼玉県さいたま市西区')=='埼玉県','SAFE_PREFECTURE_PREFIX'
+# Exercise the real public serializer, not just a source-code presence check.
+# A JSON response must not contain ANY private visit contact field or its value.
+safe_serializer=fn['public_breeder_json']
+sandbox=dict(env)
+sandbox['sanitize_public_profile']=lambda t,*args: t
+exec(compile(ast.Module(body=[safe_serializer],type_ignores=[]),'<public_serializer>','exec'),sandbox)
+private_row={'id':'b_test','kennel_name':'PRIVATE DOG44','prefecture':'埼玉県',
+             'visit_address':'埼玉県さいたま市西区飯田123-45',
+             'visit_phone':'090-1111-2222','visit_access':'駐車場住所の機密情報',
+             'registration_no':'PRIVATE-123','user_id':'u_private','profile':'大切に育てています。'}
+public_data=sandbox['public_breeder_json'](private_row)
+assert public_data['public_area']=='埼玉県さいたま市','PUBLIC_CITY_SERIALIZER'
+for private_key in ('visit_address','visit_phone','visit_access','registration_no','user_id'):
+    assert private_key not in public_data,('PUBLIC_PRIVATE_KEY_LEAK',private_key)
+assert all(secret not in str(public_data) for secret in ('西区','飯田123','090-1111','PRIVATE DOG44','駐車場住所の機密情報')),'PUBLIC_PRIVATE_VALUE_LEAK'
+
 assert all('区' not in city(p,a) and '丁目' not in city(p,a) and '郡' not in city(p,a) and '町' not in city(p,a) for p,a,_ in positive[:7]),'NO_DISTRICT_LEAK'
 
 # Scan actual final, built-in-place files, not the patch source.
