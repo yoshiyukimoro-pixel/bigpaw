@@ -85,6 +85,12 @@ old_detail_query='con.execute("SELECT p.* FROM puppies p LEFT JOIN breeders b ON
 new_detail_query='con.execute("SELECT p.*,b.prefecture AS public_prefecture,b.visit_address AS public_visit_address FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id WHERE p.id=? AND p.review_status='
 assert s.count(old_detail_query)==2, ('public_puppy_detail_and_photo_join',s.count(old_detail_query))
 s=s.replace(old_detail_query,new_detail_query,2)
+# Nested public puppy cards use the same redacted municipality. Keep original
+# photo/gallery SQL unchanged.
+s=replace_once(s,
+    "out['puppies']=[public_puppy_json(x) for x in puppies]",
+    "out['puppies']=[dict(public_puppy_json(x),area=out['public_area'],breeder=out['kennel_name']) for x in puppies]",
+    'breeder_nested_puppy_area')
 SERVER.write_text(s,encoding='utf-8')
 
 # All public pages refer to the same redacted public_area; never show district.
