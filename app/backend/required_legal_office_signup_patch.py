@@ -25,8 +25,8 @@ s=once(s,
    "            legal_reg_date=str(body.get('legalRegistrationDate','')).strip()",
    'office_required_input')
 s=once(s,
-   "            if not re.fullmatch(r'\\\\d{4}-\\\\d{2}-\\\\d{2}',legal_reg_date) or not legal_manager or not body.get('legalAdConsent'):",
-   "            if not legal_office_name or len(legal_office_name)>160 or not re.fullmatch(r'\\\\d{4}-\\\\d{2}-\\\\d{2}',legal_reg_date) or not legal_manager or not body.get('legalAdConsent'):",
+   " or not legal_manager or not body.get('legalAdConsent'):",
+   " or not legal_office_name or len(legal_office_name)>160 or not legal_manager or not body.get('legalAdConsent'):",
    'registered_office_backend_required')
 s=once(s,
    "            con.execute('UPDATE breeder_applications SET legal_registration_date=?,legal_animal_manager=?,legal_ad_consent=1 WHERE id=?',\n"
