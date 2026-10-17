@@ -49,6 +49,10 @@ change("        note.textContent='✓ 法定情報を保存・公開しました
        """        baseline=snapshot();
         await refreshLegalActions();
         await window.refreshBreederLegalAlert?.();""")
+change("      try{\n        await BigPawAPI.request('/breeder/legal-display'",
+       "      const submittedFields=snapshot();\n      try{\n        await BigPawAPI.request('/breeder/legal-display'")
+change("        baseline=snapshot();\n        await refreshLegalActions();",
+       "        baseline=submittedFields;\n        await refreshLegalActions();")
 change("publicProfileLink.href=breederId?'breeder-detail.html?id='+encodeURIComponent(breederId):'breeders.html';msg.innerHTML='<div class=\"notice\">✓ 保存しました。",
        "publicProfileLink.href=breederId?'breeder-detail.html?id='+encodeURIComponent(breederId):'breeders.html';void window.refreshLegalUx?.();msg.innerHTML='<div class=\"notice\">✓ 保存しました。")
 page.write_text(s,encoding='utf-8')
