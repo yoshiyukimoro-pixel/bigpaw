@@ -91,8 +91,8 @@ labels=(('operatorName','第一種動物取扱業者の氏名・名称'),('offic
         ('expiresOn','有効期間の末日'),('animalManager','動物取扱責任者の氏名'))
 p=ROOT/'breeder-detail.html'
 h=p.read_text(encoding='utf-8')
-h=once(h,'</div><div class="section-head" style="margin-top:28px">',
-       '</div><section class="section" style="margin-top:18px"><div class="card pad"><h2>第一種動物取扱業の法定表示</h2><div id="breederLegalDetails" class="fact-grid">登録内容を確認中です。</div><small class="muted">法令上必要な事業者情報です。見学の申込・取引はBIG PAWからお願いします。</small></div></section><div class="section-head" style="margin-top:28px">','detail_legal_section')
+h=once(h,'</section></main>',
+       '<section class="section" style="margin-top:34px"><div class="card pad"><h2>第一種動物取扱業の法定表示</h2><div id="breederLegalDetails" class="fact-grid">登録内容を確認中です。</div><small class="muted">法律で必要な事業者情報を表示しています。見学調整・お問い合わせはBIG PAW内でお願いします。</small></div></section></section></main>','detail_legal_section_at_bottom')
 js='''<script>
 (async function renderBreederLegal(){
  const holder=document.getElementById('breederLegalDetails');
@@ -105,7 +105,7 @@ js='''<script>
  }catch(e){holder.textContent='法定表示情報の確認が必要です。';}
 })();
 </script>'''
-lookup="const LEGAL_LABELS="+repr(list(labels)).replace("'",'"')+";"
+lookup="const LEGAL_LABELS="+__import__('json').dumps([list(x) for x in labels],ensure_ascii=False)+";"
 js=js.replace('const labels=LEGAL_LABELS;',lookup+'\n  const labels=LEGAL_LABELS;')
 h=once(h,'</body></html>',js+'</body></html>','detail_legal_script')
 p.write_text(h,encoding='utf-8')
