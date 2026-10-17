@@ -41,6 +41,9 @@ def city_level_public_location(prefecture, private_visit_address):
     if not m:
         return pref
     city=m.group(1)
+    # 四日市市 contains 市 twice; do not truncate the municipal name.
+    if city=='四日市' and address.startswith('四日市市'):
+        city='四日市市'
     if '郡' in city or '区' in city or len(city)>15:
         return pref
     return pref+city
