@@ -18,7 +18,7 @@ assert "body.get('proofViewed') is not True" in srv,'SERVER_PROOF_GATE'
 assert "'document_check_required'" in srv,'SERVER_CHECKLIST_GATE'
 assert "proof_row['mime_type']" in srv,'REGISTRATION_IMAGE_MIME_FIELD'
 assert "'breeder_registration_proof_manually_checked'" in srv,'AUDIT_EVENT'
-assert '登録証と申請を照合' in html and "review('\${a.id}','approved')" not in html, 'DIRECT_APPROVAL_BYPASS'
+assert '登録証と申請を照合' in html and ",'approved')" not in html, 'DIRECT_APPROVAL_BYPASS'
 assert 'id="legalOfficeNameSignup" required' in signup,'REQUIRED_OFFICE_FIELD_MISSING'
 assert "legalOfficeName:byId('legalOfficeNameSignup').value" in signup,'REQUIRED_OFFICE_NOT_SUBMITTED'
 # Human comparison contains no chargeable API or external model call.
