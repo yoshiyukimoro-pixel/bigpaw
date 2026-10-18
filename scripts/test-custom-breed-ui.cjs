@@ -51,7 +51,7 @@ function run(keys,key,text){
 assert.deepEqual(run(['other'],'other','ゴールデン').names,['ゴールデンドゥードル']);
 assert.deepEqual(run(['other'],'other','ドゥードル').names,puppies.slice(0,3).map(x=>x.breed));
 assert.deepEqual(run(['other','standard-poodle'],'all','ラブラ').names,['ラブラドゥードル','スタンダードプードル']);
-assert.deepEqual(run(['standard-poodle'],'standard-poodle','何か').names,puppies.map(x=>x.breed));
+assert.deepEqual(run(['standard-poodle'],'standard-poodle','何か').names,['スタンダードプードル']);
 assert.equal(run(['standard-poodle'],'standard-poodle','何か').value,'');
 assert.equal(run(['other'],'other','').visible,'block');
 assert.equal(run([],'all','').visible,'none');
