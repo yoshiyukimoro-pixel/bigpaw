@@ -7,15 +7,23 @@ import urllib.request
 import uuid
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:18083"
+SESSION_COOKIE = ""
 
 def request(method, path, data=None, token=None):
+    global SESSION_COOKIE
     headers = {"Content-Type": "application/json"}
+    if SESSION_COOKIE:
+        headers["Cookie"] = SESSION_COOKIE
+        headers["Referer"] = "https://bigpaw.site/"
     if token:
         headers["Authorization"] = "Bearer " + token
     raw = None if data is None else json.dumps(data, ensure_ascii=False).encode()
     req = urllib.request.Request(BASE + path, data=raw, method=method, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=15) as reply:
+            new_cookie = reply.headers.get("Set-Cookie", "")
+            if new_cookie:
+                SESSION_COOKIE = new_cookie.split(";", 1)[0]
             body = reply.read()
             return reply.status, json.loads(body) if body else None
     except urllib.error.HTTPError as ex:
@@ -32,8 +40,8 @@ code, result = request("POST","/api/login",{
     "email":"smoke@example.com",
     "password":"SmokeTestPassword123!",
 })
-assert code == 200 and result.get("token"), ("operator login failed",code,result)
-operator_token=result["token"]
+assert code == 200 and result.get("user",{}).get("role") == "operator" and SESSION_COOKIE, ("operator login failed",code,result)
+operator_token=result.get("token")
 breed="ゴールデンドゥードル"
 code, created = request("POST","/api/puppies",{
     "name":"カスタム犬種の検証"+uuid.uuid4().hex[:6],
