@@ -9,7 +9,8 @@
   const breedKey=name=>{
     const a=Array.isArray(window.BIGPAW_BREEDS)?window.BIGPAW_BREEDS:[];
     const b=a.find(v=>v.ja===name);
-    return b?b.key:({'スタンダードプードル':'standard-poodle','ゴールデンレトリバー':'golden-retriever','ラブラドールレトリバー':'labrador-retriever'}[name]||name);
+    // Custom input is a display name. It must NOT become the category key.
+    return b?b.key:({'スタンダードプードル':'standard-poodle','ゴールデンレトリバー':'golden-retriever','ラブラドールレトリバー':'labrador-retriever'}[name]||'other');
   };
   const editId=()=>new URLSearchParams(location.search).get('id')||'';
   // This runtime handler overrides the older inline form handler.
