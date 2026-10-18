@@ -51,7 +51,8 @@ jobs:
           # Fixture lives only in /tmp inside the disposable CI container.
           # It is never created in Railway or any real BIG PAW database.
           docker exec -i bigpaw-custom-breed-smoke python3 - <<'PY'
-          import sqlite3, time
+          import sqlite3, time, sys
+          sys.path.insert(0, '/app/backend')
           from backend.server import hash_password
           salt, digest = hash_password('CustomBreedTest123!')
           con = sqlite3.connect('/tmp/custom-breed-isolated-data/bigpaw.sqlite3')
