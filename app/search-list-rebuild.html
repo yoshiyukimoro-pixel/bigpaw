@@ -97,6 +97,11 @@
         <select id="bpAge"><option value="all">年齢：すべて</option><option value="2">生後2ヶ月まで</option><option value="3">生後3ヶ月まで</option><option value="6">生後6ヶ月まで</option><option value="12">生後12ヶ月まで</option><option value="adult">成犬</option></select>
         <select id="bpColor"><option value="all">毛色：すべて</option><option value="ブラック">ブラック</option><option value="ホワイト">ホワイト</option><option value="クリーム">クリーム</option><option value="レッド">レッド</option><option value="その他">その他</option></select>
       </div>
+      <div id="bpOtherBreedSearchWrap" style="display:none;margin-top:12px">
+        <label for="bpOtherBreedSearch" style="display:block;font-size:14px;font-weight:700;margin-bottom:7px">その他の犬種名で絞り込む（任意）</label>
+        <input id="bpOtherBreedSearch" type="search" maxlength="80" placeholder="例：ゴールデンドゥードル、ドゥードル" autocomplete="off" style="width:100%;height:48px;border:1px solid #eadfe5;border-radius:12px;background:#fff;padding:0 12px;font-size:15px">
+        <div style="font-size:12px;color:#777;margin-top:5px">その他の犬種・ミックス犬を選んだときだけ使用できます。</div>
+      </div>
     </section>
 
     <section class="bp-filter-card" aria-label="地域と価格">
@@ -152,6 +157,8 @@
       const sort=document.getElementById('bpSort');
       const minPrice=document.getElementById('bpMin');
       const maxPrice=document.getElementById('bpMax');
+      const customBreedWrap=document.getElementById('bpOtherBreedSearchWrap');
+      const customBreedQuery=document.getElementById('bpOtherBreedSearch');
       const results=document.getElementById('bpResults');
       const count=document.getElementById('bpCount');
       const areaModal=document.getElementById('bpAreaModal');
@@ -236,6 +243,13 @@
         const min=Number(minPrice.value||0),max=Number(maxPrice.value||0);
         if(selected.length)list=list.filter(p=>selected.includes(String(p.breedKey||'')));
         else if(b!=='all')list=list.filter(p=>String(p.breedKey||p.breed||'')===b);
+        const isOtherSelected=selected.includes('other')||(!selected.length&&b==='other');
+        customBreedWrap.style.display=isOtherSelected?'block':'none';
+        if(!isOtherSelected)customBreedQuery.value='';
+        const customName=customBreedQuery.value.trim().normalize('NFKC').toLocaleLowerCase('ja');
+        if(isOtherSelected&&customName){
+          list=list.filter(p=>String(p.breedKey||'')!=='other'||String(p.breed||'').normalize('NFKC').toLocaleLowerCase('ja').includes(customName));
+        }
         if(g!=='all')list=list.filter(p=>String(p.genderKey||'')===g);
         if(selectedAreas.size>0&&selectedAreas.size<47)list=list.filter(p=>Array.from(selectedAreas).some(name=>puppyAreaMatch(p,name)));
         if(min)list=list.filter(p=>Number(p.price||0)>=min);
@@ -272,7 +286,7 @@
       function clearAll(){
         if(window.BigPawBreedPicker&&BigPawBreedPicker.clear)BigPawBreedPicker.clear();
         selectedAreas.clear();syncAreaChecks();
-        breed.value='all';gender.value='all';age.value='all';color.value='all';sort.value='new';minPrice.value='0';maxPrice.value='0';render(false);
+        breed.value='all';gender.value='all';age.value='all';color.value='all';sort.value='new';minPrice.value='0';maxPrice.value='0';customBreedQuery.value='';render(false);
       }
       async function init(){
         try{
@@ -284,6 +298,7 @@
           syncAreaChecks();
           source=await BigPawBridge.puppies();
           [gender,age,color,sort,minPrice,maxPrice].forEach(x=>x.addEventListener('change',()=>render(false)));
+          customBreedQuery.addEventListener('input',()=>render(false));
           breed.addEventListener('change',()=>render(false));
           document.getElementById('bpAreaOpen').addEventListener('click',openAreaPicker);
           document.getElementById('bpAreaClose').addEventListener('click',()=>closeAreaPicker(false));
