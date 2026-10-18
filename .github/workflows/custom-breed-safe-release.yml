@@ -1,0 +1,67 @@
+name: Custom breed safe release gate
+on:
+  push:
+    branches:
+      - feature/custom-breed-other-20261018
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/assets/breed-data.js'
+      - 'app/breeder-puppy-new.html'
+      - 'app/search-list-rebuild.html'
+      - 'scripts/test-custom-breed-*'
+      - '.github/workflows/custom-breed-safe-release.yml'
+  workflow_dispatch:
+
+jobs:
+  custom-breed-test-and-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Custom breed and existing photo UI tests
+        run: |
+          set -euo pipefail
+          node scripts/test-custom-breed-ui.cjs
+          node scripts/test-photo-append.js
+          node scripts/test-favorite-ui.js
+      - name: Build actual production image and all existing release gates
+        run: docker build --no-cache -t bigpaw-custom-breed-check .
+      - name: Production-equivalent start in isolated test environment
+        run: |
+          set -euo pipefail
+          START="python3 backend/auth_cookie_hardening_patch.py && python3 backend/safari_gallery_runtime_patch.py && python3 backend/support_contact_runtime_patch.py && python3 backend/offsite_backup_runtime_patch.py && python3 backend/login_prompt_runtime_patch.py && python3 backend/direct_payment_runtime_patch.py && python3 backend/breeder_mobile_menu_runtime_patch.py && exec python3 backend/start_live.py"
+          docker run -d --name bigpaw-custom-breed-smoke -p 18083:8080 \
+            -e PORT=8080 \
+            -e BIGPAW_ENV=production \
+            -e BIGPAW_DATA_DIR=/tmp/custom-breed-isolated-data \
+            -e BIGPAW_ADMIN_EMAIL=smoke@example.com \
+            -e BIGPAW_ADMIN_PASSWORD='SmokeTestPassword123!' \
+            -e BIGPAW_PAYMENT_MODE=manual \
+            bigpaw-custom-breed-check sh -c "$START"
+          trap 'docker logs bigpaw-custom-breed-smoke --tail 35 || true; docker rm -f bigpaw-custom-breed-smoke >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18083/api/health > /tmp/custom-breed-health.json; then ready=1; break; fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-custom-breed-smoke 2>/dev/null | grep -q true; then break; fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then echo "CUSTOM_BREED_START_FAILED"; exit 1; fi
+          # Fixture lives only in /tmp inside the disposable CI container.
+          # It is never created in Railway or any real BIG PAW database.
+          docker exec -i bigpaw-custom-breed-smoke python3 - <<'PY'
+          import sqlite3, time, secrets, hashlib
+          salt=secrets.token_hex(16)
+          digest=hashlib.pbkdf2_hmac('sha256', b'CustomBreedTest123!', salt.encode('utf-8'), 180000).hex()
+          con = sqlite3.connect('/tmp/custom-breed-isolated-data/bigpaw.sqlite3')
+          con.execute("INSERT INTO users(id,role,email,last,first,display_name,salt,password_hash,created_at) VALUES(?,?,?,?,?,?,?,?,?)", ('u_custom_breed','breeder','custom-breeder@example.test','試験','担当','テストブリーダー',salt,digest,int(time.time())))
+          con.execute("INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status) VALUES(?,?,?,?,?,?,?)", ('b_custom_breed','u_custom_breed','検証専用犬舎','埼玉県','SMOKE-001','CI only','approved'))
+          con.commit()
+          con.close()
+          print('TEST_BREEDER_FIXTURE_OK')
+          PY
+          python3 scripts/test-custom-breed-api.py http://127.0.0.1:18083
+          docker logs bigpaw-custom-breed-smoke > /tmp/custom-breed-runtime.log 2>&1
+          grep -q 'SEARCH_REBUILD_LIVE_OK' /tmp/custom-breed-runtime.log
+          echo "CUSTOM_BREED_ALL_GATES_PASSED"
