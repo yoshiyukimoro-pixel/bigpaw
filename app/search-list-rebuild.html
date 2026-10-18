@@ -236,19 +236,28 @@
       function openAreaPicker(){areaModal.hidden=false;document.body.classList.add('bp-modal-open');syncAreaChecks()}
       function closeAreaPicker(apply){areaModal.hidden=true;document.body.classList.remove('bp-modal-open');if(apply)render(false)}
 
+      // Normalize legacy custom breeds that were saved with their display
+      // names in breedKey rather than the stable "other" category key.
+      function searchableBreedKey(p){
+        const breeds=Array.isArray(window.BIGPAW_BREEDS)?window.BIGPAW_BREEDS:[];
+        const key=String(p.breedKey||'').trim();
+        if(breeds.some(v=>v.key===key))return key;
+        const match=breeds.find(v=>v.ja===String(p.breed||''));
+        return match?match.key:'other';
+      }
       function render(scroll){
         let list=source.slice();
         const selected=Array.isArray(window.BIGPAW_SELECTED_BREEDS)?window.BIGPAW_SELECTED_BREEDS:[];
         const b=breed.value,g=gender.value,ag=age.value,c=color.value;
         const min=Number(minPrice.value||0),max=Number(maxPrice.value||0);
-        if(selected.length)list=list.filter(p=>selected.includes(String(p.breedKey||'')));
-        else if(b!=='all')list=list.filter(p=>String(p.breedKey||p.breed||'')===b);
+        if(selected.length)list=list.filter(p=>selected.includes(searchableBreedKey(p)));
+        else if(b!=='all')list=list.filter(p=>searchableBreedKey(p)===b);
         const isOtherSelected=selected.includes('other')||(!selected.length&&b==='other');
         customBreedWrap.style.display=isOtherSelected?'block':'none';
         if(!isOtherSelected)customBreedQuery.value='';
         const customName=customBreedQuery.value.trim().normalize('NFKC').toLocaleLowerCase('ja');
         if(isOtherSelected&&customName){
-          list=list.filter(p=>String(p.breedKey||'')!=='other'||String(p.breed||'').normalize('NFKC').toLocaleLowerCase('ja').includes(customName));
+          list=list.filter(p=>searchableBreedKey(p)!=='other'||String(p.breed||'').normalize('NFKC').toLocaleLowerCase('ja').includes(customName));
         }
         if(g!=='all')list=list.filter(p=>String(p.genderKey||'')===g);
         if(selectedAreas.size>0&&selectedAreas.size<47)list=list.filter(p=>Array.from(selectedAreas).some(name=>puppyAreaMatch(p,name)));
