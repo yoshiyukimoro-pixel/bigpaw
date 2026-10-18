@@ -203,17 +203,20 @@ function installBreederOther(){
   wrap.id='bpOtherBreedWrap';
   wrap.style.cssText='display:none;margin-top:10px;';
   const label=document.createElement('label');
-  label.textContent='犬種名';
+  label.textContent='犬種名を入力（必須）';
+  label.htmlFor='bpOtherBreedName';
   label.style.cssText='display:block;font-weight:700;margin-bottom:6px;';
   const input=document.createElement('input');
   input.id='bpOtherBreedName';
   input.type='text';
   input.maxLength=80;
-  input.placeholder='例：ゴールデンドゥードル';
+  input.placeholder='例：ゴールデンドゥードル／ラブラドゥードル';
+  input.setAttribute('aria-describedby','bpOtherBreedHint');
   input.autocomplete='off';
   input.style.cssText='width:100%;box-sizing:border-box;';
   const hint=document.createElement('div');
-  hint.textContent='60犬種にない犬種・ドゥードル・ミックス犬などの犬種名を入力してください。';
+  hint.id='bpOtherBreedHint';
+  hint.textContent='一覧にない犬種・ドゥードル・ミックス犬などを入力してください。掲載ページにもこの犬種名が表示されます。';
   hint.style.cssText='font-size:12px;color:#777;margin-top:5px;line-height:1.5;';
   wrap.append(label,input,hint);
   sel.insertAdjacentElement('afterend',wrap);
@@ -236,10 +239,12 @@ function installBreederOther(){
   }
   function showOther(focus=false){
     wrap.style.display='block';
+    input.required=true;
     if(focus)setTimeout(()=>input.focus(),0);
   }
   function hideOther(){
     wrap.style.display='none';
+    input.required=false;
   }
 
   sel.addEventListener('change',()=>{
@@ -272,10 +277,12 @@ function installBreederOther(){
   const form=sel.closest('form');
   if(form){
     form.addEventListener('submit',e=>{
-      if(sel.value===OTHER_SENTINEL||((sel.options[sel.selectedIndex]||{}).dataset||{}).bigpawOtherCustom==='1'&&!input.value.trim()){
+      const o=sel.options[sel.selectedIndex];
+      const isOther=sel.value===OTHER_SENTINEL||!!(o&&o.dataset.bigpawOtherCustom==='1');
+      if(isOther&&(!input.value.trim()||input.value.trim()===OTHER_LABEL)){
         e.preventDefault();
         e.stopImmediatePropagation();
-        alert('「その他」を選んだ場合は犬種名を入力してください。');
+        alert('犬種名を入力してください（例：ゴールデンドゥードル）。');
         showOther(true);
       }
     },true);
