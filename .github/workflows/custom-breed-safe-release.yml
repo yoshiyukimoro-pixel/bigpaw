@@ -3,11 +3,13 @@ on:
   push:
     branches:
       - feature/custom-breed-other-20261018
+      - fix/custom-breed-search-20261018
   pull_request:
     branches:
       - main
     paths:
       - 'app/assets/breed-data.js'
+      - 'app/breeder-editor-safety-fix.js'
       - 'app/breeder-puppy-new.html'
       - 'app/search-list-rebuild.html'
       - 'scripts/test-custom-breed-*'
@@ -26,6 +28,7 @@ jobs:
           node scripts/test-custom-breed-ui.cjs
           node scripts/test-photo-append.js
           node scripts/test-favorite-ui.js
+          node app/backend/appeal_runtime_override_node_test.js
       - name: Build actual production image and all existing release gates
         run: docker build --no-cache -t bigpaw-custom-breed-check .
       - name: Production-equivalent start in isolated test environment
