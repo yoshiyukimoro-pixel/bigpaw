@@ -62,5 +62,6 @@ jobs:
           print('TEST_BREEDER_FIXTURE_OK')
           PY
           python3 scripts/test-custom-breed-api.py http://127.0.0.1:18083
-          docker logs bigpaw-custom-breed-smoke 2>&1 | grep -q 'SEARCH_REBUILD_LIVE_OK'
+          docker logs bigpaw-custom-breed-smoke > /tmp/custom-breed-runtime.log 2>&1
+          grep -q 'SEARCH_REBUILD_LIVE_OK' /tmp/custom-breed-runtime.log
           echo "CUSTOM_BREED_ALL_GATES_PASSED"
