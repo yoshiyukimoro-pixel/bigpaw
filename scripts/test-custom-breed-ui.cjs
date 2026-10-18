@@ -44,7 +44,8 @@ const puppies=[
 ];
 function run(keys,key,text){
  const box={style:{}},input={value:text};
- const result=filter(keys,key,box,input,puppies.slice());
+ const eligible=keys.length?puppies.filter(p=>keys.includes(p.breedKey)):(key==='all'?puppies.slice():puppies.filter(p=>p.breedKey===key));
+ const result=filter(keys,key,box,input,eligible);
  return {names:result.map(x=>x.breed),visible:box.style.display,value:input.value};
 }
 assert.deepEqual(run(['other'],'other','ゴールデン').names,['ゴールデンドゥードル']);
