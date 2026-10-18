@@ -48,6 +48,19 @@ jobs:
             sleep 1
           done
           if [ "$ready" != 1 ]; then echo "CUSTOM_BREED_START_FAILED"; exit 1; fi
+          # Fixture lives only in /tmp inside the disposable CI container.
+          # It is never created in Railway or any real BIG PAW database.
+          docker exec -i bigpaw-custom-breed-smoke python3 - <<'PY'
+          import sqlite3, time
+          from backend.server import hash_password
+          salt, digest = hash_password('CustomBreedTest123!')
+          con = sqlite3.connect('/tmp/custom-breed-isolated-data/bigpaw.sqlite3')
+          con.execute("INSERT INTO users(id,role,email,last,first,display_name,salt,password_hash,created_at) VALUES(?,?,?,?,?,?,?,?,?)", ('u_custom_breed','breeder','custom-breeder@example.test','試験','担当','テストブリーダー',salt,digest,int(time.time())))
+          con.execute("INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status) VALUES(?,?,?,?,?,?,?)", ('b_custom_breed','u_custom_breed','検証専用犬舎','埼玉県','SMOKE-001','CI only','approved'))
+          con.commit()
+          con.close()
+          print('TEST_BREEDER_FIXTURE_OK')
+          PY
           python3 scripts/test-custom-breed-api.py http://127.0.0.1:18083
           docker logs bigpaw-custom-breed-smoke 2>&1 | grep -q 'SEARCH_REBUILD_LIVE_OK'
           echo "CUSTOM_BREED_ALL_GATES_PASSED"
