@@ -37,18 +37,18 @@ def html(path):
 code, status = request("GET","/api/health")
 assert code == 200, (code,status)
 code, result = request("POST","/api/login",{
-    "email":"smoke@example.com",
-    "password":"SmokeTestPassword123!",
+    "email":"custom-breeder@example.test",
+    "password":"CustomBreedTest123!",
 })
-assert code == 200 and result.get("user",{}).get("role") == "operator" and SESSION_COOKIE, ("operator login failed",code,result)
-operator_token=result.get("token")
+assert code == 200 and result.get("user",{}).get("role") == "breeder" and SESSION_COOKIE, ("breeder login failed",code,result)
+breeder_token=result.get("token")
 breed="ゴールデンドゥードル"
 code, created = request("POST","/api/puppies",{
     "name":"カスタム犬種の検証"+uuid.uuid4().hex[:6],
     "breed":breed,"breedKey":"other","gender":"男の子",
     "color":"クリーム","birth":"2026-10-10","price":220000,
     "area":"埼玉県","areaKey":"saitama","desc":"DOG44 custom breed isolated test"
-},operator_token)
+},breeder_token)
 assert code == 201 and created.get("breed")==breed and created.get("breedKey")=="other", (code,created)
 pid=created["id"]
 code, puppies=request("GET","/api/puppies")
@@ -58,7 +58,7 @@ assert code==200 and public.get("breed")==breed and public.get("breedKey")=="oth
 newbreed="ラブラドゥードル"
 code, changed=request("PATCH","/api/puppies/"+pid,{
     "breed":newbreed,"breedKey":"other"
-},operator_token)
+},breeder_token)
 assert code==200 and changed.get("breed")==newbreed and changed.get("breedKey")=="other", (code,changed)
 code, updated=request("GET","/api/puppies/"+pid)
 assert code==200 and updated.get("breed")==newbreed, "public detail did not preserve breed edit"
