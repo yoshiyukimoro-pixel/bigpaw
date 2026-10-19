@@ -50,7 +50,8 @@ script='''<script>
   const field=id=>document.getElementById(id);
   const note=field('legalDisplayStatus');
   try{
-    const b=await BigPawAPI.request('/breeder/legal-display');
+    const legalUrl='/breeder/legal-display'+(selectedBreederId?'?breederId='+encodeURIComponent(selectedBreederId):'');
+    const b=await BigPawAPI.request(legalUrl);
     field('legalOfficeName').textContent=b.officeName||'未登録';
     field('legalOfficeAddress').textContent=b.officeAddress||'未登録';
     field('legalRegistrationNo').textContent=b.registrationNo||'未登録';
@@ -66,7 +67,7 @@ script='''<script>
       btn.disabled=true;
       note.textContent='法定情報を確認して保存しています…';
       try{
-        await BigPawAPI.request('/breeder/legal-display',{method:'PATCH',body:{
+        await BigPawAPI.request(legalUrl,{method:'PATCH',body:{
           operatorName:field('legalOperatorName').value,
           businessType:field('legalBusinessType').value,
           registrationDate:field('legalRegistrationDateEdit').value,

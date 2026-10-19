@@ -50,6 +50,10 @@ with tempfile.TemporaryDirectory(prefix='bigpaw-legal-http-') as scratch:
                              {'email':'dog44@bigpaw.jp','password':'demo1234'})
             ok(status==200 and login.get('token'),'breeder login')
             tok=login['token']
+            status,operator=req(base,'/api/login','POST',
+                                {'email':'admin@bigpaw.jp','password':'admin1234'})
+            ok(status==200 and operator.get('token'),'operator login')
+            optok=operator['token']
             status,buyer=req(base,'/api/login','POST',
                              {'email':'user@bigpaw.jp','password':'demo1234'})
             # Buyer login may not be seeded in future revisions; anonymous access
@@ -90,6 +94,14 @@ with tempfile.TemporaryDirectory(prefix='bigpaw-legal-http-') as scratch:
                'confirmed legal office location published only on legal endpoint')
             ok(legal.get('officeName')=='ドックフォーティーフォー',
                'legal office name is independent of kennel brand')
+            status,operator_legal=req(base,'/api/breeder/legal-display?breederId=b_dog44',token=optok)
+            ok(status==200 and operator_legal.get('officeAddress')==legal.get('officeAddress') and
+               operator_legal.get('operatorName')=='サンプル事業者' and operator_legal.get('confirmed'),
+               'operator can inspect selected breeder legal details')
+            status,missing_scope=req(base,'/api/breeder/legal-display',token=optok)
+            ok(status==400,'operator legal inspection requires explicit breeder scope')
+            status,operator_write=req(base,'/api/breeder/legal-display','PATCH',valid,optok)
+            ok(status in (401,403),'operator inspection cannot publish or edit legal details')
             with sqlite3.connect(Path(scratch)/'bigpaw.sqlite3',timeout=15) as con:
                 kennel=con.execute("SELECT kennel_name FROM breeders WHERE id='b_dog44'").fetchone()[0]
                 ok(kennel=='DOG44','updating legal office name must not rename DOG44 or puppy brand')
@@ -120,7 +132,7 @@ with tempfile.TemporaryDirectory(prefix='bigpaw-legal-http-') as scratch:
             status,legal=req(base,'/api/breeders/b_dog44/legal')
             ok(status==200 and '新しい登録事業所' in legal.get('officeAddress',''),
                'reconfirmed legal ad uses updated office address')
-            print('BREEDER_LEGAL_HTTP_GATE_OK|anonymous_404|buyer_privacy|breeder_consent|eight_fields|address_reconfirmation|public_city_only|visit_contact_isolation',flush=True)
+            print('BREEDER_LEGAL_HTTP_GATE_OK|anonymous_404|buyer_privacy|breeder_consent|operator_scoped_read|operator_read_only|eight_fields|address_reconfirmation|public_city_only|visit_contact_isolation',flush=True)
         except Exception:
             print('TEST_SERVER_LOG_TAIL\n'+out.read_text(encoding='utf-8')[-5000:],flush=True)
             raise
