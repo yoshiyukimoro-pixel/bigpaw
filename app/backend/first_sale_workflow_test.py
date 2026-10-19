@@ -98,6 +98,8 @@ try:
     check(not query('SELECT * FROM first_sale_benefits WHERE breeder_id=?',('b_test_policy',)),'blocked alternate report never consumes first-sale benefit')
     accepted=request('POST','/api/breeder/deal-policy-consent',{'accepted':True,'version':'2026-10-20-deal-scope-v3'},'u_test_policy')
     check(accepted[0]==200 and accepted[1]['accepted'],'existing breeder explicitly accepts the current scope')
+    after_accept=request('GET','/api/breeder/deal-policy-consent',user='u_test_policy')
+    check(after_accept[0]==200 and after_accept[1]['accepted'] and after_accept[1]['acceptance']['version']=='2026-10-20-deal-scope-v3','accepted policy remains accepted when reloaded')
     replay=request('POST','/api/breeder/deal-policy-consent',{'accepted':True,'version':'2026-10-20-deal-scope-v3'},'u_test_policy')
     check(replay[0]==200 and len(query('SELECT * FROM breeder_deal_policy_acceptances WHERE breeder_id=?',('b_test_policy',)))==1,'repeat consent keeps one immutable acceptance record')
     check(request('POST','/api/deals/'+legacy_policy_deal+'/sale-report',legacy_alternate,'u_test_policy')[0]==409,'post-consent cannot retroactively change an old inquiry')
