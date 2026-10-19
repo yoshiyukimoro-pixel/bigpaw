@@ -1,0 +1,37 @@
+name: Breeder legal profile verification
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'app/backend/breeder_legal*'
+      - 'app/backend/independent_legal_office_name_patch.py'
+      - 'app/backend/required_legal_office_signup*'
+      - 'app/backend/free_breeder_document_review*'
+      - 'app/backend/breeder_confirmed_legal_ux*'
+      - '.github/workflows/breeder-legal-profile-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'app/backend/breeder_legal*'
+      - 'app/backend/independent_legal_office_name_patch.py'
+      - 'app/backend/required_legal_office_signup*'
+      - 'app/backend/free_breeder_document_review*'
+      - 'app/backend/breeder_confirmed_legal_ux*'
+      - '.github/workflows/breeder-legal-profile-check.yml'
+jobs:
+  full-release-gates-and-page-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build production image and run all existing release gates
+        run: docker build --no-cache -t bigpaw-legal-profile-check .
+      - name: Parse all delivered breeder profile inline JavaScript
+        run: |
+          id=$(docker create bigpaw-legal-profile-check)
+          trap 'docker rm -v "$id" >/dev/null 2>&1 || true' EXIT
+          docker cp "$id:/app/breeder-profile-edit.html" /tmp/breeder-profile-edit.html
+          node app/backend/breeder_legal_profile_script_test.js /tmp/breeder-profile-edit.html

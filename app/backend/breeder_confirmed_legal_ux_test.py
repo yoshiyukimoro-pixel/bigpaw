@@ -24,4 +24,7 @@ assert "const operatorPreview=Boolean(selectedBreederId);" in page,'OPERATOR_PRE
 assert "'/breeder/legal-display'+(selectedBreederId?'?breederId='+encodeURIComponent(selectedBreederId):'')" in page,'OPERATOR_PROFILE_ID_FOR_LEGAL_READ'
 assert "if(operatorPreview){\n      field('legalConsentRow').style.display='none';" in page,'OPERATOR_CANNOT_RECONFIRM'
 assert "field(id).readOnly=true" in page and "if(operatorPreview)return;" in page,'OPERATOR_LEGAL_FIELDS_READ_ONLY'
+assert "const operatorPreview=Boolean(selectedBreederId);\n  const tracked=" in page,'OPERATOR_PREVIEW_TRY_SCOPE'
+assert "const operatorPreview=Boolean(selectedBreederId);\n  try{\n  const tracked=" not in page,'NO_UNMATCHED_OUTER_TRY'
+assert "field('legalOfficeName').value=b.officeName||'';" in page,'OFFICE_NAME_INPUT_BINDING'
 print('BREEDER_LEGAL_CONFIRM_UX_GATE_OK|unchanged_no_recheck|edit_requires_check|complete_auto_hide|address_invalidates|unconfirmed_warns|no_flash|server_guard',flush=True)

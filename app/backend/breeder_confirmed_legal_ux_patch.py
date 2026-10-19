@@ -12,7 +12,6 @@ change('<button type="submit" id="legalDisplaySave" class="btn btn-main btn-wide
        '<button type="submit" id="legalDisplaySave" class="btn btn-main btn-wide" style="display:none">')
 change("  const note=field('legalDisplayStatus');\n  try{", """  const note=field('legalDisplayStatus');
   const operatorPreview=Boolean(selectedBreederId);
-  try{
   const tracked=['legalOfficeName','legalOperatorName','legalBusinessType','legalRegistrationDateEdit','legalExpiresOn','legalAnimalManagerEdit'];
   const snapshot=()=>JSON.stringify(tracked.map(id=>field(id).value.trim()));
   let baseline=null,complete=false;
