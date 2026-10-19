@@ -1141,7 +1141,7 @@ https://www.bigpaw.site/'''
             body=self.json_body(); text=str(body.get('body','')).strip()
             if not text: return self.send_json({'error':'message_required'},400)
             if len(text)>2000: return self.send_json({'error':'message_too_long'},400)
-            if u.get('role')!='operator' and public_profile_has_direct_contact(text): return self.send_json({'error':'direct_contact_not_allowed','message':'電話番号・メール・LINE・SNS・外部URLなどの直接連絡先は送信できません。BIGPAW内のメッセージをご利用ください。'},400)
+            # Private inquiry participants may exchange contact details for agreed external calls.
             con=db(); qrow=self.inquiry_for_user(con,m.group(1),u)
             if not qrow: con.close(); return self.send_json({'error':'forbidden_or_not_found'},404)
             mid=make_id('m_'); con.execute('INSERT INTO messages VALUES(?,?,?,?,?)',(mid,m.group(1),u['id'],text,now()))
@@ -1449,7 +1449,7 @@ https://www.bigpaw.site/'''
             u=self.require(['buyer']);
             if not u:return
             body=self.json_body(); puppy_id=str(body.get('puppyId','')); inquiry_message=str(body.get('message','')).strip()
-            if public_profile_has_direct_contact(inquiry_message): return self.send_json({'error':'direct_contact_not_allowed','message':'問い合わせ本文に電話番号・メール・LINE・SNS・外部URLなどの直接連絡先は記載できません。'},400)
+            # Contact details are allowed in private inquiries; public profiles remain protected.
             con=db(); p=con.execute("SELECT * FROM puppies WHERE id=? AND review_status='approved' AND status!='成約済み'",(puppy_id,)).fetchone()
             if not p: con.close(); return self.send_json({'error':'puppy_not_found'},404)
             if p['breeder_id']:
