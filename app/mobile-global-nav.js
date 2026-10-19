@@ -16,7 +16,7 @@
     },
     breeder:{
       label:'ブリーダー管理',tone:'breeder',items:[
-        ['🏠','管理トップ','/admin.html'],['＋','子犬を掲載','/breeder-puppy-new.html?new=1'],['💬','見学・問い合わせ','/breeder-inquiries.html'],['✅','成約申請','/breeder-deal-report.html'],['💴','請求・お支払い','/breeder-billing.html'],['🐩','親犬管理','/parent-dogs.html'],['🏡','犬舎プロフィール','/breeder-profile-edit.html'],['💳','料金・手数料','/breeder-fees.html'],['🌐','公開サイト','/index.html']
+        ['🏠','管理トップ','/admin.html'],['＋','子犬を掲載','/breeder-puppy-new.html?new=1'],['💬','見学・問い合わせ','/breeder-inquiries.html'],['✅','成約申請','/breeder-deal-report.html'],['💴','請求・お支払い','/breeder-billing.html'],['🐩','親犬管理','/parent-dogs.html'],['🏡','犬舎プロフィール','/breeder-profile-edit.html'],['📦','販売・引渡し設定','/breeder-sales-handover.html?view=breeder'],['💳','料金・手数料','/breeder-fees.html'],['🌐','公開サイト','/index.html']
       ]
     },
     buyer:{
@@ -42,7 +42,7 @@
 
   function choose(role){
     if((path.endsWith('/terms.html')&&(location.hash==='#deal-scope'||query.get('theme')==='breeder')) || (query.get('theme')==='breeder'&&(path.endsWith('/privacy.html')||path.endsWith('/legal-notice.html')))) return 'breeder';
-    if(path.endsWith('/breeder-sales-handover.html')&&role==='operator') return 'operator';
+    if(path.endsWith('/breeder-sales-handover.html')) return query.get('view')==='breeder'?'breeder':(role==='operator'?'operator':'breeder');
     if(((path.startsWith('/operator-')||path.includes('/operator-'))&&!path.endsWith('/operator-login.html')) || operatorPages.some(p=>path.endsWith(p)) || (path.endsWith('/messages.html')&&query.get('mode')==='operator')) return 'operator';
     if(path.endsWith('/notifications.html')&&(role==='breeder'||role==='operator')) return role;
     if(breederPages.some(p=>path.endsWith(p))) return 'breeder';
