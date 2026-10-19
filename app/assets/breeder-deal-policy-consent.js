@@ -19,8 +19,10 @@
         button.disabled=true;
         try{
           await BigPawAPI.request('/breeder/deal-policy-consent',{method:'POST',body:{accepted:true,version:state.currentVersion}});
-          status.textContent='同意を記録しました。適用はこれから新たに生じる問い合わせからです。';
-          check.disabled=true;
+          const review=document.createElement('p');
+          review.style.cssText='margin:8px 0;color:#52708b;font-size:14px';
+          review.innerHTML='<a href="terms.html#deal-scope">同意済み・成約対象範囲の規約を見返す</a>';
+          box.replaceWith(review);
         }catch(error){status.textContent=error?.data?.message||'同意を記録できませんでした。再度お試しください。';button.disabled=false}
       };
     }catch(_error){box.remove()}
