@@ -12,4 +12,5 @@ assert 'html[data-bp-page-theme="breeder"] body{background:#f3f8ff!important;col
 assert 'html[data-bp-page-theme="breeder"] body .card{border-color:#d6e3f0!important' in html
 assert "if(path.endsWith('/terms.html')&&location.hash==='#deal-scope') return 'breeder';" in mobile_nav
 assert 'html[data-bp-mobile-tone="breeder"]{--bp-menu-bg:#f3f8ff;--bp-menu-border:#c5dced;--bp-menu-text:#315f89;--bp-menu-current:#dceeff}' in mobile_nav
-print("BREEDER_DEAL_TERMS_BLUE_OK|anchor_theme|blue_clause|general_terms_default_preserved", flush=True)
+assert 'html[data-bp-page-theme="breeder"] .bp-brand-header .bigpaw-header-logo{filter:grayscale(1) sepia(1) hue-rotate(175deg) saturate(2)}' in html
+print("BREEDER_DEAL_TERMS_BLUE_OK|anchor_theme|blue_clause|blue_header_logo|general_terms_default_preserved", flush=True)
