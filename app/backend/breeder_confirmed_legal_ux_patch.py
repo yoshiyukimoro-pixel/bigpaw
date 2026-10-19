@@ -11,6 +11,8 @@ change('<div class="field"><label><input type="checkbox" id="legalPublicConfirm"
 change('<button type="submit" id="legalDisplaySave" class="btn btn-main btn-wide">',
        '<button type="submit" id="legalDisplaySave" class="btn btn-main btn-wide" style="display:none">')
 change("  const note=field('legalDisplayStatus');\n  try{", """  const note=field('legalDisplayStatus');
+  const operatorPreview=Boolean(selectedBreederId);
+  try{
   const tracked=['legalOfficeName','legalOperatorName','legalBusinessType','legalRegistrationDateEdit','legalExpiresOn','legalAnimalManagerEdit'];
   const snapshot=()=>JSON.stringify(tracked.map(id=>field(id).value.trim()));
   let baseline=null,complete=false;
@@ -26,6 +28,12 @@ change("  const note=field('legalDisplayStatus');\n  try{", """  const note=fiel
        :'法定表示に不足・未確認の情報があります。確認して公開してください。';
   }
   async function refreshLegalActions(){
+    if(operatorPreview){
+      field('legalConsentRow').style.display='none';
+      field('legalDisplaySave').style.display='none';
+      field('legalPublicConfirm').required=false;
+      return;
+    }
     try{
       const status=await BigPawAPI.request('/breeder/legal-status');
       complete=status.complete===true;
@@ -42,6 +50,10 @@ change("  const note=field('legalDisplayStatus');\n  try{", """  const note=fiel
   try{""")
 change("    note.textContent=b.confirmed?'✓ 法定表示は一般公開中です。':'法定表示は未公開です。内容を確認し、チェックして公開してください。';",
        """    baseline=snapshot();
+    if(operatorPreview){
+      ['legalOperatorName','legalBusinessType','legalRegistrationDateEdit','legalExpiresOn','legalAnimalManagerEdit'].forEach(id=>field(id).readOnly=true);
+      note.textContent=b.confirmed?'運営確認モード：法定情報を確認しています（公開確認済み）。':'運営確認モード：法定情報を確認しています（公開確認は未完了）。';
+    }
     tracked.forEach(id=>field(id).addEventListener('input',()=>{
       field('legalPublicConfirm').checked=false;
       renderLegalActions();
@@ -51,8 +63,10 @@ change("        note.textContent='✓ 法定情報を保存・公開しました
        """        baseline=snapshot();
         await refreshLegalActions();
         await window.refreshBreederLegalAlert?.();""")
-change("      try{\n        await BigPawAPI.request('/breeder/legal-display'",
-       "      const submittedFields=snapshot();\n      try{\n        await BigPawAPI.request('/breeder/legal-display'")
+change("    field('legalDisplayForm').addEventListener('submit',async function(e){\n      e.preventDefault();",
+       "    field('legalDisplayForm').addEventListener('submit',async function(e){\n      e.preventDefault();\n      if(operatorPreview)return;")
+change("      try{\n        await BigPawAPI.request(legalUrl",
+       "      const submittedFields=snapshot();\n      try{\n        await BigPawAPI.request(legalUrl")
 change("        baseline=snapshot();\n        await refreshLegalActions();",
        "        baseline=submittedFields;\n        await refreshLegalActions();")
 change("publicProfileLink.href=breederId?'breeder-detail.html?id='+encodeURIComponent(breederId):'breeders.html';msg.innerHTML='<div class=\"notice\">✓ 保存しました。",

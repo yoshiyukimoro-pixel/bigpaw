@@ -94,13 +94,20 @@ GET_ADDITION="""        mlegal=re.fullmatch(r'/api/breeders/([^/]+)/legal',path)
                 'registrationNo':row['registration_no'],'registrationDate':row['registration_date'],
                 'expiresOn':row['expires_on'],'animalManager':row['animal_manager']})
         if path=='/api/breeder/legal-display':
-            u=self.require(['breeder'])
+            u=self.require(['breeder','operator'])
             if not u:return
             con=db()
-            b=con.execute('SELECT * FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+            if u['role']=='operator':
+                bid=(q.get('breederId') or [''])[0]
+                if not bid: con.close(); return self.send_json({'error':'breeder_id_required'},400)
+                b=con.execute('SELECT * FROM breeders WHERE id=?',(bid,)).fetchone()
+                owner_id=b['user_id'] if b else ''
+            else:
+                b=con.execute('SELECT * FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                owner_id=u['id']
             if not b: con.close(); return self.send_json({'error':'not_found'},404)
             info=con.execute('SELECT * FROM breeder_legal_disclosures WHERE breeder_id=?',(b['id'],)).fetchone()
-            ap=con.execute('SELECT representative,expires_on,legal_registration_date,legal_animal_manager FROM breeder_applications WHERE user_id=? ORDER BY updated_at DESC LIMIT 1',(u['id'],)).fetchone()
+            ap=con.execute('SELECT representative,expires_on,legal_registration_date,legal_animal_manager FROM breeder_applications WHERE user_id=? ORDER BY updated_at DESC LIMIT 1',(owner_id,)).fetchone()
             con.close()
             d=dict(info) if info else {}
             return self.send_json({

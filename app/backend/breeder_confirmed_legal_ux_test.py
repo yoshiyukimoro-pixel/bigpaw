@@ -20,4 +20,8 @@ assert "if not data.get('confirmPublicDisclosure')" in server,'SERVER_RECONFIRM_
 assert "if path=='/api/breeder/legal-status':" in server,'SERVER_LEGAL_STATUS_AVAILABLE'
 assert "field('legalOfficeName').value=b.officeName||'';" in page,'OFFICE_NAME_UNCHANGED'
 assert 'id="legalOfficeAddress"' in page and 'id="legalRegistrationNo"' in page,'LEGAL_ADDRESS_REFERENCE_PRESERVED'
+assert "const operatorPreview=Boolean(selectedBreederId);" in page,'OPERATOR_PREVIEW_DETECTED'
+assert "'/breeder/legal-display'+(selectedBreederId?'?breederId='+encodeURIComponent(selectedBreederId):'')" in page,'OPERATOR_PROFILE_ID_FOR_LEGAL_READ'
+assert "if(operatorPreview){\n      field('legalConsentRow').style.display='none';" in page,'OPERATOR_CANNOT_RECONFIRM'
+assert "field(id).readOnly=true" in page and "if(operatorPreview)return;" in page,'OPERATOR_LEGAL_FIELDS_READ_ONLY'
 print('BREEDER_LEGAL_CONFIRM_UX_GATE_OK|unchanged_no_recheck|edit_requires_check|complete_auto_hide|address_invalidates|unconfirmed_warns|no_flash|server_guard',flush=True)
