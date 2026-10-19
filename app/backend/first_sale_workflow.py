@@ -11,8 +11,8 @@ import threading
 
 TERMS = '2026-10-03-first-sale-v2'
 CONSENT_TEXT = '成約・お迎え完了・キャンセルについて正確に申告します。運営の確認により虚偽の申告が認められた場合、現在の掲載および今後の新規掲載・再掲載が停止されることに同意します。'
-DEAL_POLICY_VERSION = '2026-10-19-deal-scope-v2'
-DEAL_POLICY_TEXT = 'ブリーダーが本同意をした後にBIG PAW上で新たに始まった問い合わせについて、問い合わせ対象とは異なる犬、未掲載の子犬または成犬を販売する場合も、問い合わせ開始から365日以内に最初の成約報告を行った取引に限り、成約報告と最終生体販売価格の5%（税込・1円未満切り捨て）の成約手数料の対象となります。期間内に最初の成約報告をした取引のお迎え完了報告は、365日経過後も行えます。支払期限は請求日から7日以内です。BIG PAW利用前から独立して商談が始まっていた取引は、合理的な記録で確認できる場合は対象外です。過去の同意前の問い合わせおよび最初の成約報告まで365日を経過した問い合わせには適用しません。'
+DEAL_POLICY_VERSION = '2026-10-20-deal-scope-v3'
+DEAL_POLICY_TEXT = 'ブリーダーが本同意をした後にBIG PAW上で新たに始まった問い合わせについて、問い合わせ対象とは異なる犬、未掲載の子犬または成犬を販売する場合も、問い合わせ開始から90日以内に最初の成約報告を行った取引に限り、成約報告と最終生体販売価格の5%（税込・1円未満切り捨て）の成約手数料の対象となります。期間内に最初の成約報告をした取引のお迎え完了報告は、90日経過後も行えます。支払期限は請求日から7日以内です。BIG PAW利用前から独立して商談が始まっていた取引は、合理的な記録で確認できる場合は対象外です。過去の同意前の問い合わせおよび最初の成約報告まで90日を経過した問い合わせには適用しません。'
 MAIL_LOCK = threading.Lock()
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS cancellation_events(
@@ -355,12 +355,12 @@ def install(g):
                         report_at_ms=int(datetime.now(timezone.utc).timestamp()*1000)
                         if not acceptance or not inquiry or inquiry_at_ms<=int(acceptance['accepted_at_ms']):
                             return h.send_json({'error':'deal_policy_consent_required','message':'問い合わせ対象とは異なる犬の販売は、成約対象範囲の規約に同意した後に生じた問い合わせに限り報告できます。過去の問い合わせには新しい規約は適用されません。'},409)
-                        if report_at_ms>inquiry_at_ms+365*24*60*60*1000:
-                            return h.send_json({'error':'deal_policy_attribution_expired','message':'問い合わせ開始から365日を過ぎたため、異なる犬の成約対象範囲は適用されません。'},409)
+                        if report_at_ms>inquiry_at_ms+90*24*60*60*1000:
+                            return h.send_json({'error':'deal_policy_attribution_expired','message':'問い合わせ開始から90日を過ぎたため、異なる犬の成約対象範囲は適用されません。'},409)
                         expanded_scope_qualified_at_ms=report_at_ms
                     elif (not w or w['sold_animal_type']!=animal_type or
                           int(w['expanded_scope_qualified_at_ms'] or 0)<=0):
-                        return h.send_json({'error':'deal_policy_initial_report_required','message':'異なる犬の取引は、365日以内に最初の成約報告を行った後にお迎え完了を報告できます。'},409)
+                        return h.send_json({'error':'deal_policy_initial_report_required','message':'異なる犬の取引は、90日以内に最初の成約報告を行った後にお迎え完了を報告できます。'},409)
                 else:
                     expanded_scope_qualified_at_ms=0
             state={'sale':'sale_pending','pickup':'pickup_pending','cancellation':'cancellation_pending'}[kind]
