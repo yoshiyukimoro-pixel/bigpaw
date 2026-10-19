@@ -4,6 +4,8 @@ on:
     branches: [fix/breeder-page-colors-20261004, fix/breeder-management-colors-20261004, fix/operator-management-colors-20261005]
   pull_request:
     paths:
+      - 'app/terms.html'
+      - 'scripts/test-breeder-deal-terms-theme.py'
       - 'app/notifications.html'
       - 'app/breeder-fees.html'
       - 'app/admin.html'
@@ -29,5 +31,6 @@ jobs:
           node --check app/mobile-global-nav.js
           node --check scripts/test-inquiry-cancellation-browser.cjs
           node scripts/test-breeder-dashboard-inquiry-count.cjs
+          python3 scripts/test-breeder-deal-terms-theme.py
       - name: Docker build with existing regression gates
         run: docker build --no-cache -t bigpaw-account-theme-safe .
