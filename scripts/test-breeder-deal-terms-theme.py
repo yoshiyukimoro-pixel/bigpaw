@@ -12,7 +12,7 @@ assert '<section id="deal-scope" class="breeder-terms-section">' in html
 assert '</section><h2>8. 禁止事項</h2>' in html
 assert 'html[data-bp-page-theme="breeder"] body{background:#f3f8ff!important;color:#405a73!important}' in html
 assert 'html[data-bp-page-theme="breeder"] body .card{border-color:#d6e3f0!important' in html
-assert "if(path.endsWith('/terms.html')&&location.hash==='#deal-scope') return 'breeder';" in mobile_nav
+assert "path.endsWith('/terms.html')&&(location.hash==='#deal-scope'||query.get('theme')==='breeder')" in mobile_nav
 assert 'html[data-bp-mobile-tone="breeder"]{--bp-menu-bg:#f3f8ff;--bp-menu-border:#c5dced;--bp-menu-text:#315f89;--bp-menu-current:#dceeff}' in mobile_nav
 assert '.bp-brand-header .bigpaw-header-logo{filter:' not in html
 assert 'href="privacy.html?theme=breeder">プライバシーポリシー' in html
