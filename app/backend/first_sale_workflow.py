@@ -11,6 +11,8 @@ import threading
 
 TERMS = '2026-10-03-first-sale-v2'
 CONSENT_TEXT = '成約・お迎え完了・キャンセルについて正確に申告します。運営の確認により虚偽の申告が認められた場合、現在の掲載および今後の新規掲載・再掲載が停止されることに同意します。'
+DEAL_POLICY_VERSION = '2026-10-19-deal-scope-v1'
+DEAL_POLICY_TEXT = 'BIG PAWを通じて新たに接点が生じた購入希望者との取引では、その接点に起因して犬を販売した場合、問い合わせ対象とは異なる犬、未掲載の子犬または成犬も成約報告と最終生体販売価格の5%（税込・1円未満切り捨て）の成約手数料の対象となります。支払期限は請求日から7日以内です。BIG PAW利用前から独立して商談が始まっていた取引は、合理的な記録で確認できる場合は対象外です。この拡張範囲は、本同意後に新たに生じた接点に限って適用し、過去の接点には遡及しません。'
 MAIL_LOCK = threading.Lock()
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS cancellation_events(
@@ -30,6 +32,12 @@ CREATE TABLE IF NOT EXISTS cancellation_warnings(
 CREATE TABLE IF NOT EXISTS sale_report_consents(
  id TEXT PRIMARY KEY, deal_id TEXT NOT NULL, user_id TEXT NOT NULL, kind TEXT NOT NULL,
  terms_version TEXT NOT NULL, consent_text TEXT NOT NULL, accepted_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS breeder_deal_policy_acceptances(
+ id TEXT PRIMARY KEY, breeder_id TEXT NOT NULL, user_id TEXT NOT NULL,
+ version TEXT NOT NULL, policy_text TEXT NOT NULL, rate_bps INTEGER NOT NULL,
+ due_days INTEGER NOT NULL, accepted_at_ms INTEGER NOT NULL,
+ UNIQUE(breeder_id,version)
 );
 CREATE TABLE IF NOT EXISTS first_sale_benefits(
  breeder_id TEXT PRIMARY KEY, deal_id TEXT UNIQUE NOT NULL, used_at INTEGER NOT NULL
@@ -75,6 +83,8 @@ def install(g):
             c.executescript(SCHEMA)
             g['ensure_column'](c, 'breeders', 'compliance_suspended', 'INTEGER NOT NULL DEFAULT 0')
             g['ensure_column'](c, 'breeders', 'compliance_note', "TEXT NOT NULL DEFAULT ''")
+            g['ensure_column'](c, 'sale_workflow', 'sold_animal_type', "TEXT NOT NULL DEFAULT 'original'")
+            g['ensure_column'](c, 'sale_workflow', 'sold_animal_name', "TEXT NOT NULL DEFAULT ''")
             # No retrospective fee changes. New applications begin with an unused benefit.
         c.close()
 
@@ -159,7 +169,7 @@ def install(g):
         buyer = c.execute('SELECT email FROM users WHERE id=?', (d['buyer_id'],)).fetchone()
         labels = {'sale':'この子のお迎えが決まりましたか？','pickup':'お迎えは完了しましたか？','cancellation':'今回のお迎えはキャンセルになりましたか？'}
         link = g['PUBLIC_BASE_URL']+'/buyer-sale-confirmation.html?token='+token
-        body = labels[kind]+'\n生体価格：'+format(w['amount'], ',')+'円\nお迎え日：'+(w['pickup_date'] or '未定')+'\n\nご本人のBIG PAWアカウントでログインし、下の画面で回答してください。メールを開くだけでは回答されません。\n'+link
+        body = labels[kind]+'\n販売対象：'+(w['sold_animal_name'] or '犬')+'\n生体価格：'+format(w['amount'], ',')+'円\nお迎え日：'+(w['pickup_date'] or '未定')+'\n\nご本人のBIG PAWアカウントでログインし、下の画面で回答してください。メールを開くだけでは回答されません。\n'+link
         enqueue(c, 'confirm:'+cid, buyer['email'] if buyer else '', 'BIG PAW '+labels[kind], body)
         c.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)', (mid('n_'),d['buyer_id'],'sale_confirmation',labels[kind],'マイページの成約確認から回答してください。',0,now()))
 
@@ -195,7 +205,7 @@ def install(g):
 
     def get(h):
         path=urlparse(h.path).path
-        if path not in ('/api/breeder/first-sale-benefit','/api/breeder/sale-workflow','/api/buyer/sale-confirmations','/api/operator/sale-confirmations'):
+        if path not in ('/api/breeder/first-sale-benefit','/api/breeder/sale-workflow','/api/breeder/deal-policy-consent','/api/buyer/sale-confirmations','/api/operator/sale-confirmations'):
             return old_get(h)
         role = 'operator' if '/operator/' in path else 'buyer' if '/buyer/' in path else 'breeder'
         u=h.require([role]);
@@ -212,18 +222,44 @@ def install(g):
                 return h.send_json({'disputes':disputes,'pending':pending,'alerts':alerts,'cancellations':history,'listingHistory':listings,'warnings':warnings,'warningTemplate':WARNING_TEXT})
             if role=='buyer':
                 rows=c.execute("SELECT sc.id,sc.deal_id,sc.kind,sc.revision,sc.state,sc.answer,sc.payload,sc.expires_at,p.name puppy_name FROM sale_confirmations sc JOIN deals d ON d.id=sc.deal_id JOIN puppies p ON p.id=d.puppy_id WHERE sc.buyer_id=? AND sc.state!='superseded' ORDER BY sc.created_at DESC",(u['id'],)).fetchall()
-                return h.send_json([dict(r) for r in rows])
+                result=[]
+                for row in rows:
+                    item=dict(row)
+                    try: item['puppy_name']=json.loads(item['payload']).get('sold_animal_name') or item['puppy_name']
+                    except (TypeError,ValueError): pass
+                    result.append(item)
+                return h.send_json(result)
             b=c.execute('SELECT * FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
             if not b: return h.send_json({'error':'breeder_not_found'},404)
+            if path.endswith('deal-policy-consent'):
+                accepted=c.execute('SELECT version,policy_text,rate_bps,due_days,accepted_at_ms FROM breeder_deal_policy_acceptances WHERE breeder_id=? AND version=?',(b['id'],DEAL_POLICY_VERSION)).fetchone()
+                return h.send_json({'currentVersion':DEAL_POLICY_VERSION,'policyText':DEAL_POLICY_TEXT,'accepted':bool(accepted),'acceptance':dict(accepted) if accepted else None})
             if path.endswith('first-sale-benefit'):
                 claim=c.execute('SELECT * FROM first_sale_benefits WHERE breeder_id=?',(b['id'],)).fetchone()
                 return h.send_json({'used':bool(claim),'usedAt':claim['used_at'] if claim else None,'dealId':claim['deal_id'] if claim else None,'rateBps':g['COMMISSION_RATE_BPS'],'termsVersion':TERMS,'listingSuspended':bool(b['compliance_suspended'])})
-            rows=c.execute('SELECT w.*,p.name puppy_name,f.waived FROM sale_workflow w JOIN deals d ON d.id=w.deal_id JOIN puppies p ON p.id=d.puppy_id LEFT JOIN sale_fee_decisions f ON f.deal_id=w.deal_id WHERE w.breeder_id=? ORDER BY w.updated_at DESC',(b['id'],)).fetchall()
+            rows=c.execute("SELECT w.*,COALESCE(NULLIF(w.sold_animal_name,''),p.name) puppy_name,f.waived FROM sale_workflow w JOIN deals d ON d.id=w.deal_id JOIN puppies p ON p.id=d.puppy_id LEFT JOIN sale_fee_decisions f ON f.deal_id=w.deal_id WHERE w.breeder_id=? ORDER BY w.updated_at DESC",(b['id'],)).fetchall()
             return h.send_json([dict(r) for r in rows])
         finally: c.close()
 
     def post(h):
         path=urlparse(h.path).path
+        if path=='/api/breeder/deal-policy-consent':
+            if not h.mutation_origin_allowed(): return h.send_json({'error':'invalid_origin'},403)
+            u=h.require(['breeder'])
+            if not u: return
+            body=h.json_body()
+            if not isinstance(body,dict) or body.get('accepted') is not True or body.get('version')!=DEAL_POLICY_VERSION:
+                return h.send_json({'error':'explicit_consent_required','message':'現在の成約対象範囲と手数料条件を確認し、明示的に同意してください。'},400)
+            c=db()
+            try:
+                b=c.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b: return h.send_json({'error':'breeder_not_found'},404)
+                inserted=c.execute('INSERT OR IGNORE INTO breeder_deal_policy_acceptances VALUES(?,?,?,?,?,?,?,?)',(mid('bdpa_'),b['id'],u['id'],DEAL_POLICY_VERSION,DEAL_POLICY_TEXT,g['COMMISSION_RATE_BPS'],g['COMMISSION_DUE_DAYS'],int(datetime.now(timezone.utc).timestamp()*1000))).rowcount
+                accepted=c.execute('SELECT * FROM breeder_deal_policy_acceptances WHERE breeder_id=? AND version=?',(b['id'],DEAL_POLICY_VERSION)).fetchone()
+                if inserted: audit(c,u['id'],'deal_policy_terms_accepted','breeder',b['id'],DEAL_POLICY_VERSION+':'+str(accepted['rate_bps'])+':'+str(accepted['due_days']))
+                c.commit()
+                return h.send_json({'ok':True,'accepted':True,'version':accepted['version'],'acceptedAt':accepted['accepted_at_ms']})
+            finally: c.close()
         m=re.fullmatch(r'/api/deals/([^/]+)/(sale-report|completion-report|cancel-report)',path)
         answer_path=path=='/api/buyer/sale-confirmations/answer'
         if not m and not answer_path:
@@ -287,6 +323,7 @@ def install(g):
             if kind=='cancellation':
                 if not w: return h.send_json({'error':'sale_report_required'},409)
                 amount,date,buyer,note=w['amount'],w['pickup_date'],w['buyer_name'],str(body.get('note',''))[:1000]
+                animal_type=w['sold_animal_type']; animal_name=w['sold_animal_name']
             else:
                 if body.get('agreeFirstSaleTerms') is not True: return h.send_json({'error':'first_sale_terms_required','message':'初回無料特典は申請時に使用され、キャンセルしても戻らないことを確認してください。'},400)
                 try:
@@ -299,16 +336,29 @@ def install(g):
                     elif kind=='pickup': raise ValueError()
                 except (TypeError,ValueError): return h.send_json({'error':'invalid_price_or_pickup_date'},400)
                 buyer=str(body.get('buyerName',''))[:200]; note=str(body.get('note',''))[:1000]
+                animal_type=str(body.get('soldAnimalType') or (w['sold_animal_type'] if kind=='pickup' and w else 'original'))
+                original=c.execute('SELECT name FROM puppies WHERE id=?',(d['puppy_id'],)).fetchone()
+                default_animal=original['name'] if original else ''
+                animal_name=str(body.get('soldAnimalName') or (w['sold_animal_name'] if kind=='pickup' and w else default_animal)).strip()[:200]
+                if animal_type not in ('original','puppy','adult') or not animal_name:
+                    return h.send_json({'error':'sold_animal_required','message':'実際に販売した犬を選択し、必要に応じて名前を入力してください。'},400)
+                if animal_type=='original' and animal_name!=default_animal:
+                    return h.send_json({'error':'original_sale_target_mismatch','message':'問い合わせ対象の子犬を選択した場合は、その子の登録名が必要です。'},400)
+                if animal_type!='original':
+                    acceptance=c.execute('SELECT accepted_at_ms FROM breeder_deal_policy_acceptances WHERE breeder_id=? AND version=?',(d['breeder_id'],DEAL_POLICY_VERSION)).fetchone()
+                    inquiry=c.execute('SELECT created_at FROM inquiries WHERE id=?',(d['inquiry_id'],)).fetchone()
+                    if not acceptance or not inquiry or int(inquiry['created_at'] or 0)*1000<=int(acceptance['accepted_at_ms']):
+                        return h.send_json({'error':'deal_policy_consent_required','message':'問い合わせ対象とは異なる犬の販売は、成約対象範囲の規約に同意した後に生じた問い合わせに限り報告できます。過去の問い合わせには新しい規約は適用されません。'},409)
             state={'sale':'sale_pending','pickup':'pickup_pending','cancellation':'cancellation_pending'}[kind]
-            if w and w['state']==state and w['amount']==amount and w['pickup_date']==date and w['buyer_name']==buyer and w['note']==note:
+            if w and w['state']==state and w['amount']==amount and w['pickup_date']==date and w['buyer_name']==buyer and w['note']==note and w['sold_animal_type']==animal_type and w['sold_animal_name']==animal_name:
                 pending=c.execute("SELECT expires_at FROM sale_confirmations WHERE deal_id=? AND state='pending'",(d['id'],)).fetchone()
                 if pending and pending['expires_at']>=now():
                     return h.send_json({'ok':True,'dealId':d['id'],'state':state,'alreadySubmitted':True})
             decision=fee_decision(c,d) if kind!='cancellation' else c.execute('SELECT * FROM sale_fee_decisions WHERE deal_id=?',(d['id'],)).fetchone()
             c.execute('INSERT INTO sale_report_consents VALUES(?,?,?,?,?,?,?)',(mid('consent_'),d['id'],u['id'],kind,TERMS,CONSENT_TEXT,now()))
             revision=(w['revision'] if w else 0)+1
-            c.execute('INSERT INTO sale_workflow VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(deal_id) DO UPDATE SET amount=excluded.amount,pickup_date=excluded.pickup_date,buyer_name=excluded.buyer_name,note=excluded.note,state=excluded.state,revision=excluded.revision,updated_at=excluded.updated_at',
-                      (d['id'],d['breeder_id'],amount,date,buyer,note,state,revision,now()))
+            c.execute('INSERT INTO sale_workflow(deal_id,breeder_id,amount,pickup_date,buyer_name,note,state,revision,updated_at,sold_animal_type,sold_animal_name) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(deal_id) DO UPDATE SET amount=excluded.amount,pickup_date=excluded.pickup_date,buyer_name=excluded.buyer_name,note=excluded.note,state=excluded.state,revision=excluded.revision,updated_at=excluded.updated_at,sold_animal_type=excluded.sold_animal_type,sold_animal_name=excluded.sold_animal_name',
+                      (d['id'],d['breeder_id'],amount,date,buyer,note,state,revision,now(),animal_type,animal_name))
             if kind=='pickup':
                 c.execute("INSERT INTO deal_completion_reports(id,deal_id,breeder_id,reported_by_user_id,final_sale_amount,pickup_date,buyer_name,note,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,'pending',?,?) ON CONFLICT(deal_id) DO UPDATE SET final_sale_amount=excluded.final_sale_amount,pickup_date=excluded.pickup_date,buyer_name=excluded.buyer_name,note=excluded.note,status='pending',updated_at=excluded.updated_at", (mid('cr_'),d['id'],d['breeder_id'],u['id'],amount,date,buyer,note,now(),now()))
             c.execute('UPDATE deals SET status=? WHERE id=?',(state,d['id']))
