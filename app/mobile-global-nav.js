@@ -41,7 +41,7 @@
   }
 
   function choose(role){
-    if(path.endsWith('/terms.html')&&location.hash==='#deal-scope') return 'breeder';
+    if((path.endsWith('/terms.html')&&location.hash==='#deal-scope') || (query.get('theme')==='breeder'&&(path.endsWith('/privacy.html')||path.endsWith('/legal-notice.html')))) return 'breeder';
     if(path.endsWith('/breeder-sales-handover.html')&&role==='operator') return 'operator';
     if(((path.startsWith('/operator-')||path.includes('/operator-'))&&!path.endsWith('/operator-login.html')) || operatorPages.some(p=>path.endsWith(p)) || (path.endsWith('/messages.html')&&query.get('mode')==='operator')) return 'operator';
     if(path.endsWith('/notifications.html')&&(role==='breeder'||role==='operator')) return role;
