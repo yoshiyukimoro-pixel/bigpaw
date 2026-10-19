@@ -15,4 +15,4 @@ async function sendMsg(){if(!selected||!msg.value.trim())return;const text=msg.v
 drawThreads();
 </script><script src="/auth-return-fix.js"></script><script>
 (async()=>{try{const q=new URLSearchParams(location.search).get("inquiry");if(!q)return;const r=await fetch("/api/inquiries/"+encodeURIComponent(q)+"/visit",{credentials:"same-origin"});if(!r.ok)return;const v=await r.json();if(!v||v.transport!=="オンライン見学"||v.status==="confirmed")return;const a=document.getElementById("onlineVisit");if(!a)return;const box=document.createElement("div");box.id="onlineVisitRequestNotice";box.className="notice";box.style.marginTop="12px";box.innerHTML="<strong>📹 オンライン見学の申込みがあります</strong><br>希望日時："+String(v.visit_date||"")+" "+String(v.visit_time||"")+"<br><span style=\"font-size:.92em\">下の『オンライン見学』から確認・確定してください。</span>";a.parentNode.insertBefore(box,a);a.textContent="📹 オンライン見学を確認・確定する"}catch(e){console.error("online visit notice",e)}})();
-</script></body></html>
+</script><script src="assets/message-contact-checker.js?v=20261019v1"></script></body></html>

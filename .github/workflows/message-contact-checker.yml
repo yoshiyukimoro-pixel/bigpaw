@@ -1,0 +1,29 @@
+name: Message contact checker
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checker-and-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check contact checker syntax and behavior
+        run: |
+          node --check app/assets/message-contact-checker.js
+          node app/backend/message_contact_checker_test.js
+      - name: Check page integration and whitespace
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          page = Path('app/messages.html').read_text(encoding='utf-8')
+          assert page.count('assets/message-contact-checker.js?v=20261019v1') == 1
+          assert page.index('function sendMsg()') < page.index('assets/message-contact-checker.js?v=20261019v1')
+          print('MESSAGE_CONTACT_PAGE_INTEGRATION_OK')
+          PY
+          git diff --check
