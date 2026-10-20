@@ -11,6 +11,7 @@ on:
       - 'app/mobile-global-nav.js'
       - 'app/backend/server.py'
       - 'app/backend/operator_proxy_listing_integration.py'
+      - 'app/backend/sales_handover_settings_patch.py'
   pull_request:
     paths:
       - 'scripts/test-handover-live-browser.cjs'
@@ -19,6 +20,7 @@ on:
       - 'app/mobile-global-nav.js'
       - 'app/backend/server.py'
       - 'app/backend/operator_proxy_listing_integration.py'
+      - 'app/backend/sales_handover_settings_patch.py'
 
 jobs:
   isolated-browser:
