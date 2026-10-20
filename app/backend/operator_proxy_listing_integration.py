@@ -41,20 +41,46 @@ def breeder(tag, prefecture, operator):
     ensure(st == 200 and bool(r.get("devToken")), "obtained dev email verification")
     st, r = req("POST", "/api/email-verification/confirm", {"token":r["devToken"]})
     ensure(st == 200, "verified email")
+    # Create an uploaded synthetic certificate in the disposable test instance.
+    # The approval API must still enforce its full document-verification gate.
+    import base64
+    png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==")
+    boundary = "Proof" + uuid.uuid4().hex
+    multipart = (
+        ("--"+boundary+"\r\nContent-Disposition: form-data; name=\"puppyId\"\r\n\r\nbreeder-proof\r\n").encode()
+        + ("--"+boundary+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\"synthetic-proof.png\"\r\nContent-Type: image/png\r\n\r\n").encode()
+        + png + ("\r\n--"+boundary+"--\r\n").encode()
+    )
+    upload_req = urllib.request.Request(
+        BASE+"/api/uploads", data=multipart, method="POST",
+        headers={"Content-Type":"multipart/form-data; boundary="+boundary,
+                 "Authorization":"Bearer "+token}
+    )
+    with urllib.request.urlopen(upload_req, timeout=10) as upload_resp:
+        proof = json.load(upload_resp)
+        ensure(upload_resp.status == 201 and proof.get("url"), "synthetic certificate upload " + tag)
     st, r = req("POST", "/api/breeder-applications", {
         "kennelName":"代理掲載" + tag + "犬舎", "representative":"試験 " + tag,
         "prefecture":prefecture,"primaryBreed":"サモエド",
         "registrationNo":"PROXY-"+tag+"-"+suffix,"expiresOn":"2027-12-31",
+        "legalOfficeName":"代理掲載"+tag+"試験事業所",
+        "legalRegistrationDate":"2026-01-15",
+        "legalAnimalManager":"試験管理者 "+tag,
+        "legalAdConsent":True,
         "profile":"大型犬の健康に配慮して飼育しています。",
         "visitAddress":prefecture+"架空市試験区一丁目",
         "visitPhone":"090-0000-0000",
         "visitAccess":"車でのアクセス可",
-        "registrationProofUrl":"/uploads/smoke-registration-proof.jpg",
+        "registrationProofUrl":proof["url"],
         "agreeCommissionTerms":True
     }, token)
     ensure(st == 201 and bool(r.get("id")), "requested breeder approval " + tag + f" (HTTP {st}: {r})")
+    checklist = {name: True for name in (
+        "operatorName","officeName","officeAddress","businessType",
+        "registrationNo","registrationDate","expiresOn","animalManager")}
     st, r = req("PATCH", "/api/breeder-applications/" + r["id"],
-                {"status":"approved", "reviewNote":"proxy test"}, operator)
+                {"status":"approved", "reviewNote":"synthetic certificate reviewed in test",
+                 "legalDocumentChecklist":checklist, "proofViewed":True}, operator)
     ensure(st == 200 and r.get("status") == "approved", "approved breeder " + tag)
     st, r = req("POST", "/api/login", {"email":email,"password":password})
     ensure(st == 200 and r.get("user",{}).get("role") == "breeder",

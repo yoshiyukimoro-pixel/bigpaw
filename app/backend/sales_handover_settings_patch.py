@@ -97,18 +97,16 @@ assert get_part.count(marker) == 1, ('sales_handover_get_marker', get_part.count
 get_part = get_part.replace(marker, route + marker, 1)
 s = s[:get_start] + get_part + s[post_start:]
 
-# 4) POST route: breeder can only write own settings; operator must identify breeder explicitly.
+# 4) POST route: only the authenticated breeder may update their own settings.
+# Operators may inspect a selected breeder in GET, but cannot save via this endpoint.
 post_start = s.index('    def do_POST(self):')
 post_part = s[post_start:]
 marker = "        if path=='/api/breeder-profile':\n"
 route = """        if path=='/api/breeder/sales-handover-settings':
-            u=self.require(['breeder','operator'])
+            u=self.require(['breeder'])
             if not u:return
             body=self.json_body(); con=db()
-            if u['role']=='breeder':
-                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
-            else:
-                b=con.execute('SELECT id FROM breeders WHERE id=?',(str(body.get('breederId','')),)).fetchone()
+            b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
             if not b: con.close(); return self.send_json({'error':'breeder_not_found'},404)
             clean=normalize_sales_handover_settings(body)
             public_text='\n'.join(str(clean.get(k,'') or '') for k in SALES_HANDOVER_TEXT_LIMITS)
