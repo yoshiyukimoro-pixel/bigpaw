@@ -50,6 +50,7 @@ async function operatorTests(browser) {
   assert.equal(await page.locator('#settingsOperator').isVisible(),true,'operator target chooser visible');
   assert.equal(await page.locator('#saveBtn').isVisible(),false,'operator cannot save');
   assert.equal(await page.locator('#reservationAmount').isDisabled(),true,'operator fields read-only');
+  await page.waitForFunction(()=>document.querySelectorAll('#settingsBreeder option').length>=2,null,{timeout:20000});
   const options=await page.locator('#settingsBreeder option').count();
   assert(options>=2,'registered breeder can be selected');
   await page.locator('#settingsBreeder').selectOption({index:1});
