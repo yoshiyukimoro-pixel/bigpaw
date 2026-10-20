@@ -79,6 +79,21 @@ async function operatorTests(browser) {
   const bodyWidth=await page.evaluate(()=>document.documentElement.scrollWidth);
   assert(bodyWidth <= 430,'mobile layout has no gross horizontal overflow');
   log(mode+'|operator_blue_mobile_390');
+  // Regression for the actual user journey: operator is on the blue breeder
+  // dashboard and taps its "販売・引渡し設定" link. A direct ?view=breeder
+  // visit alone did not cover this, and let the yellow-page bug escape.
+  await page.goto(BASE+'/admin.html');
+  const dashboardLink=page.locator('a.dashboard-action').filter({hasText:'販売・引渡し設定'});
+  await dashboardLink.waitFor({state:'visible',timeout:20000});
+  const href=await dashboardLink.getAttribute('href');
+  assert(new URL(href,BASE).searchParams.get('view')==='breeder','dashboard must preserve breeder view');
+  await dashboardLink.click();
+  await page.waitForURL('**/breeder-sales-handover.html?view=breeder',{timeout:15000});
+  await assertTheme(page,'breeder');
+  assert.equal(await page.locator('#settingsOperator').isVisible(),true,'operator permissions retained after actual dashboard click');
+  assert.equal(await page.locator('#saveBtn').isVisible(),false,'operator cannot save after actual dashboard click');
+  assert.equal(await page.locator('#reservationAmount').isDisabled(),true,'operator read-only after actual dashboard click');
+  log(mode+'|real_dashboard_click_keeps_breeder_blue_read_only');
   await ctx.close();
 }
 async function breederTests(browser) {

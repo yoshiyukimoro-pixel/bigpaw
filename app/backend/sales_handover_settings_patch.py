@@ -139,15 +139,19 @@ for rel in ('breeder-mobile-nav.js','mobile-global-nav.js'):
     p=ROOT/rel
     text=p.read_text(encoding='utf-8')
     anchor="['🏡','犬舎プロフィール','/breeder-profile-edit.html']"
-    addition=anchor+",['📦','販売・引渡し設定','/breeder-sales-handover.html']"
-    assert text.count(anchor) >= 1, (rel,'sales_handover_nav_marker',text.count(anchor))
-    text=text.replace(anchor,addition,1)
+    breeder_entry="['📦','販売・引渡し設定','/breeder-sales-handover.html?view=breeder']"
+    # The global mobile nav already has separate operator and breeder entries.
+    # Never add a second breeder link, and never reuse the yellow operator route.
+    if breeder_entry not in text:
+        addition=anchor+","+breeder_entry
+        assert text.count(anchor) >= 1, (rel,'sales_handover_nav_marker',text.count(anchor))
+        text=text.replace(anchor,addition,1)
     p.write_text(text,encoding='utf-8')
 
 admin_path=ROOT/'admin.html'
 admin=admin_path.read_text(encoding='utf-8')
 anchor='<a class="btn btn-sub dashboard-action" href="breeder-profile-edit.html" style="margin-top:10px">🏠 犬舎プロフィールを編集</a>'
-addition=anchor+'<a class="btn btn-sub dashboard-action" href="breeder-sales-handover.html" style="margin-top:10px">📦 販売・引渡し設定</a>'
+addition=anchor+'<a class="btn btn-sub dashboard-action" href="breeder-sales-handover.html?view=breeder" style="margin-top:10px">📦 販売・引渡し設定</a>'
 assert admin.count(anchor)==1, ('sales_handover_admin_link_marker',admin.count(anchor))
 admin=admin.replace(anchor,addition,1)
 admin_path.write_text(admin,encoding='utf-8')
