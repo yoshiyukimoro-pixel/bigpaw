@@ -538,10 +538,22 @@ def init_db():
     ensure_column(con,'breeders','billing_suspended_at','INTEGER')
     ensure_column(con,'breeders','billing_suspension_reason',"TEXT DEFAULT ''")
     def seed_user(uid, role, email, pw, last='', first='', display=''):
-        if con.execute('SELECT 1 FROM users WHERE email=?',(email,)).fetchone(): return
-        existing=con.execute('SELECT 1 FROM users WHERE id=?',(uid,)).fetchone()
+        existing_email=con.execute('SELECT id,role FROM users WHERE email=?',(email,)).fetchone()
+        if existing_email:
+            # Keep the documented development demo credentials usable across test-service restarts.
+            # These reserved demo addresses are never modified in production.
+            if not IS_PRODUCTION and existing_email['role']==role:
+                salt,digest=hash_password(pw)
+                con.execute('UPDATE users SET salt=?,password_hash=? WHERE id=?',(salt,digest,existing_email['id']))
+            return
+        existing=con.execute('SELECT id,role FROM users WHERE id=?',(uid,)).fetchone()
         if existing:
-            if uid == 'u_admin' and role == 'operator': con.execute('UPDATE users SET email=? WHERE id=?',(email,uid))
+            if uid == 'u_admin' and role == 'operator':
+                con.execute('UPDATE users SET email=? WHERE id=?',(email,uid))
+            # Reserved seed IDs may persist with stale credentials in a non-production DB.
+            if not IS_PRODUCTION and existing['role']==role:
+                salt,digest=hash_password(pw)
+                con.execute('UPDATE users SET email=?,salt=?,password_hash=? WHERE id=?',(email,salt,digest,uid))
             return
         salt,digest=hash_password(pw)
         con.execute('INSERT INTO users(id,role,email,last,first,display_name,salt,password_hash,created_at) VALUES(?,?,?,?,?,?,?,?,?)',
