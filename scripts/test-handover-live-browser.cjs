@@ -57,8 +57,10 @@ async function operatorTests(browser) {
   const status=await page.locator('#settingsStatus').textContent();
   assert(!String(status).includes('読み込めません'),'operator readback success');
   const denied=await page.evaluate(async()=> {
+    const breederId=document.getElementById('settingsBreeder').value;
     const response=await fetch('/api/breeder/sales-handover-settings',{method:'POST',
-      credentials:'include',headers:{'Content-Type':'application/json'},body:'{}'});
+      credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({breederId,reservationAmount:987654})});
     return response.status;
   });
   assert.equal(denied,403,'server-side role authorization remains enforced');
