@@ -1,0 +1,75 @@
+name: Handover authenticated browser regression
+
+on:
+  push:
+    branches:
+      - fix/handover-operator-blue-view-20261020
+    paths:
+      - 'scripts/test-handover-live-browser.cjs'
+      - '.github/workflows/handover-authenticated-browser.yml'
+      - 'app/breeder-sales-handover.html'
+      - 'app/mobile-global-nav.js'
+      - 'app/backend/server.py'
+  pull_request:
+    paths:
+      - 'scripts/test-handover-live-browser.cjs'
+      - '.github/workflows/handover-authenticated-browser.yml'
+      - 'app/breeder-sales-handover.html'
+      - 'app/mobile-global-nav.js'
+      - 'app/backend/server.py'
+
+jobs:
+  isolated-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build entire app and existing regression gates
+        run: docker build --no-cache -t bigpaw-handover-e2e .
+      - name: Start disposable SQLite server with no mail or payment providers
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-handover-e2e -p 18086:8080 \
+            -e PORT=8080 -e BIGPAW_ENV=development \
+            -e BIGPAW_DATA_DIR=/tmp/handover-isolated-test \
+            -e BIGPAW_PAYMENT_MODE=demo \
+            bigpaw-handover-e2e python3 backend/server.py
+          for i in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:18086/api/health > /tmp/handover-health.json 2>/dev/null; then break; fi
+            sleep 2
+          done
+          python3 - <<'PY'
+          import json
+          h=json.load(open('/tmp/handover-health.json'))
+          assert h['environment']=='development' and not h['mailConfigured'] and h['paymentMode']=='demo',h
+          print('DISPOSABLE_DB_AND_MAIL_GUARD_OK')
+          PY
+      - name: Verify proxy listing creation, photos and cross-breeder data ownership
+        run: |
+          python3 app/backend/operator_proxy_listing_integration.py http://127.0.0.1:18086
+          node scripts/test-operator-runtime-save-e2e.cjs http://127.0.0.1:18086
+      - name: Install Chromium browser
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Log in as real roles and check theme, saving, readback and mobile
+        run: node scripts/test-handover-live-browser.cjs local
+      - name: Collect logs on failure
+        if: failure()
+        run: docker logs bigpaw-handover-e2e --tail 120 || true
+      - name: Stop temporary server
+        if: always()
+        run: docker rm -f bigpaw-handover-e2e >/dev/null 2>&1 || true
+
+  deployed-test-browser:
+    needs: isolated-browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium browser
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Verify actual Railway test origin with isolated data, no emails and demo payments
+        run: node scripts/test-handover-live-browser.cjs staging
