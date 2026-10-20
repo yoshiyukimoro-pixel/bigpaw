@@ -99,7 +99,7 @@
       if(!pid&&requested&&!operatorTarget()) throw new Error('operator_breeder_selection_required');
       const data=payload();
       let puppy=pid?await BigPawBridge.updatePuppy(pid,data):await BigPawBridge.addPuppy(data);
-      if(!pid&&data.breederId&&String(puppy?.breederId||'')!==String(data.breederId))
+      if((!pid&&data.breederId&&String(puppy?.breederId||'')!==String(data.breederId))||(pid&&requested&&String(puppy?.breederId||'')!==String(requested)))
         throw new Error('operator_breeder_scope_mismatch');
       const targetId=String(puppy?.id||pid||'');
       if(!targetId) throw new Error('puppy_id_missing');
@@ -112,7 +112,8 @@
       await verifyAppealPointPersistence(targetId,data.appealPoint,pid?'':data.breederId||'');
       sessionStorage.removeItem('bigpawEditPuppyId');
       alert(pid?'変更を保存しました。':'子犬情報を掲載しました。');
-      location.href='admin.html'+(!pid&&data.breederId?'?breederId='+encodeURIComponent(data.breederId):'');
+      const returnBreederId=(!pid&&data.breederId)||(pid&&requested)||'';
+      location.href='admin.html'+(returnBreederId?'?breederId='+encodeURIComponent(returnBreederId):'');
     }catch(x){
       const msg=x?.message==='operator_breeder_selection_required'||x?.data?.error==='operator_breeder_selection_required'?'掲載先の犬舎を確認できません。運営のブリーダー管理から犬舎を選び直してください。':x?.message==='operator_breeder_scope_mismatch'?'犬舎の保存先が一致しません。公開が正しい犬舎か運営一覧で確認してください。':x?.message==='photo_limit_reached'?'写真は最大10枚まで登録できます。不要な写真を削除してから追加してください。':x?.message==='photo_limit_exceeded'?'追加すると写真が10枚を超えるため保存していません。登録済み写真を含めて最大10枚までです。':x?.message==='existing_photo_state_unavailable'?'現在の写真情報を確認できなかったため、写真は変更していません。画面を再読み込みしてからもう一度お試しください。':x?.message==='appeal_point_persistence_mismatch'||x?.message==='appeal_point_readback_missing'?'アピールポイントの保存確認ができませんでした。変更は完了扱いにしていません。もう一度お試しください。':(x?.status===401?'ブリーダーとしてログインしてください。':'保存できませんでした：'+(x?.message||''));
       alert(msg);
