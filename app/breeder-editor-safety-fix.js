@@ -98,6 +98,11 @@
       const requested=new URLSearchParams(location.search).get('breederId')||'';
       if(!pid&&requested&&!operatorTarget()) throw new Error('operator_breeder_selection_required');
       const data=payload();
+      if(pid&&requested){
+        const scoped=await BigPawAPI.breederPuppies({breederId:requested});
+        if(!Array.isArray(scoped)||!scoped.some(p=>String(p.id)===String(pid)&&String(p.breederId)===String(requested)))
+          throw new Error('operator_breeder_scope_mismatch');
+      }
       let puppy=pid?await BigPawBridge.updatePuppy(pid,data):await BigPawBridge.addPuppy(data);
       if((!pid&&data.breederId&&String(puppy?.breederId||'')!==String(data.breederId))||(pid&&requested&&String(puppy?.breederId||'')!==String(requested)))
         throw new Error('operator_breeder_scope_mismatch');
@@ -109,7 +114,7 @@
       }else if(pid&&window.removeExistingMainRequested){
         await BigPawBridge.updatePuppy(targetId,{imageUrl:''});
       }
-      await verifyAppealPointPersistence(targetId,data.appealPoint,pid?'':data.breederId||'');
+      await verifyAppealPointPersistence(targetId,data.appealPoint,requested||data.breederId||'');
       sessionStorage.removeItem('bigpawEditPuppyId');
       alert(pid?'変更を保存しました。':'子犬情報を掲載しました。');
       const returnBreederId=(!pid&&data.breederId)||(pid&&requested)||'';
