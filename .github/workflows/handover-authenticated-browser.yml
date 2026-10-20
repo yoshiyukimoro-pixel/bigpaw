@@ -12,6 +12,7 @@ on:
       - 'app/backend/server.py'
       - 'app/backend/operator_proxy_listing_integration.py'
       - 'app/backend/sales_handover_settings_patch.py'
+      - 'app/breeder-editor-safety-fix.js'
   pull_request:
     paths:
       - 'scripts/test-handover-live-browser.cjs'
@@ -21,6 +22,7 @@ on:
       - 'app/backend/server.py'
       - 'app/backend/operator_proxy_listing_integration.py'
       - 'app/backend/sales_handover_settings_patch.py'
+      - 'app/breeder-editor-safety-fix.js'
 
 jobs:
   isolated-browser:
