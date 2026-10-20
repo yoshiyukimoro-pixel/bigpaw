@@ -49,7 +49,7 @@ async function operatorTests(browser) {
   await assertTheme(page,'operator');
   assert.equal(await page.locator('#settingsOperator').isVisible(),true,'operator target chooser visible');
   assert.equal(await page.locator('#saveBtn').isVisible(),false,'operator cannot save');
-  assert.equal(await page.locator('#handoverForm').isDisabled(),true,'operator fields read-only');
+  assert.equal(await page.locator('#reservationAmount').isDisabled(),true,'operator fields read-only');
   const options=await page.locator('#settingsBreeder option').count();
   assert(options>=2,'registered breeder can be selected');
   await page.locator('#settingsBreeder').selectOption({index:1});
@@ -67,7 +67,7 @@ async function operatorTests(browser) {
   await assertTheme(page,'breeder');
   assert.equal(await page.locator('#settingsOperator').isVisible(),true,'operator identity still enforced under blue theme');
   assert.equal(await page.locator('#saveBtn').isVisible(),false,'operator does not become breeder');
-  assert.equal(await page.locator('#handoverForm').isDisabled(),true,'read only in blue view');
+  assert.equal(await page.locator('#reservationAmount').isDisabled(),true,'read only in blue view');
   assert.equal(await page.locator('.side').isVisible(),true,'breeder navigation retained');
   log(mode+'|operator_breeder_blue_view_read_only');
   await page.setViewportSize({width:390,height:844});
