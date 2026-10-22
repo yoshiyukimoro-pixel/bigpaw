@@ -149,7 +149,7 @@ if p.exists():
 server=ROOT/'backend/server.py'
 s=server.read_text(encoding='utf-8')
 old="static=['/','/search.html','/breeders.html','/breed-guide.html','/breed-standard-poodle.html','/cost-simulator.html','/match.html','/faq.html','/contact.html','/privacy.html','/terms.html','/legal-notice.html','/breeder-fees.html']"
-new=old.replace("'/breed-standard-poodle.html'", "'/breed-standard-poodle.html','/large-dog-puppies.html'")
+new=old.replace("'/breed-standard-poodle.html'", "'/breed-standard-poodle.html','/large-dog-puppies.html','/large-dog-breeders.html'")
 if old not in s:
     raise SystemExit(('seo_sitemap_static_anchor_missing',s.count("static=['/','/search.html'")))
 s=s.replace(old,new,1)
