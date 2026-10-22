@@ -18,5 +18,12 @@ if not SERVER.exists():
     with zipfile.ZipFile(ZIP) as zf:
         zf.extractall(RUNTIME)
 
+from shop_preview_install import install_private_shop_preview
+
+# Build a private preview without exposing it in the public site navigation.
+# This is idempotent and applies to the extracted ZIP application only.
+os.environ["BIGPAW_PRIVATE_SHOP_PREVIEW_FILE"] = str(ROOT / "private_shop_preview.html")
+install_private_shop_preview(ROOT, APP, SERVER)
+
 os.environ.setdefault("PYTHONUNBUFFERED", "1")
 os.execv(sys.executable, [sys.executable, str(SERVER)])
