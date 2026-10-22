@@ -35,7 +35,7 @@ footer{padding:46px 0;background:#fff3f8;margin-top:72px}.foot{display:flex;just
 <div class="topbar">🐾 大型犬専門・大きな家族との出会いを、もっと安心に</div>
 <header><div class="wrap nav">
   <a class="logo" href="#"><span class="logo-mark">🐾</span>BIG PAW</a>
-  <nav class="navlinks"><a href="#puppies">子犬を探す</a><a href="breed-guide.html">大型犬ガイド</a><a href="breeders.html">ブリーダー</a><a href="favorites.html">♡ お気に入り</a><a class="nav-cta" href="login.html">ログイン</a></nav>
+  <nav class="navlinks"><a href="search.html">子犬を探す</a><a href="breed-guide.html">大型犬ガイド</a><a href="breeders.html">ブリーダー</a><a href="favorites.html">♡ お気に入り</a><a class="nav-cta" href="login.html">ログイン</a></nav>
 </div></header>
 
 <main>
@@ -45,11 +45,11 @@ footer{padding:46px 0;background:#fff3f8;margin-top:72px}.foot{display:flex;just
       <div class="eyebrow">🐕 大型犬専門｜サイズ・健康・育った環境まで見える</div>
       <h1>大きなからだ、<br><span>大きな愛。</span></h1>
       <p>スタンダードプードル、ゴールデン、ラブラドール、バーニーズなど大型犬だけ。成犬時のサイズ、親犬、健康検査、性格や育った環境まで確認してから出会える、大型犬専門の子犬マッチングサービス。</p>
-      <div class="hero-actions"><a class="btn btn-main" href="#puppies">子犬を探す</a><a class="btn btn-sub" href="#trust">BIG PAWの安心基準</a></div>
+      <div class="hero-actions"><a class="btn btn-main" href="search.html">子犬を探す</a><a class="btn btn-sub" href="#trust">BIG PAWの安心基準</a></div>
     </div>
     <div class="hero-card">
       <div class="dog-photo"><span class="photo-tag">埼玉県｜DOG44</span></div>
-      <div class="mini-info"><div><strong>スタンダードプードル</strong><br><span>ブリーダー直販・見学受付中</span></div><div style="text-align:right"><strong>¥258,000〜</strong><br><span>税込・サンプル表示</span></div></div>
+      <div class="mini-info"><div><strong>大型犬の子犬と出会う</strong><br><span>犬種・地域・ブリーダー情報から探せます</span></div><div style="text-align:right"><a href="search.html" style="font-weight:800;color:#a83f73">子犬一覧 →</a></div></div>
     </div>
   </div>
   <div class="searchbox">
@@ -72,7 +72,7 @@ footer{padding:46px 0;background:#fff3f8;margin-top:72px}.foot{display:flex;just
   </div>
 </div></section>
 
-<div class="wrap" style="padding-top:20px;padding-bottom:8px"><p style="margin:0;color:#665b67;font-size:15px">大型犬の子犬を初めて探す方へ：<a href="large-dog-puppies.html" style="color:#a83f73;font-weight:800;text-decoration:underline">犬種の特徴・ブリーダー選び・お迎えまでの流れを見る →</a></p></div>
+<div class="wrap" style="padding-top:20px;padding-bottom:8px"><p style="margin:0;color:#665b67;font-size:15px">大型犬を迎えたい方へ：<a href="large-dog-puppies.html" style="color:#a83f73;font-weight:800;text-decoration:underline">大型犬の子犬の選び方</a> ／ <a href="large-dog-breeders.html" style="color:#a83f73;font-weight:800;text-decoration:underline">大型犬ブリーダーの探し方</a></p></div>
 
 <section id="trust"><div class="wrap">
   <div class="section-head"><div><h2>大型犬だから、サイズも健康も大切。</h2><p>成犬になったあとの暮らしまで想像できる情報を、最初から。</p></div></div>
@@ -85,21 +85,9 @@ footer{padding:46px 0;background:#fff3f8;margin-top:72px}.foot{display:flex;just
 </div></section>
 
 <section id="puppies"><div class="wrap">
-  <div class="section-head"><div><h2>新着の子犬</h2><p id="resultText">3頭のサンプルを表示中</p></div><a class="link" href="search.html">すべて見る →</a></div>
+  <div class="section-head"><div><h2>新着の子犬</h2><p id="resultText">現在の募集情報は子犬一覧で確認できます</p></div><a class="link" href="search.html">すべて見る →</a></div>
   <div class="filters"><button class="chip active" onclick="filterChip(this,'all')">すべて</button><button class="chip" onclick="filterChip(this,'male')">男の子</button><button class="chip" onclick="filterChip(this,'female')">女の子</button><button class="chip" onclick="filterChip(this,'health')">健康情報あり</button></div>
   <div class="puppies" id="puppyGrid">
-    <article class="puppy" data-gender="male" data-breed="standard" data-area="saitama" data-health="yes" onclick="location.href='puppy-detail.html'">
-      <div class="puppy-img img3"><span class="badge">NEW</span><button class="fav" onclick="toggleFav(event,this)">♡</button></div>
-      <div class="puppy-body"><p class="puppy-title">スタンダードプードル｜男の子</p><div class="meta">ブラック ・ 埼玉県</div><div class="size-line">成犬時目安 28〜32kg</div><div class="price">258,000円 <small>税込</small></div><div class="health"><span>親犬サイズ</span><span>健康診断</span><span>遺伝子検査</span></div><div class="breeder-line"><span>DOG44</span><span>見学受付中</span></div></div>
-    </article>
-    <article class="puppy" data-gender="female" data-breed="golden" data-area="tokyo" data-health="yes" onclick="openDetail('ゴールデンレトリバー｜女の子','ゴールデンレトリバー','女の子','ゴールド','328,000円','25〜30kg目安')">
-      <div class="puppy-img img2"><span class="badge">おすすめ</span><button class="fav" onclick="toggleFav(event,this)">♡</button></div>
-      <div class="puppy-body"><p class="puppy-title">ゴールデンレトリバー｜女の子</p><div class="meta">ゴールド ・ 東京都</div><div class="size-line">成犬時目安 25〜30kg</div><div class="price">328,000円 <small>税込</small></div><div class="health"><span>股関節情報</span><span>健康診断</span><span>親犬情報</span></div><div class="breeder-line"><span>サンプル犬舎</span><span>見学受付中</span></div></div>
-    </article>
-    <article class="puppy" data-gender="male" data-breed="bernese" data-area="kanagawa" data-health="yes" onclick="openDetail('バーニーズ｜男の子','バーニーズ','男の子','トライカラー','398,000円','38〜45kg目安')">
-      <div class="puppy-img img1"><span class="badge">動画あり</span><button class="fav" onclick="toggleFav(event,this)">♡</button></div>
-      <div class="puppy-body"><p class="puppy-title">バーニーズ｜男の子</p><div class="meta">トライカラー ・ 神奈川県</div><div class="size-line">成犬時目安 38〜45kg</div><div class="price">398,000円 <small>税込</small></div><div class="health"><span>親犬サイズ</span><span>股関節情報</span><span>健康診断</span></div><div class="breeder-line"><span>サンプル犬舎</span><span>見学受付中</span></div></div>
-    </article>
   </div>
 </div></section>
 
