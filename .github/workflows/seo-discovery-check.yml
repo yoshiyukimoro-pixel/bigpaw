@@ -49,3 +49,38 @@ jobs:
       - name: Validate built site and generated sitemap route
         run: |
           docker run --rm --entrypoint python3 bigpaw-seo-check -c 'from pathlib import Path; p=Path("/app/large-dog-puppies.html").read_text(); h=Path("/app/index.html").read_text(); s=Path("/app/backend/server.py").read_text(); assert "<h1>大型犬の子犬を探すなら BIG PAW</h1>" in p; assert "large-dog-puppies.html" in h; assert "/large-dog-puppies.html" in s; assert "/large-dog-breeders.html" in s; assert "large-dog-breeders.html" in h; assert "sitemap.xml" in s; compile(s,"backend/server.py","exec"); print("SEO_BUILD_GATE_OK")'
+
+      - name: Test production-equivalent HTTP routes in an isolated container
+        run: |
+          set -euo pipefail
+          START="python3 backend/auth_cookie_hardening_patch.py && python3 backend/safari_gallery_runtime_patch.py && python3 backend/support_contact_runtime_patch.py && python3 backend/offsite_backup_runtime_patch.py && python3 backend/login_prompt_runtime_patch.py && python3 backend/direct_payment_runtime_patch.py && python3 backend/breeder_mobile_menu_runtime_patch.py && exec python3 backend/start_live.py"
+          docker run -d --name bigpaw-seo-smoke -p 18081:8080 \
+            -e PORT=8080 \
+            -e BIGPAW_ENV=production \
+            -e BIGPAW_DATA_DIR=/tmp/bigpaw-seo-smoke \
+            -e BIGPAW_ADMIN_EMAIL=smoke@example.com \
+            -e BIGPAW_ADMIN_PASSWORD='SmokeTestPassword123!' \
+            -e BIGPAW_PAYMENT_MODE=manual \
+            -e BIGPAW_SUPPORT_RETENTION_DAYS=180 \
+            bigpaw-seo-check sh -c "$START"
+          trap 'docker rm -f bigpaw-seo-smoke >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:18081/api/health >/tmp/bigpaw-seo-health.json; then ok=1; break; fi
+            if ! docker inspect -f '{{.State.Running}}' bigpaw-seo-smoke 2>/dev/null | grep -q true; then break; fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ]; then docker logs bigpaw-seo-smoke || true; exit 1; fi
+          curl -fsS http://127.0.0.1:18081/ >/tmp/bigpaw-seo-home.html
+          curl -fsS http://127.0.0.1:18081/large-dog-breeders.html >/tmp/bigpaw-seo-breeders.html
+          curl -fsS http://127.0.0.1:18081/large-dog-puppies.html >/tmp/bigpaw-seo-puppies.html
+          curl -fsS http://127.0.0.1:18081/search.html >/tmp/bigpaw-seo-search.html
+          curl -fsS http://127.0.0.1:18081/sitemap.xml >/tmp/bigpaw-seo-sitemap.xml
+          curl -fsS http://127.0.0.1:18081/robots.txt >/tmp/bigpaw-seo-robots.txt
+          grep -q 'href="large-dog-breeders.html"' /tmp/bigpaw-seo-home.html
+          grep -q '<h1>大型犬ブリーダーを探すなら BIG PAW</h1>' /tmp/bigpaw-seo-breeders.html
+          grep -q 'name="description"' /tmp/bigpaw-seo-search.html
+          grep -q '/large-dog-breeders.html' /tmp/bigpaw-seo-sitemap.xml
+          grep -q 'Sitemap:' /tmp/bigpaw-seo-robots.txt
+          ! grep -q 'サンプル犬舎' /tmp/bigpaw-seo-home.html
+          echo 'BIGPAW_SEO_HTTP_SMOKE_OK|health=200|home=200|guides=200|search=200|sitemap=200|robots=200|sample=removed'
