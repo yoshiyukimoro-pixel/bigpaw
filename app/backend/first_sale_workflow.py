@@ -116,8 +116,16 @@ def install(g):
         c.execute('INSERT OR IGNORE INTO first_sale_benefits VALUES(?,?,?)', (d['breeder_id'], d['id'], now()))
         claim = c.execute('SELECT * FROM first_sale_benefits WHERE breeder_id=?', (d['breeder_id'],)).fetchone()
         waived = int(claim['deal_id'] == d['id'])
+        # The customer must inquire while this puppy is selected as 推しワン.
+        # Freeze the rate when a sale is first reported; later toggles do not change it.
+        featured = c.execute("""SELECT 1 FROM oshiwan_periods o
+            JOIN inquiries i ON i.id=?
+            WHERE o.puppy_id=? AND o.started_at<=i.created_at
+              AND (o.ended_at IS NULL OR o.ended_at>i.created_at) LIMIT 1""",
+            (d['inquiry_id'], d['puppy_id'])).fetchone()
+        rate = 300 if featured else g['COMMISSION_RATE_BPS']
         c.execute('INSERT INTO sale_fee_decisions VALUES(?,?,?,?,?,?)',
-                  (d['id'], d['breeder_id'], waived, g['COMMISSION_RATE_BPS'], TERMS, now()))
+                  (d['id'], d['breeder_id'], waived, rate, TERMS, now()))
         audit(c, None, 'first_sale_fee_decided', 'deal', d['id'], 'waived' if waived else 'standard')
         return c.execute('SELECT * FROM sale_fee_decisions WHERE deal_id=?', (d['id'],)).fetchone()
 
@@ -188,7 +196,7 @@ def install(g):
         inv = invoice(c, c.execute('SELECT * FROM deals WHERE id=?', (d['id'],)).fetchone())
         breeder = c.execute('SELECT u.id,u.email FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?', (d['breeder_id'],)).fetchone()
         if inv:
-            text = f"お迎え完了の報告を受け付けました。\n成約手数料：{inv['fee_amount']:,}円（5%・税込）\n請求番号：{inv['invoice_no']}\n支払期限：発行日から7日以内\n"+g['PUBLIC_BASE_URL']+'/breeder-billing.html'
+            text = f"お迎え完了の報告を受け付けました。\n成約手数料：{inv['fee_amount']:,}円（{inv['rate_bps']/100:g}%・税込）\n請求番号：{inv['invoice_no']}\n支払期限：発行日から7日以内\n"+g['PUBLIC_BASE_URL']+'/breeder-billing.html'
         else:
             text = 'お迎え完了の報告を受け付けました。初回無料特典により成約手数料は0円です。請求書は発行されません。'
         if breeder:
