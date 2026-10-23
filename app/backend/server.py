@@ -284,6 +284,19 @@ def audit(con, user_id, action, target_type='', target_id='', detail=''):
     con.execute('INSERT INTO audit_logs VALUES(?,?,?,?,?,?,?)',
                 (make_id('a_'),user_id,action,target_type,target_id,str(detail)[:1000],now()))
 
+def invoice_fee_breakdown_text(invoice):
+    """Explicitly separate the platform success fee from optional 推しワン fees."""
+    amount=int(invoice['sale_amount'])
+    rate=int(invoice['rate_bps'])
+    total=int(invoice['fee_amount'])
+    if rate==800:
+        base=(amount*500)//10000
+        promotion=(amount*300)//10000
+        return f"通常成約手数料（5％）：{base:,}円\n推しワン利用料（3％）：{promotion:,}円\n請求合計（税込）：{total:,}円"
+    if rate==300:
+        return f"通常成約手数料（初回無料）：0円\n推しワン利用料（3％）：{total:,}円\n請求合計（税込）：{total:,}円"
+    return f"通常成約手数料（{rate/100:g}％）：{total:,}円\n請求合計（税込）：{total:,}円"
+
 def ensure_commission_invoice(con, deal):
     # One tax-inclusive success-fee invoice per completed deal.
     if not deal or not deal['breeder_id']:
@@ -292,12 +305,25 @@ def ensure_commission_invoice(con, deal):
     if existing:
         return existing
     sale_amount=int(deal['total_price'])
-    fee_amount=(sale_amount*COMMISSION_RATE_BPS)//10000
+    # Frozen per-deal promotion, preserving invoices already issued.
+    try:
+        decision=con.execute('SELECT rate_bps,waived FROM sale_fee_decisions WHERE deal_id=?',(deal['id'],)).fetchone()
+    except sqlite3.OperationalError:
+        decision=None
+    # Invoice the 5% standard fee plus optional 3% promotion separately.
+    # The first-sale benefit waives only the 5% portion.
+    decision_bps=int(decision['rate_bps']) if decision else COMMISSION_RATE_BPS
+    standard_waived=bool(decision and decision['waived'])
+    rate_bps=decision_bps-(COMMISSION_RATE_BPS if standard_waived else 0)
+    if rate_bps==800:
+        fee_amount=(sale_amount*500)//10000 + (sale_amount*300)//10000
+    else:
+        fee_amount=(sale_amount*rate_bps)//10000
     issued=now(); due=issued + COMMISSION_DUE_DAYS*86400
     inv_id=make_id('inv_')
     invoice_no='BP-'+time.strftime('%Y%m%d',time.localtime(issued))+'-'+secrets.token_hex(3).upper()
     sql = 'INSERT INTO commission_invoices (id,invoice_no,deal_id,breeder_id,sale_amount,rate_bps,fee_amount,status,issued_at,due_at,paid_at,note) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
-    con.execute(sql,(inv_id,invoice_no,deal['id'],deal['breeder_id'],sale_amount,COMMISSION_RATE_BPS,fee_amount,'issued',issued,due,None,'BIG PAW 成約手数料（5%・税込）'))
+    con.execute(sql,(inv_id,invoice_no,deal['id'],deal['breeder_id'],sale_amount,rate_bps,fee_amount,'issued',issued,due,None,('BIG PAW 成約手数料5％＋推しワン利用料3％（税込）' if rate_bps==800 else 'BIG PAW 初回成約無料・推しワン利用料3％（税込）' if rate_bps==300 else f'BIG PAW 成約手数料（{rate_bps/100:g}%・税込）')))
     audit(con,None,'commission_invoice_issued','commission_invoice',inv_id,f'{invoice_no}:{fee_amount}')
     breeder_user=con.execute('SELECT u.id FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?',(deal['breeder_id'],)).fetchone()
     if breeder_user:
@@ -1252,7 +1278,7 @@ https://www.bigpaw.site/'''
                     breeder_user=con.execute('SELECT u.email FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?',(d['breeder_id'],)).fetchone()
                     if breeder_user:
                         due_txt=time.strftime('%Y年%m月%d日',time.localtime(invoice['due_at']))
-                        send_mail(breeder_user['email'],'BIG PAW 成約手数料のご請求',f"成約おめでとうございます。\n\n成約手数料: {invoice['fee_amount']:,}円（生体価格の5%・税込）\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAWブリーダー管理画面から請求内容をご確認ください。")
+                        send_mail(breeder_user['email'],'BIG PAW 成約手数料のご請求',f"成約おめでとうございます。\n\n{invoice_fee_breakdown_text(invoice)}\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAWブリーダー管理画面から請求内容をご確認ください。")
             con.commit(); r=con.execute('SELECT * FROM pickups WHERE id=?',(pid,)).fetchone(); con.close(); return self.send_json(dict(r),201)
         m=re.fullmatch(r'/api/deals/([^/]+)/review',path)
         if m:
@@ -1673,12 +1699,12 @@ https://www.bigpaw.site/'''
             completed_deal=con.execute('SELECT * FROM deals WHERE id=?',(d['id'],)).fetchone(); invoice=ensure_commission_invoice(con,completed_deal)
             breeder_user=con.execute('SELECT u.id,u.email,b.kennel_name FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?',(r['breeder_id'],)).fetchone()
             if breeder_user:
-                bodytxt=f"成約申請が承認されました。{invoice['invoice_no'] if invoice else ''} / 成約手数料 {invoice['fee_amount']:,}円" if invoice else '成約申請が承認されました。'
+                bodytxt=f"成約申請が承認されました。{invoice['invoice_no'] if invoice else ''} / {invoice_fee_breakdown_text(invoice)}" if invoice else '成約申請が承認されました。'
                 con.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',(make_id('n_'),breeder_user['id'],'deal_report','成約が確定しました',bodytxt,0,t))
             audit(con,u['id'],'deal_completion_report_approved','deal',d['id'],f"{r['final_sale_amount']}:{r['pickup_date']}"); con.commit()
             if breeder_user and invoice:
                 due_txt=time.strftime('%Y年%m月%d日',time.localtime(invoice['due_at']))
-                send_mail(breeder_user['email'],'BIG PAW 成約確定・成約手数料のご請求',f"{breeder_user['kennel_name']} 様\n\n成約申請を確認しました。\n成約手数料: {invoice['fee_amount']:,}円（生体価格の5%・税込）\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAW管理画面から請求書をご確認ください。")
+                send_mail(breeder_user['email'],'BIG PAW 成約確定・成約手数料のご請求',f"{breeder_user['kennel_name']} 様\n\n成約申請を確認しました。\n{invoice_fee_breakdown_text(invoice)}\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAW管理画面から請求書をご確認ください。")
             out=con.execute('SELECT * FROM deal_completion_reports WHERE id=?',(r['id'],)).fetchone(); con.close(); return self.send_json(dict(out))
         m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)
         if m:

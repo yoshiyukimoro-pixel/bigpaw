@@ -4,7 +4,7 @@ ROOT=Path(__file__).resolve().parents[1]
 p=ROOT/'backend/server.py'
 s=p.read_text()
 marker="if __name__=='__main__':"
-insert="from first_sale_workflow import install as _install_first_sale_workflow\n_install_first_sale_workflow(globals())\n\n"
+insert="from oshiwan import install as _install_oshiwan\n_install_oshiwan(globals())\nfrom first_sale_workflow import install as _install_first_sale_workflow\n_install_first_sale_workflow(globals())\n\n"
 if insert not in s:
     assert s.count(marker)==1
     s=s.replace(marker,insert+marker,1)
