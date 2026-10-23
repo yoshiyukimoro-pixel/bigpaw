@@ -297,10 +297,11 @@ try:
     execute('INSERT INTO deals VALUES(?,?,?,?,?,?,?,?,?)',(os_d,os_i,rp,'u_demo','b_dog44',300000,100000,'negotiating',t))
     post('/api/deals/'+os_d+'/sale-report',BODY,uid)
     decision=query('SELECT * FROM sale_fee_decisions WHERE deal_id=?',(os_d,))
-    check(len(decision)==1 and decision[0]['rate_bps']==300 and not decision[0]['waived'],'Oshiwan inquiry locks 3% rate without overriding spent first-sale benefit')
+    check(len(decision)==1 and decision[0]['rate_bps']==800 and not decision[0]['waived'],'Oshiwan inquiry locks 5%+3% combined rate without overriding spent first-sale benefit')
     post('/api/deals/'+os_d+'/completion-report',BODY,uid)
     inv=query('SELECT * FROM commission_invoices WHERE deal_id=?',(os_d,))
-    check(len(inv)==1 and inv[0]['fee_amount']==9000 and inv[0]['rate_bps']==300,'Oshiwan invoice charges 3% of the agreed sale price')
+    check(len(inv)==1 and inv[0]['fee_amount']==24000 and inv[0]['rate_bps']==800,'Oshiwan invoice charges 5% plus 3% of the agreed sale price')
+    check('成約手数料5％＋推しワン利用料3％' in inv[0]['note'],'Oshiwan invoice distinctly itemizes both 5% and 3% fees')
     answer(os_d,'pickup')
     check(len(query('SELECT * FROM commission_invoices WHERE deal_id=?',(os_d,)))==1,'Oshiwan buyer confirmation cannot duplicate invoice')
     # First sale: standard fee is waived, but the optional sponsored slot remains 3%.
@@ -314,7 +315,7 @@ try:
     first_osh_sale=post('/api/deals/'+first_osh_d+'/sale-report',BODY,'u_oshi_first')
     check(first_osh_sale['waived'],'Oshiwan first sale still consumes free standard sale benefit')
     first_osh_decision=query('SELECT waived,rate_bps FROM sale_fee_decisions WHERE deal_id=?',(first_osh_d,))[0]
-    check(first_osh_decision['waived']==1 and first_osh_decision['rate_bps']==300,'Oshiwan first-sale fee decision records standard waiver and promotion charge')
+    check(first_osh_decision['waived']==1 and first_osh_decision['rate_bps']==800,'Oshiwan first-sale fee decision retains combined rate and standard waiver')
     post('/api/deals/'+first_osh_d+'/completion-report',BODY,'u_oshi_first')
     first_osh_invoice=query('SELECT * FROM commission_invoices WHERE deal_id=?',(first_osh_d,))
     check(len(first_osh_invoice)==1 and first_osh_invoice[0]['rate_bps']==300 and first_osh_invoice[0]['fee_amount']==9000,'Oshiwan first sale correctly charges 9000 yen in promotional fees')
