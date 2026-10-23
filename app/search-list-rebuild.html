@@ -262,7 +262,9 @@
         const match=breeds.find(v=>v.ja===String(p.breed||''));
         return match?match.key:'other';
       }
-      function render(scroll,resetPage=true){
+      // Keep the established render(scroll) entry point for existing search integrations.
+      function render(scroll){return renderWithPage(scroll,true);}
+      function renderWithPage(scroll,resetPage=true){
         if(resetPage)pageNum=1;
         let list=source.slice();
         const selected=Array.isArray(window.BIGPAW_SELECTED_BREEDS)?window.BIGPAW_SELECTED_BREEDS:[];
@@ -367,7 +369,7 @@
             const n=Number(btn.dataset.page);
             if(!Number.isInteger(n)||n<1)return;
             pageNum=n;
-            render(true,false);
+            renderWithPage(true,false);
           });
           [gender,age,color,sort,minPrice,maxPrice].forEach(x=>x.addEventListener('change',()=>render(false)));
           customBreedQuery.addEventListener('input',()=>render(false));
