@@ -123,7 +123,7 @@ def install(g):
             WHERE o.puppy_id=? AND o.started_at<=i.created_at
               AND (o.ended_at IS NULL OR o.ended_at>i.created_at) LIMIT 1""",
             (d['inquiry_id'], d['puppy_id'])).fetchone()
-        rate = 300 if featured else g['COMMISSION_RATE_BPS']
+        rate = g['COMMISSION_RATE_BPS'] + (300 if featured else 0)
         c.execute('INSERT INTO sale_fee_decisions VALUES(?,?,?,?,?,?)',
                   (d['id'], d['breeder_id'], waived, rate, TERMS, now()))
         audit(c, None, 'first_sale_fee_decided', 'deal', d['id'], 'waived' if waived else 'standard')
@@ -135,8 +135,8 @@ def install(g):
         if existing: return existing
         decision = c.execute('SELECT * FROM sale_fee_decisions WHERE deal_id=?', (d['id'],)).fetchone()
         # The universal first sale waives only the standard success fee.
-        # An explicitly selected 推しワン remains chargeable at 3% even on the first sale.
-        if decision and decision['waived'] and decision['rate_bps'] != 300: return None
+        # First sale waives only the standard 5% charge, not the optional 3% 推しワン fee.
+        if decision and decision['waived'] and decision['rate_bps'] == g['COMMISSION_RATE_BPS']: return None
         return original_invoice(c, d)
 
     def notify_ops(c, title, detail, key):
@@ -199,9 +199,10 @@ def install(g):
         breeder = c.execute('SELECT u.id,u.email FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?', (d['breeder_id'],)).fetchone()
         if inv:
             decision = c.execute('SELECT waived FROM sale_fee_decisions WHERE deal_id=?',(d['id'],)).fetchone()
-            label = '推しワン利用料' if inv['rate_bps']==300 else '成約手数料'
-            free_notice = '初回成約手数料：0円（無料特典適用）\n' if decision and decision['waived'] else ''
-            text = f"お迎え完了の報告を受け付けました。\n{free_notice}{label}：{inv['fee_amount']:,}円（{inv['rate_bps']/100:g}%・税込）\n請求番号：{inv['invoice_no']}\n支払期限：発行日から7日以内\n"+g['PUBLIC_BASE_URL']+'/breeder-billing.html'
+            fee_lines = (f"通常成約手数料：{inv['sale_amount']*5//100:,}円（5%）\n推しワン利用料：{inv['sale_amount']*3//100:,}円（3%）\n" if inv['rate_bps']==800
+                         else "通常成約手数料：0円（初回無料特典）\n推しワン利用料：{:,}円（3%）\n".format(inv['fee_amount']) if inv['rate_bps']==300
+                         else f"通常成約手数料：{inv['fee_amount']:,}円（{inv['rate_bps']/100:g}%）\n")
+            text = f"お迎え完了の報告を受け付けました。\n{fee_lines}合計：{inv['fee_amount']:,}円（税込）\n請求番号：{inv['invoice_no']}\n支払期限：発行日から7日以内\n"+g['PUBLIC_BASE_URL']+'/breeder-billing.html'
         else:
             text = 'お迎え完了の報告を受け付けました。初回無料特典により成約手数料は0円です。請求書は発行されません。'
         if breeder:
