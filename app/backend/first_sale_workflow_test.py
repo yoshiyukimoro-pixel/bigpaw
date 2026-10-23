@@ -257,6 +257,58 @@ try:
     st,r=request('GET','/api/operator/invoices',user='u_admin');check(st==200,'existing operator invoice management API')
     st,r=request('POST','/api/breeder/sales-handover-settings',{'reservationAmount':100000,'minHandoverDays':57,'healthExamIncluded':True,'microchipIncluded':True},uid);check(st==200,'existing sales handover settings save')
     st,r=request('GET','/api/breeder/sales-handover-settings',user=uid);check(st==200 and r['reservationAmount']==100000,'existing sales handover settings readback')
+    # 推しワン integration: consent, ownership, kennel/breed quota, breed rotation,
+    # fee attribution at inquiry time, immutable billing, sold cleanup and public PR.
+    os_path='/api/oshiwan/'+rp
+    check(request('POST',os_path+'/selection',{'enabled':True,'agreeOshiwanTerms':True},'u_demo')[0]==403,'Oshiwan buyer cannot promote another puppy')
+    check(request('POST',os_path+'/selection',{'enabled':True},uid)[0]==400,'Oshiwan 3% consent is mandatory')
+    st,os_state=request('GET',os_path+'/state',user=uid)
+    check(st==200 and not os_state['enabled'] and os_state['kennelBreedCount']==0,'Oshiwan starts disabled for legacy listing')
+    st,_=request('POST',os_path+'/selection',{'enabled':True,'agreeOshiwanTerms':True},uid)
+    check(st==200,'Oshiwan breeder opts in explicitly')
+    promoted=[rp]
+    for i in range(2):
+        st,pu=request('POST','/api/puppies',{'name':'推しワン登録試験'+str(i),'breed':'スタンダードプードル','breedKey':'standard-poodle','gender':'女の子','color':'ホワイト','price':300000},uid)
+        check(st==201,'Oshiwan additional published puppy '+str(i))
+        promoted.append(pu['id'])
+    st,_=request('POST','/api/oshiwan/'+promoted[1]+'/selection',{'enabled':True,'agreeOshiwanTerms':True},uid)
+    check(st==200,'Oshiwan second puppy same kennel allowed')
+    st,_=request('POST','/api/oshiwan/'+promoted[2]+'/selection',{'enabled':True,'agreeOshiwanTerms':True},uid)
+    check(st==409,'Oshiwan third puppy same kennel rejected')
+    for i in range(6):
+        suffix='oshik'+str(i)
+        execute("INSERT INTO users(id,role,email,salt,password_hash,created_at) VALUES(?,'breeder',?,'s','h',?)",('u_'+suffix,suffix+'@example.invalid',int(time.time())))
+        execute("INSERT INTO breeders(id,user_id,kennel_name,prefecture,review_status) VALUES(?,?,?,'埼玉県','approved')",('b_'+suffix,'u_'+suffix,'推し犬舎'+str(i)))
+        pid='oshitest-p-'+str(i)
+        execute("INSERT INTO puppies(id,breeder_id,name,breed,breed_key,gender,gender_key,color,price,status,area,area_key,created_at,review_status) VALUES(?,?,?,'スタンダードプードル','standard-poodle','男の子','male','クリーム',300000,'募集中','埼玉県','saitama',?,'approved')",(pid,'b_'+suffix,'推し犬'+str(i),int(time.time())))
+        st,_=request('POST','/api/oshiwan/'+pid+'/selection',{'enabled':True,'agreeOshiwanTerms':True},'u_admin')
+        check(st==200,'Oshiwan operator can manage authorized proxy listing '+str(i))
+    st,o1=request('GET','/api/oshiwan')
+    st2,o2=request('GET','/api/oshiwan')
+    group1=next(g for g in o1['groups'] if g['breed']=='スタンダードプードル')
+    group2=next(g for g in o2['groups'] if g['breed']=='スタンダードプードル')
+    ids1={p['id'] for p in group1['puppies']};ids2={p['id'] for p in group2['puppies']}
+    check(st==200 and st2==200 and len(ids1)==len(ids2)==5,'Oshiwan public shows exactly five per breed')
+    check(ids1!=ids2 and len(ids1|ids2)>5,'Oshiwan refresh rotates fairly across eligible puppies')
+    check(o1['advertisement'] and o1['label']=='推しワン','Oshiwan public payload labels sponsored placement')
+    # Sale inquiry created after promotion; dog44 already used its free first sale.
+    os_i='oshiwan-test-inquiry';os_d='oshiwan-test-deal';t=int(time.time())
+    execute("INSERT INTO inquiries(id,puppy_id,buyer_id,breeder_id,name,email,created_at) VALUES(?,?,?,?,?,?,?)",(os_i,rp,'u_demo','b_dog44','推しワン購入者','oshiwan@example.invalid',t))
+    execute('INSERT INTO deals VALUES(?,?,?,?,?,?,?,?,?)',(os_d,os_i,rp,'u_demo','b_dog44',300000,100000,'negotiating',t))
+    post('/api/deals/'+os_d+'/sale-report',BODY,uid)
+    decision=query('SELECT * FROM sale_fee_decisions WHERE deal_id=?',(os_d,))
+    check(len(decision)==1 and decision[0]['rate_bps']==300 and not decision[0]['waived'],'Oshiwan inquiry locks 3% rate without overriding spent first-sale benefit')
+    post('/api/deals/'+os_d+'/completion-report',BODY,uid)
+    inv=query('SELECT * FROM commission_invoices WHERE deal_id=?',(os_d,))
+    check(len(inv)==1 and inv[0]['fee_amount']==9000 and inv[0]['rate_bps']==300,'Oshiwan invoice charges 3% of the agreed sale price')
+    answer(os_d,'pickup')
+    check(len(query('SELECT * FROM commission_invoices WHERE deal_id=?',(os_d,)))==1,'Oshiwan buyer confirmation cannot duplicate invoice')
+    st,state=request('GET',os_path+'/state',user=uid)
+    check(st==200 and not state['enabled'],'Oshiwan sold puppy leaves spotlight automatically')
+    st,periods=request('GET','/api/oshiwan')
+    check(st==200 and all(p['id']!=rp for g in periods['groups'] for p in g['puppies']),'Oshiwan sold puppy never appears on public homepage')
+    st,_=request('POST','/api/oshiwan/'+promoted[2]+'/selection',{'enabled':True,'agreeOshiwanTerms':True},uid)
+    check(st==200,'Oshiwan released kennel slot can be reused after sale')
     bd,bp=deal('browser');execute('UPDATE puppies SET name=? WHERE id=?',('ブラウザー試験犬',bp))
     # Save fixtures for browser tests against the still-running server.
     context={'base':base,'data':str(data),'work':str(work),'serverPid':process.pid,'port':port,'today':TODAY,'browserInquiry':'wf-i-browser','regressionPuppy':rp}
