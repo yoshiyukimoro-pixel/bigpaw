@@ -1,0 +1,51 @@
+name: Independent production 推しワン smoke verification
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/independent-prod-oshiwan-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch real bigpaw.site via external GitHub runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,urllib.request,urllib.error
+          base='https://bigpaw.site'
+          def get(path):
+              r=urllib.request.Request(base+path,headers={'User-Agent':'BIGPAW-POSTDEPLOY-SMOKE/1.0','Cache-Control':'no-cache'})
+              with urllib.request.urlopen(r,timeout=25) as response:
+                  assert response.status==200,(path,response.status)
+                  text=response.read().decode('utf-8')
+                  print('LIVE_HTTP_OK',path,response.status,len(text))
+                  return text
+          health=json.loads(get('/api/health'))
+          print('LIVE_HEALTH',json.dumps(health,ensure_ascii=False)[:500])
+          home=get('/')
+          assert 'assets/oshiwan.js' in home,'homepage script missing'
+          public_js=get('/assets/oshiwan.js')
+          assert '今の推しワン！' in public_js,'spotlight UI missing'
+          featured=json.loads(get('/api/oshiwan'))
+          assert featured.get('label')=='推しワン',featured
+          assert featured.get('advertisement') is True,featured
+          for group in featured['groups']:
+              assert 1<=len(group['puppies'])<=5,group
+              assert all(p['breed']==group['breed'] for p in group['puppies']),group
+          print('LIVE_OSHIWAN_API_OK','breed_groups',len(featured['groups']))
+          puppy_edit=get('/breeder-puppy-new.html')
+          assert 'assets/oshiwan-editor.js' in puppy_edit,'breeder promotion toggle not wired'
+          editor_js=get('/assets/oshiwan-editor.js')
+          assert '推しワン利用料3％' in editor_js,'consent fee missing'
+          invoice=get('/breeder-invoice.html')
+          assert '推しワン利用料 3%' in invoice,'invoice itemization absent'
+          billing=get('/breeder-billing.html')
+          assert 'feeParts' in billing,'breeder billing itemization absent'
+          operator=get('/operator-invoices.html')
+          assert 'feeParts' in operator,'operator billing itemization absent'
+          print('LIVE_PRODUCTION_OSHIWAN_SMOKE_OK')
+          PY
