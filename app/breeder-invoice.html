@@ -21,8 +21,8 @@ const pct=bps=>{const n=Number(bps||0)/100;return (Number.isInteger(n)?String(n)
  const puppyItem=esc(x.puppy_name)+' / '+esc(x.breed)+'<br><span class="muted">生体販売価格 '+yen(x.sale_amount)+'</span>';
  const row=(title,amount)=>'<tr><td>'+title+'</td><td>'+puppyItem+'</td><td>'+yen(amount)+'</td></tr>';
  const rows=x.rate_bps===800
-   ? row('BIG PAW 通常成約手数料 5%（税込）',Math.floor(Number(x.sale_amount)*0.05))
-      +row('BIG PAW 推しワン利用料 3%（税込）',Math.floor(Number(x.sale_amount)*0.03))
+   ? row('BIG PAW 通常成約手数料 5%（税込）',Math.floor(Number(x.sale_amount)*500/10000))
+      +row('BIG PAW 推しワン利用料 3%（税込）',Math.floor(Number(x.sale_amount)*300/10000))
    : x.rate_bps===300
      ? row('BIG PAW 通常成約手数料 0%（初回無料特典）',0)
        +row('BIG PAW 推しワン利用料 3%（税込）',total)
