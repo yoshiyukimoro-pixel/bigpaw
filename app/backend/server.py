@@ -297,13 +297,20 @@ def ensure_commission_invoice(con, deal):
         decision=con.execute('SELECT rate_bps FROM sale_fee_decisions WHERE deal_id=?',(deal['id'],)).fetchone()
     except sqlite3.OperationalError:
         decision=None
-    rate_bps=int(decision['rate_bps']) if decision else COMMISSION_RATE_BPS
-    fee_amount=(sale_amount*rate_bps)//10000
+    # Invoice the 5% standard fee plus optional 3% promotion separately.
+    # The first-sale benefit waives only the 5% portion.
+    decision_bps=int(decision['rate_bps']) if decision else COMMISSION_RATE_BPS
+    standard_waived=bool(decision and decision['waived'])
+    rate_bps=decision_bps-(COMMISSION_RATE_BPS if standard_waived else 0)
+    if rate_bps==800:
+        fee_amount=(sale_amount*500)//10000 + (sale_amount*300)//10000
+    else:
+        fee_amount=(sale_amount*rate_bps)//10000
     issued=now(); due=issued + COMMISSION_DUE_DAYS*86400
     inv_id=make_id('inv_')
     invoice_no='BP-'+time.strftime('%Y%m%d',time.localtime(issued))+'-'+secrets.token_hex(3).upper()
     sql = 'INSERT INTO commission_invoices (id,invoice_no,deal_id,breeder_id,sale_amount,rate_bps,fee_amount,status,issued_at,due_at,paid_at,note) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
-    con.execute(sql,(inv_id,invoice_no,deal['id'],deal['breeder_id'],sale_amount,rate_bps,fee_amount,'issued',issued,due,None,f'BIG PAW {"推しワン利用料" if rate_bps==300 else "成約手数料"}（{rate_bps/100:g}%・税込）'))
+    con.execute(sql,(inv_id,invoice_no,deal['id'],deal['breeder_id'],sale_amount,rate_bps,fee_amount,'issued',issued,due,None,('BIG PAW 成約手数料5％＋推しワン利用料3％（税込）' if rate_bps==800 else 'BIG PAW 初回成約無料・推しワン利用料3％（税込）' if rate_bps==300 else f'BIG PAW 成約手数料（{rate_bps/100:g}%・税込）')))
     audit(con,None,'commission_invoice_issued','commission_invoice',inv_id,f'{invoice_no}:{fee_amount}')
     breeder_user=con.execute('SELECT u.id FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?',(deal['breeder_id'],)).fetchone()
     if breeder_user:
@@ -1258,7 +1265,7 @@ https://www.bigpaw.site/'''
                     breeder_user=con.execute('SELECT u.email FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?',(d['breeder_id'],)).fetchone()
                     if breeder_user:
                         due_txt=time.strftime('%Y年%m月%d日',time.localtime(invoice['due_at']))
-                        send_mail(breeder_user['email'],'BIG PAW 成約手数料のご請求',f"成約おめでとうございます。\n\n{'推しワン利用料' if invoice['rate_bps']==300 else '成約手数料'}: {invoice['fee_amount']:,}円（生体価格の{invoice['rate_bps']/100:g}%・税込）\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAWブリーダー管理画面から請求内容をご確認ください。")
+                        send_mail(breeder_user['email'],'BIG PAW 成約手数料のご請求',f"成約おめでとうございます。\n\n{'成約手数料5%＋推しワン利用料3%' if invoice['rate_bps']==800 else '推しワン利用料3%（初回通常成約手数料無料）' if invoice['rate_bps']==300 else '成約手数料'}: {invoice['fee_amount']:,}円（生体価格の{invoice['rate_bps']/100:g}%・税込）\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAWブリーダー管理画面から請求内容をご確認ください。")
             con.commit(); r=con.execute('SELECT * FROM pickups WHERE id=?',(pid,)).fetchone(); con.close(); return self.send_json(dict(r),201)
         m=re.fullmatch(r'/api/deals/([^/]+)/review',path)
         if m:
@@ -1684,7 +1691,7 @@ https://www.bigpaw.site/'''
             audit(con,u['id'],'deal_completion_report_approved','deal',d['id'],f"{r['final_sale_amount']}:{r['pickup_date']}"); con.commit()
             if breeder_user and invoice:
                 due_txt=time.strftime('%Y年%m月%d日',time.localtime(invoice['due_at']))
-                send_mail(breeder_user['email'],'BIG PAW 成約確定・成約手数料のご請求',f"{breeder_user['kennel_name']} 様\n\n成約申請を確認しました。\n{'推しワン利用料' if invoice['rate_bps']==300 else '成約手数料'}: {invoice['fee_amount']:,}円（生体価格の{invoice['rate_bps']/100:g}%・税込）\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAW管理画面から請求書をご確認ください。")
+                send_mail(breeder_user['email'],'BIG PAW 成約確定・成約手数料のご請求',f"{breeder_user['kennel_name']} 様\n\n成約申請を確認しました。\n{'成約手数料5%＋推しワン利用料3%' if invoice['rate_bps']==800 else '推しワン利用料3%（初回通常成約手数料無料）' if invoice['rate_bps']==300 else '成約手数料'}: {invoice['fee_amount']:,}円（生体価格の{invoice['rate_bps']/100:g}%・税込）\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAW管理画面から請求書をご確認ください。")
             out=con.execute('SELECT * FROM deal_completion_reports WHERE id=?',(r['id'],)).fetchone(); con.close(); return self.send_json(dict(out))
         m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)
         if m:
