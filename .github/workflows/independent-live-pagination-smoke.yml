@@ -1,0 +1,42 @@
+name: Independent live pagination read-only smoke
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/independent-live-pagination-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect actual production search without modifying data
+        run: |
+          python3 - <<'PY'
+          import urllib.request,json
+          origin='https://bigpaw.site'
+          def get(path):
+              req=urllib.request.Request(origin+path,headers={'User-Agent':'BIGPAW-LIVE-READONLY-CHECK','Cache-Control':'no-cache'})
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  txt=r.read().decode()
+                  assert r.status==200,(path,r.status)
+                  print('LIVE_GET_OK',path,r.status,len(txt))
+                  return txt
+          health=json.loads(get('/api/health'))
+          assert health['ok'] is True and health['environment']=='production',health
+          search=get('/search.html')
+          assert 'oshiwan-search-priority.js' in search,'priority script is not deployed'
+          assert 'bpPagination' in search,'page controls not deployed'
+          assert 'PAGE_SIZE=20' in search,'20 cards/page setting absent'
+          assert 'const promoted=position<priority.featuredIds.length' in search,'PR badge scope wrong'
+          js=get('/assets/oshiwan-search-priority.js')
+          assert 'ordered:featured.concat(results)' in js,'featured dogs are still removed from organic listings'
+          assert 'function paginate(items, requestedPage, requestedSize)' in js,'pagination helper missing'
+          public=get('/api/oshiwan')
+          promo=json.loads(public)
+          assert promo['advertisement'] is True,'promotion API unavailable'
+          home=get('/')
+          assert '<script src="assets/oshiwan.js' not in home,'separate homepage promo shelf still wired'
+          print('LIVE_OSHIWAN_DUPLICATE_PAGINATION_SMOKE_OK|20_per_page|promoted_duplicates_allowed|PR_badges_only_in_priority_slots|health=ok')
+          PY
