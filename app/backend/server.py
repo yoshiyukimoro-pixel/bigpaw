@@ -292,12 +292,18 @@ def ensure_commission_invoice(con, deal):
     if existing:
         return existing
     sale_amount=int(deal['total_price'])
-    fee_amount=(sale_amount*COMMISSION_RATE_BPS)//10000
+    # Frozen per-deal promotion, preserving invoices already issued.
+    try:
+        decision=con.execute('SELECT rate_bps FROM sale_fee_decisions WHERE deal_id=?',(deal['id'],)).fetchone()
+    except sqlite3.OperationalError:
+        decision=None
+    rate_bps=int(decision['rate_bps']) if decision else COMMISSION_RATE_BPS
+    fee_amount=(sale_amount*rate_bps)//10000
     issued=now(); due=issued + COMMISSION_DUE_DAYS*86400
     inv_id=make_id('inv_')
     invoice_no='BP-'+time.strftime('%Y%m%d',time.localtime(issued))+'-'+secrets.token_hex(3).upper()
     sql = 'INSERT INTO commission_invoices (id,invoice_no,deal_id,breeder_id,sale_amount,rate_bps,fee_amount,status,issued_at,due_at,paid_at,note) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
-    con.execute(sql,(inv_id,invoice_no,deal['id'],deal['breeder_id'],sale_amount,COMMISSION_RATE_BPS,fee_amount,'issued',issued,due,None,'BIG PAW 成約手数料（5%・税込）'))
+    con.execute(sql,(inv_id,invoice_no,deal['id'],deal['breeder_id'],sale_amount,rate_bps,fee_amount,'issued',issued,due,None,f'BIG PAW 成約手数料（{rate_bps/100:g}%・税込）'))
     audit(con,None,'commission_invoice_issued','commission_invoice',inv_id,f'{invoice_no}:{fee_amount}')
     breeder_user=con.execute('SELECT u.id FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?',(deal['breeder_id'],)).fetchone()
     if breeder_user:
