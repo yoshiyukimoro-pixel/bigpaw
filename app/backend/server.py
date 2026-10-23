@@ -294,7 +294,7 @@ def ensure_commission_invoice(con, deal):
     sale_amount=int(deal['total_price'])
     # Frozen per-deal promotion, preserving invoices already issued.
     try:
-        decision=con.execute('SELECT rate_bps FROM sale_fee_decisions WHERE deal_id=?',(deal['id'],)).fetchone()
+        decision=con.execute('SELECT rate_bps,waived FROM sale_fee_decisions WHERE deal_id=?',(deal['id'],)).fetchone()
     except sqlite3.OperationalError:
         decision=None
     # Invoice the 5% standard fee plus optional 3% promotion separately.
