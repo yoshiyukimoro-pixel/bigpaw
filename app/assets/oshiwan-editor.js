@@ -11,7 +11,7 @@
     panel.innerHTML = '<h2 style="margin:0 0 8px;font-size:19px">🐾 推しワンに登録</h2>' +
       '<p style="font-size:13px;line-height:1.7;margin:0 0 12px">BIG PAWトップページの「今の推しワン！」に、犬種ごと最大5頭を掲載。6頭以上はページ更新ごとに入れ替わります。同じ犬舎・同じ犬種は2頭まで登録できます。</p>' +
       '<div id="bpOshiState" style="font-size:13px;margin-bottom:10px" aria-live="polite">登録状態を確認しています…</div>' +
-      '<label id="bpOshiAgree" style="display:none;font-size:13px;line-height:1.7"><input id="bpOshiConsent" type="checkbox"> 推しワン掲載中に受けた問い合わせを起点とする成約は、初回成約無料特典が適用される場合を除き、成約手数料3％（税込）が発生することに同意します。</label>' +
+      '<label id="bpOshiAgree" style="display:none;font-size:13px;line-height:1.7"><input id="bpOshiConsent" type="checkbox"> 初回成約の通常手数料は0円ですが、推しワン掲載中に受けた問い合わせから成約した場合、初回でも推しワン利用料3％（税込）が発生することに同意します。</label>' +
       '<button type="button" id="bpOshiButton" class="btn btn-sub" style="margin-top:12px;background:#2367a8;color:white;border:0" disabled>読み込み中…</button>' +
       '<p id="bpOshiMessage" role="status" style="font-size:12px;margin:10px 0 0"></p>';
     const target = document.getElementById('editOnly');
@@ -44,7 +44,7 @@
       }catch(e){state.textContent='登録状態を確認できませんでした。';btn.disabled=true;msg.textContent=safe(e.message);}
     }
     btn.addEventListener('click',async ()=>{
-      if(!enabled && !consent.checked){msg.textContent='3％の成約手数料について同意にチェックしてください。';return}
+      if(!enabled && !consent.checked){msg.textContent='推しワン利用料3％について同意にチェックしてください。';return}
       btn.disabled=true;
       try{
         const res=await fetch('/api/oshiwan/'+encodeURIComponent(id)+'/selection',{
