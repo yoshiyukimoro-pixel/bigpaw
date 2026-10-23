@@ -1,4 +1,4 @@
-name: 推しワン breed search top-five gate
+name: 推しワン priority, duplicate and 20-per-page gate
 on:
   pull_request:
     branches: [main]
@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Validate 10-puppy search ordering, filters, labels and no duplicates
+      - name: Validate sponsored duplicates, 20-card pagination and filtered ordering
         run: node scripts/test-oshiwan-search-priority.cjs
       - name: Build actual application with full existing regression gates
         run: docker build --no-cache -t bigpaw-oshiwan-search-ci .
@@ -40,7 +40,7 @@ jobs:
           docker exec -i bigpaw-oshiwan-search-ci python3 - <<'PY'
           import sqlite3,time
           c=sqlite3.connect('/tmp/oshiwan-search-isolated/bigpaw.sqlite3')
-          for i in range(10):
+          for i in range(50):
               uid=f'oshi-search-user-{i}'
               bid=f'oshi-search-breeder-{i}'
               pid=f'oshi-search-{i}'
@@ -49,10 +49,10 @@ jobs:
               c.execute("""INSERT INTO puppies(id,breeder_id,name,breed,breed_key,gender,gender_key,color,price,status,area,area_key,created_at,review_status)
                   VALUES(?,?,?,'スタンダードプードル','standard-poodle',?,?,'ブラック',300000,'募集中','埼玉県','saitama',?,'approved')""",
                   (pid,bid,f'検索試験犬{i}','男の子' if i%2==0 else '女の子','male' if i%2==0 else 'female',int(time.time())+i))
-              if i>=5:
+              if i>=45:
                   c.execute("INSERT INTO oshiwan_entries(puppy_id,breeder_id,enabled_at) VALUES(?,?,?)",(pid,bid,int(time.time())+i))
           c.commit();c.close()
-          print('ISOLATED_10_STANDARD_POODLES_SEEDED|5_promoted|5_regular|no_live_database')
+          print('ISOLATED_50_STANDARD_POODLES_SEEDED|5_promoted|45_regular|no_live_database')
           PY
           curl -fsS http://127.0.0.1:18089/search.html > /tmp/oshiwan-real-search.html
           grep -q 'oshiwan-search-priority.js' /tmp/oshiwan-real-search.html
@@ -62,7 +62,7 @@ jobs:
           base='http://127.0.0.1:18089'
           arr=json.load(urllib.request.urlopen(base+'/api/puppies'))
           featured=json.load(urllib.request.urlopen(base+'/api/oshiwan'))
-          assert len([p for p in arr if p['breedKey']=='standard-poodle'])==10,arr
+          assert len([p for p in arr if p['breedKey']=='standard-poodle'])==50,arr
           assert len(featured['groups'])==1
           assert len(featured['groups'][0]['puppies'])==5
           assert featured['advertisement'] is True
