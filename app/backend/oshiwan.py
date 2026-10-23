@@ -22,6 +22,15 @@ CREATE TABLE IF NOT EXISTS oshiwan_rotation(
  breed TEXT PRIMARY KEY,
  turn INTEGER NOT NULL DEFAULT 0
 );
+CREATE TRIGGER IF NOT EXISTS oshiwan_auto_cleanup
+AFTER UPDATE OF breed,breeder_id,status,review_status ON puppies
+WHEN OLD.breed<>NEW.breed OR OLD.breeder_id IS NOT NEW.breeder_id
+ OR NEW.status<>'募集中' OR NEW.review_status<>'approved'
+BEGIN
+ UPDATE oshiwan_periods SET ended_at=CAST(strftime('%s','now') AS INTEGER)
+ WHERE puppy_id=NEW.id AND ended_at IS NULL;
+ DELETE FROM oshiwan_entries WHERE puppy_id=NEW.id;
+END;
 """
 
 def rotate_breed(rows, turn):
