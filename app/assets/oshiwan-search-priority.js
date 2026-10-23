@@ -1,5 +1,5 @@
 /* BIG PAW 推しワン – prioritize eligible promoted puppies inside existing filtered search results.
- * No duplicates, at most five sponsored positions, regular listings remain searchable.
+ * Five sponsored cards are ADDITIONAL placements: the same puppies also stay in regular listings.
  * Browser: window.BigPawOshiwanSearch; Node tests: module.exports.
  */
 (function(root){
@@ -31,11 +31,22 @@
       }
     }
     return {
-      ordered:featured.concat(results.filter(p=>!used.has(String(p.id)))),
+      // PR slots are promotional placements, not a replacement for ordinary search.
+      // Repetition is intentional: an advertised puppy remains in the full organic list.
+      ordered:featured.concat(results),
       featuredIds:featured.map(p=>String(p.id))
     };
   }
-  const api={prioritize};
+  function paginate(items, requestedPage, requestedSize){
+    const list=Array.isArray(items)?items:[];
+    const size=Math.max(1,Math.min(100,Number.isFinite(requestedSize)?Math.floor(requestedSize):20));
+    const totalPages=Math.max(1,Math.ceil(list.length/size));
+    const requested=Number.isFinite(requestedPage)?Math.floor(requestedPage):1;
+    const page=Math.max(1,Math.min(totalPages,requested));
+    const start=(page-1)*size;
+    return {page,totalPages,visible:list.slice(start,start+size),start:start+1,end:Math.min(start+size,list.length),totalSlots:list.length};
+  }
+  const api={prioritize,paginate};
   if(typeof module!=='undefined' && module.exports)module.exports=api;
   if(root)root.BigPawOshiwanSearch=api;
 })(typeof window!=='undefined'?window:null);

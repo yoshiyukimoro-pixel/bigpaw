@@ -45,6 +45,13 @@
     .bp-price{font-size:22px;font-weight:900;line-height:1.2;color:#222}
     .bp-tax{font-size:11px;font-weight:700;color:#777;margin-left:3px}
     .bp-empty{border:1px solid var(--bp-line);border-radius:14px;padding:24px;text-align:center;color:#666;background:#fff;margin-top:8px}
+    .bp-pagination{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;padding:18px 4px 30px}
+    .bp-pagination[hidden]{display:none!important}
+    .bp-page-btn{min-width:39px;min-height:40px;padding:8px 10px;border-radius:10px;border:1px solid #dfcada;background:#fff;color:#593b4a;font-size:14px;font-weight:800;cursor:pointer}
+    .bp-page-btn[aria-current="page"]{background:#d978a0;color:#fff;border-color:#d978a0}
+    .bp-page-btn:disabled{opacity:.35;cursor:default}
+    .bp-page-summary{flex-basis:100%;text-align:center;color:#756b70;font-size:12px;margin-bottom:4px}
+    .bp-regular-note{color:#756b70;font-size:12px;margin:8px 2px 0}
     .bp-bottom-search{position:fixed;left:0;right:0;bottom:0;z-index:100;background:rgba(255,255,255,.98);border-top:1px solid #eee;padding:9px 14px calc(9px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:center;gap:12px}
     .bp-clear{border:0;background:transparent;color:#777;text-decoration:underline;font-size:13px;padding:10px}
     .bp-search-btn{border:0;border-radius:999px;background:var(--bp-pink);color:#fff;font-weight:900;font-size:15px;padding:13px 25px;min-width:132px}
@@ -131,6 +138,7 @@
 
     <div class="bp-result-head"><h2>検索結果</h2><span id="bpCount" class="bp-result-count">0頭</span></div>
     <div id="bpResults" class="bp-result-list" aria-live="polite"></div>
+    <nav id="bpPagination" class="bp-pagination" aria-label="検索結果のページ切り替え" hidden></nav>
   </main>
 
   <div class="bp-bottom-search"><button id="bpClear" class="bp-clear" type="button">条件をクリア</button><button id="bpSearch" class="bp-search-btn" type="button">🔍 検索</button></div>
@@ -165,6 +173,7 @@
       const customBreedWrap=document.getElementById('bpOtherBreedSearchWrap');
       const customBreedQuery=document.getElementById('bpOtherBreedSearch');
       const results=document.getElementById('bpResults');
+      const pager=document.getElementById('bpPagination');
       const count=document.getElementById('bpCount');
       const areaModal=document.getElementById('bpAreaModal');
       const areaSummary=document.getElementById('bpAreaSummary');
@@ -172,6 +181,8 @@
       const areaGroups=document.getElementById('bpAreaGroups');
       let source=[];
       let oshiwanGroups=[];
+      let pageNum=1;
+      const PAGE_SIZE=20;
       let selectedAreas=new Set();
       const PREF_KEY={
         '北海道':'hokkaido','青森県':'aomori','岩手県':'iwate','宮城県':'miyagi','秋田県':'akita','山形県':'yamagata','福島県':'fukushima',
@@ -251,7 +262,10 @@
         const match=breeds.find(v=>v.ja===String(p.breed||''));
         return match?match.key:'other';
       }
-      function render(scroll){
+      // Keep the established render(scroll) entry point for existing search integrations.
+      function render(scroll){return renderWithPage(scroll,true);}
+      function renderWithPage(scroll,resetPage=true){
+        if(resetPage)pageNum=1;
         let list=source.slice();
         const selected=Array.isArray(window.BIGPAW_SELECTED_BREEDS)?window.BIGPAW_SELECTED_BREEDS:[];
         const b=breed.value,g=gender.value,ag=age.value,c=color.value;
@@ -275,15 +289,24 @@
         else if(sort.value==='high')list.sort((x,y)=>Number(y.price||0)-Number(x.price||0));
         else list.sort((x,y)=>String(y.createdAt||'').localeCompare(String(x.createdAt||'')));
 
+        const regularCount=list.length;
         const priority=window.BigPawOshiwanSearch.prioritize(list,oshiwanGroups,5);
         list=priority.ordered;
-        const sponsoredIds=new Set(priority.featuredIds);
-        count.textContent=list.length+'頭';
-        if(!list.length){results.innerHTML='<div class="bp-empty">条件に合う子がいません。条件を少し広げてみてください。</div>';return;}
-        results.innerHTML=list.map(function(p){
+        const pages=window.BigPawOshiwanSearch.paginate(list,pageNum,PAGE_SIZE);
+        pageNum=pages.page;
+        count.textContent=regularCount+'頭';
+        if(!list.length){
+          results.innerHTML='<div class="bp-empty">条件に合う子がいません。条件を少し広げてみてください。</div>';
+          pager.hidden=true;
+          pager.innerHTML='';
+          return;
+        }
+        // The first five PR placements may reappear organically; badge only those five PR slots.
+        results.innerHTML=pages.visible.map(function(p,localIndex){
+          const position=(pageNum-1)*PAGE_SIZE+localIndex;
           const img=listImage(p);
           const photo=img?'<img src="'+esc(img)+'" alt="'+esc(p.breed||'子犬')+'" loading="eager" decoding="async">':'<div class="bp-photo-fallback">🐾</div>';
-          const promoted=sponsoredIds.has(String(p.id));
+          const promoted=position<priority.featuredIds.length;
           return '<a class="bp-puppy-row'+(promoted?' bp-oshi-promoted':'')+'" href="puppy-detail.html?id='+encodeURIComponent(p.id)+'">'
             +(promoted?'<div class="bp-oshi-search-badge">🐾 推しワン <span class="bp-oshi-search-pr">PR</span></div>':'')
             +'<h3 class="bp-puppy-title">'+esc(p.breed||'')+'</h3>'
@@ -299,6 +322,21 @@
             +'</div>'
           +'</a>';
         }).join('');
+        if(pages.totalPages>1){
+          const available=[];
+          for(let i=1;i<=pages.totalPages;i++){
+            if(i===1||i===pages.totalPages||Math.abs(i-pageNum)<=2)available.push(i);
+          }
+          const pageBtns=available.map((n,i)=>{
+            const gap=i>0&&n-available[i-1]>1?'<span aria-hidden="true">…</span>':'';
+            return gap+'<button type="button" class="bp-page-btn" data-page="'+n+'" '+(n===pageNum?'aria-current="page"':'')+'>'+n+'</button>';
+          }).join('');
+          pager.hidden=false;
+          pager.innerHTML='<div class="bp-page-summary">'+pages.start+'〜'+pages.end+'件目を表示（全'+regularCount+'頭・推しワン優先枠'+priority.featuredIds.length+'件を含む全'+pages.totalSlots+'表示枠）</div>'+
+            '<button type="button" class="bp-page-btn" data-page="'+(pageNum-1)+'" '+(pageNum===1?'disabled':'')+'>‹ 前へ</button>'+
+            pageBtns+
+            '<button type="button" class="bp-page-btn" data-page="'+(pageNum+1)+'" '+(pageNum===pages.totalPages?'disabled':'')+'>次へ ›</button>';
+        }else{pager.hidden=true;pager.innerHTML='';}
         if(scroll)document.querySelector('.bp-result-head').scrollIntoView({behavior:'smooth',block:'start'});
       }
       window.render=function(){render(false)};
@@ -325,6 +363,14 @@
               oshiwanGroups=Array.isArray(data.groups)?data.groups:[];
             }
           }catch(e){console.warn('推しワン優先枠の取得に失敗。通常検索を表示します。',e);}
+          pager.addEventListener('click',e=>{
+            const btn=e.target.closest('button[data-page]');
+            if(!btn||btn.disabled)return;
+            const n=Number(btn.dataset.page);
+            if(!Number.isInteger(n)||n<1)return;
+            pageNum=n;
+            renderWithPage(true,false);
+          });
           [gender,age,color,sort,minPrice,maxPrice].forEach(x=>x.addEventListener('change',()=>render(false)));
           customBreedQuery.addEventListener('input',()=>render(false));
           breed.addEventListener('change',()=>render(false));
