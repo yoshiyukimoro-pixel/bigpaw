@@ -52,6 +52,16 @@ PAGES={
         '大型犬の子犬購入・見学のよくある質問｜BIG PAW',
         '大型犬の子犬探し、ブリーダーへの見学・問い合わせ、お迎えまでの流れについて、BIG PAW（ビッグパウ）のよくある質問をまとめています。',
         BASE+'/faq.html'
+    ),
+    'contact.html':(
+        'お問い合わせ｜大型犬専門 BIG PAW（ビッグパウ）',
+        '大型犬の子犬紹介サイトBIG PAWへのお問い合わせ。会員登録、子犬の見学・お取引、ブリーダー掲載やサイト利用についてご相談いただけます。',
+        BASE+'/contact.html'
+    ),
+    'breeder-fees.html':(
+        'ブリーダー掲載料金・成約手数料｜BIG PAW（ビッグパウ）',
+        '大型犬専門BIG PAWのブリーダー料金案内。登録・掲載・月額費用は無料、成約時の手数料や請求の仕組みを確認できます。',
+        BASE+'/breeder-fees.html'
     )
 }
 
@@ -161,7 +171,7 @@ if robots_old not in s:
 server.write_text(s,encoding='utf-8')
 
 # Build gate: verify search-facing pages now have descriptions/canonicals and that public sitemap remains enabled.
-for name in ('index.html','search.html','breeders.html','breed-guide.html'):
+for name in ('index.html','search.html','breeders.html','breed-guide.html','contact.html','breeder-fees.html'):
     txt=(ROOT/name).read_text(encoding='utf-8')
     if 'name="description"' not in txt or 'rel="canonical"' not in txt or 'name="robots"' not in txt:
         raise SystemExit(('seo_gate_failed',name))
