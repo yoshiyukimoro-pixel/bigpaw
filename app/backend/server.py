@@ -284,6 +284,19 @@ def audit(con, user_id, action, target_type='', target_id='', detail=''):
     con.execute('INSERT INTO audit_logs VALUES(?,?,?,?,?,?,?)',
                 (make_id('a_'),user_id,action,target_type,target_id,str(detail)[:1000],now()))
 
+def invoice_fee_breakdown_text(invoice):
+    """Explicitly separate the platform success fee from optional 推しワン fees."""
+    amount=int(invoice['sale_amount'])
+    rate=int(invoice['rate_bps'])
+    total=int(invoice['fee_amount'])
+    if rate==800:
+        base=(amount*500)//10000
+        promotion=(amount*300)//10000
+        return f"通常成約手数料（5％）：{base:,}円\n推しワン利用料（3％）：{promotion:,}円\n請求合計（税込）：{total:,}円"
+    if rate==300:
+        return f"通常成約手数料（初回無料）：0円\n推しワン利用料（3％）：{total:,}円\n請求合計（税込）：{total:,}円"
+    return f"通常成約手数料（{rate/100:g}％）：{total:,}円\n請求合計（税込）：{total:,}円"
+
 def ensure_commission_invoice(con, deal):
     # One tax-inclusive success-fee invoice per completed deal.
     if not deal or not deal['breeder_id']:
@@ -1265,7 +1278,7 @@ https://www.bigpaw.site/'''
                     breeder_user=con.execute('SELECT u.email FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?',(d['breeder_id'],)).fetchone()
                     if breeder_user:
                         due_txt=time.strftime('%Y年%m月%d日',time.localtime(invoice['due_at']))
-                        send_mail(breeder_user['email'],'BIG PAW 成約手数料のご請求',f"成約おめでとうございます。\n\n{'成約手数料5%＋推しワン利用料3%' if invoice['rate_bps']==800 else '推しワン利用料3%（初回通常成約手数料無料）' if invoice['rate_bps']==300 else '成約手数料'}: {invoice['fee_amount']:,}円（生体価格の{invoice['rate_bps']/100:g}%・税込）\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAWブリーダー管理画面から請求内容をご確認ください。")
+                        send_mail(breeder_user['email'],'BIG PAW 成約手数料のご請求',f"成約おめでとうございます。\n\n{invoice_fee_breakdown_text(invoice)}\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAWブリーダー管理画面から請求内容をご確認ください。")
             con.commit(); r=con.execute('SELECT * FROM pickups WHERE id=?',(pid,)).fetchone(); con.close(); return self.send_json(dict(r),201)
         m=re.fullmatch(r'/api/deals/([^/]+)/review',path)
         if m:
@@ -1686,12 +1699,12 @@ https://www.bigpaw.site/'''
             completed_deal=con.execute('SELECT * FROM deals WHERE id=?',(d['id'],)).fetchone(); invoice=ensure_commission_invoice(con,completed_deal)
             breeder_user=con.execute('SELECT u.id,u.email,b.kennel_name FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?',(r['breeder_id'],)).fetchone()
             if breeder_user:
-                bodytxt=f"成約申請が承認されました。{invoice['invoice_no'] if invoice else ''} / 成約手数料 {invoice['fee_amount']:,}円" if invoice else '成約申請が承認されました。'
+                bodytxt=f"成約申請が承認されました。{invoice['invoice_no'] if invoice else ''} / {invoice_fee_breakdown_text(invoice)}" if invoice else '成約申請が承認されました。'
                 con.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',(make_id('n_'),breeder_user['id'],'deal_report','成約が確定しました',bodytxt,0,t))
             audit(con,u['id'],'deal_completion_report_approved','deal',d['id'],f"{r['final_sale_amount']}:{r['pickup_date']}"); con.commit()
             if breeder_user and invoice:
                 due_txt=time.strftime('%Y年%m月%d日',time.localtime(invoice['due_at']))
-                send_mail(breeder_user['email'],'BIG PAW 成約確定・成約手数料のご請求',f"{breeder_user['kennel_name']} 様\n\n成約申請を確認しました。\n{'成約手数料5%＋推しワン利用料3%' if invoice['rate_bps']==800 else '推しワン利用料3%（初回通常成約手数料無料）' if invoice['rate_bps']==300 else '成約手数料'}: {invoice['fee_amount']:,}円（生体価格の{invoice['rate_bps']/100:g}%・税込）\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAW管理画面から請求書をご確認ください。")
+                send_mail(breeder_user['email'],'BIG PAW 成約確定・成約手数料のご請求',f"{breeder_user['kennel_name']} 様\n\n成約申請を確認しました。\n{invoice_fee_breakdown_text(invoice)}\n請求番号: {invoice['invoice_no']}\n支払期限: {due_txt}\n\nBIG PAW管理画面から請求書をご確認ください。")
             out=con.execute('SELECT * FROM deal_completion_reports WHERE id=?',(r['id'],)).fetchone(); con.close(); return self.send_json(dict(out))
         m=re.fullmatch(r'/api/breeder-applications/([^/]+)',path)
         if m:
