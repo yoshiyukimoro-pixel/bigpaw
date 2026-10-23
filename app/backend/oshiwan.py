@@ -125,7 +125,7 @@ def install(g):
                 return self.send_json({'enabled': bool(selected), 'breed': p['breed'],
                      'eligible': p['status']=='募集中' and p['review_status']=='approved',
                      'kennelBreedCount': count, 'kennelBreedLimit': 2,
-                     'feeRateBps': 300, 'firstSaleWaiverPrecedence': True})
+                     'feeRateBps': 300, 'firstSaleFreeForStandardOnly': True})
             finally:
                 c.close()
         return old_get(self)
@@ -146,7 +146,7 @@ def install(g):
         enabled = body['enabled']
         if enabled and body.get('agreeOshiwanTerms') is not True:
             return self.send_json({'error': 'oshiwan_fee_consent_required',
-              'message': '推しワン経由の対象取引は成約時3％（税込）、初回成約無料特典が優先されることを確認してください。'}, 400)
+              'message': '初回成約の通常手数料は無料ですが、推しワンを利用した成約には初回から生体価格の3％（税込）が別途発生します。'}, 400)
         c = db()
         try:
             c.execute('BEGIN IMMEDIATE')
