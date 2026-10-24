@@ -122,17 +122,27 @@ try:
     post('/api/deals/'+future+'/completion-report',BODY,'u_test_policy');answer(future,'pickup')
     flow=query('SELECT sold_animal_type,sold_animal_name FROM sale_workflow WHERE deal_id=?',(future,))[0]
     check(flow=={'sold_animal_type':'adult','sold_animal_name':'成約確認対象の成犬'},'completion report preserves the actual sold dog')
+    # This isolated fixture already used one site-wide campaign slot for the
+    # policy-eligible deal above. Seed another 98 immutable claims to reach 99.
+    # The next valid sale report gets the LAST campaign slot, regardless of kennel.
+    execute("INSERT INTO first100_campaign_claims(deal_id,breeder_id,claimed_at) VALUES(?,?,?)",('seed-campaign-0','test',int(time.time())))
+    for i in range(1,98):
+        execute("INSERT INTO first100_campaign_claims(deal_id,breeder_id,claimed_at) VALUES(?,?,?)",('seed-campaign-'+str(i),'test',int(time.time())))
+    state=request('GET','/api/campaign/first100')[1]
+    check(state['status']=='active' and state['remaining'] is None and state['remainingLabel']=='残りわずか・受付中','last 20 campaign remaining slots are hidden')
+    check(len(query('SELECT * FROM first100_campaign_claims'))==99,'fixture has 99 existing campaign claims')
     b=dict(BODY);b.pop('agreeFirstSaleTerms');post('/api/deals/'+first+'/sale-report',b,code=400)
     no_consent=dict(BODY);no_consent.pop('agreeAccurateReporting');post('/api/deals/'+first+'/sale-report',no_consent,code=400)
     check(not query('SELECT * FROM first_sale_benefits WHERE breeder_id=?',('b_dog44',)),'missing consent never consumes benefit')
-    res=post('/api/deals/'+first+'/sale-report',BODY);check(res['waived'],'first application is free')
+    res=post('/api/deals/'+first+'/sale-report',BODY);check(res['waived'] and res['campaignWaived'],'100th site-wide sale report receives final free slot')
+    check(request('GET','/api/campaign/first100')[1]['status']=='sold_out','100th reported deal ends promotion for everyone')
     post('/api/deals/'+first+'/sale-report',BODY);check(len(query('SELECT * FROM sale_confirmations WHERE deal_id=?',(first,)))==1,'duplicate application sends one confirmation')
     sc=confirmation(first,'sale')
     check(request('POST','/api/buyer/sale-confirmations/answer',{'id':sc['id'],'answer':'yes'},'u_dog44')[0]==403,'breeder cannot answer buyer confirmation')
     answer(first,'sale')
     post('/api/deals/'+first+'/completion-report',BODY);answer(first,'pickup')
     check(query('SELECT status FROM deals WHERE id=?',(first,))[0]['status']=='completed','breeder pickup report completes deal automatically')
-    check(not query('SELECT * FROM commission_invoices WHERE deal_id=?',(first,)),'first completion creates no invoice')
+    check(not query('SELECT * FROM commission_invoices WHERE deal_id=?',(first,)),'campaign-waived completion creates no invoice')
     second,pid2=deal('second');post('/api/deals/'+second+'/sale-report',BODY);answer(second,'sale');post('/api/deals/'+second+'/completion-report',BODY)
     check(len(query('SELECT * FROM commission_invoices WHERE deal_id=?',(second,)))==1,'invoice issued immediately without buyer response')
     post('/api/deals/'+second+'/completion-report',BODY)
@@ -161,10 +171,10 @@ try:
     execute("INSERT INTO users(id,role,email,salt,password_hash,created_at) VALUES('u_test_b2','breeder','b2@example.invalid','s','h',?)",(int(time.time()),))
     execute("INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status) VALUES('b_test2','u_test_b2','試験犬舎2','埼玉県','','','approved')")
     execute('INSERT INTO sessions VALUES(?,?,?,?)',('test-u_test_b2','u_test_b2',int(time.time()),int(time.time())+86400))
-    cancelled,cp=deal('cancel','b_test2');r=post('/api/deals/'+cancelled+'/sale-report',BODY,'u_test_b2');check(r['waived'],'new breeder independently receives one benefit')
+    cancelled,cp=deal('cancel','b_test2');r=post('/api/deals/'+cancelled+'/sale-report',BODY,'u_test_b2');check(not r['waived'],'new breeder does not get first-sale free once global 100 is spent')
     post('/api/deals/'+cancelled+'/cancel-report',{'note':'キャンセル','agreeAccurateReporting':True},'u_test_b2');answer(cancelled,'cancellation')
     check(not query('SELECT * FROM commission_invoices WHERE deal_id=?',(cancelled,)),'cancelled transaction is never invoiced')
-    check(len(query('SELECT * FROM first_sale_benefits WHERE breeder_id=?',('b_test2',)))==1,'cancellation does not restore first benefit')
+    check(len(query('SELECT * FROM first100_campaign_claims'))==100,'cancellation does not restore site-wide campaign quota')
     post('/api/deals/'+cancelled+'/sale-report',BODY,'u_test_b2',409)
     nextd,np=deal('aftercancel','b_test2');r=post('/api/deals/'+nextd+'/sale-report',BODY,'u_test_b2');check(not r['waived'],'first benefit stays used after cancellation')
     # Superseded and expired confirmation cannot complete a changed report.
@@ -186,7 +196,7 @@ try:
     code,_=request('PATCH','/api/operator/breeders/b_dog44/compliance-resume',{'note':'解決を確認'},'u_admin');check(code==200,'only operator can resume compliance suspension')
     # Removal keeps consumed-benefit and transaction history.
     code,_=request('DELETE','/api/puppies/'+cp,{},'u_test_b2');check(code==200,'listing with deal is safely archived')
-    check(query('SELECT * FROM deals WHERE id=?',(cancelled,)) and query('SELECT * FROM first_sale_benefits WHERE breeder_id=?',('b_test2',)),'archiving never deletes deal or benefit history')
+    check(query('SELECT * FROM deals WHERE id=?',(cancelled,)) and len(query('SELECT * FROM first100_campaign_claims'))==100,'archiving never resets global campaign history')
     # Simultaneous first applications for a fresh breeder: one winner only.
     execute("INSERT INTO users(id,role,email,salt,password_hash,created_at) VALUES('u_test_b3','breeder','b3@example.invalid','s','h',?)",(int(time.time()),))
     execute("INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status) VALUES('b_test3','u_test_b3','試験犬舎3','埼玉県','','','approved')")
@@ -194,7 +204,7 @@ try:
     d3a,_=deal('race-a','b_test3');d3b,_=deal('race-b','b_test3')
     with concurrent.futures.ThreadPoolExecutor(2) as pool:
         rs=list(pool.map(lambda d:request('POST','/api/deals/'+d+'/sale-report',BODY,'u_test_b3'),[d3a,d3b]))
-    check(all(x[0]==200 for x in rs) and sum(x[1]['waived'] for x in rs)==1,'simultaneous applications allocate exactly one free transaction')
+    check(all(x[0]==200 for x in rs) and sum(x[1]['waived'] for x in rs)==0,'no breeder gets another free transaction once global quota is exhausted')
     # Cancellation monitoring covers paid transactions too and counts distinct deals, never retries.
     for suffix in ('monitor-a','monitor-b'):
         md,mp=deal(suffix,'b_test2');post('/api/deals/'+md+'/sale-report',BODY,'u_test_b2');post('/api/deals/'+md+'/cancel-report',{'agreeAccurateReporting':True},'u_test_b2')
@@ -297,7 +307,7 @@ try:
     execute('INSERT INTO deals VALUES(?,?,?,?,?,?,?,?,?)',(os_d,os_i,rp,'u_demo','b_dog44',300000,100000,'negotiating',t))
     post('/api/deals/'+os_d+'/sale-report',BODY,uid)
     decision=query('SELECT * FROM sale_fee_decisions WHERE deal_id=?',(os_d,))
-    check(len(decision)==1 and decision[0]['rate_bps']==800 and not decision[0]['waived'],'Oshiwan inquiry locks 5%+3% combined rate without overriding spent first-sale benefit')
+    check(len(decision)==1 and decision[0]['rate_bps']==800 and not decision[0]['waived'],'Oshiwan inquiry locks 5%+3% combined rate after site-wide 100 quota')
     post('/api/deals/'+os_d+'/completion-report',BODY,uid)
     inv=query('SELECT * FROM commission_invoices WHERE deal_id=?',(os_d,))
     check(len(inv)==1 and inv[0]['fee_amount']==24000 and inv[0]['rate_bps']==800,'Oshiwan invoice charges 5% plus 3% of the agreed sale price')
@@ -313,14 +323,14 @@ try:
     check(st==200,'Oshiwan new breeder explicitly opts in before first inquiry')
     execute('UPDATE inquiries SET created_at=? WHERE id=?',(int(time.time()),'wf-i-oshi-first'))
     first_osh_sale=post('/api/deals/'+first_osh_d+'/sale-report',BODY,'u_oshi_first')
-    check(first_osh_sale['waived'],'Oshiwan first sale still consumes free standard sale benefit')
+    check(not first_osh_sale['waived'],'first Oshiwan sale after first 100 is not additionally waived')
     first_osh_decision=query('SELECT waived,rate_bps FROM sale_fee_decisions WHERE deal_id=?',(first_osh_d,))[0]
-    check(first_osh_decision['waived']==1 and first_osh_decision['rate_bps']==800,'Oshiwan first-sale fee decision retains combined rate and standard waiver')
+    check(first_osh_decision['waived']==0 and first_osh_decision['rate_bps']==800,'Oshiwan first sale after campaign charges base 5% plus 3%')
     post('/api/deals/'+first_osh_d+'/completion-report',BODY,'u_oshi_first')
     first_osh_invoice=query('SELECT * FROM commission_invoices WHERE deal_id=?',(first_osh_d,))
-    check(len(first_osh_invoice)==1 and first_osh_invoice[0]['rate_bps']==300 and first_osh_invoice[0]['fee_amount']==9000,'Oshiwan first sale correctly charges 9000 yen in promotional fees')
+    check(len(first_osh_invoice)==1 and first_osh_invoice[0]['rate_bps']==800 and first_osh_invoice[0]['fee_amount']==24000,'Oshiwan first sale after campaign correctly charges 24000 yen total fees')
     check('推しワン利用料' in first_osh_invoice[0]['note'],'Oshiwan first-sale invoice identifies promotion separate from standard fee')
-    check(len(query('SELECT * FROM first_sale_benefits WHERE breeder_id=?',('b_oshi_first',)))==1,'Oshiwan first sale does not restore consumed standard free benefit')
+    check(not query('SELECT * FROM first_sale_benefits WHERE breeder_id=?',('b_oshi_first',)),'no new per-breeder first sale waiver is recorded')
     answer(first_osh_d,'pickup')
     check(len(query('SELECT * FROM commission_invoices WHERE deal_id=?',(first_osh_d,)))==1,'Oshiwan first-sale buyer confirmation remains idempotent')
     st,state=request('GET',os_path+'/state',user=uid)

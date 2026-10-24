@@ -1,0 +1,47 @@
+name: First 100 campaign and billing regression gate
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/backend/first100_campaign.py'
+      - 'app/backend/first_sale_workflow.py'
+      - 'app/backend/first_sale_workflow_test.py'
+      - 'app/backend/oshiwan.py'
+      - 'app/assets/first100-campaign.js'
+      - 'app/assets/first-sale-benefit.js'
+      - 'app/assets/oshiwan-editor.js'
+      - 'app/breeder-deal-report.html'
+      - 'app/breeder-fees.html'
+      - 'app/breeder-fee-agreement.html'
+      - 'app/breeder-register.html'
+      - 'app/index.html'
+      - 'scripts/test_first100_campaign.py'
+      - '.github/workflows/first100-campaign-gate.yml'
+jobs:
+  end-to-end:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify 100 total, 20 hidden, no reset on cancel, six-month expiry, concurrent claims
+        run: python3 scripts/test_first100_campaign.py
+      - name: Build real production app and run all embedded regression checks (isolated test data)
+        run: docker build --no-cache -t bigpaw-first100-regression .
+      - name: Verify frontend pages and consent no longer grant extra first-sale discount
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          source=Path('app/backend/first_sale_workflow.py').read_text()
+          assert "c.execute('INSERT OR IGNORE INTO first_sale_benefits VALUES" not in source, 'new per breeder free benefits must be disabled'
+          assert "waived = int(campaign_waived)" in source, 'no per breeder bonus after 100'
+          assert "kind=='sale'" in source, 'campaign only counted on sale-report'
+          js=Path('app/assets/first100-campaign.js').read_text()
+          assert "data.remainingLabel" in js
+          for p in ('app/breeder-fees.html','app/breeder-deal-report.html','app/breeder-register.html','app/index.html'):
+              html=Path(p).read_text()
+              assert 'data-bp-first100' in html and 'first100-campaign.js' in html, p
+          for p in ('app/breeder-deal-report.html','app/breeder-fee-agreement.html','app/assets/oshiwan-editor.js','app/backend/oshiwan.py'):
+              s=Path(p).read_text()
+              assert '初回成約無料特典' not in s, (p,'obsolete free-first-sale offer')
+          print('FIRST100_NO_EXTRA_FIRST_SALE_PROMO_OK')
+          PY
