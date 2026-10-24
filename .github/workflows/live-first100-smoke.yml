@@ -1,0 +1,57 @@
+name: Read-only live first100 campaign smoke
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/live-first100-smoke.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check production public endpoint, UI and no extra first-sale benefit
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import urllib.request
+          from datetime import datetime, timezone, timedelta
+          root='https://bigpaw.site'
+          def get(path):
+              r=urllib.request.Request(root+path,headers={'User-Agent':'BIGPAW-FIRST100-LIVE-READONLY','Cache-Control':'no-cache'})
+              with urllib.request.urlopen(r,timeout=30) as response:
+                  assert response.status==200,(path,response.status)
+                  body=response.read().decode('utf-8')
+                  print('PRODUCTION_HTTP_OK',path,len(body))
+                  return body
+          health=json.loads(get('/api/health'))
+          assert health.get('ok') is True,health
+          status=json.loads(get('/api/campaign/first100'))
+          assert status['limit']==100,status
+          assert status['status'] in ('active','sold_out','ended'),status
+          assert status['startsAt']<status['endsAt'],status
+          assert status['standardRateWaived']==500 and status['oshiwanExtraRateBps']==300,status
+          assert status['cancelledClaimsReopen'] is False,status
+          now=datetime.now(timezone(timedelta(hours=9)))
+          start=datetime.fromtimestamp(status['startsAt'],timezone(timedelta(hours=9)))
+          end=datetime.fromtimestamp(status['endsAt'],timezone(timedelta(hours=9)))
+          assert 180<=(end-start).days<=185,(start,end)
+          assert start.year==2026 and start.month==10 and start.day==24,start
+          if status['status']=='active':
+              n=status['remaining']
+              if n is not None: assert 21<=n<=100,status
+              else: assert status['remainingLabel']=='残りわずか・受付中',status
+          page=get('/breeder-fees.html')
+          assert 'data-bp-first100' in page and 'first100-campaign.js' in page
+          report=get('/breeder-deal-report.html')
+          assert 'data-bp-first100' in report
+          assert '初回成約無料特典' not in report, 'old benefit still publicly advertised'
+          old=get('/assets/first-sale-benefit.js')
+          assert '初回成約手数料無料：' not in old,'old independent first sale bonus script still active'
+          script=get('/assets/first100-campaign.js')
+          assert 'data.remainingLabel' in script and '/api/campaign/first100' in script
+          prices=get('/assets/oshiwan-editor.js')
+          assert '初回成約無料特典' not in prices,'old benefit still in 推しワン consent'
+          print('LIVE_FIRST100_CAMPAIGN_OK|status='+status['status']+'|threshold=20|100_cap|6_months|no_extra_first_sale')
+          PY
