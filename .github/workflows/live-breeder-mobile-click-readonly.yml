@@ -15,5 +15,14 @@ jobs:
         run: |
           npm install --no-save playwright
           google-chrome --version
+      - name: Verify latest deployment is live before actual browser test (read only)
+        run: |
+          ready=0
+          for i in $(seq 1 48); do
+            if curl -fsSL --max-time 12 -H "Cache-Control: no-cache" "https://bigpaw.site/admin.html?qa-menu-version-20261024" | grep -q 'mobile-global-nav.js?v=20261024-breeder-pricing-e2e3'; then ready=1;break;fi
+            sleep 5
+          done
+          if [ "$ready" != 1 ]; then echo 'LATEST_MOBILE_MENU_NOT_YET_DEPLOYED'; exit 1;fi
+          echo 'LATEST_MOBILE_MENU_PRODUCTION_VISIBLE'
       - name: Actually tap breeder menu in live page and inspect computed gold colors (READ ONLY)
         run: node scripts/live-breeder-mobile-click-readonly.cjs
