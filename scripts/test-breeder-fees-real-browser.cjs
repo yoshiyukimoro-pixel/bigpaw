@@ -15,6 +15,8 @@ function installedChrome(){
  throw Error('GITHUB_RUNNER_CHROME_NOT_FOUND');
 }
 const origin=process.argv[2]||'http://127.0.0.1:18096';
+const liveReadOnly=process.env.BIGPAW_LIVE_READONLY==='1';
+const requireFresh=process.env.BIGPAW_EXPECT_LIVE_FRESH==='1' || !liveReadOnly;
 
 async function test(engine,label){
  const browser=await engine.launch({headless:true,...(label.includes('chromium')?{executablePath:installedChrome(),args:['--no-sandbox']}: {})});
@@ -23,17 +25,29 @@ async function test(engine,label){
   const page=await ctx.newPage();
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
+  if(liveReadOnly){
+   // Public production smoke: never send writes, no real session or credentials.
+   await page.route('**/*',route=>{
+    const method=route.request().method();
+    if(!['GET','HEAD','OPTIONS'].includes(method)){
+     errors.push('Blocked unexpected live write: '+method+' '+route.request().url());
+     return route.abort();
+    }
+    return route.continue();
+   });
+  }
+  // Synthetic breeder role only tests public HTML/menu rendering; not actual login.
   await page.route('**/api/me',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({role:'breeder'})}));
   let status=await page.goto(origin+'/admin.html?pricing-e2e='+label,{waitUntil:'domcontentloaded'});
   assert.equal(status.status(),200,label+' dashboard response');
   const src=await page.locator('script[src*="/mobile-global-nav.js"]').getAttribute('src');
-  assert(src.includes('v=20261024-breeder-pricing-e2e3'),label+' must load new cache-busted actual menu script, got '+src);
+  assert((requireFresh ? /v=20261024-breeder-pricing-e2e4/ : /v=20261024-breeder-pricing-e2e[34]/).test(src),label+' must load the appropriate cache-busted menu, got '+src);
   await page.locator('#bp-global-mobile-menu-button').waitFor({state:'visible',timeout:25000});
   await page.locator('#bp-global-mobile-menu-button').click();
   const feeLink=page.locator('#bp-global-mobile-menu-drawer a').filter({hasText:'料金・手数料'}).first();
   assert.equal(await feeLink.isVisible(),true,label+' breeder fee menu item visible');
   const href=await feeLink.getAttribute('href');
-  assert(href.includes('/breeder-fees.html?v=20261024-gold'),label+' correct cache-busted target '+href);
+  assert(requireFresh ? href.includes('/breeder-fees.html?v=20261024-fresh-e2e4') : /\/breeder-fees\.html\?v=20261024-(gold|fresh-e2e4)/.test(href),label+' correct cache-busted target '+href);
   await Promise.all([page.waitForURL('**/breeder-fees.html*',{timeout:25000}),feeLink.click()]);
   await page.waitForFunction(()=>{
    const banner=document.querySelector('#bpBreederCampaign');
@@ -84,11 +98,18 @@ async function test(engine,label){
 
 (async()=>{
  const health=await fetch(origin+'/api/health').then(r=>r.json());
- assert.equal(health.environment,'development','must run only against disposable development SQLite and no production data');
- assert.equal(health.mailConfigured,false,'must not send mail');
- assert.equal(health.paymentMode,'demo','must not process payments');
+ if(liveReadOnly){
+  assert.equal(new URL(origin).origin,'https://bigpaw.site','live smoke is limited to known production host');
+  assert.notEqual(health.environment,'development','production smoke must not target development');
+  console.log('PRODUCTION_READ_ONLY_SMOKE|no credentials|synthetic menu role|HTTP writes blocked');
+ }else{
+  assert.equal(health.environment,'development','must run only against disposable development SQLite and no production data');
+  assert.equal(health.mailConfigured,false,'must not send mail');
+  assert.equal(health.paymentMode,'demo','must not process payments');
+ }
  const data=await fetch(origin+'/api/campaign/first100').then(r=>r.json());
- assert.equal(data.status,'active','campaign active in isolated fixture');
+ assert.equal(data.status,'active','campaign must be active to verify banner on this run');
+ assert.equal(data.eligible,true,'campaign must be eligible to verify banner');
  await test(chromium,'chromium-ios-viewport');
  if(process.env.BIGPAW_TEST_WEBKIT==='1')await test(webkit,'webkit-ios-engine');
  console.log('BREEDER_CAMPAIGN_REAL_BROWSER_E2E_OK|actual_menu_tap|actual_computed_orange|5_percent_hidden|browser_back_and_forth|chrome'+(process.env.BIGPAW_TEST_WEBKIT==='1'?'_plus_webkit':''));
