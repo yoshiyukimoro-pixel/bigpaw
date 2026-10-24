@@ -266,7 +266,7 @@ def install(g):
             if path.endswith('first-sale-benefit'):
                 claim=c.execute('SELECT * FROM first_sale_benefits WHERE breeder_id=?',(b['id'],)).fetchone()
                 return h.send_json({'used':bool(claim),'usedAt':claim['used_at'] if claim else None,'dealId':claim['deal_id'] if claim else None,'rateBps':g['COMMISSION_RATE_BPS'],'termsVersion':TERMS,'listingSuspended':bool(b['compliance_suspended'])})
-            rows=c.execute("SELECT w.*,COALESCE(NULLIF(w.sold_animal_name,''),p.name) puppy_name,f.waived,CASE WHEN cm.deal_id IS NULL THEN 0 ELSE 1 END campaign_waived FROM sale_workflow w JOIN deals d ON d.id=w.deal_id JOIN puppies p ON p.id=d.puppy_id LEFT JOIN sale_fee_decisions f ON f.deal_id=w.deal_id LEFT JOIN first100_campaign_claims cm ON cm.deal_id=w.deal_id WHERE w.breeder_id=? ORDER BY w.updated_at DESC",(b['id'],)).fetchall()
+            rows=c.execute("SELECT w.*,COALESCE(NULLIF(w.sold_animal_name,''),p.name) puppy_name,f.waived,f.rate_bps,CASE WHEN cm.deal_id IS NULL THEN 0 ELSE 1 END campaign_waived FROM sale_workflow w JOIN deals d ON d.id=w.deal_id JOIN puppies p ON p.id=d.puppy_id LEFT JOIN sale_fee_decisions f ON f.deal_id=w.deal_id LEFT JOIN first100_campaign_claims cm ON cm.deal_id=w.deal_id WHERE w.breeder_id=? ORDER BY w.updated_at DESC",(b['id'],)).fetchall()
             return h.send_json([dict(r) for r in rows])
         finally: c.close()
 
