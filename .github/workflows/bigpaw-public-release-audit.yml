@@ -57,5 +57,13 @@ jobs:
               print('PASS|public puppy list and detail APIs agree on saved health fields (no personal data printed)')
           else:
               print('SKIP|no published puppies; health API parity cannot be independently checked')
+          preview=read('/auth-return-fix.js')
+          assert 'BIGPAW_PUBLIC_PREVIEW_ROLE_GUARD_V1' in preview, 'preview role guard is missing from live JS'
+          assert "role==='operator'?'#e9dc91':'#c5dced'" in preview, 'operator-yellow / breeder-blue border is not live'
+          assert "role==='operator'?'#fff7d4':'#f3f8ff'" in preview, 'operator-yellow / breeder-blue background is not live'
+          assert "role==='operator'?'#705d00':'#315f89'" in preview, 'operator-yellow / breeder-blue text is not live'
+          assert "label.textContent=role==='operator'?'運営として一般公開ページを表示中':'ブリーダーとして一般公開ページを表示中'" in preview, 'the live page has lost its role-specific labels'
+          assert "a.href=role==='operator'?'/operator-admin.html':'/admin.html'" in preview, 'role-specific management return targets changed'
+          print('PASS|live public puppy preview script: operator yellow, breeder blue, labels and navigation role-aware')
           print('BIGPAW_PUBLIC_POSTMERGE_READONLY_OK')
           PY
