@@ -55,7 +55,7 @@ async function test(engine,label){
   if(!live){
    async function next(data,expectedText){
     scenario=data;
-    const reply=page.waitForResponse(x=>x.url().includes('/api/campaign/first100'));
+    const reply=data==='unavailable' ? page.waitForRequest(x=>x.url().includes('/api/campaign/first100')) : page.waitForResponse(x=>x.url().includes('/api/campaign/first100'));
     await page.evaluate(()=>document.dispatchEvent(new Event('bigpaw:campaign-refresh')));
     await reply;
     if(expectedText){
