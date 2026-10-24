@@ -56,7 +56,7 @@ async function run(engine,name,role){
     const style=await banner.evaluate(el=>({background:getComputedStyle(el).backgroundImage,border:getComputedStyle(el).borderTopColor,links:[...el.querySelectorAll('a')].map(a=>a.getAttribute('href'))}));
     assert(style.background.includes('linear-gradient')&&style.background.includes('255, 243, 211'),'campaign must be orange/gold, not blue');
     assert.equal(style.border,'rgb(232, 166, 62)','campaign orange border');
-    assert(style.links.includes('breeder-fees.html'),'campaign details link to fee details');
+    assert(style.links.some(h=>h?.startsWith('breeder-fees.html?v=20261024-fresh-e2e4')),'campaign details link to fresh fee details');
     console.log('BREEDER_SIGNUP_SINGLE_ORANGE_CAMPAIGN_OK|'+name+'|'+(role||'guest')+'|'+JSON.stringify(style));
   }
   assert.equal(await page.locator('html').getAttribute('data-bp-mobile-tone'),'breeder','breeder registration menu must be blue');
