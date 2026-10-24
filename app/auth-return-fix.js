@@ -37,6 +37,13 @@
 
   async function currentRole(){
     try{
+      // Use the same authenticated API identity as the rest of BIG PAW.
+      // The API may use a Bearer session while a different, older cookie exists.
+      // A cookie-only /api/me request could otherwise label a breeder as operator.
+      if(window.BigPawAPI && typeof window.BigPawAPI.me==='function'){
+        const u=await window.BigPawAPI.me();
+        return String(u.role||'');
+      }
       const r=await fetch('/api/me',{credentials:'include',cache:'no-store'});
       if(!r.ok) return '';
       const u=await r.json();
