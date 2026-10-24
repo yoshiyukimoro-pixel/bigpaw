@@ -91,6 +91,25 @@ try:
  check('掲載順位を更新する</button>' not in listing,'no extra ranking button')
  search=(app/'search-list-rebuild.html').read_text(encoding='utf-8')
  check('Number(y.rankAt||y.createdAt||0)-Number(x.rankAt||x.createdAt||0)' in search,'actual search layout uses rank freshness, normal price sorting preserved')
+ # Health/status data must use the same persisted puppy record for breeder and public readers.
+ health_fields={'healthStatus':'実施済み','vaccineStatus':'2回目接種済み','microchipStatus':'装着済み','geneticTestStatus':'親犬検査情報あり'}
+ expected_columns=('health_status','vaccine_status','microchip_status','genetic_test_status')
+ check(all(x in [c['name'] for c in query('PRAGMA table_info(puppies)')] for x in expected_columns),'health fields exist in persisted puppy schema')
+ unrelated_before=query("SELECT "+','.join(expected_columns)+" FROM puppies WHERE id='p2'")[0]
+ code,saved=request('PATCH','/api/puppies/p1',health_fields,'u_dog44')
+ check(code==200 and all(saved.get(k)==v for k,v in health_fields.items()),'breeder edit API returns all four saved health selections')
+ code,public_health=request('GET','/api/puppies/p1')
+ check(code==200 and all(public_health.get(k)==v for k,v in health_fields.items()),'public puppy detail API returns the SAME four saved health selections')
+ code,public_list=request('GET','/api/puppies')
+ public_match=next((d for d in public_list if d.get('id')=='p1'),None) if code==200 else None
+ check(public_match is not None and all(public_match.get(k)==v for k,v in health_fields.items()),'public search API returns the same saved health selections')
+ code,breeder_list=request('GET','/api/breeder/puppies',user='u_dog44')
+ breeder_match=next((d for d in breeder_list if d.get('id')=='p1'),None) if code==200 else None
+ check(breeder_match is not None and all(breeder_match.get(k)==v for k,v in health_fields.items()),'breeder edit API and public API agree on the same puppy ID')
+ check(query("SELECT "+','.join(expected_columns)+" FROM puppies WHERE id='p2'")[0]==unrelated_before,'editing one puppy never changes a different puppy health record')
+ detail_html=(app/'puppy-detail.html').read_text(encoding='utf-8')
+ check(all(k in detail_html for k in ('vaccineText.textContent=p.vaccineStatus','microchipText.textContent=p.microchipStatus','geneticTestText.textContent=p.geneticTestStatus')),'public detail page reads the saved API fields, not placeholders')
+ check('募集中 '+chr(39)+'+all' not in listing and '専用の順位更新ボタンは不要です' not in listing,'ranking instructions do not expose internal developer terms to breeders')
  print('FIVE_DAY_ORGANIC_REFRESH_E2E_OK|age_5_days|real_edit|new_photo|public_rank_first|no_op_no_bump|cooldown|status_only|owner_guard|admin_countdown',flush=True)
 finally:
  proc.terminate()
