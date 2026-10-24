@@ -10,7 +10,6 @@ const links=[
   ['breeder-billing.html','href="breeder-fees.html'+stamp+'"'],
   ['breeder-sales-handover.html','href="breeder-fees.html'+stamp+'"'],
   ['breeder-fee-agreement.html','href="breeder-fees.html'+stamp+'"'],
-  ['breeder-register.html','href="breeder-fees.html'+stamp+'"'],
   ['mobile-global-nav.js',"'料金・手数料','/breeder-fees.html"+stamp+"'"],
   ['breeder-mobile-nav.js',"'料金・手数料','/breeder-fees.html"+stamp+"'"],
 ];
@@ -20,6 +19,12 @@ for(const [file,link] of links){
   assert(!text.includes('href="breeder-fees.html"'),'unversioned HTML URL '+file);
   console.log('PASS revised breeder link',file);
 }
+const register=fs.readFileSync(path.join(root,'breeder-register.html'),'utf8');
+const dynamic=fs.readFileSync(path.join(root,'assets','first100-campaign.js'),'utf8');
+assert(register.includes('data-bp-first100 hidden'),'registration uses live campaign element');
+assert(register.includes('first100-campaign.js?v=20261024-signup-orange1'),'registration uses versioned live campaign');
+assert(dynamic.includes('href="breeder-fees.html'+stamp+'"'),'dynamic registration promo has versioned fees link');
+assert(!register.includes('href="breeder-fees.html"'),'registration has no unversioned static link');
 const globalNav=fs.readFileSync(path.join(root,'mobile-global-nav.js'),'utf8');
 assert(globalNav.includes("'/breeder-fees.html','/breeder-profile-edit.html'"),'breeder page route recognition changed');
 const fees=fs.readFileSync(path.join(root,'breeder-fees.html'),'utf8');
@@ -32,4 +37,4 @@ for (const file of ['index.html','search.html','puppy-detail.html']) {
   const buyer=fs.readFileSync(path.join(root,file),'utf8');
   assert(!buyer.includes('v=20261024-fresh-e2e4'),'buyer pages left alone');
 }
-console.log('BREEDER_ACCOUNT_FEE_LINKS_CACHEBUST_GATE_OK|seven_entry_paths|normal_menu_recognition|buyer_untouched|gold_promo_existing|end_restores_5_percent');
+console.log('BREEDER_ACCOUNT_FEE_LINKS_CACHEBUST_GATE_OK|six_static_entries_and_dynamic_registration|normal_menu_recognition|buyer_untouched|gold_promo_existing|end_restores_5_percent');

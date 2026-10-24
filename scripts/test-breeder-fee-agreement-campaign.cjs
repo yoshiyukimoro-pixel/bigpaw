@@ -29,7 +29,10 @@ assert(!html.includes('初回成約でも合計8％'),'no misleading obsolete pe
 assert(!terms.includes('初回成約手数料無料の特典')&&!terms.includes('ブリーダーごとに、特典開始後の最初'),'obsolete free first-sale terms must be removed');
 expect(terms,'BIG PAW先着100頭・成約手数料無料キャンペーン','site terms');
 expect(terms,'犬舎ごとの上限はありません','global scope');
-expect(register,'先着100頭は成約手数料5％ → 0％','registration headline');
+expect(register,'data-bp-first100 hidden','registration live promo placeholder');
+expect(register,'body .breeder-signup-promo .bp-first100[data-state="active"]','signup promo orange css');
+assert.equal((register.match(/data-bp-first100 hidden/g)||[]).length,1,'registration must show only one campaign banner');
+assert(!register.includes('先着100頭は成約手数料5％ → 0％！</h2>'),'remove duplicate static signup offer');
 expect(register,'通常5％の成約手数料（キャンペーン対象取引は免除）','registration checkbox');
 expect(fees,'href="breeder-fee-agreement.html?v=20261024-terms1"','fee page click');
 expect(register,'href="breeder-fee-agreement.html?v=20261024-terms1"','registration agreement link');
