@@ -6,6 +6,9 @@ on:
       - 'app/backend/breeder_mobile_menu_runtime_patch.py'
       - 'app/mobile-global-nav.js'
       - 'app/breeder-fees.html'
+      - 'app/admin.html'
+      - 'app/assets/breeder-dashboard-campaign.js'
+      - 'scripts/test-breeder-dashboard-banner.cjs'
       - 'app/assets/breeder-fees-campaign.js'
       - 'scripts/test-breeder-fees-real-browser.cjs'
       - '.github/workflows/breeder-fees-real-browser-gate.yml'
@@ -15,6 +18,9 @@ on:
       - 'app/backend/breeder_mobile_menu_runtime_patch.py'
       - 'app/mobile-global-nav.js'
       - 'app/breeder-fees.html'
+      - 'app/admin.html'
+      - 'app/assets/breeder-dashboard-campaign.js'
+      - 'scripts/test-breeder-dashboard-banner.cjs'
       - 'app/assets/breeder-fees-campaign.js'
       - 'scripts/test-breeder-fees-real-browser.cjs'
       - '.github/workflows/breeder-fees-real-browser-gate.yml'
@@ -58,6 +64,10 @@ jobs:
         env:
           BIGPAW_TEST_WEBKIT: '1'
         run: node scripts/test-breeder-fees-real-browser.cjs http://127.0.0.1:18096
+      - name: Verify breeder dashboard banner in actual Chromium and WebKit against disposable test quota
+        env:
+          BIGPAW_TEST_WEBKIT: '1'
+        run: node scripts/test-breeder-dashboard-banner.cjs http://127.0.0.1:18096
       - name: Wait for new release HTML on production after main is merged
         if: github.event_name == 'push'
         run: |
@@ -73,6 +83,12 @@ jobs:
           BIGPAW_LIVE_READONLY: '1'
           BIGPAW_EXPECT_LIVE_FRESH: ${{ github.event_name == 'push' && '1' || '0' }}
         run: node scripts/test-breeder-fees-real-browser.cjs https://bigpaw.site
+      - name: Verify current production dashboard campaign banner read-only in Chromium and WebKit
+        if: github.event_name == 'push'
+        env:
+          BIGPAW_TEST_WEBKIT: '1'
+          BIGPAW_DASHBOARD_LIVE_READONLY: '1'
+        run: node scripts/test-breeder-dashboard-banner.cjs https://bigpaw.site
       - name: Log test-only server for failure analysis
         if: failure()
         run: docker logs bigpaw-real-fee-mobile-ci --tail 160 || true
