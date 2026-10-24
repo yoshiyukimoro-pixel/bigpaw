@@ -40,10 +40,10 @@ jobs:
           assert c['status']=='active' and c['limit']==100,c
           print('SAFE_DISPOSABLE_CAMPAIGN_TEST_ENV_OK')
           PY
-      - name: Install actual Chromium and Safari WebKit mobile browser engines
+      - name: Load Playwright driver and use GitHub runner's installed Google Chrome
         run: |
           npm install --no-save playwright
-          npx playwright install --with-deps chromium webkit
+          (command -v google-chrome || command -v google-chrome-stable || command -v chromium) && (google-chrome --version || google-chrome-stable --version || chromium --version)
       - name: Tap real mobile breeder menu and assert rendered gold, hidden 5%, back and forward
         run: node scripts/test-breeder-fees-real-browser.cjs http://127.0.0.1:18096
       - name: Log test-only server for failure analysis
