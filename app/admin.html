@@ -29,8 +29,7 @@ function bpRankNote(d){
 }
 function bpRankSummary(){
  const ready=dogs.filter(bpRankIsReady).length;
- const all=dogs.filter(d=>d.status==='募集中'&&d.reviewStatus==='approved').length;
- return '<div class="bp-rank-summary" role="status"><strong>📣 掲載情報の更新で上位表示</strong>　'+(ready?'現在'+ready+'頭が更新可能です。各子犬の「編集」から写真やアピール文などを変更して保存してください。':'掲載から5日後に、写真やアピール文などを変更して保存すると上位表示できます。')+'<div style="font-size:12px">募集中 '+all+'頭・専用の順位更新ボタンは不要です。何も変更せず保存しても順位は変わりません。</div></div>';
+ return '<div class="bp-rank-summary" role="status"><strong>📣 掲載情報の更新で上位表示</strong>　'+(ready?'現在'+ready+'頭が上位表示できます。各子犬の「編集」から写真やアピール文などを変更して保存してください。':'前回の上位表示から5日経過すると、写真やアピール文などを変更して保存することで、再び上位表示できます。')+'<div style="font-size:12px">※何も変更せず保存しても掲載順位は変わりません。</div></div>';
 }
 function activeInquiries(q){return q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み')}
 function setOperatorScope(id){location.href='admin.html?breederId='+encodeURIComponent(id)}
