@@ -100,7 +100,7 @@ page_tags={
         '<script src="assets/breed-genetics-data.js?v=20260925b"></script>',
         '<script src="assets/breed-genetics-suggestions.js?v=20260925b"></script>'
     ],
-    'admin.html':['<script src="assets/breeder-parent-entry.js?v=20260925a"></script>'],
+    'admin.html':['<script src="assets/breeder-parent-entry.js?v=20261024-campaign-first1"></script>'],
     'breeder-profile-edit.html':['<script src="assets/breeder-parent-entry.js?v=20260925a"></script>']
 }
 for html_name,tags in page_tags.items():
