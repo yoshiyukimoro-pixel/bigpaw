@@ -16,6 +16,7 @@ function installedChrome(){
 }
 const origin=process.argv[2]||'http://127.0.0.1:18096';
 const liveReadOnly=process.env.BIGPAW_LIVE_READONLY==='1';
+const requireFresh=process.env.BIGPAW_EXPECT_LIVE_FRESH==='1' || !liveReadOnly;
 
 async function test(engine,label){
  const browser=await engine.launch({headless:true,...(label.includes('chromium')?{executablePath:installedChrome(),args:['--no-sandbox']}: {})});
@@ -40,13 +41,13 @@ async function test(engine,label){
   let status=await page.goto(origin+'/admin.html?pricing-e2e='+label,{waitUntil:'domcontentloaded'});
   assert.equal(status.status(),200,label+' dashboard response');
   const src=await page.locator('script[src*="/mobile-global-nav.js"]').getAttribute('src');
-  assert((liveReadOnly ? /v=20261024-breeder-pricing-e2e[34]/ : /v=20261024-breeder-pricing-e2e4/).test(src),label+' must load the appropriate cache-busted menu, got '+src);
+  assert((requireFresh ? /v=20261024-breeder-pricing-e2e4/ : /v=20261024-breeder-pricing-e2e[34]/).test(src),label+' must load the appropriate cache-busted menu, got '+src);
   await page.locator('#bp-global-mobile-menu-button').waitFor({state:'visible',timeout:25000});
   await page.locator('#bp-global-mobile-menu-button').click();
   const feeLink=page.locator('#bp-global-mobile-menu-drawer a').filter({hasText:'料金・手数料'}).first();
   assert.equal(await feeLink.isVisible(),true,label+' breeder fee menu item visible');
   const href=await feeLink.getAttribute('href');
-  assert(liveReadOnly ? /\/breeder-fees\.html\?v=20261024-(gold|fresh-e2e4)/.test(href) : href.includes('/breeder-fees.html?v=20261024-fresh-e2e4'),label+' correct cache-busted target '+href);
+  assert(requireFresh ? href.includes('/breeder-fees.html?v=20261024-fresh-e2e4') : /\/breeder-fees\.html\?v=20261024-(gold|fresh-e2e4)/.test(href),label+' correct cache-busted target '+href);
   await Promise.all([page.waitForURL('**/breeder-fees.html*',{timeout:25000}),feeLink.click()]);
   await page.waitForFunction(()=>{
    const banner=document.querySelector('#bpBreederCampaign');
