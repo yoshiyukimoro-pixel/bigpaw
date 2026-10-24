@@ -64,6 +64,31 @@ async function test(engine,label){
   assert.deepEqual(layout.actionLinks,['breeder-puppy-new.html','parent-dogs.html'],'quick action targets preserved');
   assert(layout.scrollWidth<=layout.viewport+15,'no horizontal overflow on mobile');
   console.log('BREEDER_DASHBOARD_PROMO_FIRST_LAYOUT_OK|'+label+'|'+JSON.stringify(layout));
+  if(!live){
+    const fiveDayInfo=await page.evaluate(()=>{
+      const ts=Math.floor(Date.now()/1000);
+      const shared={breed:'スタンダードプードル',color:'ブラック',gender:'男の子',status:'募集中',reviewStatus:'approved',price:300000,createdAt:ts-10*86400};
+      dogs=[
+        {...shared,id:'old-rank',name:'6日前に上位表示',rankAt:ts-6*86400,imageUrl:''},
+        {...shared,id:'new-rank',name:'2日前に上位表示',rankAt:ts-2*86400,imageUrl:''}
+      ];
+      engagementReady=false;render();
+      return {
+        ready:document.querySelectorAll('.bp-rank-status[data-ready="yes"]').length,
+        waiting:document.querySelectorAll('.bp-rank-status[data-ready="no"]').length,
+        allText:document.getElementById('dogList').innerText,
+        width:document.documentElement.scrollWidth,
+        viewport:innerWidth
+      };
+    });
+    assert.equal(fiveDayInfo.ready,1,'only the aged puppy is eligible to return to the top');
+    assert.equal(fiveDayInfo.waiting,1,'recent puppy shows a remaining-day countdown');
+    assert(fiveDayInfo.allText.includes('上位表示できます！')&&fiveDayInfo.allText.includes('あと2日で上位表示できます'),'both visible breeder update notices must render');
+    assert(fiveDayInfo.allText.includes('現在1頭が更新可能です')&&fiveDayInfo.allText.includes('前回の上位表示'),'top eligible-count summary and last date render');
+    assert.equal(await page.locator('button').filter({hasText:'掲載順位を更新'}).count(),0,'no extra ranking button');
+    assert(fiveDayInfo.width<=fiveDayInfo.viewport+15,'rank messages must not overflow mobile layout');
+    console.log('BREEDER_FIVE_DAY_RANK_NOTICE_RENDERED_OK|'+label+'|1_ready|1_countdown|last_rank_date|no_rank_button');
+  }
   assert.equal(await page.locator('.bp-first-sale-benefit').count(),0,'legacy notice cannot duplicate banner');
   const initial=await page.evaluate(()=>{
    const e=document.querySelector('#bpBreederDashboardCampaign'),s=getComputedStyle(e);
