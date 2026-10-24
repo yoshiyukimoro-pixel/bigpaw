@@ -12,11 +12,11 @@ const terms=fs.readFileSync(path.join(dir,'terms.html'),'utf8');
 const fees=fs.readFileSync(path.join(dir,'breeder-fees.html'),'utf8');
 const register=fs.readFileSync(path.join(dir,'breeder-register.html'),'utf8');
 const js=fs.readFileSync(path.join(dir,'assets/breeder-fee-agreement-campaign.js'),'utf8');
+const expect=(text,fragment,label)=>assert(text.includes(fragment),label+' '+fragment);
 expect(html,'body.bp-account-page #bpFeeTermsCampaign .status{','campaign quota status must beat global blue breeder theme');
 expect(html,'background:#fffaf1','campaign quota warm ivory background');
 expect(html,'color:#a73809','campaign quota orange foreground');
 expect(html,'border:2px solid #e8a12a','campaign quota orange border');
-const expect=(text,fragment,label)=>assert(text.includes(fragment),label+' '+fragment);
 for(const id of ['bpFeeTermsCampaign','bpFeeTermsCampaignTitle','bpFeeTermsCampaignStatus','bpFeeTermsCampaignPeriod']){
   expect(html,'id="'+id+'"','terms banner');
 }
