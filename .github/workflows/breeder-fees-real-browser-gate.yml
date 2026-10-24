@@ -5,6 +5,8 @@ on:
     paths:
       - 'app/backend/breeder_mobile_menu_runtime_patch.py'
       - 'app/mobile-global-nav.js'
+      - 'app/breeder-register.html'
+      - 'app/auth-return-fix.js'
       - 'app/breeder-fees.html'
       - 'app/admin.html'
       - 'app/assets/breeder-dashboard-campaign.js'
@@ -18,6 +20,8 @@ on:
     paths:
       - 'app/backend/breeder_mobile_menu_runtime_patch.py'
       - 'app/mobile-global-nav.js'
+      - 'app/breeder-register.html'
+      - 'app/auth-return-fix.js'
       - 'app/breeder-fees.html'
       - 'app/admin.html'
       - 'app/assets/breeder-dashboard-campaign.js'
