@@ -43,7 +43,7 @@ if piece.count("            if sets:")!=1: raise RuntimeError('RANK_REFRESH_PATC
 piece=piece.replace("            if sets:", "            if sets:\n                before=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()",1)
 update="con.execute('UPDATE puppies SET '+','.join(sets)+' WHERE id=?',args)"
 if piece.count(update)!=1: raise RuntimeError('RANK_REFRESH_PATCH_ANCHOR_FAIL|edit UPDATE count='+str(piece.count(update)))
-compare="('name','breed','breed_key','gender','color','birth','price','description','image_url','weight','adult_min','adult_max','father','mother','health')"
+compare="('name','breed','breed_key','gender','color','birth','price','description','appeal_point','image_url','weight','adult_min','adult_max','father','mother','health','health_status','vaccine_status','microchip_status','genetic_test_status')"
 extended=(update
           +"; after=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()"
           +"; maybe_bump_puppy_rank(con,m.group(1),any(before[k]!=after[k] for k in "+compare+"))")
