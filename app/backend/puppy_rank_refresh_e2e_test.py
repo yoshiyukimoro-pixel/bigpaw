@@ -48,7 +48,7 @@ try:
  execute("UPDATE puppies SET created_at=?,published_at=?,last_ranked_at=NULL,status='募集中',review_status='approved' WHERE id='p1'",(t-6*86400,t-6*86400))
  execute("UPDATE puppies SET created_at=?,published_at=?,last_ranked_at=NULL,status='募集中',review_status='approved' WHERE id='p2'",(t-3600,t-3600))
  execute("UPDATE puppies SET created_at=?,published_at=?,last_ranked_at=NULL,status='募集中',review_status='approved' WHERE id='p3'",(t-7200,t-7200))
- def public():return request('GET','/api/puppies?breed=standard-poodle')[1]
+ def public():return request('GET','/api/puppies')[1]
  original=query("SELECT description,created_at FROM puppies WHERE id='p1'")[0]
  old=public()
  check(old[0]['id']=='p2' and old[-1]['id']=='p1','initial public ranking ordered by original publish date')
