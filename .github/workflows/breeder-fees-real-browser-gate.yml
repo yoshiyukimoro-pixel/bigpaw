@@ -40,12 +40,20 @@ jobs:
           assert c['status']=='active' and c['limit']==100,c
           print('SAFE_DISPOSABLE_CAMPAIGN_TEST_ENV_OK')
           PY
-      - name: Load Playwright driver and use GitHub runner's installed Google Chrome
+      - name: Install Playwright with real WebKit engine plus existing Chrome
         run: |
           npm install --no-save playwright
           (command -v google-chrome || command -v google-chrome-stable || command -v chromium) && (google-chrome --version || google-chrome-stable --version || chromium --version)
-      - name: Tap real mobile breeder menu and assert rendered gold, hidden 5%, back and forward
+          npx playwright install --with-deps webkit
+      - name: Tap sandbox mobile breeder menu in Chromium and WebKit
+        env:
+          BIGPAW_TEST_WEBKIT: '1'
         run: node scripts/test-breeder-fees-real-browser.cjs http://127.0.0.1:18096
+      - name: Verify public production breeder mobile menu with read-only requests in both engines
+        env:
+          BIGPAW_TEST_WEBKIT: '1'
+          BIGPAW_LIVE_READONLY: '1'
+        run: node scripts/test-breeder-fees-real-browser.cjs https://bigpaw.site
       - name: Log test-only server for failure analysis
         if: failure()
         run: docker logs bigpaw-real-fee-mobile-ci --tail 160 || true
