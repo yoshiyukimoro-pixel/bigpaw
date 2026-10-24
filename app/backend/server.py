@@ -294,7 +294,8 @@ def invoice_fee_breakdown_text(invoice):
         promotion=(amount*300)//10000
         return f"通常成約手数料（5％）：{base:,}円\n推しワン利用料（3％）：{promotion:,}円\n請求合計（税込）：{total:,}円"
     if rate==300:
-        return f"通常成約手数料（初回無料）：0円\n推しワン利用料（3％）：{total:,}円\n請求合計（税込）：{total:,}円"
+        waived_label = "先着100頭キャンペーン" if "先着100頭" in str(invoice["note"] or "") else "初回無料特典"
+        return f"通常成約手数料（{waived_label}適用）：0円\n推しワン利用料（3％）：{total:,}円\n請求合計（税込）：{total:,}円"
     return f"通常成約手数料（{rate/100:g}％）：{total:,}円\n請求合計（税込）：{total:,}円"
 
 def ensure_commission_invoice(con, deal):

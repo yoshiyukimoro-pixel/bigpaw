@@ -20,11 +20,13 @@ const pct=bps=>{const n=Number(bps||0)/100;return (Number.isInteger(n)?String(n)
  const rateLabel=pct(x.rate_bps||cfg.commissionRateBps||500);
  const puppyItem=esc(x.puppy_name)+' / '+esc(x.breed)+'<br><span class="muted">生体販売価格 '+yen(x.sale_amount)+'</span>';
  const row=(title,amount)=>'<tr><td>'+title+'</td><td>'+puppyItem+'</td><td>'+yen(amount)+'</td></tr>';
+ const waivedByCampaign=String(x.note||'').includes('先着100頭');
+ const waiverLabel=waivedByCampaign?'先着100頭キャンペーン':'初回無料特典';
  const rows=x.rate_bps===800
    ? row('BIG PAW 通常成約手数料 5%（税込）',Math.floor(Number(x.sale_amount)*500/10000))
       +row('BIG PAW 推しワン利用料 3%（税込）',Math.floor(Number(x.sale_amount)*300/10000))
    : x.rate_bps===300
-     ? row('BIG PAW 通常成約手数料 0%（初回無料特典）',0)
+     ? row('BIG PAW 通常成約手数料 0%（'+esc(waiverLabel)+'適用）',0)
        +row('BIG PAW 推しワン利用料 3%（税込）',total)
      : row('BIG PAW 成約手数料 '+rateLabel+'（税込）',total);
  const dueDays=(x.issued_at&&x.due_at)?Math.max(0,Math.round((Number(x.due_at)-Number(x.issued_at))/86400)):Number(cfg.commissionDueDays||7);
