@@ -38,19 +38,22 @@ async function test(engine,label){
  try{
   const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:3});
   const page=await ctx.newPage(),errors=[];
+  let currentRole='breeder',billingConfigRequests=0;
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/**',route=>{
    const u=new URL(route.request().url());
    if(route.request().method()!=='GET')return route.abort();
    const table={
-    '/api/me':{role:'breeder',emailVerified:true},
+    '/api/me':{role:currentRole,emailVerified:true},
     '/api/breeder/invoices':invoices,
+    '/api/operator/invoices':[],
     '/api/breeder-profile':{billing_suspended:false},
     '/api/breeder/billing-config':cfg,
     '/api/campaign/first100':{status:'active',remaining:99,remainingLabel:'99頭'},
     '/api/breeder/first-sale-benefit':{used:false},
     '/api/breeder/deal-policy-consent':{accepted:true}
    };
+   if(u.pathname==='/api/breeder/billing-config')billingConfigRequests++;
    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(table[u.pathname]??{})});
   });
   const status=await page.goto(origin+'/breeder-billing.html?invoice-label-e2e='+label,{waitUntil:'domcontentloaded'});
@@ -78,6 +81,28 @@ async function test(engine,label){
   await page.waitForFunction(()=>document.querySelector('#doc')?.innerText.includes('BP-TEST-REGULAR'));
   rendered=await page.locator('#doc').innerText();
   assert(rendered.includes('24,000')&&rendered.includes('請求日から7日以内'),'regular 8% and seven days unchanged');
+  // Operator-only sample is safe before any real contract or invoice exists.
+  currentRole='operator';
+  await page.goto(origin+'/operator-invoices.html',{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('#rows')?.innerText.includes('請求はありません'));
+  assert.equal(await page.locator('a[href="operator-invoice-preview.html"]').count(),1,'operator billing has sample preview link');
+  await page.locator('a[href="operator-invoice-preview.html"]').click();
+  await page.waitForFunction(()=>!document.querySelector('#previewInvoice')?.hidden);
+  const preview=await page.locator('#previewInvoice').innerText();
+  assert(preview.includes('見本・テスト表示')&&preview.includes('実際の請求書ではありません'),'preview clearly marked sample');
+  assert(preview.includes('試験銀行')&&preview.includes('試験支店')&&preview.includes('12345')&&preview.includes('テスト'),'preview shows the configured bank data');
+  assert(preview.includes('請求元')&&preview.includes('BIG PAW試験'),'preview shows configured issuer');
+  assert(preview.includes('9,000円')&&preview.includes('発行日から7日以内'),'preview includes 3% amount and seven-day due');
+  assert.equal(await page.locator('#previewPrint').isDisabled(),false,'authorized operator can print sample');
+  console.log('OPERATOR_INVOICE_PREVIEW_OK|'+label+'|bank_present|operator_only|seven_day|no_real_invoice');
+  currentRole='buyer';
+  billingConfigRequests=0;
+  await page.goto(origin+'/operator-invoice-preview.html?deny-buyer=1',{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>location.pathname!=='/operator-invoice-preview.html'||document.querySelector('#previewError')?.innerText.includes('運営アカウント'));
+  assert.equal(await page.locator('#previewInvoice').isHidden(),true,'buyer must never see bank details in operator preview');
+  assert(!(await page.locator('body').innerText()).includes('12345'),'no private bank number leaks in non-operator DOM');
+  assert.equal(billingConfigRequests,0,'buyer must not request account config through operator preview');
+  console.log('OPERATOR_INVOICE_PREVIEW_BUYER_DENIED_OK|'+label);
   assert.deepEqual(errors,[],'no JavaScript errors');
   console.log('OSHIWAN_INVOICE_RENDERED_LABELS_OK|'+label+'|first100=9000_and_7days|legacy_preserved|after_quota=24000_and_7days');
   await ctx.close();
