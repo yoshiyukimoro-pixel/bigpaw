@@ -1,0 +1,44 @@
+name: Breeder-only promotion live read-only QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/live-breeder-promo-visibility-readonly.yml'
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify public homepage has no fee promotion and breeder pricing still has golden promo
+        run: |
+          python3 - <<'PY'
+          import json,urllib.request
+          origin='https://bigpaw.site'
+          def get(path):
+              req=urllib.request.Request(origin+path,headers={'User-Agent':'BIGPAW-BREEDER-PROMO-READONLY-QA','Cache-Control':'no-cache'})
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  html=response.read().decode('utf-8')
+                  assert response.status==200,(path,response.status)
+                  print('LIVE_READ_OK',path,response.status,len(html))
+                  return html
+          home=get('/')
+          assert 'data-bp-first100' not in home, 'Buyer homepage includes breeder promo widget'
+          assert 'first100-campaign.js' not in home, 'Buyer homepage loads breeder promo JS'
+          assert 'ブリーダー掲載申請' in home, 'Public breeder registration entry must remain'
+          fees=get('/breeder-fees.html')
+          assert 'id="bpBreederCampaign"' in fees, 'Breeder promotion banner missing'
+          assert 'id="bpBreederStandardHero" hidden' in fees, 'Regular 5% header must be hidden initially'
+          assert 'background:linear-gradient(125deg,#fff4bd' in fees, 'Golden promo theme not deployed'
+          assert 'assets/breeder-fees-campaign.js' in fees, 'Dedicated breeder-fee controller missing'
+          controller=get('/assets/breeder-fees-campaign.js')
+          assert "data.status==='active'" in controller and '/api/campaign/first100' in controller
+          assert "hero.hidden=true" in controller and "hero.hidden=false" in controller
+          state=json.loads(get('/api/campaign/first100'))
+          assert state['status']=='active' and state['limit']==100 and state['eligible'] is True,state
+          assert state['cancelledClaimsReopen'] is False,state
+          registration=get('/breeder-register.html')
+          assert 'data-bp-first100' in registration, 'Breeder registration promotion must remain'
+          report=get('/breeder-deal-report.html')
+          assert 'data-bp-first100' in report, 'Breeder sale report promotion must remain'
+          print('BREEDER_PROMO_LIVE_ONLY_OK|buyer_home_no_banner|breeder_fees_orange|regular_header_hidden|dynamic_restore|registration_report_keep_promo|api_active')
+          PY
