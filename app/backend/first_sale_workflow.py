@@ -116,10 +116,10 @@ def install(g):
         existing = c.execute('SELECT * FROM sale_fee_decisions WHERE deal_id=?', (d['id'],)).fetchone()
         if existing: return existing
         # Called inside BEGIN IMMEDIATE: simultaneous first applications cannot both win.
-        c.execute('INSERT OR IGNORE INTO first_sale_benefits VALUES(?,?,?)', (d['breeder_id'], d['id'], now()))
-        claim = c.execute('SELECT * FROM first_sale_benefits WHERE breeder_id=?', (d['breeder_id'],)).fetchone()
+        # Historical frozen decisions remain unchanged. No NEW first-sale freebies are awarded.
+        # Only the site-wide first 100 valid applications receive a new waiver.
         campaign_waived = first100_campaign.claim(c, d['id'], d['breeder_id'], now(), campaign_enabled)
-        waived = int(claim['deal_id'] == d['id'] or campaign_waived)
+        waived = int(campaign_waived)
         # The customer must inquire while this puppy is selected as 推しワン.
         # Freeze the rate when a sale is first reported; later toggles do not change it.
         featured = c.execute("""SELECT 1 FROM oshiwan_periods o
@@ -130,7 +130,7 @@ def install(g):
         rate = g['COMMISSION_RATE_BPS'] + (300 if featured else 0)
         c.execute('INSERT INTO sale_fee_decisions VALUES(?,?,?,?,?,?)',
                   (d['id'], d['breeder_id'], waived, rate, TERMS, now()))
-        audit(c, None, 'first_sale_fee_decided', 'deal', d['id'], 'campaign_100' if campaign_waived else 'first_sale_free' if waived else 'standard')
+        audit(c, None, 'first_sale_fee_decided', 'deal', d['id'], 'campaign_100' if campaign_waived else 'standard')
         return c.execute('SELECT * FROM sale_fee_decisions WHERE deal_id=?', (d['id'],)).fetchone()
 
     def invoice(c, d):
@@ -138,8 +138,8 @@ def install(g):
         existing = c.execute('SELECT * FROM commission_invoices WHERE deal_id=?', (d['id'],)).fetchone()
         if existing: return existing
         decision = c.execute('SELECT * FROM sale_fee_decisions WHERE deal_id=?', (d['id'],)).fetchone()
-        # The universal first sale waives only the standard success fee.
-        # First sale waives only the standard 5% charge, not the optional 3% 推しワン fee.
+        # Freeze and honor existing decisions while only the current 100-campaign grants new waivers.
+        # The site-wide 100-campaign and historical frozen waivers affect the base 5% only.
         if decision and decision['waived'] and decision['rate_bps'] == g['COMMISSION_RATE_BPS']: return None
         issued = original_invoice(c, d)
         if issued and first100_campaign.claimed(c, d['id']) and issued['rate_bps'] == 300:
@@ -264,8 +264,9 @@ def install(g):
                 accepted=c.execute('SELECT version,policy_text,rate_bps,due_days,accepted_at_ms FROM breeder_deal_policy_acceptances WHERE breeder_id=? AND version=?',(b['id'],DEAL_POLICY_VERSION)).fetchone()
                 return h.send_json({'currentVersion':DEAL_POLICY_VERSION,'policyText':DEAL_POLICY_TEXT,'accepted':bool(accepted),'acceptance':dict(accepted) if accepted else None})
             if path.endswith('first-sale-benefit'):
-                claim=c.execute('SELECT * FROM first_sale_benefits WHERE breeder_id=?',(b['id'],)).fetchone()
-                return h.send_json({'used':bool(claim),'usedAt':claim['used_at'] if claim else None,'dealId':claim['deal_id'] if claim else None,'rateBps':g['COMMISSION_RATE_BPS'],'termsVersion':TERMS,'listingSuspended':bool(b['compliance_suspended'])})
+                # API alias kept for legacy client compatibility; it no longer grants first-sale free.
+                state=first100_campaign.public_state(c, now(), campaign_enabled)
+                return h.send_json({'used':not state['eligible'],'usedAt':None,'dealId':None,'rateBps':g['COMMISSION_RATE_BPS'],'termsVersion':TERMS,'listingSuspended':bool(b['compliance_suspended']),'campaign':state,'firstSaleFree':False})
             rows=c.execute("SELECT w.*,COALESCE(NULLIF(w.sold_animal_name,''),p.name) puppy_name,f.waived,f.rate_bps,CASE WHEN cm.deal_id IS NULL THEN 0 ELSE 1 END campaign_waived FROM sale_workflow w JOIN deals d ON d.id=w.deal_id JOIN puppies p ON p.id=d.puppy_id LEFT JOIN sale_fee_decisions f ON f.deal_id=w.deal_id LEFT JOIN first100_campaign_claims cm ON cm.deal_id=w.deal_id WHERE w.breeder_id=? ORDER BY w.updated_at DESC",(b['id'],)).fetchall()
             return h.send_json([dict(r) for r in rows])
         finally: c.close()
@@ -356,7 +357,7 @@ def install(g):
                 expanded_scope_qualified_at_ms=int(w['expanded_scope_qualified_at_ms'] or 0)
             else:
                 expanded_scope_qualified_at_ms=int(w['expanded_scope_qualified_at_ms'] or 0) if w else 0
-                if body.get('agreeFirstSaleTerms') is not True: return h.send_json({'error':'first_sale_terms_required','message':'初回無料特典は申請時に使用され、キャンセルしても戻らないことを確認してください。'},400)
+                if body.get('agreeFirstSaleTerms') is not True: return h.send_json({'error':'first_sale_terms_required','message':'先着100頭の無料枠は成約申請時に消費され、キャンセルしても戻らないことを確認してください。'},400)
                 try:
                     amount=int(body.get('finalSaleAmount',0))
                     if amount<=0 or amount>100000000: raise ValueError()
