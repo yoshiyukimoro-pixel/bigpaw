@@ -23,7 +23,7 @@
         el.innerHTML='<strong>'+safe(title)+'</strong><span class="bp-first100-status">'+safe(badge)+'</span>'+
           '<small>サイト全体の先着100頭・1犬舎の上限なし。成約申請を受け付けた時点で1頭カウントし、キャンセルされても枠は戻りません。'+
           '期間は開始から6か月（'+safe(endDate)+'まで）。100頭到達で早期終了します。推しワン追加3％は無料対象外です。'+
-          '掲載料・月額費用は無料。 <a href="breeder-fees.html">詳細を見る</a></small>';
+          '掲載料・月額費用は無料。 <a href="breeder-fees.html?v=20261024-fresh-e2e4">詳細を見る</a></small>';
       }
     }catch(err){
       // Avoid showing unverified free offers or misleading counts on an API failure.
