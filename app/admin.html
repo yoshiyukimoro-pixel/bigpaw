@@ -7,7 +7,7 @@ function setOperatorScope(id){location.href='admin.html?breederId='+encodeURICom
 async function load(){
  try{
   let me=null;try{me=await BigPawBridge.me()}catch(e){}
-  BigPawBreederDashboardCampaign.updateForRole(me?.role);
+  globalThis.BigPawBreederDashboardCampaign?.updateForRole?.(me?.role);
   if(BigPawBridge.isServerMode()&&me?.role!=='breeder'&&me?.role!=='operator'){loginNotice.style.display='block';dogs=[];render();return}else loginNotice.style.display='none';
   let q=[],bp=null;
   if(me?.role==='operator'){
@@ -43,7 +43,7 @@ async function load(){
     engagementStats=response.puppies||{};engagementReady=true;
   }catch(_e){engagementReady=false;}
   billingSuspend.style.display=bp&&bp.billing_suspended?'block':'none';render();sInquiry.textContent=activeInquiries(q).length
- }catch(e){BigPawBreederDashboardCampaign.updateForRole(null);dogList.innerHTML='<div class="pad">読み込めませんでした。</div>'}
+ }catch(e){dogList.innerHTML='<div class="pad">読み込めませんでした。</div>'}
 }
 function render(){sOpen.textContent=dogs.filter(x=>x.status==='募集中').length;sTalk.textContent=dogs.filter(x=>x.status==='商談中').length;sDone.textContent=dogs.filter(x=>x.status==='成約済み').length;dogList.innerHTML=dogs.length?dogs.map(d=>`<div class="dogrow"><div class="thumb">${d.imageUrl?`<img src="${BigPaw.esc(d.imageUrl)}" alt="">`:'🐩'}</div><div><b>${BigPaw.esc(d.name)}</b><div class="muted">${BigPaw.esc(d.breed)}・${BigPaw.esc(d.gender)}・${BigPaw.esc(d.color)}　<span class="chip">掲載審査: ${BigPaw.esc(d.reviewStatus||'approved')}</span></div><div class="muted" style="margin-top:5px;font-size:12px;line-height:1.8">${engagementReady?(`♥ お気に入り ${Number(engagementStats[d.id]?.favoriteCount||0)}件　👁 総閲覧 ${Number(engagementStats[d.id]?.viewCount||0)}回　👥 閲覧者 ${Number(engagementStats[d.id]?.viewerCount||0)}人（目安）`):'閲覧・お気に入り集計：取得できませんでした'}</div></div><div class="hide-mobile"><b>${BigPaw.currency(d.price)}</b></div><div class="hide-mobile"><span class="${badge(d.status)}">${BigPaw.esc(d.status)}</span></div><div><a class="btn btn-main" href="breeder-puppy-new.html?id=${encodeURIComponent(d.id)}${operatorScopeId?'&breederId='+encodeURIComponent(operatorScopeId):''}">編集</a> </div></div>`).join(''):'<div class="pad muted">掲載中の子犬はいません。</div>'}
 async function changeStatus(id,current){const states=['募集中','商談中'],next=states[(states.indexOf(current)+1)%states.length];try{await BigPawBridge.updatePuppy(id,{status:next});await load()}catch(e){alert(e.status===401?'ブリーダーとしてログインしてください。':'更新できませんでした。成約した場合は「成約申請」から報告してください。')}}
