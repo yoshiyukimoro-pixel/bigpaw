@@ -25,7 +25,7 @@ jobs:
             -e BIGPAW_DATA_DIR=/tmp/fee-pricing-mobile-e2e-only \
             -e BIGPAW_ADMIN_EMAIL=qa@example.invalid -e BIGPAW_ADMIN_PASSWORD='QAOnly1234Password!' \
             -e BIGPAW_PAYMENT_MODE=demo \
-            bigpaw-real-fee-mobile-gate python3 backend/server.py
+            bigpaw-real-fee-mobile-gate sh -c "python3 backend/auth_cookie_hardening_patch.py && python3 backend/safari_gallery_runtime_patch.py && python3 backend/support_contact_runtime_patch.py && python3 backend/offsite_backup_runtime_patch.py && python3 backend/login_prompt_runtime_patch.py && python3 backend/direct_payment_runtime_patch.py && python3 backend/breeder_mobile_menu_runtime_patch.py && exec python3 backend/start_live.py"
           ready=0
           for i in $(seq 1 45); do
             if curl -fsS http://127.0.0.1:18096/api/health >/tmp/bigpaw-fee-mobile-health.json 2>/dev/null; then ready=1;break;fi
