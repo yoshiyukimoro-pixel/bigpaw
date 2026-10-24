@@ -2,7 +2,7 @@ from pathlib import Path
 import runpy
 
 ROOT = Path(__file__).resolve().parent.parent
-NAV_TAG = '<script src="/mobile-global-nav.js?v=20261024-breeder-pricing-e2e3"></script>'
+NAV_TAG = '<script src="/mobile-global-nav.js?v=20261024-breeder-pricing-e2e4"></script>'
 BRAND_TAG = '<script src="/assets/global-brand-header.js?v=20261004h1"></script>'
 ALERT_TAG = '<script src="/attention-alerts.js?v=20260927a2"></script>'
 
