@@ -10,14 +10,22 @@ function bpRankDayLabel(d){
 function bpRankIsReady(d){
  return d.status==='募集中'&&d.reviewStatus==='approved'&&Number(d.rankAt||d.createdAt||0)>0&&Date.now()/1000>=Number(d.rankAt||d.createdAt)+BP_FIVE_DAY_SECONDS;
 }
+function bpRankDuration(seconds,remaining){
+ const hours=remaining?Math.ceil(Math.max(0,seconds)/3600):Math.floor(Math.max(0,seconds)/3600);
+ if(hours<1)return remaining?'1時間未満':'1時間未満';
+ const days=Math.floor(hours/24),rest=hours%24;
+ return (days?days+'日':'')+(rest?rest+'時間':'')||'1時間未満';
+}
 function bpRankNote(d){
  const last=Number(d.rankAt||d.createdAt||0);
  if(!last)return '<div class="bp-rank-status">掲載順位の更新日時を確認できません。</div>';
  const eligible=d.status==='募集中'&&d.reviewStatus==='approved';
- const ready=bpRankIsReady(d);
- const days=Math.max(1,Math.ceil((last+BP_FIVE_DAY_SECONDS-Date.now()/1000)/86400));
- const msg=!eligible?'現在の募集状況では上位表示の更新対象外です。':ready?'上位表示できます！ 写真やアピール文などを変更して保存すると、自動的に掲載順の先頭へ移動します。':'あと'+days+'日で上位表示できます。掲載情報は今も編集できます。';
- return '<div class="bp-rank-status" data-ready="'+(ready?'yes':'no')+'">'+(ready?'✨ ': '🕒 ')+BigPaw.esc(msg)+'<div class="bp-rank-date">前回の上位表示：'+BigPaw.esc(bpRankDayLabel(d))+'</div></div>';
+ const elapsed=Math.max(0,Date.now()/1000-last);
+ const ready=eligible&&elapsed>=BP_FIVE_DAY_SECONDS;
+ const elapsedLabel=bpRankDuration(elapsed,false)+'経過';
+ const remainingLabel=bpRankDuration(BP_FIVE_DAY_SECONDS-elapsed,true);
+ const msg=!eligible?'現在の募集状況では上位表示の更新対象外です。':ready?'上位表示できます！ 写真やアピール文などを変更して保存すると、自動的に掲載順の先頭へ移動します。':'あと'+remainingLabel+'で上位表示できます。写真やアピール文の編集はいつでも可能です。';
+ return '<div class="bp-rank-status" data-ready="'+(ready?'yes':'no')+'"><div>前回の上位表示から '+BigPaw.esc(elapsedLabel)+'</div><div>'+(ready?'✨ ': '🕒 ')+BigPaw.esc(msg)+'</div><div class="bp-rank-date">前回の上位表示：'+BigPaw.esc(bpRankDayLabel(d))+'</div></div>';
 }
 function bpRankSummary(){
  const ready=dogs.filter(bpRankIsReady).length;
