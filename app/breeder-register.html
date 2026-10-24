@@ -15,6 +15,14 @@ body{background:#f3f8ff;color:#42546a}
 .notice{background:#eef6ff;border-color:#c5dced;color:#315f89}
 .stepbar .step.active{background:#e1f0ff;border-color:#a9cbe5;color:#315f89}
 .breeder-info-card{background:#f5faff!important;border-color:#d8e7f3!important}
+/* The registration interface is blue, but the live 100-puppy campaign is orange. */
+.breeder-signup-promo{margin-top:18px}
+body .breeder-signup-promo .bp-first100[data-state="active"]{background:linear-gradient(125deg,#fff3d3,#ffe0a2 58%,#ffcc76);border:2px solid #e8a63e;color:#754008;box-shadow:0 8px 24px rgba(154,89,16,.14);border-radius:20px;padding:23px 22px}
+body .breeder-signup-promo .bp-first100[data-state="active"] strong{display:block;font-size:clamp(21px,4vw,29px);line-height:1.35;color:#8c4000}
+body .breeder-signup-promo .bp-first100[data-state="active"] .bp-first100-status{font-size:20px;color:#a44e00;margin-top:9px}
+body .breeder-signup-promo .bp-first100[data-state="active"] small{font-size:13px;color:#694921;line-height:1.8}
+body .breeder-signup-promo .bp-first100[data-state="active"] a{color:#8a3600;text-decoration:underline;text-underline-offset:3px}
+#bpRegistrationHeaderLink[hidden]{display:none!important}
 .breeder-link{color:#315f89!important;text-decoration:underline}
 .state-panel{display:none}
 .account-box{max-width:680px;margin:auto}
@@ -24,11 +32,10 @@ body{background:#f3f8ff;color:#42546a}
 </head>
 <body>
 <div class="topbar">🐾 大型犬専門｜BIG PAW ブリーダー登録</div>
-<header class="site-header"><div class="wrap nav"><a class="logo" href="index.html"><span class="logo-mark">🐾</span>BIG PAW</a><nav class="navlinks"><a href="breeders.html">掲載ブリーダー</a><a class="nav-cta" href="login.html?next=%2Fbreeder-register.html">ログイン</a></nav></div></header>
-<div class="hero-mini"><div class="wrap"><h1>大型犬ブリーダー新規登録</h1><p>一般会員登録を先に行う必要はありません。このページからアカウント作成・メール認証・掲載申請まで進めます。</p></div></div>
+<header class="site-header"><div class="wrap nav"><a class="logo" href="index.html"><span class="logo-mark">🐾</span>BIG PAW</a><nav class="navlinks"><a href="breeders.html">掲載ブリーダー</a><a class="nav-cta" id="bpRegistrationHeaderLink" href="login.html?next=%2Fbreeder-register.html" hidden>ログイン</a></nav></div></header>
+<div class="hero-mini"><div class="wrap"><h1 id="bpRegistrationHeading">大型犬ブリーダー新規登録</h1><p id="bpRegistrationIntro">一般会員登録を先に行う必要はありません。このページからアカウント作成・メール認証・掲載申請まで進めます。</p></div></div>
 <main class="wrap">
-<div data-bp-first100 hidden aria-live="polite"></div>
-<section class="section" style="padding-bottom:0"><div class="card pad breeder-info-card"><span class="pill">掲載料・月額 0円</span><h2 style="margin-bottom:6px">先着100頭は成約手数料5％ → 0％！</h2><p class="muted">キャンペーン対象の成約申請は通常成約手数料5％が無料です。対象外の取引はお迎え完了後に最終生体販売価格の通常5％（税込）をご請求します。推しワンの追加3％は無料対象外。成約しなければ費用はかかりません。お迎え完了後に成約申請を行い、BIG PAW運営の確認後に請求書を自動発行します。支払期限は請求日から7日以内です。 <a href="breeder-fees.html?v=20261024-fresh-e2e4"><b>料金の詳細を見る →</b></a></p></div></section>
+<div class="breeder-signup-promo"><div data-bp-first100 hidden aria-live="polite"></div></div>
 <section class="section"><div class="card pad main-card">
 <div class="stepbar" id="flowSteps"><div class="step" data-step="1">1. アカウント作成</div><div class="step" data-step="2">2. メール認証</div><div class="step" data-step="3">3. ブリーダー申請</div><div class="step" data-step="4">4. 運営審査</div></div>
 <div id="current" class="notice" style="display:none;margin-bottom:16px"></div>
@@ -69,7 +76,7 @@ body{background:#f3f8ff;color:#42546a}
 </div></section>
 </main>
 <footer><div class="wrap foot"><b>BIG PAW</b><small>大型犬専門 子犬マッチングサービス</small></div></footer>
-<script src="assets/first100-campaign.js"></script>
+<script src="assets/first100-campaign.js?v=20261024-signup-orange1"></script>
 <script src="assets/api.js"></script>
 <script>
 const byId=id=>document.getElementById(id);
@@ -79,11 +86,24 @@ function setStep(n){document.querySelectorAll('#flowSteps .step').forEach(x=>x.c
 function setCurrent(html){const el=byId('current');if(!html){el.style.display='none';el.innerHTML='';return}el.innerHTML=html;el.style.display='block'}
 function emailVerified(me){return Boolean(me&&(me.emailVerified===true||me.email_verified===1||me.email_verified===true))}
 function setPendingFlag(v){try{v?localStorage.setItem('bigpaw_breeder_signup_pending','1'):localStorage.removeItem('bigpaw_breeder_signup_pending')}catch(_e){}}
+function updateRegistrationHeader(me){
+  const link=byId('bpRegistrationHeaderLink');
+  if(me?.role==='operator'){link.textContent='運営管理';link.href='operator-admin.html';}
+  else if(me){link.textContent='マイページ';link.href='mypage.html';}
+  else{link.textContent='ログイン';link.href='login.html?next=%2Fbreeder-register.html';}
+  link.hidden=false;
+  byId('bpRegistrationHeading').textContent=me?'ブリーダー掲載申請':'大型犬ブリーダー新規登録';
+  byId('bpRegistrationIntro').textContent=me?'現在ログインしているアカウントから、ブリーダーの掲載審査を申請できます。':'一般会員登録を先に行う必要はありません。このページからアカウント作成・メール認証・掲載申請まで進めます。';
+}
 
 async function renderState(justCreated=false){
   setCurrent('');
   let me=null;
   try{me=await BigPawAPI.me()}catch(e){if(e.status!==401)console.warn(e)}
+  // Already-approved breeders must never be sent through a fresh application.
+  if(me?.role==='breeder'){setPendingFlag(false);location.replace('admin.html');return}
+  if(me?.role==='operator'){setPendingFlag(false);location.replace('operator-admin.html');return}
+  updateRegistrationHeader(me);
   if(!me){showPanel('accountStep');setStep(1);return}
   if(!emailVerified(me)){
     showPanel('verifyStep');setStep(2);setPendingFlag(true);
@@ -92,11 +112,6 @@ async function renderState(justCreated=false){
   }
   setPendingFlag(false);
   showPanel('applicationStep');setStep(3);
-  if(me.role==='breeder'){
-    setStep(4);byId('breederApplicationForm').style.display='none';
-    setCurrent('<b>ブリーダー登録済みです。</b><br>ブリーダー管理画面から子犬の掲載・管理ができます。<br><a class="btn btn-main" style="margin-top:10px" href="admin.html">ブリーダー管理へ</a>');
-    return;
-  }
   byId('breederApplicationForm').style.display='block';
   try{
     const rows=await BigPawAPI.breederApplications();
