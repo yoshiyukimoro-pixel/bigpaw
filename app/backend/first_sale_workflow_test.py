@@ -282,6 +282,9 @@ try:
     captured=[json.loads(line) for line in (work/'mail.jsonl').read_text().splitlines()]
     check(any('/buyer-sale-confirmation.html?token=' in x['text'] for x in captured),'confirmation email contains answer page link')
     check(any('15,000' in x['text'] and '7日' in x['text'] for x in captured),'invoice email contains amount and deadline')
+    check(any('推しワン利用料：9,000円' in x['text'] and '先着100頭キャンペーン' in x['text']
+              and '7日以内' in x['text'] for x in captured),
+          'first-100 Oshiwan breeder email shows payable 9000 yen, waiver and exact seven-day term')
     check(any('キャンセル申告の確認が必要' in x['subject'] for x in captured),'operator alert email sent through local test transport')
     check(any('今後、虚偽申告や手数料回避' in x['text'] for x in captured),'reviewed breeder warning delivered through local test transport')
     check(any('0円' in x['text'] for x in captured),'free completion email states no invoice')
