@@ -13,6 +13,9 @@ on:
       - 'app/breeder-deal-report.html'
       - 'app/breeder-fees.html'
       - 'app/breeder-fee-agreement.html'
+      - 'app/assets/breeder-fee-agreement-campaign.js'
+      - 'app/terms.html'
+      - 'scripts/test-breeder-fee-agreement-campaign.cjs'
       - 'app/breeder-register.html'
       - 'app/index.html'
       - 'scripts/test_first100_campaign.py'
@@ -25,6 +28,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify 100 total, 20 hidden, no reset on cancel, six-month expiry, concurrent claims
         run: python3 scripts/test_first100_campaign.py
+      - name: Verify current legal terms match first-100 waiver, exceptions and registration consent
+        run: node scripts/test-breeder-fee-agreement-campaign.cjs
       - name: Build real production app and run all embedded regression checks (isolated test data)
         run: docker build --no-cache -t bigpaw-first100-regression .
       - name: Verify frontend pages and consent no longer grant extra first-sale discount

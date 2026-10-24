@@ -8,6 +8,10 @@ on:
       - 'app/breeder-register.html'
       - 'app/auth-return-fix.js'
       - 'app/breeder-fees.html'
+      - 'app/breeder-fee-agreement.html'
+      - 'app/assets/breeder-fee-agreement-campaign.js'
+      - 'app/terms.html'
+      - 'scripts/test-breeder-fee-agreement-campaign.cjs'
       - 'app/admin.html'
       - 'app/assets/breeder-dashboard-campaign.js'
       - 'scripts/test-breeder-dashboard-banner.cjs'
@@ -23,6 +27,10 @@ on:
       - 'app/breeder-register.html'
       - 'app/auth-return-fix.js'
       - 'app/breeder-fees.html'
+      - 'app/breeder-fee-agreement.html'
+      - 'app/assets/breeder-fee-agreement-campaign.js'
+      - 'app/terms.html'
+      - 'scripts/test-breeder-fee-agreement-campaign.cjs'
       - 'app/admin.html'
       - 'app/assets/breeder-dashboard-campaign.js'
       - 'scripts/test-breeder-dashboard-banner.cjs'
@@ -66,6 +74,8 @@ jobs:
           npm install --no-save playwright
           (command -v google-chrome || command -v google-chrome-stable || command -v chromium) && (google-chrome --version || google-chrome-stable --version || chromium --version)
           npx playwright install --with-deps webkit
+      - name: Assert live campaign fees, breeder agreement and signup are consistent
+        run: node scripts/test-breeder-fee-agreement-campaign.cjs
       - name: Tap sandbox mobile breeder menu in Chromium and WebKit
         env:
           BIGPAW_TEST_WEBKIT: '1'
@@ -83,7 +93,7 @@ jobs:
         run: |
           ready=0
           for i in $(seq 1 90); do
-            if curl -fsSL --max-time 15 'https://bigpaw.site/admin.html?release=20261024-fresh-e2e4' | grep -Fq 'mobile-global-nav.js?v=20261024-breeder-signup-blue1'; then ready=1; break; fi
+            if curl -fsSL --max-time 15 'https://bigpaw.site/admin.html?release=20261024-fresh-e2e4' | grep -Fq 'mobile-global-nav.js?v=20261024-breeder-signup-blue1' && curl -fsSL --max-time 15 'https://bigpaw.site/breeder-fees.html?release=20261024-terms1' | grep -Fq 'breeder-fee-agreement.html?v=20261024-terms1'; then ready=1; break; fi
             sleep 4
           done
           if [ "$ready" != 1 ]; then echo 'PRODUCTION_FRESH_MENU_VERSION_MISSING'; exit 1; fi
