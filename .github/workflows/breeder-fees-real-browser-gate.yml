@@ -1,0 +1,54 @@
+name: REAL breeder fee mobile menu and rendered campaign E2E
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/backend/breeder_mobile_menu_runtime_patch.py'
+      - 'app/mobile-global-nav.js'
+      - 'app/breeder-fees.html'
+      - 'app/assets/breeder-fees-campaign.js'
+      - 'scripts/test-breeder-fees-real-browser.cjs'
+      - '.github/workflows/breeder-fees-real-browser-gate.yml'
+jobs:
+  real-mobile-click:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Full production image build and legacy feature regression checks
+        run: docker build --no-cache -t bigpaw-real-fee-mobile-gate .
+      - name: Launch disposable development server with test-only free quota
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-real-fee-mobile-ci -p 18096:8080 \
+            -e PORT=8080 -e BIGPAW_ENV=development -e BIGPAW_CAMPAIGN_100_ENABLED=1 \
+            -e BIGPAW_DATA_DIR=/tmp/fee-pricing-mobile-e2e-only \
+            -e BIGPAW_ADMIN_EMAIL=qa@example.invalid -e BIGPAW_ADMIN_PASSWORD='QAOnly1234Password!' \
+            -e BIGPAW_PAYMENT_MODE=demo \
+            bigpaw-real-fee-mobile-gate python3 backend/server.py
+          ready=0
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:18096/api/health >/tmp/bigpaw-fee-mobile-health.json 2>/dev/null; then ready=1;break;fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ];then docker logs bigpaw-real-fee-mobile-ci --tail 130;exit 1;fi
+          python3 - <<'PY'
+          import json,urllib.request
+          h=json.load(open('/tmp/bigpaw-fee-mobile-health.json'))
+          assert h['environment']=='development' and h['paymentMode']=='demo' and not h['mailConfigured'],h
+          c=json.load(urllib.request.urlopen('http://127.0.0.1:18096/api/campaign/first100'))
+          assert c['status']=='active' and c['limit']==100,c
+          print('SAFE_DISPOSABLE_CAMPAIGN_TEST_ENV_OK')
+          PY
+      - name: Install actual Chromium and Safari WebKit mobile browser engines
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium webkit
+      - name: Tap real mobile breeder menu and assert rendered gold, hidden 5%, back and forward
+        run: node scripts/test-breeder-fees-real-browser.cjs http://127.0.0.1:18096
+      - name: Log test-only server for failure analysis
+        if: failure()
+        run: docker logs bigpaw-real-fee-mobile-ci --tail 160 || true
+      - name: Remove disposable server
+        if: always()
+        run: docker rm -f bigpaw-real-fee-mobile-ci >/dev/null 2>&1 || true
