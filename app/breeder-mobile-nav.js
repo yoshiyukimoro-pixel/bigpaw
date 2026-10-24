@@ -11,7 +11,7 @@
     ['🐩','親犬管理','/parent-dogs.html'],
     ['🩺','健康情報','/health-records.html'],
     ['🏡','犬舎プロフィール','/breeder-profile-edit.html'],
-    ['💳','料金・手数料','/breeder-fees.html?v=20261024-gold'],
+    ['💳','料金・手数料','/breeder-fees.html?v=20261024-fresh-e2e4'],
     ['📩','運営へお問い合わせ','/breeder-support.html'],
     ['🌐','公開サイト','/index.html']
   ];
