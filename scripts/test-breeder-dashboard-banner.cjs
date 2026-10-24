@@ -70,7 +70,7 @@ async function test(engine,label){
       const shared={breed:'スタンダードプードル',color:'ブラック',gender:'男の子',status:'募集中',reviewStatus:'approved',price:300000,createdAt:ts-10*86400};
       dogs=[
         {...shared,id:'old-rank',name:'6日前に上位表示',rankAt:ts-6*86400,imageUrl:''},
-        {...shared,id:'new-rank',name:'2日前に上位表示',rankAt:ts-2*86400,imageUrl:''}
+        {...shared,id:'new-rank',name:'3日前に上位表示',rankAt:ts-3*86400,imageUrl:''}
       ];
       engagementReady=false;render();
       return {
