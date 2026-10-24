@@ -85,6 +85,36 @@ try:
     first,pid=deal('first')
     check(request('POST','/api/deals/'+first+'/sale-report',BODY,'u_dog44',False)[0]==403,'production CSRF rejects missing origin')
     check(request('POST','/api/deals/'+first+'/sale-report',BODY,'u_demo')[0]==403,'buyer cannot claim breeder benefit')
+    # Launch-day scenario: the FIRST genuine puppy transaction in an empty campaign.
+    # Uses only a private scratch database and captured mail; NEVER a real customer or live quota.
+    empty=request('GET','/api/campaign/first100')[1]
+    check(empty['status']=='active' and empty['remaining']==100
+          and empty['eligible'] is True,'fresh 100-puppy campaign has exactly 100 available slots')
+    launch,launch_puppy=deal('launch-first-puppy')
+    launch_sale=post('/api/deals/'+launch+'/sale-report',BODY)
+    check(launch_sale['waived'] is True and launch_sale['campaignWaived'] is True,
+          'first actual puppy sale report receives site-wide 5-percent waiver')
+    decision=query('SELECT waived,rate_bps FROM sale_fee_decisions WHERE deal_id=?',(launch,))[0]
+    check(decision['waived']==1 and decision['rate_bps']==500,
+          'first puppy retains frozen normal rate while base commission is waived')
+    fresh=request('GET','/api/campaign/first100')[1]
+    check(fresh['status']=='active' and fresh['remaining']==99
+          and len(query('SELECT * FROM first100_campaign_claims'))==1,
+          'first valid puppy report consumes one—and only one—of the 100 slots')
+    post('/api/deals/'+launch+'/sale-report',BODY)
+    check(len(query('SELECT * FROM first100_campaign_claims'))==1
+          and len(query('SELECT * FROM sale_confirmations WHERE deal_id=? AND kind=?',(launch,'sale')))==1,
+          'resubmitting first deal neither consumes an extra slot nor duplicates buyer confirmation')
+    answer(launch,'sale')
+    post('/api/deals/'+launch+'/completion-report',BODY)
+    answer(launch,'pickup')
+    check(query('SELECT status FROM deals WHERE id=?',(launch,))[0]['status']=='completed',
+          'buyer-confirmed first puppy progresses through real completion workflow')
+    check(not query('SELECT * FROM commission_invoices WHERE deal_id=?',(launch,)),
+          'first campaign puppy completes with ZERO fee invoice, without sending a bill')
+    check(request('GET','/api/campaign/first100')[1]['remaining']==99,
+          'pickup confirmation does not consume a second campaign slot')
+    print('FIRST100_FIRST_PUPPY_TRANSACTION_E2E_OK|empty_100_to_99|buyer_confirmation|pickup|fee_waived|invoice_none|idempotent',flush=True)
     execute("INSERT INTO users(id,role,email,salt,password_hash,created_at) VALUES('u_test_policy','breeder','policy@example.invalid','s','h',?)",(int(time.time()),))
     execute("INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status) VALUES('b_test_policy','u_test_policy','規約同意試験犬舎','埼玉県','','','approved')")
     execute('INSERT INTO sessions VALUES(?,?,?,?)',('test-u_test_policy','u_test_policy',int(time.time()),int(time.time())+86400))
@@ -122,11 +152,11 @@ try:
     post('/api/deals/'+future+'/completion-report',BODY,'u_test_policy');answer(future,'pickup')
     flow=query('SELECT sold_animal_type,sold_animal_name FROM sale_workflow WHERE deal_id=?',(future,))[0]
     check(flow=={'sold_animal_type':'adult','sold_animal_name':'成約確認対象の成犬'},'completion report preserves the actual sold dog')
-    # This isolated fixture already used one site-wide campaign slot for the
-    # policy-eligible deal above. Seed another 98 immutable claims to reach 99.
+    # This fixture used two slots: the first puppy above plus the policy-qualified adult.
+    # Seed 97 more immutable claims to reach 99 before testing the very last free slot.
     # The next valid sale report gets the LAST campaign slot, regardless of kennel.
     execute("INSERT INTO first100_campaign_claims(deal_id,breeder_id,claimed_at) VALUES(?,?,?)",('seed-campaign-0','test',int(time.time())))
-    for i in range(1,98):
+    for i in range(1,97):
         execute("INSERT INTO first100_campaign_claims(deal_id,breeder_id,claimed_at) VALUES(?,?,?)",('seed-campaign-'+str(i),'test',int(time.time())))
     state=request('GET','/api/campaign/first100')[1]
     check(state['status']=='active' and state['remaining'] is None and state['remainingLabel']=='残りわずか・受付中','last 20 campaign remaining slots are hidden')
