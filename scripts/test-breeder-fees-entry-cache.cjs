@@ -4,7 +4,7 @@ const assert=require('assert').strict;
 const fs=require('fs');
 const path=require('path');
 const root=path.join(__dirname,'..','app');
-const stamp='?v=20261024-gold';
+const stamp='?v=20261024-fresh-e2e4';
 const links=[
   ['admin.html','href="breeder-fees.html'+stamp+'"'],
   ['breeder-billing.html','href="breeder-fees.html'+stamp+'"'],
@@ -30,6 +30,6 @@ const controller=fs.readFileSync(path.join(root,'assets','breeder-fees-campaign.
 assert(controller.includes("data.status==='active'")&&controller.includes("hero.hidden=false"),'automatic restoration on end preserved');
 for (const file of ['index.html','search.html','puppy-detail.html']) {
   const buyer=fs.readFileSync(path.join(root,file),'utf8');
-  assert(!buyer.includes('v=20261024-gold'),'buyer pages left alone');
+  assert(!buyer.includes('v=20261024-fresh-e2e4'),'buyer pages left alone');
 }
 console.log('BREEDER_ACCOUNT_FEE_LINKS_CACHEBUST_GATE_OK|seven_entry_paths|normal_menu_recognition|buyer_untouched|gold_promo_existing|end_restores_5_percent');
