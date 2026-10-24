@@ -61,5 +61,17 @@ s=s.replace(upload_reply,"""if puppy_id and puppy_id!='breeder-proof':
                 finally:
                     _rankcon.close()
             """+upload_reply,1)
+# Removing an existing picture is also a meaningful photo edit; it must obey
+# the same 120-hour cooldown and must not reset the original listing date.
+delete_photo_start="m=re.fullmatch(r'/api/puppies/([^/]+)/photos/([^/]+)',path)"
+start=s.index(delete_photo_start)
+end=s.index("if path=='/api/me':",start)
+segment=s[start:end]
+delete_commit="            con.commit(); con.close()"
+if segment.count(delete_commit)!=1: raise RuntimeError('RANK_REFRESH_PATCH_ANCHOR_FAIL|delete photo commit')
+segment=segment.replace(delete_commit,
+    "            maybe_bump_puppy_rank(con,puppy['id'],True)\n"+delete_commit,1)
+s=s[:start]+segment+s[end:]
+
 p.write_text(s,encoding='utf-8')
 print('FIVE_DAY_RANK_PATCH_OK|persisted_rank_date|5days|genuine_content_or_new_photo|no_op_denied|status_not_refresh|created_date_preserved|search_order',flush=True)
