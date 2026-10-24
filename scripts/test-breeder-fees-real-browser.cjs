@@ -90,7 +90,7 @@ async function test(engine,label){
   // agreement, not an outdated normal-5%-only draft.
   if(!liveReadOnly||requireFresh){
   const termsLink=page.locator('#bpBreederCampaign a').filter({hasText:'適用条件を見る'}).first();
-  assert((await termsLink.getAttribute('href')).includes('breeder-fee-agreement.html?v=20261024-terms1'),
+  assert((await termsLink.getAttribute('href')).includes('breeder-fee-agreement.html?v=20261024-terms-orange2'),
     label+' campaign conditions must open fresh agreement');
   await Promise.all([page.waitForURL('**/breeder-fee-agreement.html*',{timeout:25000}),termsLink.click()]);
   const termsStatus=page.locator('#bpFeeTermsCampaignStatus');
@@ -102,11 +102,15 @@ async function test(engine,label){
     const banner=document.getElementById('bpFeeTermsCampaign');
     const state=document.getElementById('bpFeeTermsCampaignStatus');
     const computed=getComputedStyle(banner);
+    const statusStyle=getComputedStyle(state);
     return {
       title:document.title,
       status:state.textContent,
       state:state.dataset.state,
       gold:computed.backgroundImage,
+      statusBackground:statusStyle.backgroundColor,
+      statusColor:statusStyle.color,
+      statusBorder:statusStyle.borderTopColor,
       body:document.body.innerText,
       mobileWidth:document.documentElement.scrollWidth,
       viewport:innerWidth
@@ -119,9 +123,12 @@ async function test(engine,label){
   assert(!terms.body.includes('公開前ドラフト'),label+' old launch draft removed');
   assert(!terms.body.includes('初回成約でも合計8％'),label+' obsolete first-sale statement removed');
   assert(/255, 244, 189|255, 223, 140/.test(terms.gold),label+' agreement conditions visible in gold');
+  assert.equal(terms.statusBackground,'rgb(255, 250, 241)',label+' remaining heads must have WARM ivory background, not blue');
+  assert.equal(terms.statusColor,'rgb(167, 56, 9)',label+' remaining heads must use ORANGE text, not breeder blue');
+  assert.equal(terms.statusBorder,'rgb(232, 161, 42)',label+' remaining heads must use orange border');
   assert(/残り(?:100|\d+)頭・受付中！|残りわずか・受付中！/.test(terms.status),label+' live quota status');
   assert(terms.mobileWidth<=terms.viewport+15,label+' agreement no horizontal iPhone overflow');
-  console.log('REAL_FEE_CAMPAIGN_TERMS_TAP_OK|'+label+'|'+JSON.stringify({status:terms.status,title:terms.title}));
+  console.log('REAL_FEE_CAMPAIGN_TERMS_ORANGE_STATUS_OK|'+label+'|'+JSON.stringify({status:terms.status,title:terms.title}));
   await page.goBack({waitUntil:'domcontentloaded'});
   await page.locator('#bpBreederCampaign').waitFor({state:'visible',timeout:25000});
   }
