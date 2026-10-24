@@ -28,5 +28,9 @@
     }
   }
   document.addEventListener('bigpaw:campaign-refresh',()=>updateForRole(currentRole));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&currentRole==='breeder')updateForRole('breeder');});
+  window.addEventListener('focus',()=>{if(currentRole==='breeder')updateForRole('breeder');});
+  // A campaign may finish while the dashboard is open, without navigation.
+  setInterval(()=>{if(currentRole==='breeder'&&!document.hidden)updateForRole('breeder');},60000);
   window.BigPawBreederDashboardCampaign=Object.freeze({updateForRole});
 })();
