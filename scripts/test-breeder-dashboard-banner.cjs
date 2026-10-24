@@ -84,7 +84,8 @@ async function test(engine,label){
     assert.equal(fiveDayInfo.ready,1,'only the aged puppy is eligible to return to the top');
     assert.equal(fiveDayInfo.waiting,1,'recent puppy shows a remaining-day countdown');
     assert(fiveDayInfo.allText.includes('上位表示できます！')&&fiveDayInfo.allText.includes('前回の上位表示から 3日1時間経過')&&fiveDayInfo.allText.includes('あと1日23時間で上位表示できます'),'both visible breeder update notices must render');
-    assert(fiveDayInfo.allText.includes('現在1頭が更新可能です')&&fiveDayInfo.allText.includes('前回の上位表示'),'top eligible-count summary and last date render');
+    assert(fiveDayInfo.allText.includes('現在1頭が上位表示できます')&&fiveDayInfo.allText.includes('前回の上位表示'),'top eligible-count summary and last date render');
+    assert(!fiveDayInfo.allText.includes('専用の順位更新ボタンは不要です')&&!/募集中\s+\d+頭・/.test(fiveDayInfo.allText),'do not expose implementation instructions in breeder notices');
     assert.equal(await page.locator('button').filter({hasText:'掲載順位を更新'}).count(),0,'no extra ranking button');
     assert(fiveDayInfo.width<=fiveDayInfo.viewport+15,'rank messages must not overflow mobile layout');
     console.log('BREEDER_FIVE_DAY_RANK_NOTICE_RENDERED_OK|'+label+'|1_ready|1d23h_remaining|3d1h_elapsed|last_rank_date|no_rank_button');
