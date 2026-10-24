@@ -85,6 +85,52 @@ try:
     first,pid=deal('first')
     check(request('POST','/api/deals/'+first+'/sale-report',BODY,'u_dog44',False)[0]==403,'production CSRF rejects missing origin')
     check(request('POST','/api/deals/'+first+'/sale-report',BODY,'u_demo')[0]==403,'buyer cannot claim breeder benefit')
+    # REAL API E2E IN A PRIVATE SCRATCH DB: promotional puppy, first site-wide slot,
+    # buyer sale/pickup confirmation and breeder-facing 3% invoice with a 7-day due date.
+    start=request('GET','/api/campaign/first100')[1]
+    check(start['status']=='active' and start['remaining']==100,
+          'launch quota has all 100 slots before first promoted puppy')
+    od,op=deal('oshicampaign-first')
+    st,selection=request('POST','/api/oshiwan/'+op+'/selection',
+                         {'enabled':True,'agreeOshiwanTerms':True},'u_dog44')
+    check(st==200,'breeder explicitly opts in first campaign puppy to Oshiwan')
+    # Inquiry must occur while 推しワン is selected; neither previous nor future inquiries
+    # are silently retrofitted with the optional 3% charge.
+    execute('UPDATE inquiries SET created_at=? WHERE id=?',(int(time.time()),'wf-i-oshicampaign-first'))
+    claim=post('/api/deals/'+od+'/sale-report',BODY)
+    check(claim['waived'] is True and claim['campaignWaived'] is True,
+          'first Oshiwan contract qualifies for waived BASE 5 percent')
+    frozen=query('SELECT waived,rate_bps FROM sale_fee_decisions WHERE deal_id=?',(od,))[0]
+    check(frozen['waived']==1 and frozen['rate_bps']==800,
+          'campaign claim freezes standard 5% plus Oshiwan 3%, waiving only the base')
+    post('/api/deals/'+od+'/sale-report',BODY)
+    remaining=request('GET','/api/campaign/first100')[1]
+    check(remaining['remaining']==99 and len(query('SELECT deal_id FROM first100_campaign_claims'))==1,
+          'repeat Oshiwan contract uses exactly one campaign slot, 100 down to 99')
+    answer(od,'sale')
+    post('/api/deals/'+od+'/completion-report',BODY)
+    invoice_rows=query('SELECT * FROM commission_invoices WHERE deal_id=?',(od,))
+    check(len(invoice_rows)==1 and invoice_rows[0]['rate_bps']==300
+          and invoice_rows[0]['fee_amount']==9000 and invoice_rows[0]['status']=='issued',
+          'Oshiwan during free-base campaign creates EXACTLY ONE 3% invoice: 9000 yen on 300000 yen')
+    check(invoice_rows[0]['due_at']-invoice_rows[0]['issued_at']==7*86400,
+          'Oshiwan campaign invoice payment deadline is exactly seven days after issue')
+    check('先着100頭' in invoice_rows[0]['note'] and '推しワン' in invoice_rows[0]['note'],
+          'invoice explicitly identifies campaign waiver and paid 3-percent promotion')
+    billing_status,billing=request('GET','/api/breeder/invoices',user='u_dog44')
+    check(billing_status==200 and any(v['deal_id']==od and v['fee_amount']==9000
+          and v['due_at']==invoice_rows[0]['due_at'] for v in billing),
+          'same live API used by breeder billing page shows actual 3% invoice and due date')
+    config_status,config=request('GET','/api/breeder/billing-config',user='u_dog44')
+    check(config_status==200 and config['commissionDueDays']==7,
+          'billing and invoice page configuration advertises 7-day deadline')
+    answer(od,'pickup')
+    post('/api/deals/'+od+'/completion-report',BODY)
+    check(len(query('SELECT * FROM commission_invoices WHERE deal_id=?',(od,)))==1,
+          'duplicate pickup and buyer confirmations cannot issue a second 3-percent invoice')
+    check(request('GET','/api/campaign/first100')[1]['remaining']==99,
+          'pickup and invoice issuing do not consume extra campaign slots')
+    print('OSHIWAN_CAMPAIGN_3PCT_7DAY_INVOICE_E2E_OK|first_slot_100_to_99|300000_yen_to_9000_yen|buyer_confirmed|invoice_shown_to_breeder|due_7_days|no_duplicate',flush=True)
     execute("INSERT INTO users(id,role,email,salt,password_hash,created_at) VALUES('u_test_policy','breeder','policy@example.invalid','s','h',?)",(int(time.time()),))
     execute("INSERT INTO breeders(id,user_id,kennel_name,prefecture,registration_no,profile,review_status) VALUES('b_test_policy','u_test_policy','規約同意試験犬舎','埼玉県','','','approved')")
     execute('INSERT INTO sessions VALUES(?,?,?,?)',('test-u_test_policy','u_test_policy',int(time.time()),int(time.time())+86400))
@@ -122,11 +168,10 @@ try:
     post('/api/deals/'+future+'/completion-report',BODY,'u_test_policy');answer(future,'pickup')
     flow=query('SELECT sold_animal_type,sold_animal_name FROM sale_workflow WHERE deal_id=?',(future,))[0]
     check(flow=={'sold_animal_type':'adult','sold_animal_name':'成約確認対象の成犬'},'completion report preserves the actual sold dog')
-    # This isolated fixture already used one site-wide campaign slot for the
-    # policy-eligible deal above. Seed another 98 immutable claims to reach 99.
-    # The next valid sale report gets the LAST campaign slot, regardless of kennel.
+    # Two real fixture claims exist: Oshiwan first puppy and policy-qualified adult.
+    # Seed 97 immutable claims to reach 99 for the final-100th-slot test.
     execute("INSERT INTO first100_campaign_claims(deal_id,breeder_id,claimed_at) VALUES(?,?,?)",('seed-campaign-0','test',int(time.time())))
-    for i in range(1,98):
+    for i in range(1,97):
         execute("INSERT INTO first100_campaign_claims(deal_id,breeder_id,claimed_at) VALUES(?,?,?)",('seed-campaign-'+str(i),'test',int(time.time())))
     state=request('GET','/api/campaign/first100')[1]
     check(state['status']=='active' and state['remaining'] is None and state['remainingLabel']=='残りわずか・受付中','last 20 campaign remaining slots are hidden')
@@ -311,6 +356,8 @@ try:
     post('/api/deals/'+os_d+'/completion-report',BODY,uid)
     inv=query('SELECT * FROM commission_invoices WHERE deal_id=?',(os_d,))
     check(len(inv)==1 and inv[0]['fee_amount']==24000 and inv[0]['rate_bps']==800,'Oshiwan invoice charges 5% plus 3% of the agreed sale price')
+    check(inv[0]['due_at']-inv[0]['issued_at']==7*86400 and inv[0]['status']=='issued',
+          'Oshiwan post-campaign 8% invoice also has exactly 7-day payment deadline')
     check('成約手数料5％＋推しワン利用料3％' in inv[0]['note'],'Oshiwan invoice distinctly itemizes both 5% and 3% fees')
     answer(os_d,'pickup')
     check(len(query('SELECT * FROM commission_invoices WHERE deal_id=?',(os_d,)))==1,'Oshiwan buyer confirmation cannot duplicate invoice')
@@ -329,6 +376,8 @@ try:
     post('/api/deals/'+first_osh_d+'/completion-report',BODY,'u_oshi_first')
     first_osh_invoice=query('SELECT * FROM commission_invoices WHERE deal_id=?',(first_osh_d,))
     check(len(first_osh_invoice)==1 and first_osh_invoice[0]['rate_bps']==800 and first_osh_invoice[0]['fee_amount']==24000,'Oshiwan first sale after campaign correctly charges 24000 yen total fees')
+    check(first_osh_invoice[0]['due_at']-first_osh_invoice[0]['issued_at']==7*86400,
+          'Oshiwan new-breeder first sale AFTER quota expiry is due in seven days')
     check('推しワン利用料' in first_osh_invoice[0]['note'],'Oshiwan first-sale invoice identifies promotion separate from standard fee')
     check(not query('SELECT * FROM first_sale_benefits WHERE breeder_id=?',('b_oshi_first',)),'no new per-breeder first sale waiver is recorded')
     answer(first_osh_d,'pickup')
