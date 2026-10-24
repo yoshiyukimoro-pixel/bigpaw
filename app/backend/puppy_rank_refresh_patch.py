@@ -49,12 +49,17 @@ extended=(update
           +"; maybe_bump_puppy_rank(con,m.group(1),any(before[k]!=after[k] for k in "+compare+"))")
 piece=piece.replace(update,extended,1)
 s=s[:pos]+piece+s[end:]
-old="""            con.execute('INSERT INTO uploads VALUES(?,?,?,?,?,?,?)',(upid,u['id'],(None if puppy_id=='breeder-proof' else puppy_id or None),original,stored,mime,now())); con.commit(); con.close()"""
-new="""            con.execute('INSERT INTO uploads VALUES(?,?,?,?,?,?,?)',(upid,u['id'],(None if puppy_id=='breeder-proof' else puppy_id or None),original,stored,mime,now()))
-            # Adding an actual photo counts as a meaningful listing update,
-            # including if the main photo itself does not change.
-            if puppy_id and puppy_id!='breeder-proof': maybe_bump_puppy_rank(con,puppy_id,True)
-            con.commit(); con.close()"""
-once(old,new,"photo add")
+# Hook right before successful uploaded-photo response so upstream image
+# processing/persistence may evolve without breaking this feature.
+upload_reply="return self.send_json({'id':upid,'url':'/uploads/'+stored},201)"
+if s.count(upload_reply)!=1: raise RuntimeError('RANK_REFRESH_PATCH_ANCHOR_FAIL|upload response|count='+str(s.count(upload_reply)))
+s=s.replace(upload_reply,"""if puppy_id and puppy_id!='breeder-proof':
+                _rankcon=db()
+                try:
+                    maybe_bump_puppy_rank(_rankcon,puppy_id,True)
+                    _rankcon.commit()
+                finally:
+                    _rankcon.close()
+            """+upload_reply,1)
 p.write_text(s,encoding='utf-8')
 print('FIVE_DAY_RANK_PATCH_OK|persisted_rank_date|5days|genuine_content_or_new_photo|no_op_denied|status_not_refresh|created_date_preserved|search_order',flush=True)
