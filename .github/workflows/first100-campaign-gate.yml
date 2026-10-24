@@ -37,9 +37,15 @@ jobs:
           assert "kind=='sale'" in source, 'campaign only counted on sale-report'
           js=Path('app/assets/first100-campaign.js').read_text()
           assert "data.remainingLabel" in js
-          for p in ('app/breeder-fees.html','app/breeder-deal-report.html','app/breeder-register.html','app/index.html'):
+          for p in ('app/breeder-deal-report.html','app/breeder-register.html','app/index.html'):
               html=Path(p).read_text()
               assert 'data-bp-first100' in html and 'first100-campaign.js' in html, p
+          # The breeder fee page uses a dedicated, brighter campaign controller.
+          fees=Path('app/breeder-fees.html').read_text()
+          assert 'id="bpBreederCampaign"' in fees and 'breeder-fees-campaign.js' in fees
+          assert 'id="bpBreederStandardHero" hidden' in fees
+          controller=Path('app/assets/breeder-fees-campaign.js').read_text()
+          assert '/api/campaign/first100' in controller and "data.status==='active'" in controller
           for p in ('app/breeder-deal-report.html','app/breeder-fee-agreement.html','app/assets/oshiwan-editor.js','app/backend/oshiwan.py'):
               s=Path(p).read_text()
               assert '初回成約無料特典' not in s, (p,'obsolete free-first-sale offer')
