@@ -10,15 +10,13 @@
   async function updateForRole(role){
     currentRole=role||null;
     const request=++revision;
-    banner.hidden=true;
-    count.textContent='';
-    if(role!=='breeder')return;
+    if(role!=='breeder'){banner.hidden=true;count.textContent='';return;}
     try{
       const response=await fetch('/api/campaign/first100',{credentials:'same-origin',cache:'no-store'});
       if(!response.ok)throw new Error('HTTP '+response.status);
       const data=await response.json();
       if(revision!==request||currentRole!=='breeder')return;
-      if(!data||data.status!=='active'||data.eligible!==true||!Number.isInteger(data.remaining)||data.remaining<1)return;
+      if(!data||data.status!=='active'||data.eligible!==true||!Number.isInteger(data.remaining)||data.remaining<1){banner.hidden=true;count.textContent='';return;}
       count.textContent=data.remaining>20?'残り'+data.remaining+'頭・受付中！':'残りわずか・受付中！';
       banner.hidden=false;
     }catch(err){
