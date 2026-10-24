@@ -98,8 +98,9 @@ async function test(engine,label){
   currentRole='buyer';
   billingConfigRequests=0;
   await page.goto(origin+'/operator-invoice-preview.html?deny-buyer=1',{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>document.querySelector('#previewError')?.innerText.includes('運営アカウント'));
+  await page.waitForFunction(()=>location.pathname!=='/operator-invoice-preview.html'||document.querySelector('#previewError')?.innerText.includes('運営アカウント'));
   assert.equal(await page.locator('#previewInvoice').isHidden(),true,'buyer must never see bank details in operator preview');
+  assert(!(await page.locator('body').innerText()).includes('12345'),'no private bank number leaks in non-operator DOM');
   assert.equal(billingConfigRequests,0,'buyer must not request account config through operator preview');
   console.log('OPERATOR_INVOICE_PREVIEW_BUYER_DENIED_OK|'+label);
   assert.deepEqual(errors,[],'no JavaScript errors');
