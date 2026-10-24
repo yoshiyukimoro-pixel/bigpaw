@@ -12,6 +12,10 @@ const terms=fs.readFileSync(path.join(dir,'terms.html'),'utf8');
 const fees=fs.readFileSync(path.join(dir,'breeder-fees.html'),'utf8');
 const register=fs.readFileSync(path.join(dir,'breeder-register.html'),'utf8');
 const js=fs.readFileSync(path.join(dir,'assets/breeder-fee-agreement-campaign.js'),'utf8');
+expect(html,'body.bp-account-page #bpFeeTermsCampaign .status{','campaign quota status must beat global blue breeder theme');
+expect(html,'background:#fffaf1','campaign quota warm ivory background');
+expect(html,'color:#a73809','campaign quota orange foreground');
+expect(html,'border:2px solid #e8a12a','campaign quota orange border');
 const expect=(text,fragment,label)=>assert(text.includes(fragment),label+' '+fragment);
 for(const id of ['bpFeeTermsCampaign','bpFeeTermsCampaignTitle','bpFeeTermsCampaignStatus','bpFeeTermsCampaignPeriod']){
   expect(html,'id="'+id+'"','terms banner');
@@ -34,9 +38,9 @@ expect(register,'body .breeder-signup-promo .bp-first100[data-state="active"]','
 assert.equal((register.match(/data-bp-first100 hidden/g)||[]).length,1,'registration must show only one campaign banner');
 assert(!register.includes('先着100頭は成約手数料5％ → 0％！</h2>'),'remove duplicate static signup offer');
 expect(register,'通常5％の成約手数料（キャンペーン対象取引は免除）','registration checkbox');
-expect(fees,'href="breeder-fee-agreement.html?v=20261024-terms1"','fee page click');
-expect(register,'href="breeder-fee-agreement.html?v=20261024-terms1"','registration agreement link');
-assert(!fs.readFileSync(path.join(dir,'index.html'),'utf8').includes('20261024-terms1'),'buyer homepage not touched');
+expect(fees,'href="breeder-fee-agreement.html?v=20261024-terms-orange2"','fee page click');
+expect(register,'href="breeder-fee-agreement.html?v=20261024-terms-orange2"','registration agreement link');
+assert(!fs.readFileSync(path.join(dir,'index.html'),'utf8').includes('20261024-terms-orange2'),'buyer homepage not touched');
 
 const flush=()=>new Promise(r=>setImmediate(r));
 async function test(name,response,expectedState,expectedText,isError=false){
