@@ -9,6 +9,15 @@ on:
       - 'app/assets/breeder-fees-campaign.js'
       - 'scripts/test-breeder-fees-real-browser.cjs'
       - '.github/workflows/breeder-fees-real-browser-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app/backend/breeder_mobile_menu_runtime_patch.py'
+      - 'app/mobile-global-nav.js'
+      - 'app/breeder-fees.html'
+      - 'app/assets/breeder-fees-campaign.js'
+      - 'scripts/test-breeder-fees-real-browser.cjs'
+      - '.github/workflows/breeder-fees-real-browser-gate.yml'
 jobs:
   real-mobile-click:
     runs-on: ubuntu-latest
@@ -49,10 +58,20 @@ jobs:
         env:
           BIGPAW_TEST_WEBKIT: '1'
         run: node scripts/test-breeder-fees-real-browser.cjs http://127.0.0.1:18096
+      - name: Wait for new release HTML on production after main is merged
+        if: github.event_name == 'push'
+        run: |
+          ready=0
+          for i in $(seq 1 90); do
+            if curl -fsSL --max-time 15 'https://bigpaw.site/admin.html?release=20261024-fresh-e2e4' | grep -Fq 'mobile-global-nav.js?v=20261024-breeder-pricing-e2e4'; then ready=1; break; fi
+            sleep 4
+          done
+          if [ "$ready" != 1 ]; then echo 'PRODUCTION_FRESH_MENU_VERSION_MISSING'; exit 1; fi
       - name: Verify public production breeder mobile menu with read-only requests in both engines
         env:
           BIGPAW_TEST_WEBKIT: '1'
           BIGPAW_LIVE_READONLY: '1'
+          BIGPAW_EXPECT_LIVE_FRESH: ${{ github.event_name == 'push' && '1' || '0' }}
         run: node scripts/test-breeder-fees-real-browser.cjs https://bigpaw.site
       - name: Log test-only server for failure analysis
         if: failure()
