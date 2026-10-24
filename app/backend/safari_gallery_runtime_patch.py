@@ -213,13 +213,13 @@ if ROLE_PREVIEW_MARKER not in auth:
             if(host){{
               const n=document.createElement('div');
               n.id='bigpawPublicPreviewNotice';
-              n.style.cssText='margin:10px 0 14px;padding:10px 12px;border:1px solid #c5dced;border-radius:12px;background:#f3f8ff;color:#315f89;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px';
+              n.style.cssText='margin:10px 0 14px;padding:10px 12px;border:1px solid '+(role==='operator'?'#e9dc91':'#c5dced')+';border-radius:12px;background:'+(role==='operator'?'#fff7d4':'#f3f8ff')+';color:'+(role==='operator'?'#705d00':'#315f89')+';font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px';
               const label=document.createElement('span');
               label.textContent=role==='operator'?'運営として一般公開ページを表示中':'ブリーダーとして一般公開ページを表示中';
               const a=document.createElement('a');
               a.href=role==='operator'?'/operator-admin.html':'/admin.html';
               a.textContent=role==='operator'?'運営管理へ戻る':'ブリーダー管理へ戻る';
-              a.style.cssText='color:#315f89;text-decoration:underline;white-space:nowrap';
+              a.style.cssText='color:'+(role==='operator'?'#705d00':'#315f89')+';text-decoration:underline;white-space:nowrap';
               n.append(label,a);
               host.insertAdjacentElement('afterend',n);
             }}
