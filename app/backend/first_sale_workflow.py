@@ -8,6 +8,7 @@ import json
 import re
 import secrets
 import threading
+import first100_campaign
 
 TERMS = '2026-10-03-first-sale-v2'
 CONSENT_TEXT = '成約・お迎え完了・キャンセルについて正確に申告します。運営の確認により虚偽の申告が認められた場合、現在の掲載および今後の新規掲載・再掲載が停止されることに同意します。'
@@ -76,11 +77,13 @@ def install(g):
     original_init, original_invoice = g['init_db'], g['ensure_commission_invoice']
     original_auto = g['run_automations_once']
     old_get, old_post, old_patch, old_delete = H.do_GET, H.do_POST, H.do_PATCH, H.do_DELETE
+    campaign_enabled = first100_campaign.enabled(g['IS_PRODUCTION'])
 
     def migrate():
         original_init()
         with db() as c:
             c.executescript(SCHEMA)
+            first100_campaign.initialize(c, now(), campaign_enabled)
             g['ensure_column'](c, 'breeders', 'compliance_suspended', 'INTEGER NOT NULL DEFAULT 0')
             g['ensure_column'](c, 'breeders', 'compliance_note', "TEXT NOT NULL DEFAULT ''")
             g['ensure_column'](c, 'sale_workflow', 'sold_animal_type', "TEXT NOT NULL DEFAULT 'original'")
@@ -115,7 +118,8 @@ def install(g):
         # Called inside BEGIN IMMEDIATE: simultaneous first applications cannot both win.
         c.execute('INSERT OR IGNORE INTO first_sale_benefits VALUES(?,?,?)', (d['breeder_id'], d['id'], now()))
         claim = c.execute('SELECT * FROM first_sale_benefits WHERE breeder_id=?', (d['breeder_id'],)).fetchone()
-        waived = int(claim['deal_id'] == d['id'])
+        campaign_waived = first100_campaign.claim(c, d['id'], d['breeder_id'], now(), campaign_enabled)
+        waived = int(claim['deal_id'] == d['id'] or campaign_waived)
         # The customer must inquire while this puppy is selected as 推しワン.
         # Freeze the rate when a sale is first reported; later toggles do not change it.
         featured = c.execute("""SELECT 1 FROM oshiwan_periods o
@@ -126,7 +130,7 @@ def install(g):
         rate = g['COMMISSION_RATE_BPS'] + (300 if featured else 0)
         c.execute('INSERT INTO sale_fee_decisions VALUES(?,?,?,?,?,?)',
                   (d['id'], d['breeder_id'], waived, rate, TERMS, now()))
-        audit(c, None, 'first_sale_fee_decided', 'deal', d['id'], 'waived' if waived else 'standard')
+        audit(c, None, 'first_sale_fee_decided', 'deal', d['id'], 'campaign_100' if campaign_waived else 'first_sale_free' if waived else 'standard')
         return c.execute('SELECT * FROM sale_fee_decisions WHERE deal_id=?', (d['id'],)).fetchone()
 
     def invoice(c, d):
@@ -137,7 +141,11 @@ def install(g):
         # The universal first sale waives only the standard success fee.
         # First sale waives only the standard 5% charge, not the optional 3% 推しワン fee.
         if decision and decision['waived'] and decision['rate_bps'] == g['COMMISSION_RATE_BPS']: return None
-        return original_invoice(c, d)
+        issued = original_invoice(c, d)
+        if issued and first100_campaign.claimed(c, d['id']) and issued['rate_bps'] == 300:
+            c.execute('UPDATE commission_invoices SET note=? WHERE id=?', ('BIG PAW 先着100頭成約キャンペーン・推しワン利用料3％（税込）', issued['id']))
+            return c.execute('SELECT * FROM commission_invoices WHERE id=?',(issued['id'],)).fetchone()
+        return issued
 
     def notify_ops(c, title, detail, key):
         for op in c.execute("SELECT id,email FROM users WHERE role='operator'").fetchall():
@@ -199,12 +207,14 @@ def install(g):
         breeder = c.execute('SELECT u.id,u.email FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?', (d['breeder_id'],)).fetchone()
         if inv:
             decision = c.execute('SELECT waived FROM sale_fee_decisions WHERE deal_id=?',(d['id'],)).fetchone()
+            free_label = '先着100頭キャンペーン' if first100_campaign.claimed(c, d['id']) else '初回無料特典'
             fee_lines = (f"通常成約手数料：{inv['sale_amount']*5//100:,}円（5%）\n推しワン利用料：{inv['sale_amount']*3//100:,}円（3%）\n" if inv['rate_bps']==800
-                         else "通常成約手数料：0円（初回無料特典）\n推しワン利用料：{:,}円（3%）\n".format(inv['fee_amount']) if inv['rate_bps']==300
+                         else "通常成約手数料：0円（{}）\n推しワン利用料：{:,}円（3%）\n".format(free_label,inv['fee_amount']) if inv['rate_bps']==300
                          else f"通常成約手数料：{inv['fee_amount']:,}円（{inv['rate_bps']/100:g}%）\n")
             text = f"お迎え完了の報告を受け付けました。\n{fee_lines}合計：{inv['fee_amount']:,}円（税込）\n請求番号：{inv['invoice_no']}\n支払期限：発行日から7日以内\n"+g['PUBLIC_BASE_URL']+'/breeder-billing.html'
         else:
-            text = 'お迎え完了の報告を受け付けました。初回無料特典により成約手数料は0円です。請求書は発行されません。'
+            free_label = '先着100頭キャンペーン' if first100_campaign.claimed(c, d['id']) else '初回無料特典'
+            text = 'お迎え完了の報告を受け付けました。'+free_label+'により通常成約手数料は0円です。請求書は発行されません。'
         if breeder:
             enqueue(c, 'completed:'+d['id'], breeder['email'], 'BIG PAW お迎え完了・成約手数料のご案内', text)
             c.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)', (mid('n_'),breeder['id'],'billing','お迎え完了を確認しました',text,0,t))
@@ -220,6 +230,10 @@ def install(g):
 
     def get(h):
         path=urlparse(h.path).path
+        if path=='/api/campaign/first100':
+            c=db()
+            try: return h.send_json(first100_campaign.public_state(c, now(), campaign_enabled))
+            finally: c.close()
         if path not in ('/api/breeder/first-sale-benefit','/api/breeder/sale-workflow','/api/breeder/deal-policy-consent','/api/buyer/sale-confirmations','/api/operator/sale-confirmations'):
             return old_get(h)
         role = 'operator' if '/operator/' in path else 'buyer' if '/buyer/' in path else 'breeder'
@@ -252,7 +266,7 @@ def install(g):
             if path.endswith('first-sale-benefit'):
                 claim=c.execute('SELECT * FROM first_sale_benefits WHERE breeder_id=?',(b['id'],)).fetchone()
                 return h.send_json({'used':bool(claim),'usedAt':claim['used_at'] if claim else None,'dealId':claim['deal_id'] if claim else None,'rateBps':g['COMMISSION_RATE_BPS'],'termsVersion':TERMS,'listingSuspended':bool(b['compliance_suspended'])})
-            rows=c.execute("SELECT w.*,COALESCE(NULLIF(w.sold_animal_name,''),p.name) puppy_name,f.waived FROM sale_workflow w JOIN deals d ON d.id=w.deal_id JOIN puppies p ON p.id=d.puppy_id LEFT JOIN sale_fee_decisions f ON f.deal_id=w.deal_id WHERE w.breeder_id=? ORDER BY w.updated_at DESC",(b['id'],)).fetchall()
+            rows=c.execute("SELECT w.*,COALESCE(NULLIF(w.sold_animal_name,''),p.name) puppy_name,f.waived,CASE WHEN cm.deal_id IS NULL THEN 0 ELSE 1 END campaign_waived FROM sale_workflow w JOIN deals d ON d.id=w.deal_id JOIN puppies p ON p.id=d.puppy_id LEFT JOIN sale_fee_decisions f ON f.deal_id=w.deal_id LEFT JOIN first100_campaign_claims cm ON cm.deal_id=w.deal_id WHERE w.breeder_id=? ORDER BY w.updated_at DESC",(b['id'],)).fetchall()
             return h.send_json([dict(r) for r in rows])
         finally: c.close()
 
@@ -396,7 +410,7 @@ def install(g):
             if kind=='pickup': finalize(c,d,fresh)
             if kind=='cancellation': monitor_cancel(c,d)
             audit(c,u['id'],'breeder_sale_report','deal',d['id'],kind)
-            c.commit(); return h.send_json({'ok':True,'dealId':d['id'],'state':'completed' if kind=='pickup' else state,'waived':bool(decision['waived'])})
+            c.commit(); return h.send_json({'ok':True,'dealId':d['id'],'state':'completed' if kind=='pickup' else state,'waived':bool(decision['waived']),'campaignWaived':first100_campaign.claimed(c,d['id'])})
         finally:
             c.close()
             # Send outside DB write transaction; failed mail remains queued for retry.
