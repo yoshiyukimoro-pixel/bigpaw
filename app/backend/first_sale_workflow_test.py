@@ -60,7 +60,9 @@ def answer(did,kind,value='yes',user='u_demo'):
     sc=confirmation(did,kind)
     return post('/api/buyer/sale-confirmations/answer',{'id':sc['id'],'answer':value},user)
 try:
-    for _ in range(100):
+    # The cold production image may initialize slowly on shared Railway CI CPUs.
+    # A readiness timeout must not mistake a healthy slow start for a fatal error.
+    for _ in range(300):
         try:
             if request('GET','/api/health')[0]==200:break
         except Exception:time.sleep(.1)
@@ -77,7 +79,9 @@ try:
     process.terminate();process.wait(timeout=5)
     env.update(BIGPAW_ENV='production',BIGPAW_ADMIN_EMAIL='admin@example.invalid',BIGPAW_ADMIN_PASSWORD='ProductionTestOnly123!',BIGPAW_DEV_LINKS='0')
     process=subprocess.Popen([sys.executable,str(server)],cwd=app,env=env,stdout=log,stderr=log)
-    for _ in range(100):
+    # The cold production image may initialize slowly on shared Railway CI CPUs.
+    # A readiness timeout must not mistake a healthy slow start for a fatal error.
+    for _ in range(300):
         try:
             if request('GET','/api/health')[0]==200:break
         except Exception:time.sleep(.1)
