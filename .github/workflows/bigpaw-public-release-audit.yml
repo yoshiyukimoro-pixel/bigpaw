@@ -1,0 +1,61 @@
+name: BIG PAW public post-merge release verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/bigpaw-public-release-audit.yml'
+  workflow_dispatch:
+jobs:
+  public-readonly-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Confirm live deployment content and public puppy health API using GET only
+        run: |
+          python3 - <<'PY'
+          import json
+          import urllib.request
+          BASE='https://bigpaw.site'
+          def read(path):
+              req=urllib.request.Request(BASE+path,headers={'User-Agent':'BIGPAW-public-release-readonly-audit/1.0','Accept':'text/html,application/json'})
+              with urllib.request.urlopen(req,timeout=20) as r:
+                  if r.status!=200: raise AssertionError(f'{path}: HTTP {r.status}')
+                  if r.url.split('?')[0] != BASE+path: raise AssertionError(f'{path}: redirected')
+                  raw=r.read(2000000)
+                  return raw.decode('utf-8')
+          health=json.loads(read('/api/health'))
+          assert health.get('environment')!='development','the live origin unexpectedly runs development'
+          print('PASS|public health API is live; no authentication or writes')
+          admin=read('/admin.html')
+          assert '何も変更せず保存しても掲載順位は変わりません' in admin
+          assert '専用の順位更新ボタンは不要です' not in admin
+          assert "募集中 '+all+'頭" not in admin
+          print('PASS|publicly served breeder dashboard contains correct ranking copy')
+          photo=read('/breeder-puppy-new.html')
+          assert '.photo-box{border:2px dashed var(--account-accent,#5f8fc3)' in photo
+          assert 'background:var(--account-soft,#edf5ff)' in photo
+          assert 'background:#ef7da7' not in photo and '.photo-box{border:2px dashed #efbfd1' not in photo
+          print('PASS|publicly served breeder photo uploader and crop controls have management blue theme')
+          detail=read('/puppy-detail.html')
+          for k in ('healthStatus','vaccineStatus','microchipStatus','geneticTestStatus'):
+              assert k in detail,f'public detail is missing {k}'
+          assert 'p.healthStatus||(p.health?' in detail
+          assert "vaccineText.textContent=p.vaccineStatus" in detail
+          print('PASS|publicly served puppy detail includes saved health field rendering')
+          public=json.loads(read('/api/puppies'))
+          assert isinstance(public,list),'public puppies endpoint did not return a list'
+          keys=('healthStatus','vaccineStatus','microchipStatus','geneticTestStatus')
+          for p in public:
+              assert all(k in p for k in keys),'published puppy list is missing health fields'
+          if public:
+              first=public[0]
+              import urllib.parse
+              item=json.loads(read('/api/puppies/'+urllib.parse.quote(str(first['id']),safe='')))
+              assert all(item.get(k)==first[k] for k in keys),'public list and detail APIs disagree on health fields'
+              print('PASS|public puppy list and detail APIs agree on saved health fields (no personal data printed)')
+          else:
+              print('SKIP|no published puppies; health API parity cannot be independently checked')
+          print('BIGPAW_PUBLIC_POSTMERGE_READONLY_OK')
+          PY
