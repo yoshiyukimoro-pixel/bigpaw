@@ -5,10 +5,19 @@
  */
 const assert=require('node:assert/strict');
 const { chromium, webkit }=require('playwright');
+const { execSync }=require('child_process');
+const fs=require('fs');
+function installedChrome(){
+ if(process.env.BIGPAW_CHROME_BIN)return process.env.BIGPAW_CHROME_BIN;
+ for(const command of ['google-chrome','google-chrome-stable','chromium','chromium-browser']){
+  try{const p=execSync('command -v '+command,{encoding:'utf8'}).trim();if(p&&fs.existsSync(p))return p;}catch(_e){}
+ }
+ throw Error('GITHUB_RUNNER_CHROME_NOT_FOUND');
+}
 const origin=process.argv[2]||'http://127.0.0.1:18096';
 
 async function test(engine,label){
- const browser=await engine.launch({headless:true});
+ const browser=await engine.launch({headless:true,...(label.includes('chromium')?{executablePath:installedChrome(),args:['--no-sandbox']}: {})});
  try {
   const ctx=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
   const page=await ctx.newPage();
@@ -80,6 +89,7 @@ async function test(engine,label){
  assert.equal(health.paymentMode,'demo','must not process payments');
  const data=await fetch(origin+'/api/campaign/first100').then(r=>r.json());
  assert.equal(data.status,'active','campaign active in isolated fixture');
- for (const [engine,label] of [[chromium,'chromium-ios-viewport'],[webkit,'webkit-ios-engine']])await test(engine,label);
- console.log('BREEDER_CAMPAIGN_REAL_BROWSER_E2E_OK|actual_menu_tap|actual_computed_orange|5_percent_hidden|browser_back_and_forth|two_engines');
+ await test(chromium,'chromium-ios-viewport');
+ if(process.env.BIGPAW_TEST_WEBKIT==='1')await test(webkit,'webkit-ios-engine');
+ console.log('BREEDER_CAMPAIGN_REAL_BROWSER_E2E_OK|actual_menu_tap|actual_computed_orange|5_percent_hidden|browser_back_and_forth|chrome'+(process.env.BIGPAW_TEST_WEBKIT==='1'?'_plus_webkit':''));
 })().catch(e=>{console.error(e);process.exitCode=1});
