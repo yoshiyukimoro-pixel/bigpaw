@@ -41,7 +41,7 @@ async function test(engine,label){
   let status=await page.goto(origin+'/admin.html?pricing-e2e='+label,{waitUntil:'domcontentloaded'});
   assert.equal(status.status(),200,label+' dashboard response');
   const src=await page.locator('script[src*="/mobile-global-nav.js"]').getAttribute('src');
-  assert((requireFresh ? /v=20261024-breeder-pricing-e2e4/ : /v=20261024-breeder-pricing-e2e[34]/).test(src),label+' must load the appropriate cache-busted menu, got '+src);
+  assert((requireFresh ? /v=20261024-breeder-signup-blue1/ : /v=20261024-(?:breeder-pricing-e2e[34]|breeder-signup-blue1)/).test(src),label+' must load the appropriate cache-busted menu, got '+src);
   await page.locator('#bp-global-mobile-menu-button').waitFor({state:'visible',timeout:25000});
   await page.locator('#bp-global-mobile-menu-button').click();
   const feeLink=page.locator('#bp-global-mobile-menu-drawer a').filter({hasText:'料金・手数料'}).first();
