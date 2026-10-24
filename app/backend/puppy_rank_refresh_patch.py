@@ -40,7 +40,7 @@ if pos<0: raise RuntimeError('RANK_REFRESH_PATCH_ANCHOR_FAIL|edit map')
 end=s.index("return self.send_json(puppy_json(r))",pos)
 piece=s[pos:end]
 if piece.count("            if sets:")!=1: raise RuntimeError('RANK_REFRESH_PATCH_ANCHOR_FAIL|edit if sets')
-piece=piece.replace("            if sets:", "            if sets:\\n                before=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()",1)
+piece=piece.replace("            if sets:", "            if sets:\n                before=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()",1)
 update="con.execute('UPDATE puppies SET '+','.join(sets)+' WHERE id=?',args)"
 if piece.count(update)!=1: raise RuntimeError('RANK_REFRESH_PATCH_ANCHOR_FAIL|edit UPDATE count='+str(piece.count(update)))
 compare="('name','breed','breed_key','gender','color','birth','price','description','image_url','weight','adult_min','adult_max','father','mother','health')"
