@@ -54,6 +54,9 @@
   function mount(kind,role){
     if(document.getElementById('bp-global-mobile-menu-button')) return;
     const cfg=menus[kind]||menus.public;
+    // The breeder application is blue even for a logged-out visitor. Keep the
+    // actual menu entries and permissions based on the real session role.
+    const menuTone=path.endsWith('/breeder-register.html')?'breeder':cfg.tone;
     const style=document.createElement('style');
     style.textContent=`
       #bp-global-mobile-menu-button,#bp-global-mobile-menu-overlay,#bp-global-mobile-menu-drawer{display:none}
@@ -77,8 +80,8 @@
       html[data-bp-mobile-tone="buyer"],html[data-bp-mobile-tone="public"]{--bp-menu-bg:#fff7fb;--bp-menu-border:#efd0df;--bp-menu-text:#a84f76;--bp-menu-current:#ffe3ef}
     `;
     document.head.appendChild(style);
-    document.documentElement.setAttribute('data-bp-mobile-tone',cfg.tone);
-    if(document.body.classList.contains('bp-account-page')) document.documentElement.setAttribute('data-bp-page-theme',cfg.tone);
+    document.documentElement.setAttribute('data-bp-mobile-tone',menuTone);
+    if(document.body.classList.contains('bp-account-page')) document.documentElement.setAttribute('data-bp-page-theme',menuTone);
 
     const btn=document.createElement('button');
     btn.id='bp-global-mobile-menu-button';btn.type='button';btn.setAttribute('aria-label',cfg.label+'を開く');btn.innerHTML='<span style="font-size:18px">☰</span><span>メニュー</span>';
