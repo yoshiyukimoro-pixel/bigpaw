@@ -39,6 +39,31 @@ async function test(engine,label){
   assert.equal(response.status(),200,'dashboard HTTP 200');
   const banner=page.locator('#bpBreederDashboardCampaign');
   await banner.waitFor({state:'visible',timeout:25000});
+  await page.locator('#bpParentQuick').waitFor({state:'visible',timeout:25000});
+  const layout=await page.evaluate(()=>{
+    const heading=document.querySelector('.main h1');
+    const promo=document.getElementById('bpBreederDashboardCampaign');
+    const action=document.getElementById('bpParentQuick');
+    const firstAction=action?.querySelector('a[href="breeder-puppy-new.html"]');
+    const parentAction=action?.querySelector('a[href="parent-dogs.html"]');
+    return {
+      headingBeforePromo:!!(heading.compareDocumentPosition(promo)&Node.DOCUMENT_POSITION_FOLLOWING),
+      promoImmediatelyBeforeActions:promo.nextElementSibling===action,
+      bannerTop:promo.getBoundingClientRect().top,
+      actionTop:action.getBoundingClientRect().top,
+      firstActionVisible:!!firstAction&&getComputedStyle(firstAction).display!=='none',
+      parentActionVisible:!!parentAction&&getComputedStyle(parentAction).display!=='none',
+      actionLinks:[...action.querySelectorAll('a')].map(a=>a.getAttribute('href')),
+      viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth
+    };
+  });
+  assert.equal(layout.headingBeforePromo,true,'campaign must follow page heading');
+  assert.equal(layout.promoImmediatelyBeforeActions,true,'campaign must immediately precede BOTH quick action buttons');
+  assert(layout.actionTop>layout.bannerTop,'campaign must be visually above puppy and parent controls');
+  assert(layout.firstActionVisible&&layout.parentActionVisible,'both puppy and parent actions must remain visible');
+  assert.deepEqual(layout.actionLinks,['breeder-puppy-new.html','parent-dogs.html'],'quick action targets preserved');
+  assert(layout.scrollWidth<=layout.viewport+15,'no horizontal overflow on mobile');
+  console.log('BREEDER_DASHBOARD_PROMO_FIRST_LAYOUT_OK|'+label+'|'+JSON.stringify(layout));
   assert.equal(await page.locator('.bp-first-sale-benefit').count(),0,'legacy notice cannot duplicate banner');
   const initial=await page.evaluate(()=>{
    const e=document.querySelector('#bpBreederDashboardCampaign'),s=getComputedStyle(e);
@@ -63,6 +88,7 @@ async function test(engine,label){
       assert.equal(await banner.isVisible(),true,'active campaign must remain visible');
     }else{
       await banner.waitFor({state:'hidden'});
+      assert.equal(await page.locator('#bpParentQuick').isVisible(),true,'quick actions remain visible after campaign closes');
       assert.equal(await page.locator('#bpBreederDashboardCampaignCount').textContent(),'','never display stale slots');
     }
    }
