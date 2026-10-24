@@ -93,7 +93,7 @@ jobs:
         run: |
           ready=0
           for i in $(seq 1 90); do
-            if curl -fsSL --max-time 15 'https://bigpaw.site/admin.html?release=20261024-fresh-e2e4' | grep -Fq 'mobile-global-nav.js?v=20261024-breeder-signup-blue1' && curl -fsSL --max-time 15 'https://bigpaw.site/breeder-fees.html?release=20261024-terms1' | grep -Fq 'breeder-fee-agreement.html?v=20261024-terms1'; then ready=1; break; fi
+            if curl -fsSL --max-time 15 'https://bigpaw.site/admin.html?release=20261024-promo-first1' | grep -Fq 'breeder-parent-entry.js?v=20261024-campaign-first1' && curl -fsSL --max-time 15 'https://bigpaw.site/breeder-fees.html?release=20261024-terms1' | grep -Fq 'breeder-fee-agreement.html?v=20261024-terms1'; then ready=1; break; fi
             sleep 4
           done
           if [ "$ready" != 1 ]; then echo 'PRODUCTION_FRESH_MENU_VERSION_MISSING'; exit 1; fi
