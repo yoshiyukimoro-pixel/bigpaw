@@ -201,9 +201,7 @@ if ROLE_PREVIEW_MARKER not in auth:
 """
     new_block = f"""  if(p.endsWith('/puppy-detail.html')){{
     // {ROLE_PREVIEW_MARKER}
-    let previewRole=null;
     currentRole().then(role=>{{
-      previewRole=role||'';
       if(role==='breeder'||role==='operator'){{
         document.documentElement.setAttribute('data-bigpaw-public-preview-role',role);
         const apply=()=>{{
@@ -237,21 +235,6 @@ if ROLE_PREVIEW_MARKER not in auth:
       s.async=true;
       document.head.appendChild(s);
     }});
-    // Safari's back/forward cache may restore an old operator notice after a
-    // switch to a breeder account. Recheck the SAME API identity on return.
-    const verifyPreviewRole=()=>{{
-      if(previewRole===null)return;
-      currentRole().then(role=>{{
-        if((role||'')!==previewRole){{
-          const n=document.getElementById('bigpawPublicPreviewNotice');
-          if(n)n.hidden=true;
-          location.reload();
-        }}
-      }});
-    }};
-    window.addEventListener('pageshow',e=>{{if(e.persisted)verifyPreviewRole()}});
-    window.addEventListener('focus',verifyPreviewRole);
-    document.addEventListener('visibilitychange',()=>{{if(!document.hidden)verifyPreviewRole()}});
   }}
 """
     assert auth.count(old_block) == 1, ('auth_detail_favorite_block_count', auth.count(old_block))
