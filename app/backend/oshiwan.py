@@ -146,7 +146,7 @@ def install(g):
         enabled = body['enabled']
         if enabled and body.get('agreeOshiwanTerms') is not True:
             return self.send_json({'error': 'oshiwan_fee_consent_required',
-              'message': '推しワン経由の成約は通常5％に推しワン利用料3％を加算して合計8％です。初回成約無料特典は通常の5％のみ免除され、推しワン利用料3％は必要です。'}, 400)
+              'message': '推しワン経由の成約は通常5％に推しワン利用料3％を加算して合計8％です。先着100頭キャンペーン対象の場合は通常の5％のみ免除され、推しワン利用料3％は必要です。キャンペーン対象外は初回でも合計8％です。'}, 400)
         c = db()
         try:
             c.execute('BEGIN IMMEDIATE')
