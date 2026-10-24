@@ -32,20 +32,23 @@ once("'imageUrl':d['image_url'],'createdAt':d['created_at'],",
 once("sql+=' ORDER BY p.created_at DESC'",
      "sql+=' ORDER BY COALESCE(p.last_ranked_at,p.published_at,p.created_at) DESC,p.created_at DESC,p.id DESC'","public ordering")
 # Persistent status-change and save no-op are not a real content edit.
-old="""            if sets:
-                args.append(m.group(1)); con.execute('UPDATE puppies SET '+','.join(sets)+' WHERE id=?',args); audit(con,u['id'],'puppy_updated','puppy',m.group(1),','.join(body.keys())); con.commit()"""
-new="""            if sets:
-                before=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
-                args.append(m.group(1))
-                con.execute('UPDATE puppies SET '+','.join(sets)+' WHERE id=?',args)
-                after=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
-                meaningful_fields=('name','breed','breed_key','gender','color','birth','price','description','image_url','weight','adult_min','adult_max','father','mother','health')
-                actually_changed=any(before[k]!=after[k] for k in meaningful_fields)
-                # No credit for clicking Save unchanged or toggling listing status only.
-                maybe_bump_puppy_rank(con,m.group(1),actually_changed)
-                audit(con,u['id'],'puppy_updated','puppy',m.group(1),','.join(body.keys()))
-                con.commit()"""
-once(old,new,"edit detection")
+# Add change detection around the existing UPDATE in the *final patched* editor,
+# preserving other build-patch logic, moderation, auditing and ownership checks.
+mark="allowed={'status':'status'"
+pos=s.index(mark)
+if pos<0: raise RuntimeError('RANK_REFRESH_PATCH_ANCHOR_FAIL|edit map')
+end=s.index("return self.send_json(puppy_json(r))",pos)
+piece=s[pos:end]
+if piece.count("            if sets:")!=1: raise RuntimeError('RANK_REFRESH_PATCH_ANCHOR_FAIL|edit if sets')
+piece=piece.replace("            if sets:", "            if sets:\\n                before=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()",1)
+update="con.execute('UPDATE puppies SET '+','.join(sets)+' WHERE id=?',args)"
+if piece.count(update)!=1: raise RuntimeError('RANK_REFRESH_PATCH_ANCHOR_FAIL|edit UPDATE count='+str(piece.count(update)))
+compare="('name','breed','breed_key','gender','color','birth','price','description','image_url','weight','adult_min','adult_max','father','mother','health')"
+extended=(update
+          +"; after=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()"
+          +"; maybe_bump_puppy_rank(con,m.group(1),any(before[k]!=after[k] for k in "+compare+"))")
+piece=piece.replace(update,extended,1)
+s=s[:pos]+piece+s[end:]
 old="""            con.execute('INSERT INTO uploads VALUES(?,?,?,?,?,?,?)',(upid,u['id'],(None if puppy_id=='breeder-proof' else puppy_id or None),original,stored,mime,now())); con.commit(); con.close()"""
 new="""            con.execute('INSERT INTO uploads VALUES(?,?,?,?,?,?,?)',(upid,u['id'],(None if puppy_id=='breeder-proof' else puppy_id or None),original,stored,mime,now()))
             # Adding an actual photo counts as a meaningful listing update,
