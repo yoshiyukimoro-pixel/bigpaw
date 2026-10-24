@@ -104,15 +104,39 @@ jobs:
         env:
           BIGPAW_TEST_WEBKIT: '1'
         run: node scripts/test-breeder-signup-blue-mobile.cjs http://127.0.0.1:18096
-      - name: Wait for new release HTML on production after main is merged
+      - name: Wait until the merged release is actually served on production
         if: github.event_name == 'push'
         run: |
-          ready=0
-          for i in $(seq 1 90); do
-            if curl -fsSL --max-time 15 'https://bigpaw.site/admin.html?release=20261024-promo-first1' | grep -Fq 'breeder-parent-entry.js?v=20261024-campaign-first1' && curl -fsSL --max-time 15 'https://bigpaw.site/breeder-fees.html?release=20261024-terms1' | grep -Fq 'breeder-fee-agreement.html?v=20261024-terms1'; then ready=1; break; fi
-            sleep 4
-          done
-          if [ "$ready" != 1 ]; then echo 'PRODUCTION_FRESH_MENU_VERSION_MISSING'; exit 1; fi
+          python3 - <<'PY'
+          import json,time,urllib.request
+          base='https://bigpaw.site'
+          def read(path):
+              req=urllib.request.Request(base+path,headers={'Cache-Control':'no-cache','User-Agent':'BIGPAW-release-readiness/1.0'})
+              with urllib.request.urlopen(req,timeout=15) as r:
+                  if r.status!=200: raise RuntimeError('HTTP '+str(r.status))
+                  return r.read(2000000).decode('utf-8')
+          for attempt in range(90):
+              try:
+                  health=json.loads(read('/api/health'))
+                  admin=read('/admin.html?release=20261024-rank-health-photo-v1')
+                  edit=read('/breeder-puppy-new.html?release=20261024-rank-health-photo-v1')
+                  detail=read('/puppy-detail.html?release=20261024-rank-health-photo-v1')
+                  assert health.get('environment')!='development','unexpected development environment'
+                  assert '何も変更せず保存しても掲載順位は変わりません' in admin
+                  assert '専用の順位更新ボタンは不要です' not in admin
+                  assert '.photo-box{border:2px dashed var(--account-accent,#5f8fc3)' in edit
+                  assert 'background:#ef7da7' not in edit
+                  assert "vaccineText.textContent=p.vaccineStatus" in detail
+                  assert 'microchipText.textContent=p.microchipStatus' in detail
+                  assert 'geneticTestText.textContent=p.geneticTestStatus' in detail
+                  print('PRODUCTION_RELEASE_CONTENT_READY|health|rank|blue_photo|public_health|GET_only')
+                  break
+              except (Exception,AssertionError) as err:
+                  if attempt in (0,15,30,45,60,75,89):
+                      print(f'Production release not ready at attempt {attempt+1}/90: {type(err).__name__}: {err}',flush=True)
+                  if attempt==89: raise
+                  time.sleep(4)
+          PY
       - name: Verify public production breeder mobile menu with read-only requests in both engines
         env:
           BIGPAW_TEST_WEBKIT: '1'
