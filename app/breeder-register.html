@@ -18,8 +18,9 @@ body{background:#f3f8ff;color:#42546a}
 /* The registration interface is blue, but the live 100-puppy campaign is orange. */
 .breeder-signup-promo{margin-top:18px}
 body .breeder-signup-promo .bp-first100[data-state="active"]{background:linear-gradient(125deg,#fff3d3,#ffe0a2 58%,#ffcc76);border:2px solid #e8a63e;color:#754008;box-shadow:0 8px 24px rgba(154,89,16,.14);border-radius:20px;padding:23px 22px}
-body .breeder-signup-promo .bp-first100[data-state="active"] strong{display:block;font-size:clamp(21px,4vw,29px);line-height:1.35;color:#8c4000}
-body .breeder-signup-promo .bp-first100[data-state="active"] .bp-first100-status{font-size:20px;color:#a44e00;margin-top:9px}
+body .breeder-signup-promo .bp-first100[data-state="active"] .bp-first100-tag{display:inline-block;background:#d84b13;color:#fff;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:900}
+body .breeder-signup-promo .bp-first100[data-state="active"] strong{display:block;font-size:clamp(21px,4vw,29px);line-height:1.45;color:#a93408;margin-top:10px}
+body .breeder-signup-promo .bp-first100[data-state="active"] .bp-first100-status{display:inline-block;margin-top:13px;padding:9px 16px;border:2px solid #e8a12a;border-radius:13px;background:#fffaf1;font-size:clamp(16px,2.6vw,21px);font-weight:900;color:#a73809}
 body .breeder-signup-promo .bp-first100[data-state="active"] small{font-size:13px;color:#694921;line-height:1.8}
 body .breeder-signup-promo .bp-first100[data-state="active"] a{color:#8a3600;text-decoration:underline;text-underline-offset:3px}
 #bpRegistrationHeaderLink[hidden]{display:none!important}
@@ -28,6 +29,7 @@ body .breeder-signup-promo .bp-first100[data-state="active"] a{color:#8a3600;tex
 .account-box{max-width:680px;margin:auto}
 .verify-actions{display:grid;gap:10px;margin-top:16px}
 @media(max-width:800px){.main-card{padding:18px 14px}.stepbar{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){body .breeder-signup-promo .bp-first100[data-state="active"]{padding:17px 15px}body .breeder-signup-promo .bp-first100[data-state="active"] .bp-first100-status{display:block;text-align:center}}
 </style>
 </head>
 <body>
