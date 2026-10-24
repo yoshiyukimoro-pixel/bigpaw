@@ -6,7 +6,6 @@ on:
       - 'app/backend/breeder_mobile_menu_runtime_patch.py'
       - 'app/mobile-global-nav.js'
       - 'app/breeder-register.html'
-      - 'app/auth-return-fix.js'
       - 'app/breeder-fees.html'
       - 'app/breeder-fee-agreement.html'
       - 'app/assets/breeder-fee-agreement-campaign.js'
@@ -23,7 +22,6 @@ on:
       - 'app/operator-invoice-preview.html'
       - 'app/backend/server.py'
       - 'app/backend/safari_gallery_runtime_patch.py'
-      - 'app/auth-return-fix.js'
       - 'scripts/test-public-preview-role.cjs'
       - 'scripts/test-oshiwan-invoice-visual.cjs'
       - 'scripts/test-breeder-fees-real-browser.cjs'
@@ -34,7 +32,6 @@ on:
       - 'app/backend/breeder_mobile_menu_runtime_patch.py'
       - 'app/mobile-global-nav.js'
       - 'app/breeder-register.html'
-      - 'app/auth-return-fix.js'
       - 'app/breeder-fees.html'
       - 'app/breeder-fee-agreement.html'
       - 'app/assets/breeder-fee-agreement-campaign.js'
@@ -51,7 +48,6 @@ on:
       - 'app/operator-invoice-preview.html'
       - 'app/backend/server.py'
       - 'app/backend/safari_gallery_runtime_patch.py'
-      - 'app/auth-return-fix.js'
       - 'scripts/test-public-preview-role.cjs'
       - 'scripts/test-oshiwan-invoice-visual.cjs'
       - 'scripts/test-breeder-fees-real-browser.cjs'
@@ -102,7 +98,7 @@ jobs:
         env:
           BIGPAW_TEST_WEBKIT: '1'
         run: node scripts/test-breeder-dashboard-banner.cjs http://127.0.0.1:18096
-      - name: Verify breeder/operator public preview roles and colors in Chrome and Safari
+      - name: Verify existing preview labels and breeder blue versus operator yellow in Chrome and Safari
         run: node scripts/test-public-preview-role.cjs http://127.0.0.1:18096
       - name: Verify first-100 Oshiwan invoices and seven-day deadline render correctly on mobile Chrome and Safari
         env:
