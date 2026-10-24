@@ -1,0 +1,19 @@
+name: Production actual breeder mobile menu click, read-only
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/live-breeder-mobile-click-readonly.cjs'
+      - '.github/workflows/live-breeder-mobile-click-readonly.yml'
+jobs:
+  live-mobile-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Playwright driver, use pre-installed runner Chrome
+        run: |
+          npm install --no-save playwright
+          google-chrome --version
+      - name: Actually tap breeder menu in live page and inspect computed gold colors (READ ONLY)
+        run: node scripts/live-breeder-mobile-click-readonly.cjs
