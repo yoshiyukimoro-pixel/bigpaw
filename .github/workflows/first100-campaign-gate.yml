@@ -37,9 +37,12 @@ jobs:
           assert "kind=='sale'" in source, 'campaign only counted on sale-report'
           js=Path('app/assets/first100-campaign.js').read_text()
           assert "data.remainingLabel" in js
-          for p in ('app/breeder-deal-report.html','app/breeder-register.html','app/index.html'):
+          for p in ('app/breeder-deal-report.html','app/breeder-register.html'):
               html=Path(p).read_text()
               assert 'data-bp-first100' in html and 'first100-campaign.js' in html, p
+          # Marketing is for breeders: never show commission campaign on buyer homepage.
+          home=Path('app/index.html').read_text()
+          assert 'data-bp-first100' not in home and 'first100-campaign.js' not in home
           # The breeder fee page uses a dedicated, brighter campaign controller.
           fees=Path('app/breeder-fees.html').read_text()
           assert 'id="bpBreederCampaign"' in fees and 'breeder-fees-campaign.js' in fees
