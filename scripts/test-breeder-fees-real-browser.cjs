@@ -86,6 +86,43 @@ async function test(engine,label){
   assert(result.bodyWidth<=result.viewport+15,label+' no mobile overflow');
   assert(!errors.length,label+' JS page errors: '+errors.join(';'));
   console.log('REAL_MOBILE_MENU_CLICK_GOLD_OK|'+label+'|'+JSON.stringify(result));
+  // A breeder who taps orange「適用条件を見る」must see the CURRENT 100-head
+  // agreement, not an outdated normal-5%-only draft.
+  const termsLink=page.locator('#bpBreederCampaign a').filter({hasText:'適用条件を見る'}).first();
+  assert((await termsLink.getAttribute('href')).includes('breeder-fee-agreement.html?v=20261024-terms1'),
+    label+' campaign conditions must open fresh agreement');
+  await Promise.all([page.waitForURL('**/breeder-fee-agreement.html*',{timeout:25000}),termsLink.click()]);
+  const termsStatus=page.locator('#bpFeeTermsCampaignStatus');
+  await page.waitForFunction(()=>{
+    const e=document.getElementById('bpFeeTermsCampaignStatus');
+    return e&&e.dataset.state==='active'&&/受付中！/.test(e.textContent);
+  },null,{timeout:25000});
+  const terms=await page.evaluate(()=>{
+    const banner=document.getElementById('bpFeeTermsCampaign');
+    const state=document.getElementById('bpFeeTermsCampaignStatus');
+    const computed=getComputedStyle(banner);
+    return {
+      title:document.title,
+      status:state.textContent,
+      state:state.dataset.state,
+      gold:computed.backgroundImage,
+      body:document.body.innerText,
+      mobileWidth:document.documentElement.scrollWidth,
+      viewport:innerWidth
+    };
+  });
+  assert(terms.title.includes('先着100頭キャンペーン'),label+' agreement page title');
+  assert(terms.body.includes('1. 先着100頭キャンペーンの適用条件'),label+' campaign terms first');
+  assert(terms.body.includes('対象外の成約は通常5％'),label+' 5% is explicitly for non-eligible sales only');
+  assert(terms.body.includes('キャンペーン適用時3％'),label+' featured 3% is disclosed');
+  assert(!terms.body.includes('公開前ドラフト'),label+' old launch draft removed');
+  assert(!terms.body.includes('初回成約でも合計8％'),label+' obsolete first-sale statement removed');
+  assert(/255, 244, 189|255, 223, 140/.test(terms.gold),label+' agreement conditions visible in gold');
+  assert(/残り(?:100|\\d+)頭・受付中！|残りわずか・受付中！/.test(terms.status),label+' live quota status');
+  assert(terms.mobileWidth<=terms.viewport+15,label+' agreement no horizontal iPhone overflow');
+  console.log('REAL_FEE_CAMPAIGN_TERMS_TAP_OK|'+label+'|'+JSON.stringify({status:terms.status,title:terms.title}));
+  await page.goBack({waitUntil:'domcontentloaded'});
+  await page.locator('#bpBreederCampaign').waitFor({state:'visible',timeout:25000});
   await page.goBack({waitUntil:'domcontentloaded'});
   await page.locator('#bp-global-mobile-menu-button').waitFor({state:'visible'});
   await page.locator('#bp-global-mobile-menu-button').click();
