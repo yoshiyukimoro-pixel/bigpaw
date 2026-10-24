@@ -1,0 +1,43 @@
+name: Breeder dashboard latest-fee page external QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/live-breeder-fees-entry-readonly.yml'
+jobs:
+  public-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify production breeder menu, updated URL and orange campaign (no writes)
+        run: |
+          python3 - <<'PY'
+          import urllib.request,json
+          base='https://bigpaw.site'
+          cache_version='?v=20261024-gold'
+          def get(path):
+              req=urllib.request.Request(base+path,headers={'User-Agent':'BIGPAW-LIVE-BREEDER-ENTRY-QA','Cache-Control':'no-cache'})
+              with urllib.request.urlopen(req,timeout=25) as response:
+                  data=response.read().decode('utf8')
+                  assert response.status==200,(path,response.status)
+                  print('LIVE_OK',path,response.status,len(data))
+                  return data
+          for page in ('/admin.html','/breeder-billing.html','/breeder-sales-handover.html','/breeder-fee-agreement.html','/breeder-register.html'):
+              html=get(page)
+              assert 'href="breeder-fees.html'+cache_version+'"' in html,page
+          for script in ('/mobile-global-nav.js','/breeder-mobile-nav.js'):
+              js=get(script)
+              assert "'料金・手数料','/breeder-fees.html"+cache_version+"'" in js,script
+          fees=get('/breeder-fees.html'+cache_version)
+          assert 'id="bpBreederCampaign"' in fees
+          assert 'id="bpBreederStandardHero" hidden' in fees
+          assert '#fff4bd' in fees and 'assets/breeder-fees-campaign.js' in fees
+          js=get('/assets/breeder-fees-campaign.js')
+          assert "data.status==='active'" in js and 'hero.hidden=true' in js and 'hero.hidden=false' in js
+          state=json.loads(get('/api/campaign/first100'))
+          assert state['status']=='active' and state['limit']==100,state
+          assert state['cancelledClaimsReopen'] is False,state
+          home=get('/')
+          assert 'data-bp-first100' not in home
+          print('BREEDER_LIVE_FRESH_ACCOUNT_ENTRY_OK|all_seven_routes_versioned|gold_promo|regular_5_percent_hidden|ends_restored|campaign_active|buyer_unchanged')
+          PY
