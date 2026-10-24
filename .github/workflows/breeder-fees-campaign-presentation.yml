@@ -1,0 +1,19 @@
+name: Breeder pricing campaign presentation regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/breeder-fees.html'
+      - 'app/assets/breeder-fees-campaign.js'
+      - 'scripts/test-breeder-fees-campaign.cjs'
+      - '.github/workflows/breeder-fees-campaign-presentation.yml'
+jobs:
+  presentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test actual breeder page, color and 100/21/20/1/0, expired, unavailable API
+        run: node scripts/test-breeder-fees-campaign.cjs
+      - name: Build production image with all existing regression gates in isolated temporary data
+        run: docker build --no-cache -t bigpaw-breeder-fees-campaign .
