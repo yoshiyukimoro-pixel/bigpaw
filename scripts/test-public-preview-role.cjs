@@ -37,6 +37,13 @@ async function scenario(engine,label,bearerRole,cookieRole,expectedRole){
       await notice.waitFor({state:'visible',timeout:15000});
       const expectedLabel=expectedRole==='operator'?'運営として一般公開ページを表示中':'ブリーダーとして一般公開ページを表示中';
       const expectedHref=expectedRole==='operator'?'/operator-admin.html':'/admin.html';
+      const debug=await page.evaluate(async()=>{
+        const api=window.BigPawAPI;
+        const sessionRole=api?await api.me().then(x=>x.role).catch(e=>'error:'+e.status):'no-api';
+        const cookieRole=await fetch('/api/me',{credentials:'include',cache:'no-store'}).then(r=>r.ok?r.json().then(x=>x.role):'unauthorized').catch(()=>'error');
+        return {apiPresent:!!api,tokenPresent:!!api?.token?.(),sessionRole,cookieRole,attr:document.documentElement.getAttribute('data-bigpaw-public-preview-role')};
+      });
+      console.log('PREVIEW_ROLE_DIAGNOSTIC|'+label+'|expected='+expectedRole+'|'+JSON.stringify(debug));
       assert.equal((await notice.locator('span').textContent()).trim(),expectedLabel);
       assert.equal(await notice.locator('a').getAttribute('href'),expectedHref);
       const computed=await notice.evaluate(x=>({background:getComputedStyle(x).backgroundColor,color:getComputedStyle(x).color}));
