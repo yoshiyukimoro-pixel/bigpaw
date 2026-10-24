@@ -110,6 +110,10 @@ try:
  detail_html=(app/'puppy-detail.html').read_text(encoding='utf-8')
  check(all(k in detail_html for k in ('vaccineText.textContent=p.vaccineStatus','microchipText.textContent=p.microchipStatus','geneticTestText.textContent=p.geneticTestStatus')),'public detail page reads the saved API fields, not placeholders')
  check('募集中 '+chr(39)+'+all' not in listing and '専用の順位更新ボタンは不要です' not in listing,'ranking instructions do not expose internal developer terms to breeders')
+ check("p.healthStatus||(p.health?'実施済み':'未登録')" in detail_html and "p.vaccineStatus||'未登録'" in detail_html and "p.microchipStatus||'未登録'" in detail_html and "p.geneticTestStatus||'未登録'" in detail_html,'public fallback rendering uses real saved health statuses without boolean placeholders')
+ photo_html=(app/'breeder-puppy-new.html').read_text(encoding='utf-8')
+ check('.photo-box{border:2px dashed var(--account-accent' in photo_html and 'background:var(--account-soft' in photo_html,'breeder photo upload panel inherits management blue theme')
+ check('background:#ef7da7' not in photo_html and 'accent-color:#ef7da7' not in photo_html and '.photo-box{border:2px dashed #efbfd1' not in photo_html,'breeder photo crop controls have no old hard-coded pink')
  print('FIVE_DAY_ORGANIC_REFRESH_E2E_OK|age_5_days|real_edit|new_photo|public_rank_first|no_op_no_bump|cooldown|status_only|owner_guard|admin_countdown',flush=True)
 finally:
  proc.terminate()
