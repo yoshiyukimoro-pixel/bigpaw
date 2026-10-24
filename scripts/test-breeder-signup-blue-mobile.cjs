@@ -28,8 +28,11 @@ async function run(engine,name,role){
   assert.notEqual(await page.locator('html').getAttribute('data-bp-mobile-tone'),'breeder','public home must keep buyer/public pink');
   const apply=page.locator('a[href="breeder-register.html"]').filter({hasText:'ブリーダー掲載申請'}).first();
   assert.equal(await apply.count(),1,'public CTA visible in DOM');
-  await Promise.all([page.waitForURL('**/breeder-register.html',{timeout:25000}),apply.click()]);
+  await Promise.all([page.waitForURL('**/breeder-register.html',{waitUntil:'load',timeout:25000}),apply.click()]);
   await page.locator('#bp-global-mobile-menu-button').waitFor({state:'visible',timeout:25000});
+  const debug=await page.evaluate(()=>({path:location.pathname,href:location.href,tone:document.documentElement.getAttribute('data-bp-mobile-tone'),navScripts:Array.from(document.scripts).map(s=>s.src).filter(s=>s.includes('mobile-global-nav')),globalFlag:window.__BIGPAW_GLOBAL_MOBILE_NAV__}));
+  console.log('BREEDER_SIGNUP_MENU_DEBUG|'+name+'|'+(role||'guest')+'|'+JSON.stringify(debug));
+  assert.equal(debug.path,'/breeder-register.html','must have navigated to the registration document');
   assert.equal(await page.locator('html').getAttribute('data-bp-mobile-tone'),'breeder','breeder registration menu must be blue');
   const menu=page.locator('#bp-global-mobile-menu-button');
   await menu.click();
