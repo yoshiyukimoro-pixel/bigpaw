@@ -138,7 +138,9 @@
     return;
   }
 
-  // The public breeder registration page creates its own account, then checks\n  // email verification before applying. Never redirect first-time visitors to login.\n  const authOnly=['/account.html','/messages.html','/notifications.html','/breeder-fee-agreement.html','/visit-confirm.html','/deal.html','/online-visit.html','/reservation.html','/contract.html','/pickup.html','/review.html','/report.html'];
+  // The public breeder registration page creates its own account, then checks
+  // email verification before applying. Never redirect first-time visitors to login.
+  const authOnly=['/account.html','/messages.html','/notifications.html','/breeder-fee-agreement.html','/visit-confirm.html','/deal.html','/online-visit.html','/reservation.html','/contract.html','/pickup.html','/review.html','/report.html'];
   const breederOnly=['/admin.html','/breeder-puppy-new.html','/breeder-inquiries.html','/breeder-billing.html','/breeder-deal-report.html','/breeder-profile-edit.html','/breeder-invoice.html','/parent-dogs.html','/health-records.html'];
   const operatorOnly=['/operator-admin.html','/operator-breeders.html','/operator-breeder-detail.html','/operator-breeder-applications.html','/operator-listings.html','/operator-deals.html','/operator-support.html','/operator-deal-reports.html','/operator-revenue.html','/operator-reports.html','/operator-invoices.html','/operator-automations.html','/operator-audit.html','/operator-backups.html','/project-status.html','/backend-status.html','/launch-checklist.html'];
   const buyerOnly=['/mypage.html','/my-page.html'];
