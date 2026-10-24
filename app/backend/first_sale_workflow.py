@@ -1,4 +1,4 @@
-"""Additive first-sale benefit and bilateral confirmation workflow.
+"""Site-wide first-100 campaign and bilateral confirmation workflow.
 Installed after build patches; existing invoices and fee acceptances stay intact.
 """
 from datetime import datetime, timezone, timedelta
@@ -112,13 +112,14 @@ def install(g):
         finally:
             MAIL_LOCK.release()
 
-    def fee_decision(c, d):
+    def fee_decision(c, d, is_first_sale_report=False):
         existing = c.execute('SELECT * FROM sale_fee_decisions WHERE deal_id=?', (d['id'],)).fetchone()
         if existing: return existing
-        # Called inside BEGIN IMMEDIATE: simultaneous first applications cannot both win.
+        # Called inside BEGIN IMMEDIATE: simultaneous sale reports cannot oversubscribe 100.
         # Historical frozen decisions remain unchanged. No NEW first-sale freebies are awarded.
         # Only the site-wide first 100 valid applications receive a new waiver.
-        campaign_waived = first100_campaign.claim(c, d['id'], d['breeder_id'], now(), campaign_enabled)
+        campaign_waived = (first100_campaign.claim(c, d['id'], d['breeder_id'], now(), campaign_enabled)
+                           if is_first_sale_report else first100_campaign.claimed(c, d['id']))
         waived = int(campaign_waived)
         # The customer must inquire while this puppy is selected as 推しワン.
         # Freeze the rate when a sale is first reported; later toggles do not change it.
@@ -397,7 +398,7 @@ def install(g):
                 pending=c.execute("SELECT expires_at FROM sale_confirmations WHERE deal_id=? AND state='pending'",(d['id'],)).fetchone()
                 if pending and pending['expires_at']>=now():
                     return h.send_json({'ok':True,'dealId':d['id'],'state':state,'alreadySubmitted':True})
-            decision=fee_decision(c,d) if kind!='cancellation' else c.execute('SELECT * FROM sale_fee_decisions WHERE deal_id=?',(d['id'],)).fetchone()
+            decision=fee_decision(c,d,kind=='sale') if kind!='cancellation' else c.execute('SELECT * FROM sale_fee_decisions WHERE deal_id=?',(d['id'],)).fetchone()
             c.execute('INSERT INTO sale_report_consents VALUES(?,?,?,?,?,?,?)',(mid('consent_'),d['id'],u['id'],kind,TERMS,CONSENT_TEXT,now()))
             revision=(w['revision'] if w else 0)+1
             c.execute('INSERT INTO sale_workflow(deal_id,breeder_id,amount,pickup_date,buyer_name,note,state,revision,updated_at,sold_animal_type,sold_animal_name,expanded_scope_qualified_at_ms) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(deal_id) DO UPDATE SET amount=excluded.amount,pickup_date=excluded.pickup_date,buyer_name=excluded.buyer_name,note=excluded.note,state=excluded.state,revision=excluded.revision,updated_at=excluded.updated_at,sold_animal_type=excluded.sold_animal_type,sold_animal_name=excluded.sold_animal_name,expanded_scope_qualified_at_ms=excluded.expanded_scope_qualified_at_ms',
