@@ -9,6 +9,7 @@ on:
       - 'app/admin.html'
       - 'app/assets/breeder-dashboard-campaign.js'
       - 'scripts/test-breeder-dashboard-banner.cjs'
+      - 'scripts/test-breeder-signup-blue-mobile.cjs'
       - 'app/assets/breeder-fees-campaign.js'
       - 'scripts/test-breeder-fees-real-browser.cjs'
       - '.github/workflows/breeder-fees-real-browser-gate.yml'
@@ -21,6 +22,7 @@ on:
       - 'app/admin.html'
       - 'app/assets/breeder-dashboard-campaign.js'
       - 'scripts/test-breeder-dashboard-banner.cjs'
+      - 'scripts/test-breeder-signup-blue-mobile.cjs'
       - 'app/assets/breeder-fees-campaign.js'
       - 'scripts/test-breeder-fees-real-browser.cjs'
       - '.github/workflows/breeder-fees-real-browser-gate.yml'
@@ -68,6 +70,10 @@ jobs:
         env:
           BIGPAW_TEST_WEBKIT: '1'
         run: node scripts/test-breeder-dashboard-banner.cjs http://127.0.0.1:18096
+      - name: Test public home to blue breeder registration on Chromium and real Safari WebKit
+        env:
+          BIGPAW_TEST_WEBKIT: '1'
+        run: node scripts/test-breeder-signup-blue-mobile.cjs http://127.0.0.1:18096
       - name: Wait for new release HTML on production after main is merged
         if: github.event_name == 'push'
         run: |
@@ -89,6 +95,12 @@ jobs:
           BIGPAW_TEST_WEBKIT: '1'
           BIGPAW_DASHBOARD_LIVE_READONLY: '1'
         run: node scripts/test-breeder-dashboard-banner.cjs https://bigpaw.site
+      - name: Verify production public-to-breeder signup menu blue in both browsers (read-only)
+        if: github.event_name == 'push'
+        env:
+          BIGPAW_TEST_WEBKIT: '1'
+          BIGPAW_DASHBOARD_LIVE_READONLY: '1'
+        run: node scripts/test-breeder-signup-blue-mobile.cjs https://bigpaw.site
       - name: Log test-only server for failure analysis
         if: failure()
         run: docker logs bigpaw-real-fee-mobile-ci --tail 160 || true
