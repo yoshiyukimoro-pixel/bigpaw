@@ -1,0 +1,50 @@
+name: First100 live read-only verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/first100-live-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify actual production API, quota, pages and scripts without writing data
+        run: |
+          python3 - <<'PY'
+          import urllib.request,json
+          from datetime import datetime,timedelta,timezone
+          origin='https://bigpaw.site'
+          def get(path):
+              req=urllib.request.Request(origin+path,headers={'User-Agent':'BIGPAW-FIRST100-PUBLIC-READONLY-QA','Cache-Control':'no-cache'})
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  text=r.read().decode('utf-8')
+                  assert r.status==200,(path,r.status)
+                  print('LIVE_GET_OK',path,r.status,len(text))
+                  return text
+          health=json.loads(get('/api/health'))
+          assert health['ok'] is True and health['environment']=='production',health
+          status=json.loads(get('/api/campaign/first100'))
+          assert status['status']=='active',status
+          assert status['limit']==100 and status['eligible'] is True,status
+          assert status['standardRateWaived']==500 and status['oshiwanExtraRateBps']==300,status
+          assert status['cancelledClaimsReopen'] is False,status
+          tokyo=timezone(timedelta(hours=9))
+          start=datetime.fromtimestamp(status['startsAt'],tokyo)
+          end=datetime.fromtimestamp(status['endsAt'],tokyo)
+          assert 180 <= (end-start).days <= 185, (start,end)
+          assert 0 <= status['remaining'] <=100 if status['remaining'] is not None else status['remainingLabel']=='残りわずか・受付中',status
+          print('LIVE_CAMPAIGN_STATE',json.dumps(status,ensure_ascii=False,sort_keys=True))
+          for page in ('/','/breeder-fees.html','/breeder-register.html','/breeder-deal-report.html'):
+              html=get(page)
+              assert 'data-bp-first100' in html and 'first100-campaign.js' in html,page
+          js=get('/assets/first100-campaign.js')
+          assert "data.remainingLabel" in js and '/api/campaign/first100' in js
+          legacy=get('/assets/first-sale-benefit.js')
+          assert "初回成約手数料無料：未使用" not in legacy
+          contract=get('/breeder-fee-agreement.html')
+          assert '先着100頭' in contract and '推しワン' in contract
+          print('FIRST100_LIVE_PUBLIC_READONLY_OK|active|global_100|six_months|cancel_never_refill|oshiwan_3_percent|pages')
+          PY
