@@ -22,7 +22,8 @@ for(const [file,link] of links){
 const register=fs.readFileSync(path.join(root,'breeder-register.html'),'utf8');
 const dynamic=fs.readFileSync(path.join(root,'assets','first100-campaign.js'),'utf8');
 assert(register.includes('data-bp-first100 hidden'),'registration uses live campaign element');
-assert(register.includes('first100-campaign.js?v=20261024-signup-orange1'),'registration uses versioned live campaign');
+assert(/src="assets\/first100-campaign\.js\?v=20261024-signup-[a-z0-9-]+"/.test(register),'registration uses dated versioned live campaign');
+assert(!register.includes('src="assets/first100-campaign.js"'),'registration must not use an unversioned campaign script');
 assert(dynamic.includes('href="breeder-fees.html'+stamp+'"'),'dynamic registration promo has versioned fees link');
 assert(!register.includes('href="breeder-fees.html"'),'registration has no unversioned static link');
 const globalNav=fs.readFileSync(path.join(root,'mobile-global-nav.js'),'utf8');
