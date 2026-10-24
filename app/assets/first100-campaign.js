@@ -13,14 +13,24 @@
       if(!res.ok)throw new Error('campaign unavailable');
       const data=await res.json();
       for(const el of elements){
-        if(data.status==='inactive'){el.hidden=true;continue;}
+        // The signup page must show the same remaining-slot wording as the breeder dashboard.
+        // Other consumers of this shared banner retain their existing display.
+        const signup=!!(el.closest&&el.closest('.breeder-signup-promo'));
+        if(data.status==='inactive'||(signup&&data.status==='active'&&data.eligible!==true)){el.hidden=true;continue;}
         el.hidden=false;
         el.classList.add('bp-first100');
         el.dataset.state=data.status;
         const endDate=new Date(data.endsAt*1000).toLocaleDateString('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'long',day:'numeric'});
-        const badge=data.status==='active'?data.remainingLabel:data.status==='sold_out'?'先着100頭に達したため終了しました':data.status==='ended'?'キャンペーン期間は終了しました':'まもなく開始';
-        const title=data.status==='active'?'🎉 先着100頭・通常成約手数料5％無料！':'🎉 BIG PAW オープン記念キャンペーン';
-        el.innerHTML='<strong>'+safe(title)+'</strong><span class="bp-first100-status">'+safe(badge)+'</span>'+
+        const signupRemaining=Number.isInteger(data.remaining)&&data.remaining>20
+          ? '残り'+data.remaining+'頭・受付中！' : '残りわずか・受付中！';
+        const badge=data.status==='active'?(signup?signupRemaining:data.remainingLabel)
+          :data.status==='sold_out'?'先着100頭に達したため終了しました'
+          :data.status==='ended'?'キャンペーン期間は終了しました':'まもなく開始';
+        const title=data.status==='active'
+          ?(signup?'先着100頭限定！ 通常成約手数料5％ → 0％':'🎉 先着100頭・通常成約手数料5％無料！')
+          :'🎉 BIG PAW オープン記念キャンペーン';
+        const tag=signup&&data.status==='active'?'<span class="bp-first100-tag">🎉 BIG PAW オープン記念</span>':'';
+        el.innerHTML=tag+'<strong>'+safe(title)+'</strong><span class="bp-first100-status">'+safe(badge)+'</span>'+
           '<small>サイト全体の先着100頭・1犬舎の上限なし。成約申請を受け付けた時点で1頭カウントし、キャンセルされても枠は戻りません。'+
           '期間は開始から6か月（'+safe(endDate)+'まで）。100頭到達で早期終了します。推しワン追加3％は無料対象外です。'+
           '掲載料・月額費用は無料。 <a href="breeder-fees.html?v=20261024-fresh-e2e4">詳細を見る</a></small>';
