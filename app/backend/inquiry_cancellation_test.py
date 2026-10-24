@@ -222,11 +222,14 @@ try:
     # Existing sale process after pending cancellation rejected: preserves benefit, then normal completion invoice.
     iq,pp,dd=fixture('sale',True)
     body={'finalSaleAmount':300000,'pickupDate':'2026-10-03','buyerName':'試験','agreeFirstSaleTerms':True,'agreeAccurateReporting':True}
-    sr=expect('POST','/api/deals/'+dd+'/sale-report',body,'u_dog44');check(sr['waived'],'existing first-sale free benefit works')
+    sr=expect('POST','/api/deals/'+dd+'/sale-report',body,'u_dog44');check(sr['waived'] and sr['campaignWaived'],'first available global 100 slot waives standard fee')
     r=submit(iq);answer(r['id'],'purchased');review(r['id'],'continue')
     expect('POST','/api/deals/'+dd+'/sale-report',body,'u_dog44')
     expect('POST','/api/deals/'+dd+'/completion-report',body,'u_dog44');check(query('SELECT status FROM deals WHERE id=?',(dd,))[0]['status']=='completed','existing completion still finalizes')
-    check(len(query('SELECT * FROM first_sale_benefits'))==1 and not query('SELECT * FROM commission_invoices WHERE deal_id=?',(dd,)),'cancellation and resume preserve free-benefit accounting')
+    check(len(query('SELECT * FROM first100_campaign_claims'))==1 and not query('SELECT * FROM commission_invoices WHERE deal_id=?',(dd,)),'cancellation and resume preserve one immutable site-wide campaign claim')
+    # Fill the remaining site-wide campaign places, then prove the NEXT even first-time sale is charged 5%.
+    for i in range(99):execute('INSERT INTO first100_campaign_claims(deal_id,breeder_id,claimed_at) VALUES(?,?,?)',('cancel-test-quota-'+str(i),'test',int(time.time())))
+    check(len(query('SELECT * FROM first100_campaign_claims'))==100,'the first 100 claims exhaust global quota permanently')
     iq,pp,dd=fixture('sale-paid',True);expect('POST','/api/deals/'+dd+'/sale-report',body,'u_dog44');expect('POST','/api/deals/'+dd+'/completion-report',body,'u_dog44')
     invoice=query('SELECT * FROM commission_invoices WHERE deal_id=?',(dd,))[0]
     check(invoice['fee_amount']==15000 and invoice['due_at']-invoice['issued_at']==7*86400,'existing 5% invoice with seven-day term unchanged')
