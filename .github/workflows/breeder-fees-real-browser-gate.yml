@@ -17,6 +17,10 @@ on:
       - 'scripts/test-breeder-dashboard-banner.cjs'
       - 'scripts/test-breeder-signup-blue-mobile.cjs'
       - 'app/assets/breeder-fees-campaign.js'
+      - 'app/breeder-billing.html'
+      - 'app/breeder-invoice.html'
+      - 'app/backend/server.py'
+      - 'scripts/test-oshiwan-invoice-visual.cjs'
       - 'scripts/test-breeder-fees-real-browser.cjs'
       - '.github/workflows/breeder-fees-real-browser-gate.yml'
   push:
@@ -36,6 +40,10 @@ on:
       - 'scripts/test-breeder-dashboard-banner.cjs'
       - 'scripts/test-breeder-signup-blue-mobile.cjs'
       - 'app/assets/breeder-fees-campaign.js'
+      - 'app/breeder-billing.html'
+      - 'app/breeder-invoice.html'
+      - 'app/backend/server.py'
+      - 'scripts/test-oshiwan-invoice-visual.cjs'
       - 'scripts/test-breeder-fees-real-browser.cjs'
       - '.github/workflows/breeder-fees-real-browser-gate.yml'
 jobs:
@@ -84,6 +92,10 @@ jobs:
         env:
           BIGPAW_TEST_WEBKIT: '1'
         run: node scripts/test-breeder-dashboard-banner.cjs http://127.0.0.1:18096
+      - name: Verify first-100 Oshiwan invoices and seven-day deadline render correctly on mobile Chrome and Safari
+        env:
+          BIGPAW_TEST_WEBKIT: '1'
+        run: node scripts/test-oshiwan-invoice-visual.cjs http://127.0.0.1:18096
       - name: Test public home to blue breeder registration on Chromium and real Safari WebKit
         env:
           BIGPAW_TEST_WEBKIT: '1'
