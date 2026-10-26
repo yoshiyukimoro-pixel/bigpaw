@@ -64,18 +64,20 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(csp.includes('media-src')&&csp.includes('blob:'),name+': CSP media-src must allow local video metadata preview');
 
     const detail=await context.newPage();
-    await detail.route('**/puppy-detail.html?id=p1',route=>route.fulfill({
-      status:200,
-      contentType:'text/html; charset=utf-8',
-      body:`<!doctype html><html><body><main><div id="bigpawDetailMore"></div></main>
-      <script>window.BigPawBridge={puppy:async()=>({id:'p1',videoEmbedUrl:'https://customer-test.cloudflarestream.com/testvideo123/iframe'})};<\/script>
-      <script src="${base}/assets/puppy-video-public.js?v=20261026-1"><\/script>
-      </body></html>`
-    }));
     await detail.goto(base+'/puppy-detail.html?id=p1',{waitUntil:'domcontentloaded'});
-    await detail.waitForSelector('#bigpawPuppyVideoSection iframe',{timeout:10000});
-    const src=await detail.locator('#bigpawPuppyVideoSection iframe').getAttribute('src');
-    check(src.includes('cloudflarestream.com/testvideo123/iframe'),name+': public video iframe not rendered');
+    await detail.waitForFunction(()=>window.BigPawPuppyVideoPublic?.render && window.BigPawBridge?.puppy,null,{timeout:10000});
+    const rendered=await detail.evaluate(async()=>{
+      window.BigPawBridge.puppy=async()=>({
+        id:'p1',
+        videoEmbedUrl:'https://customer-test.cloudflarestream.com/testvideo123/iframe'
+      });
+      const existing=document.getElementById('bigpawPuppyVideoSection');
+      if(existing)existing.remove();
+      await window.BigPawPuppyVideoPublic.render();
+      const frame=document.querySelector('#bigpawPuppyVideoSection iframe');
+      return frame?frame.getAttribute('src'):'';
+    });
+    check(rendered.includes('cloudflarestream.com/testvideo123/iframe'),name+': public video iframe not rendered');
     await detail.close();
 
     const serious=errors.filter(x=>!x.includes('cloudflarestream.com')&&!x.includes('ERR_NAME_NOT_RESOLVED'));
