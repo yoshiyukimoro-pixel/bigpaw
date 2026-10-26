@@ -10,6 +10,7 @@ import threading
 _LOCK = threading.Lock()
 _RUNNING = False
 _LAST_ATTEMPT_WEEK = None
+_LAST_SUCCESS_WEEK = None
 
 
 def maybe_schedule_weekly_backup():
@@ -27,16 +28,18 @@ def maybe_schedule_weekly_backup():
     week = now.strftime("%G-W%V")
     hour = now.strftime("%Y%m%d%H")
     with _LOCK:
-        if _RUNNING or _LAST_ATTEMPT_WEEK == (week, hour):
+        if _RUNNING or _LAST_SUCCESS_WEEK == week or _LAST_ATTEMPT_WEEK == (week, hour):
             return False
         _RUNNING = True
         _LAST_ATTEMPT_WEEK = (week, hour)
 
     def worker():
-        global _RUNNING
+        global _RUNNING, _LAST_SUCCESS_WEEK
         try:
             from weekly_drive_backup import main
             main()
+            with _LOCK:
+                _LAST_SUCCESS_WEEK = week
         except Exception as exc:
             # Do not log tokens, credentials, or response bodies.
             print("WEEKLY_DRIVE_BACKUP_FAILED|" + type(exc).__name__, flush=True)
