@@ -63,6 +63,10 @@ def upload(destination: Path, folder_id: str):
 
 def main():
     db_path = os.environ.get("BIGPAW_DB_PATH", "").strip()
+    if not db_path:
+        data_dir = os.environ.get("BIGPAW_DATA_DIR", "").strip()
+        if data_dir:
+            db_path = str(Path(data_dir) / "bigpaw.sqlite3")
     folder = os.environ.get("BIGPAW_DRIVE_FOLDER_ID", "").strip()
     if not db_path or not folder:
         raise RuntimeError("Set BIGPAW_DB_PATH and BIGPAW_DRIVE_FOLDER_ID")
