@@ -5,6 +5,7 @@
   const items=[
     ['🏠','管理トップ','/admin.html'],
     ['＋','子犬を掲載','/breeder-puppy-new.html?new=1'],
+    ['🐾','出産予定・予約希望','/planned-litter-manage.html?v=20261026-blue3'],
     ['💬','見学・問い合わせ','/breeder-inquiries.html'],
     ['✅','成約申請','/breeder-deal-report.html'],
     ['💴','請求・お支払い','/breeder-billing.html'],
