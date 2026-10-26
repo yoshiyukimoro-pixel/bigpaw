@@ -64,19 +64,19 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(csp.includes('media-src')&&csp.includes('blob:'),name+': CSP media-src must allow local video metadata preview');
 
     const detail=await context.newPage();
-    await detail.route('**/api/puppies/p1',route=>route.fulfill({
-      status:200,
-      contentType:'application/json; charset=utf-8',
-      body:JSON.stringify({
+    await detail.goto(base+'/puppy-detail.html?id=p1',{waitUntil:'domcontentloaded'});
+    await detail.waitForFunction(()=>window.BigPawPuppyVideoPublic?.render && window.BigPawBridge?.puppy,{},{timeout:10000});
+    await detail.evaluate(async()=>{
+      window.BigPawBridge.puppy=async()=>({
         id:'p1',name:'テスト子犬',breed:'スタンダードプードル',breedKey:'standard-poodle',
         gender:'男の子',genderKey:'male',color:'ブラック',price:300000,status:'募集中',
         area:'埼玉県',areaKey:'saitama',desc:'',health:true,imageUrl:'',
         videoUid:'testvideo123',videoStatus:'ready',
         videoEmbedUrl:'https://customer-test.cloudflarestream.com/testvideo123/iframe',
         videoThumbnailUrl:'https://customer-test.cloudflarestream.com/testvideo123/thumbnails/thumbnail.jpg'
-      })
-    }));
-    await detail.goto(base+'/puppy-detail.html?id=p1',{waitUntil:'domcontentloaded'});
+      });
+      await window.BigPawPuppyVideoPublic.render();
+    });
     await detail.waitForSelector('#bigpawPuppyVideoSection iframe',{timeout:10000});
     const src=await detail.locator('#bigpawPuppyVideoSection iframe').getAttribute('src');
     check(src.includes('cloudflarestream.com/testvideo123/iframe'),name+': public video iframe not rendered');
