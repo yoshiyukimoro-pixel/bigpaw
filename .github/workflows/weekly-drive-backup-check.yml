@@ -3,6 +3,7 @@ name: Weekly Drive backup safety checks
 on:
   pull_request:
     paths:
+      - 'app/backend/server.py'
       - 'scripts/weekly_drive_backup.py'
       - 'scripts/test_weekly_drive_backup.py'
       - 'scripts/weekly_drive_scheduler.py'
@@ -24,6 +25,7 @@ jobs:
           python-version: '3.13'
       - name: Check Python syntax and SQLite snapshot
         run: |
+          python -m py_compile app/backend/server.py
           python -m py_compile scripts/weekly_drive_backup.py
           python scripts/test_weekly_drive_backup.py
           python -m py_compile scripts/weekly_drive_scheduler.py
