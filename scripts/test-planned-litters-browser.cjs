@@ -158,7 +158,7 @@ async function check(engine,label){
    assert.equal(ownInquiry[0].preferred_gender,'女の子');
    // Real browser: connect an existing reservation-interest to a newborn puppy.
    const puppyRows=await api(manager,'GET','/breeder/puppies');
-   const target=puppyRows.find(p=>p.breedKey==='siberian-husky'&&p.status!=='成約済み');
+   const target=puppyRows.find(p=>p.breedKey===item.breedKey&&p.status!=='成約済み');
    if(target){
      await mpage.reload({waitUntil:'domcontentloaded'});
      await mpage.waitForFunction(()=>document.querySelector('#inquiries')?.textContent.includes('山田'),null,{timeout:20000});
