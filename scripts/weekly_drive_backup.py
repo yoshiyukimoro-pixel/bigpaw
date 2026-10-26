@@ -3,7 +3,7 @@
 
 Required environment:
  BIGPAW_DRIVE_FOLDER_ID: destination Google Drive folder ID
- GOOGLE_APPLICATION_CREDENTIALS: path to a Google service-account JSON file
+ BIGPAW_GOOGLE_CLIENT_ID / BIGPAW_GOOGLE_CLIENT_SECRET / BIGPAW_GOOGLE_REFRESH_TOKEN: OAuth secrets
  BIGPAW_DB_PATH: absolute path to the persistent SQLite database
 
 This script does not run from the web server or alter local retention.
@@ -28,11 +28,11 @@ def snapshot(source: Path, destination: Path):
 
 
 def upload(destination: Path, folder_id: str):
-    from google.auth import default
+    from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
 
-    credentials, _ = default(scopes=["https://www.googleapis.com/auth/drive.file"])
+    credentials = Credentials(\n        token=None,\n        refresh_token=os.environ["BIGPAW_GOOGLE_REFRESH_TOKEN"],\n        token_uri="https://oauth2.googleapis.com/token",\n        client_id=os.environ["BIGPAW_GOOGLE_CLIENT_ID"],\n        client_secret=os.environ["BIGPAW_GOOGLE_CLIENT_SECRET"],\n        scopes=["https://www.googleapis.com/auth/drive.file"],\n    )
     service = build("drive", "v3", credentials=credentials, cache_discovery=False)
     safe_name = destination.name.replace("'", "\\'")
     query = f"name = '{safe_name}' and '{folder_id}' in parents and trashed = false"
@@ -54,8 +54,7 @@ def main():
     folder = os.environ.get("BIGPAW_DRIVE_FOLDER_ID", "").strip()
     if not db_path or not folder:
         raise RuntimeError("Set BIGPAW_DB_PATH and BIGPAW_DRIVE_FOLDER_ID")
-    if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-        raise RuntimeError("Set GOOGLE_APPLICATION_CREDENTIALS to a secure credentials file")
+    required = ("BIGPAW_GOOGLE_CLIENT_ID", "BIGPAW_GOOGLE_CLIENT_SECRET", "BIGPAW_GOOGLE_REFRESH_TOKEN")\n    if not all(os.environ.get(key) for key in required):\n        raise RuntimeError("Google OAuth credentials missing; configure Railway secrets")
     # ISO week gives one unique backup name per week, regardless of retry date.
     now = dt.datetime.now(dt.timezone.utc)
     year, week, _ = now.isocalendar()
