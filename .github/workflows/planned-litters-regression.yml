@@ -13,6 +13,7 @@ on:
       - 'app/index.html'
       - 'app/admin.html'
       - 'app/search.html'
+      - 'app/search-list-rebuild.html'
       - '.github/workflows/planned-litters-regression.yml'
   workflow_dispatch:
 
@@ -45,7 +46,7 @@ jobs:
                   if self.inside and self.scripts: self.scripts[-1]+=data
               def handle_endtag(self,tag):
                   if tag=='script': self.inside=False
-          for path in ('app/planned-litters.html','app/planned-litter-manage.html','app/admin.html','app/search.html'):
+          for path in ('app/planned-litters.html','app/planned-litter-manage.html','app/admin.html','app/search.html','app/search-list-rebuild.html'):
               x=Inline()
               x.feed(Path(path).read_text(encoding='utf-8'))
               for i,s in enumerate(x.scripts):
@@ -54,6 +55,11 @@ jobs:
                       t.write_text(s,encoding='utf-8')
                       subprocess.run(['node','--check',str(t)],check=True)
               print('HTML_INLINE_SYNTAX_OK',path)
+          for source in ('app/search.html','app/search-list-rebuild.html'):
+              html=Path(source).read_text(encoding='utf-8')
+              assert 'href="planned-litters.html"' in html, ('planned_search_link_missing',source)
+          assert "SEARCH_REBUILD_LIVE_OK" in Path('app/backend/start_live.py').read_text(encoding='utf-8')
+          print('PRODUCTION_REGENERATED_SEARCH_LINK_OK')
           PY
       - name: Build the full production-equivalent Docker image and existing release gates
         run: docker build --no-cache -t bigpaw-planned-litter-regression .
