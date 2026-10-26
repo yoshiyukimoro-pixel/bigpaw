@@ -87,11 +87,14 @@ jobs:
       - name: Run current final-image core regression
         run: docker run --rm bigpaw-puppy-video python3 backend/final_core_regression_test.py
 
-      - name: Install real browser engines and ffmpeg
+      - name: Install Safari WebKit and use runner Chrome
         run: |
           set -euo pipefail
           npm install --no-save playwright
-          npx playwright install --with-deps chromium webkit
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$CHROME"
+          echo "BIGPAW_CHROME_PATH=$CHROME" >> "$GITHUB_ENV"
+          npx playwright install --with-deps webkit
           if ! command -v ffmpeg >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install -y ffmpeg
