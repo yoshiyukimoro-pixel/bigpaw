@@ -58,3 +58,9 @@ if set, `<BIGPAW_DATA_DIR>/bigpaw.sqlite3`; otherwise `app/backend/bigpaw.sqlite
 Offline GitHub Actions workflow `Weekly Drive backup safety checks` passed for commit `5818006980ef639e7b16998500e1f3b2892468f1`. This does not test Drive upload.
 
 **Security review:** Existing folder access may require the broader restricted Google Drive OAuth scope (`drive`), rather than `drive.file` which typically limits access to app-created or user-selected files. This is a sensitive permission: confirm explicit owner consent and Google OAuth verification requirements. Do not request credentials in chat. A narrower permission design (e.g. OAuth Picker for the folder or a dedicated new folder) should be evaluated before release.
+
+## Architecture correction after verifying Railway docs (2026-10-26)
+
+Railway volumes **cannot be mounted to two different services**. The dedicated cron-worker approach described earlier is **not valid for this production SQLite volume**. Do not attach or move `bigpaw-live-data` to a new worker. The owner verified `bigpaw-live` has `BIGPAW_DATA_DIR=/data`, and the `bigpaw-live-data` volume is mounted at `/data` with a 500 MB limit. Thus the database location is `/data/bigpaw.sqlite3`.
+
+Next safe implementation path: opt-in in-process weekly upload invoked from the existing `automation_monitor_loop`, using a background worker so network I/O never holds a database transaction. The weekly upload must use the existing SQLite online backup or a fresh online snapshot, be retryable/idempotent, and avoid deleting local files. Add the OAuth dependencies to the deployed image only after integration tests. Do not enable this until OAuth credentials are stored in Railway variables and the real Drive upload has been tested.
