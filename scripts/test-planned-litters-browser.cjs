@@ -59,6 +59,11 @@ async function check(engine,label){
    await mpage.locator('#listings').waitFor();
    await mpage.waitForFunction(()=>document.querySelector('#listings')&&!document.querySelector('#listings').textContent.includes('読み込み中'),null,{timeout:20000});
    await assertBreederBlue(mpage,label+' breeder mobile manager');
+   // Regress the real user path: choosing a visible breed by name must send a slug, not Japanese text.
+   const breedOptions=await mpage.locator('#breed option').evaluateAll(nodes=>nodes.map(o=>({value:o.value,label:o.textContent.trim()})));
+   assert(breedOptions.every(o=>!o.value||/^[a-z0-9-]{1,80}$/.test(o.value)),label+' planned breeds must use slug keys');
+   assert.equal(breedOptions.filter(o=>o.label==='シベリアン・ハスキー').length,1,label+' Siberian Husky must appear only once');
+   assert.equal(breedOptions.find(o=>o.label==='シベリアン・ハスキー').value,'siberian-husky');
    // The shared mobile menu must classify the planned-litter manager as a breeder page.
    await mpage.locator('#bp-global-mobile-menu-button').waitFor({state:'visible',timeout:10000});
    await mpage.locator('#bp-global-mobile-menu-button').click();
@@ -80,7 +85,8 @@ async function check(engine,label){
    });
    await mpage.waitForFunction(()=>document.documentElement.getAttribute('data-bp-page-theme')==='breeder'&&document.body.classList.contains('bp-planned-litter-blue-lock'),null,{timeout:5000});
    await assertBreederBlue(mpage,label+' breeder mobile manager after late theme flip');
-   await mpage.locator('#breed').selectOption('standard-poodle');
+   await mpage.locator('#breed').selectOption({label:'シベリアン・ハスキー'});
+   assert.equal(await mpage.locator('#breed').inputValue(),'siberian-husky',label+' visible Husky selection posts slug key');
    await mpage.locator('#phase').selectOption('交配予定');
    const title=item.title+' '+label;
    await mpage.locator('#title').fill(title);
@@ -92,6 +98,7 @@ async function check(engine,label){
    const list=await api(manager,'GET','/planned-litters/mine');
    const created=list.filter(x=>x.title===title);
    assert.equal(created.length,1,'created through actual browser form');
+   assert.equal(created[0].breed_key,'siberian-husky','saved Husky must retain correct slug key');
    const lid=created[0].id;
    // Anonymous public page and individual detail.
    const publicContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
