@@ -1638,7 +1638,6 @@ https://www.bigpaw.site/'''
     def do_PATCH(self):
         path=urlparse(self.path).path
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
-        if bp_planned_litters.handle(self, 'PATCH', path, {}, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
         if path=='/api/me':
             u=self.require();
             if not u:return
@@ -1787,6 +1786,7 @@ https://www.bigpaw.site/'''
                     sets.extend(["review_status='pending'","moderation_note=''",'published_at=NULL'])
                 args.append(m.group(1)); con.execute('UPDATE puppies SET '+','.join(sets)+' WHERE id=?',args); audit(con,u['id'],'puppy_updated','puppy',m.group(1),','.join(body.keys())); con.commit()
             r=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone(); con.close(); return self.send_json(puppy_json(r))
+        if bp_planned_litters.handle(self, 'PATCH', path, {}, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
         return self.send_json({'error':'not_found'},404)
 
 if __name__=='__main__':
