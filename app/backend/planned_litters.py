@@ -404,6 +404,11 @@ def handle(h, method, path, query, ctx):
             con.execute("INSERT INTO notifications VALUES(?,?,?,?,?,?,?)",
                 (ctx['make_id']('n_'),owner['user_id'],'inquiry','予約希望の問い合わせ',
                  rows[0]['title']+'に新しい予約希望が届きました',0,now()))
+        operators = con.execute("SELECT id,email FROM users WHERE role='operator'").fetchall()
+        for op in operators:
+            con.execute("INSERT INTO notifications VALUES(?,?,?,?,?,?,?)",
+                        (ctx['make_id']('n_'),op['id'],'inquiry','新しい出産予定の予約希望',
+                         rows[0]['title']+'に予約希望が届きました。運営の予約希望追跡から確認してください。',0,now()))
         con.commit()
         if owner:
             contact = con.execute('SELECT email FROM users WHERE id=?',(owner['user_id'],)).fetchone()
@@ -415,6 +420,11 @@ def handle(h, method, path, query, ctx):
             ctx['send_mail'](recipient,'BIG PAW 予約希望の問い合わせ',
                 rows[0]['title']+'に事前相談が届きました。\n\n'+
                 ctx['public_url']+'/planned-litter-manage.html')
+        for op in operators:
+            if op['email'] and op['email']!=recipient:
+                ctx['send_mail'](op['email'],'BIG PAW 出産予定への予約希望（運営確認）',
+                    rows[0]['title']+'に予約希望が入りました。\n\n'+
+                    ctx['public_url']+'/operator-planned-litter-inquiries.html')
         h.send_json({'id':lid,'status':'新着'},201)
         return True
     match = re.fullmatch(r'/api/planned-litters/inquiries/([^/]+)',path)
