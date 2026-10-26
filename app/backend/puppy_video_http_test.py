@@ -57,6 +57,10 @@ class MockStream:
             return f'testvideo{self.counter:02d}abcdefgh'
 
     def details(self,uid):
+        if uid=='exact60video1':
+            return {'uid':uid,'duration':60.0,'readyToStream':True,'status':{'state':'ready'},'meta':{'puppyId':'p1'}}
+        if uid=='slightlylong1':
+            return {'uid':uid,'duration':60.01,'readyToStream':True,'status':{'state':'ready'},'meta':{'puppyId':'p1'}}
         if uid=='longvideo1':
             return {'uid':uid,'duration':61.0,'readyToStream':True,'status':{'state':'ready'},'meta':{'puppyId':'p1'}}
         if uid=='otherpuppy1':
@@ -178,6 +182,10 @@ def main():
                 check('frame-src' in csp and 'cloudflarestream.com' in csp,'CSP allows Stream iframe')
                 check('connect-src' in csp and 'videodelivery.net' in csp,'CSP allows direct Stream upload')
 
+                exact=call(base,'POST','/api/puppies/p1/video',{'uid':'exact60video1'},operator,201)
+                check(exact['videoUid']=='exact60video1','backend accepts exactly 60.0-second video')
+                check(call(base,'POST','/api/puppies/p1/video',{'uid':'slightlylong1'},operator,400)['error']=='video_too_long','backend rejects 60.01-second video')
+                check('slightlylong1' in state.deleted,'slightly overlong Cloudflare object cleaned')
                 check(call(base,'POST','/api/puppies/p1/video',{'uid':'longvideo1'},operator,400)['error']=='video_too_long','backend rejects >60 second video')
                 check('longvideo1' in state.deleted,'overlong Cloudflare object cleaned')
                 check(call(base,'POST','/api/puppies/p1/video',{'uid':'otherpuppy1'},operator,403)['error']=='video_puppy_mismatch','cannot attach video ticket for another puppy')

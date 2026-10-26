@@ -65,8 +65,21 @@ async function run(engine,name,contextOptions,launchOptions={}){
 
     const detail=await context.newPage();
     await detail.goto(base+'/puppy-detail.html?id=p1',{waitUntil:'domcontentloaded'});
-    await detail.waitForFunction(()=>window.BigPawPuppyVideoPublic?.render && window.BigPawBridge?.puppy,null,{timeout:10000});
+    // The video renderer must really load from the public page. Its fixture data
+    // is independent of the legacy bridge's initialization timing on Safari.
+    // A missing renderer still fails the test (and emits useful diagnostics).
+    try{
+      await detail.waitForFunction(()=>typeof window.BigPawPuppyVideoPublic?.render==='function',null,{timeout:30000});
+    }catch(e){
+      const diag=await detail.evaluate(()=>({
+        href:location.href,
+        ready:document.readyState,
+        scripts:Array.from(document.scripts).map(s=>s.src).filter(s=>s.includes('puppy-video')||s.includes('bridge'))
+      })).catch(err=>({error:String(err)}));
+      throw new Error(name+': public video script failed to initialize: '+JSON.stringify(diag)+'; '+e.message);
+    }
     const rendered=await detail.evaluate(async()=>{
+      window.BigPawBridge=window.BigPawBridge||{};
       window.BigPawBridge.puppy=async()=>({
         id:'p1',
         videoEmbedUrl:'https://customer-test.cloudflarestream.com/testvideo123/iframe'

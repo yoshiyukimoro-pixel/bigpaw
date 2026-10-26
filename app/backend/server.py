@@ -1589,7 +1589,7 @@ https://www.bigpaw.site/'''
             duration=details.get('duration')
             try: duration=float(duration) if duration is not None else None
             except (TypeError,ValueError): duration=None
-            if duration is not None and duration>PUPPY_VIDEO_MAX_SECONDS+0.05:
+            if duration is not None and duration>PUPPY_VIDEO_MAX_SECONDS:
                 con.close(); delete_stream_video(uid)
                 return self.send_json({'error':'video_too_long','message':'動画は60秒以内にしてください。'},400)
             state=str((details.get('status') or {}).get('state') or ('ready' if details.get('readyToStream') else 'processing'))

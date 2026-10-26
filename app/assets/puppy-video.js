@@ -1,6 +1,7 @@
 (()=>{
   'use strict';
   const MAX_SECONDS=60;
+  const durationAllowed=seconds=>Number.isFinite(Number(seconds))&&Number(seconds)>0&&Number(seconds)<=MAX_SECONDS;
   const MAX_BYTES=200*1024*1024;
   let selected=null;
   let currentPuppyId='';
@@ -75,7 +76,7 @@
       setStatus('動画の長さを確認できませんでした。MP4またはMOVの60秒以内の動画を選択してください。',true);
       return false;
     }
-    if(duration>MAX_SECONDS+0.05){
+    if(!durationAllowed(duration)){
       setPreview('');
       setStatus('この動画は'+Math.ceil(duration)+'秒です。動画は60秒以内に編集してから、もう一度選択してください。',true);
       return false;
@@ -156,7 +157,7 @@
   }
   window.BigPawPuppyVideo={
     maxSeconds:MAX_SECONDS,
-    durationAllowed:seconds=>Number.isFinite(Number(seconds))&&Number(seconds)>0&&Number(seconds)<=MAX_SECONDS,
+    durationAllowed,
     renderExisting,
     uploadIfSelected,
     hasSelected:()=>!!selected,
