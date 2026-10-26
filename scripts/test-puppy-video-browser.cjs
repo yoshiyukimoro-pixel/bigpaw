@@ -78,7 +78,6 @@ async function run(engine,name,contextOptions,launchOptions={}){
       return frame?frame.getAttribute('src'):'';
     });
     check(rendered.includes('cloudflarestream.com/testvideo123/iframe'),name+': public video iframe not rendered');
-    await detail.waitForSelector('#bigpawPuppyVideoSection iframe',{state:'attached',timeout:5000});
     await detail.close();
 
     const serious=errors.filter(x=>!x.includes('cloudflarestream.com')&&!x.includes('ERR_NAME_NOT_RESOLVED'));
