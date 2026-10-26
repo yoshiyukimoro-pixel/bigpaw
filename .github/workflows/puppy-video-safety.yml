@@ -84,8 +84,8 @@ jobs:
             exit 1
           fi
 
-      - name: Run current inquiry, photo, search, favorite and transaction regression
-        run: docker run --rm bigpaw-puppy-video python3 backend/inquiry_cancellation_test.py /app
+      - name: Re-run official inquiry cancellation release gate
+        run: docker run --rm bigpaw-puppy-video python3 backend/inquiry_cancellation_release_gate.py
 
       - name: Install real browser engines and ffmpeg
         run: |
