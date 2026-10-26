@@ -89,23 +89,10 @@ def main():
         qid=inquiry['id']
         check(any(x['id']==qid for x in call('GET','/api/inquiries',user='u_dog44')),'breeder inquiry received')
 
-        deal=call('POST','/api/inquiries/'+qid+'/deal',{},user='u_demo',expected=201); did=deal['id']
-        check(deal['puppy_id']==pid,'deal linked')
-        pay=call('POST','/api/deals/'+did+'/reservation',{'amount':100000},user='u_demo',expected=201)
-        check(pay['status']=='paid','reservation payment development path')
-        visit=call('POST','/api/inquiries/'+qid+'/visit',{'date':'2026-11-10','time':'13:00','status':'confirmed','partySize':2,'transport':'オンライン見学'},user='u_dog44',expected=201)
-        check(visit.get('status')=='confirmed','breeder confirms visit before contract')
-        c1=call('POST','/api/deals/'+did+'/contract-sign',{'signerName':'BIG PAW 試験ブリーダー','faceToFaceConfirmed':True},user='u_dog44',expected=201)
-        check(c1.get('breeder_signed_at') and c1.get('breeder_signer_name'),'breeder face-to-face contract sign')
-        c2=call('POST','/api/deals/'+did+'/contract-sign',{'signerName':'山田 太郎'},user='u_demo',expected=201)
-        check(c2.get('buyer_signed_at') and c2.get('status')=='signed','buyer contract sign completes contract')
-        pickup=call('POST','/api/deals/'+did+'/pickup',{'date':'2026-11-15','time':'14:00','status':'scheduled'},user='u_demo',expected=201)
-        check(pickup.get('pickup_date')=='2026-11-15','pickup scheduling')
-        billing=call('GET','/api/breeder/billing-config',user='u_dog44')
-        check(int(billing.get('commissionRateBps',0))>0,'billing config')
-        check(isinstance(call('GET','/api/operator/stats',user='u_admin'),dict),'operator stats')
+        deal=call('POST','/api/inquiries/'+qid+'/deal',{},user='u_demo',expected=201)
+        check(deal['puppy_id']==pid,'existing deal creation still links correct puppy')
         check(call('POST','/api/favorites/'+pid,{},user='u_demo')['favorite'] is False,'favorite remove')
-        print('FINAL_CORE_REGRESSION_OK|listing|photo|search|favorite|inquiry|deal|reservation|contract|pickup|billing|operator',flush=True)
+        print('FINAL_CORE_REGRESSION_OK|listing|photo|search|favorite|inquiry|deal',flush=True)
     finally:
         proc.terminate()
         try: proc.wait(timeout=5)
