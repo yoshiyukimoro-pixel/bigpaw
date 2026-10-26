@@ -87,29 +87,22 @@ jobs:
       - name: Run current final-image core regression
         run: docker run --rm bigpaw-puppy-video python3 backend/final_core_regression_test.py
 
-      - name: Install Safari WebKit and use runner Chrome
+      - name: Run desktop Chrome and iPhone Safari WebKit in official browser image
         run: |
           set -euo pipefail
-          npm install --no-save playwright
-          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
-          test -n "$CHROME"
-          echo "BIGPAW_CHROME_PATH=$CHROME" >> "$GITHUB_ENV"
-          npx playwright install --with-deps webkit
-          if ! command -v ffmpeg >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y ffmpeg
-          fi
-
-      - name: Generate real short and over-60-second video fixtures
-        run: |
-          set -euo pipefail
-          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=c=black:s=96x96:r=2 -t 2             -c:v libx264 -pix_fmt yuv420p -movflags +faststart /tmp/bp-short.mp4
-          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=c=black:s=96x96:r=1 -t 61             -c:v libx264 -pix_fmt yuv420p -movflags +faststart /tmp/bp-long.mp4
-          test -s /tmp/bp-short.mp4
-          test -s /tmp/bp-long.mp4
-
-      - name: Run desktop Chrome and iPhone Safari WebKit regression
-        run: node scripts/test-puppy-video-browser.cjs http://127.0.0.1:18106 /tmp/bp-short.mp4 /tmp/bp-long.mp4
+          docker run --rm --network host \
+            -v "$PWD:/work" -v /tmp:/tmp -w /work \
+            mcr.microsoft.com/playwright:v1.55.0-noble \
+            bash -lc '
+              npm install --no-save playwright@1.55.0 >/dev/null 2>&1
+              FFMPEG="$(find /ms-playwright -type f -name ffmpeg-linux | head -1)"
+              test -x "$FFMPEG"
+              "$FFMPEG" -hide_banner -loglevel error -y -f lavfi -i color=c=black:s=96x96:r=2 -t 2 -c:v libx264 -pix_fmt yuv420p -movflags +faststart /tmp/bp-short.mp4
+              "$FFMPEG" -hide_banner -loglevel error -y -f lavfi -i color=c=black:s=96x96:r=1 -t 61 -c:v libx264 -pix_fmt yuv420p -movflags +faststart /tmp/bp-long.mp4
+              test -s /tmp/bp-short.mp4
+              test -s /tmp/bp-long.mp4
+              node scripts/test-puppy-video-browser.cjs http://127.0.0.1:18106 /tmp/bp-short.mp4 /tmp/bp-long.mp4
+            '
 
       - name: Final health check and cleanup
         if: always()
