@@ -1,0 +1,74 @@
+name: BIG PAW planned-litter live read-only verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/backend/planned_litters.py'
+      - 'app/backend/server.py'
+      - 'app/planned-litters.html'
+      - 'app/planned-litter-manage.html'
+      - 'app/admin.html'
+      - 'app/index.html'
+      - 'app/search.html'
+      - 'app/search-list-rebuild.html'
+      - '.github/workflows/planned-litters-live-verification.yml'
+  workflow_dispatch:
+jobs:
+  confirm-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify actual public production release without modifying data
+        run: |
+          python3 - <<'PY'
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+
+          ORIGIN='https://bigpaw.site'
+          def read(path):
+              req=urllib.request.Request(ORIGIN+path,headers={
+                  'Cache-Control':'no-cache',
+                  'User-Agent':'BIGPAW-planned-litter-postdeploy-readonly/1.0',
+                  'Accept':'application/json,text/html,*/*'
+              })
+              with urllib.request.urlopen(req,timeout=20) as response:
+                  if response.status!=200:
+                      raise AssertionError(path+' HTTP '+str(response.status))
+                  if response.url.split('?')[0]!=ORIGIN+path:
+                      raise AssertionError(path+' unexpected redirect')
+                  return response.read(2500000).decode('utf-8')
+
+          def check():
+              health=json.loads(read('/api/health'))
+              assert health.get('ok') is True and health.get('environment')=='production',health
+              public=read('/planned-litters.html')
+              assert '交配・出産予定と予約希望受付' in public
+              assert '仮予約希望' in public
+              manage=read('/planned-litter-manage.html')
+              assert '出産予定・予約希望の管理' in manage
+              assert 'auth-return-fix.js' in manage
+              main=read('/')
+              assert 'href="planned-litters.html"' in main
+              search=read('/search.html')
+              assert 'href="planned-litters.html"' in search
+              planned=json.loads(read('/api/planned-litters'))
+              assert isinstance(planned,list),'public planned litter endpoint must return a JSON array'
+              # Do not inspect or print private customer data; no writes and no login.
+              puppy=json.loads(read('/api/puppies'))
+              assert isinstance(puppy,list),'regular public puppies endpoint still returns an array'
+              print('LIVE_PLANNED_LITTER_READONLY_OK|health|public_list|manager_page|home|search|planned_api|normal_puppy_api',flush=True)
+
+          for attempt in range(45):
+              try:
+                  check()
+                  break
+              except Exception as exc:
+                  if attempt==44:
+                      raise
+                  if attempt%5==0:
+                      print('Waiting for production rollout, check',attempt+1,
+                            type(exc).__name__,str(exc)[:160],flush=True)
+                  time.sleep(10)
+          PY
