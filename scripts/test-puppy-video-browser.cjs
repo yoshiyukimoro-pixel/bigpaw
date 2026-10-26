@@ -14,6 +14,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
   page.on('pageerror',e=>errors.push('pageerror:'+e.message));
   page.on('console',m=>{if(m.type()==='error')errors.push('console:'+m.text())});
   try{
+    console.log('VIDEO_BROWSER_STAGE',name,'login');
     await page.goto(base+'/login.html',{waitUntil:'domcontentloaded'});
     await page.fill('#email','dog44@bigpaw.jp');
     await page.fill('#password','demo1234');
@@ -22,6 +23,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
       page.click('form button[type="submit"], form button')
     ]);
 
+    console.log('VIDEO_BROWSER_STAGE',name,'editor');
     await page.goto(base+'/breeder-puppy-new.html',{waitUntil:'domcontentloaded'});
     await page.waitForSelector('#puppyVideo',{state:'visible'});
     const note=await page.locator('#puppyVideoBox').innerText();
@@ -34,11 +36,13 @@ async function run(engine,name,contextOptions,launchOptions={}){
     }));
     check(policy.max===60&&policy.at60===true&&policy.over===false,name+': JS duration boundary wrong');
 
+    console.log('VIDEO_BROWSER_STAGE',name,'overlong');
     await page.setInputFiles('#puppyVideo',longVideo);
     await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('60秒以内に編集'),null,{timeout:15000});
     check(await page.locator('#puppyVideo').evaluate(el=>el.files.length)===0,name+': overlong video input was not cleared');
     check((await page.locator('#puppyVideoStatus').innerText()).includes('60秒以内に編集'),name+': overlong guidance missing');
 
+    console.log('VIDEO_BROWSER_STAGE',name,'short');
     await page.setInputFiles('#puppyVideo',shortVideo);
     await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('60秒以内です'),null,{timeout:15000});
     check(await page.locator('#puppyVideo').evaluate(el=>el.files.length)===1,name+': valid video not retained');
@@ -46,6 +50,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
 
     // Public renderer is additive. Stub only the pre-existing data bridge so this
     // browser check stays focused on the new video renderer rather than unrelated app state.
+    console.log('VIDEO_BROWSER_STAGE',name,'public-render');
     const detail=await context.newPage();
     await detail.route('**/assets/bridge.js',route=>route.fulfill({
       status:200,
