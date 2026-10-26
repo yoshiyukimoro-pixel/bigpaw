@@ -73,7 +73,7 @@ jobs:
       - name: Launch disposable built server
         run: |
           set -euo pipefail
-          docker run -d --name bigpaw-video-browser -p 18106:8080             -e PORT=8080             -e BIGPAW_ENV=development             -e BIGPAW_DATA_DIR=/tmp/bigpaw-video-browser             -e BIGPAW_DEV_LINKS=0             -e BIGPAW_AUTOMATION_INTERVAL_SECONDS=86400             bigpaw-puppy-video python3 backend/server.py
+          docker run -d --name bigpaw-video-browser -p 18106:8080             -e PORT=8080             -e BIGPAW_ENV=development             -e BIGPAW_DATA_DIR=/tmp/bigpaw-video-browser             -e BIGPAW_DEV_LINKS=1             -e BIGPAW_AUTOMATION_INTERVAL_SECONDS=86400             bigpaw-puppy-video python3 backend/server.py
           ok=0
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:18106/api/health >/dev/null 2>&1; then ok=1; break; fi
