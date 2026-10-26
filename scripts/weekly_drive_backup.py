@@ -38,7 +38,7 @@ def upload(destination: Path, folder_id: str):
         token_uri="https://oauth2.googleapis.com/token",
         client_id=os.environ["BIGPAW_GOOGLE_CLIENT_ID"],
         client_secret=os.environ["BIGPAW_GOOGLE_CLIENT_SECRET"],
-        scopes=["https://www.googleapis.com/auth/drive.file"],
+        scopes=["https://www.googleapis.com/auth/drive"],
     )
     service = build("drive", "v3", credentials=credentials, cache_discovery=False)
     safe_name = destination.name.replace("'", "\\'")
