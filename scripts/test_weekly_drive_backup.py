@@ -1,8 +1,23 @@
 """Offline safety checks; no Google credentials or live database needed."""
 from pathlib import Path
+import os
 import sqlite3
 import tempfile
-from weekly_drive_backup import snapshot
+from unittest.mock import patch
+from urllib.parse import parse_qs
+
+from weekly_drive_backup import refresh_access_token, snapshot
+
+
+class FakeTokenResponse:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def read(self):
+        return b'{"access_token":"test-access-token","expires_in":3600,"token_type":"Bearer"}'
 
 
 def run():
@@ -24,7 +39,28 @@ def run():
             pass
         else:
             raise AssertionError("Missing database must not silently succeed")
-    print("PASS: SQLite backup copy, integrity and missing-source handling")
+
+    captured = {}
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["body"] = parse_qs(request.data.decode("utf-8"))
+        captured["timeout"] = timeout
+        return FakeTokenResponse()
+
+    env = {
+        "BIGPAW_GOOGLE_CLIENT_ID": "test-client-id",
+        "BIGPAW_GOOGLE_REFRESH_TOKEN": "test-refresh-token",
+    }
+    with patch.dict(os.environ, env, clear=False), patch("weekly_drive_backup.urlopen", fake_urlopen):
+        assert refresh_access_token() == "test-access-token"
+    assert captured["url"] == "https://oauth2.googleapis.com/token"
+    assert captured["body"]["client_id"] == ["test-client-id"]
+    assert captured["body"]["refresh_token"] == ["test-refresh-token"]
+    assert captured["body"]["grant_type"] == ["refresh_token"]
+    assert "client_secret" not in captured["body"]
+    assert captured["timeout"] == 20
+
+    print("PASS: SQLite snapshot and direct OAuth refresh request without client secret")
 
 
 if __name__ == "__main__":
