@@ -56,6 +56,8 @@ def list_rows(con, condition, args=()):
 
 def public_row(row):
     d = dict(row)
+    # Follow the existing BIG PAW policy: public pages do not reveal kennel identity.
+    d['kennel_name'] = (d.get('prefecture') or '') + 'のBIGPAW認定ブリーダー'
     return {k: d[k] for k in (
         'id', 'breeder_id', 'kennel_name', 'prefecture', 'breed', 'breed_key',
         'title', 'phase', 'planned_mating', 'expected_birth',
@@ -93,6 +95,8 @@ def validate_listing(body, check_contacts):
         raise ValueError('description_required')
     if check_contacts(title + '\n' + description):
         raise ValueError('direct_contact_not_allowed')
+    if re.search(r'(?:都|道|府|県).{0,24}(?:市|区|郡|町|村).{0,24}(?:[0-9０-９]|丁目|番地|番|号)', title+'\n'+description):
+        raise ValueError('private_location_not_allowed')
     values = []
     for k in ('plannedMating', 'expectedBirth'):
         raw = str(body.get(k) or '').strip()
@@ -104,6 +108,13 @@ def validate_listing(body, check_contacts):
                 raise ValueError('invalid_date')
         values.append(raw)
     return (breed, breed_key, title, phase, values[0], values[1], description, status)
+
+
+def no_private_kennel_name(con, breeder_id, values):
+    row=con.execute('SELECT kennel_name FROM breeders WHERE id=?',(breeder_id,)).fetchone()
+    name=str(row['kennel_name'] or '').strip() if row else ''
+    text=values[2]+'\n'+values[6]
+    return not (len(name)>=2 and name.lower() in text.lower())
 
 
 def handle(h, method, path, query, ctx):
@@ -174,6 +185,10 @@ def handle(h, method, path, query, ctx):
             con.close()
             h.send_json({'error':str(exc)},400)
             return True
+        if not no_private_kennel_name(con,bid,values):
+            con.close()
+            h.send_json({'error':'private_kennel_name_not_allowed'},400)
+            return True
         lid = ctx['make_id']('pl_')
         con.execute("""INSERT INTO planned_litters
           (id,breeder_id,breed,breed_key,title,phase,planned_mating,
@@ -211,6 +226,10 @@ def handle(h, method, path, query, ctx):
         except ValueError as exc:
             con.close()
             h.send_json({'error':str(exc)},400)
+            return True
+        if not no_private_kennel_name(con,bid,values):
+            con.close()
+            h.send_json({'error':'private_kennel_name_not_allowed'},400)
             return True
         con.execute("""UPDATE planned_litters SET breed=?,breed_key=?,title=?,phase=?,
             planned_mating=?,expected_birth=?,description=?,status=?,updated_at=?
