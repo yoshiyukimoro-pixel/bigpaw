@@ -9,15 +9,65 @@ Required environment:
 This script runs via the opt-in web-service scheduler; it does not alter local retention.
 """
 import datetime as dt
+import json
 import os
 import re
 from pathlib import Path
 import sqlite3
 import sys
 import tempfile
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 JST = dt.timezone(dt.timedelta(hours=9), name="JST")
 
+
+
+class OAuthRefreshFailed(RuntimeError):
+    def __init__(self, safe_code: str):
+        self.safe_code = safe_code
+        super().__init__("Google OAuth refresh failed")
+
+
+def refresh_access_token() -> str:
+    """Exchange the stored refresh token using Google's documented REST flow.
+
+    client_secret is intentionally omitted; Google documents it as optional for
+    refresh-token exchange. Never include OAuth values in raised errors or logs.
+    """
+    body = urlencode({
+        "client_id": os.environ["BIGPAW_GOOGLE_CLIENT_ID"],
+        "refresh_token": os.environ["BIGPAW_GOOGLE_REFRESH_TOKEN"],
+        "grant_type": "refresh_token",
+    }).encode("utf-8")
+    request = Request(
+        "https://oauth2.googleapis.com/token",
+        data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=20) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        safe_code = "http_error"
+        try:
+            payload = json.loads(exc.read().decode("utf-8"))
+            candidate = str(payload.get("error", "")).strip().lower()
+            if candidate in {"invalid_grant", "invalid_client", "unauthorized_client", "invalid_scope"}:
+                safe_code = candidate
+        except Exception:
+            pass
+        raise OAuthRefreshFailed(safe_code) from None
+    except (URLError, TimeoutError, OSError):
+        raise OAuthRefreshFailed("network_error") from None
+    except (ValueError, TypeError, json.JSONDecodeError):
+        raise OAuthRefreshFailed("invalid_response") from None
+    token = str(payload.get("access_token", "")).strip()
+    if not token:
+        raise OAuthRefreshFailed("missing_access_token")
+    return token
 
 def snapshot(source: Path, destination: Path):
     if not source.is_file():
@@ -36,10 +86,7 @@ def upload(destination: Path, folder_id: str):
     from googleapiclient.http import MediaFileUpload
 
     credentials = Credentials(
-        token=None,
-        refresh_token=os.environ["BIGPAW_GOOGLE_REFRESH_TOKEN"],
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.environ["BIGPAW_GOOGLE_CLIENT_ID"],
+        token=refresh_access_token(),
         scopes=["https://www.googleapis.com/auth/drive"],
     )
     service = build("drive", "v3", credentials=credentials, cache_discovery=False)
