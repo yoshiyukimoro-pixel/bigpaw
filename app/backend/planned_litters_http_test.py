@@ -134,6 +134,23 @@ def main():
             check(call(base,'PATCH','/api/planned-litters/'+lid,{'status':'受付中'},other,403)['error']=='forbidden','cross-kennel edit rejected')
             check(call(base,'PATCH','/api/planned-litters/inquiries/'+inquiry['id'],{'status':'相談中'},other,403)['error']=='forbidden','cross-kennel request update rejected')
             check(call(base,'POST','/api/planned-litters',dict(valid,breederId='b_dog44'),other,201)['breeder_id']=='b_other','breeder cannot spoof breederId')
+            # Delete is restricted to the same approved breeder or authorized operator.
+            check(call(base,'DELETE','/api/planned-litters/'+lid,expected=401)['error']=='auth_required','anonymous cannot delete')
+            check(call(base,'DELETE','/api/planned-litters/'+lid,token=buyer,expected=403)['error']=='forbidden','buyer cannot delete')
+            check(call(base,'DELETE','/api/planned-litters/'+lid,token=other,expected=403)['error']=='forbidden','other kennel cannot delete')
+            blocked=call(base,'DELETE','/api/planned-litters/'+lid,token=breeder,expected=409)
+            check(blocked['error']=='planned_litter_has_inquiries','listing with buyer interest cannot be removed')
+            check(call(base,'DELETE','/api/planned-litters/'+lid,token=operator,expected=409)['error']=='planned_litter_has_inquiries','operator cannot bypass buyer-interest retention')
+            check(len(call(base,'GET','/api/planned-litters/inquiries',token=breeder))==1,'inquiry history preserved after rejected deletion')
+            deletable=call(base,'POST','/api/planned-litters',dict(valid,title='削除確認のテスト掲載'),breeder,201)
+            did=deletable['id']
+            check(call(base,'DELETE','/api/planned-litters/'+did,token=breeder)['ok'] is True,'owner deletes listing without inquiries')
+            check(call(base,'GET','/api/planned-litters/'+did,expected=404)['error']=='not_found','deleted item hidden from public detail')
+            check(not any(x['id']==did for x in call(base,'GET','/api/planned-litters/mine',token=breeder)),'deleted item removed from owner list')
+            check(call(base,'DELETE','/api/planned-litters/'+did,token=breeder,expected=404)['error']=='not_found','repeat delete is safe')
+            for_operator=call(base,'POST','/api/planned-litters',dict(valid,title='運営削除テスト掲載'),breeder,201)
+            check(call(base,'DELETE','/api/planned-litters/'+for_operator['id'],token=operator)['ok'] is True,'operator can delete uncontacted listing')
+            check(call(base,'GET','/api/planned-litters/'+for_operator['id'],expected=404)['error']=='not_found','operator delete removed listing')
             # Suspending own kennel must also remove planned litter from public API.
             con=sqlite3.connect(str(Path(td)/'bigpaw.sqlite3'))
             con.execute("UPDATE breeders SET billing_suspended=1 WHERE id='b_other'")
