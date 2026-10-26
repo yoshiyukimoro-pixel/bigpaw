@@ -87,6 +87,7 @@ async function check(engine,label){
    await assertBreederBlue(mpage,label+' breeder mobile manager after late theme flip');
    await mpage.locator('#breed').selectOption({label:'シベリアン・ハスキー'});
    assert.equal(await mpage.locator('#breed').inputValue(),'siberian-husky',label+' visible Husky selection posts slug key');
+   await mpage.locator('#breed').selectOption(item.breedKey);
    await mpage.locator('#phase').selectOption('交配予定');
    const title=item.title+' '+label;
    await mpage.locator('#title').fill(title);
@@ -105,7 +106,7 @@ async function check(engine,label){
    const list=await api(manager,'GET','/planned-litters/mine');
    const created=list.filter(x=>x.title===title);
    assert.equal(created.length,1,'created through actual browser form');
-   assert.equal(created[0].breed_key,'siberian-husky','saved Husky must retain correct slug key');
+   assert.equal(created[0].breed_key,item.breedKey,'saved planned litter must retain correct breed key');
    // The next-registration action deliberately unlocks the button. Missing fields
    // must show an explanation instead of silently blocking a native form submit.
    await mpage.locator('#newListing').click();
@@ -159,7 +160,8 @@ async function check(engine,label){
    // Real browser: connect an existing reservation-interest to a newborn puppy.
    const puppyRows=await api(manager,'GET','/breeder/puppies');
    const target=puppyRows.find(p=>p.breedKey===item.breedKey&&p.status!=='成約済み');
-   if(target){
+   assert(target,'seed puppy matching planned litter must exist; never silently skip sale bridge');
+   {
      await mpage.reload({waitUntil:'domcontentloaded'});
      await mpage.waitForFunction(()=>document.querySelector('#inquiries')?.textContent.includes('山田'),null,{timeout:20000});
      const inquiryCard=mpage.locator('#inquiries article.item').filter({hasText:title});
