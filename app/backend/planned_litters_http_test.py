@@ -163,7 +163,7 @@ def main():
             check(con.execute('SELECT COUNT(*) FROM puppies').fetchone()[0]==after_regular,'planned interest never created individual puppies')
             pup=con.execute("SELECT id,breed_key FROM puppies WHERE breeder_id='b_dog44' AND breed_key='standard-poodle' AND status!='成約済み' LIMIT 1").fetchone()
             check(bool(pup),'seed puppy available for legitimate post-birth handoff')
-            pid=pup['id']
+            pid=pup[0]
             con.close()
             transfer_path='/api/planned-litters/inquiries/'+inquiry['id']+'/link-puppy'
             check(call(base,'GET','/api/planned-litters/operator/overview',expected=401)['error']=='auth_required','operator overview needs auth')
