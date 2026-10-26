@@ -94,6 +94,10 @@ async function check(engine,label){
    await mpage.locator('#expectedBirth').fill(item.expectedBirth);
    await mpage.locator('#description').fill(item.description);
    await mpage.locator('#saveBtn').click();
+   // The breeder should see unmistakable completion next to the button, not just at the page top.
+   await mpage.locator('#saveFeedback').waitFor({state:'visible',timeout:20000});
+   assert.match(await mpage.locator('#saveFeedback').textContent(),/登録が完了しました/,label+' must show save confirmation beside button');
+   assert.equal(await mpage.locator('#title').inputValue(),'','successful registration clears the form');
    await mpage.waitForFunction(text=>document.querySelector('#listings')?.textContent.includes(text),title,{timeout:20000});
    const list=await api(manager,'GET','/planned-litters/mine');
    const created=list.filter(x=>x.title===title);
