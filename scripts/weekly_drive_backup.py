@@ -85,7 +85,7 @@ def prune_old_weekly_backups(service, folder_id: str, keep: int = 4):
         token = result.get("nextPageToken")
         if not token:
             break
-    pattern = re.compile(r"^bigpaw-weekly-(\\d{4})-W(\\d{2})\\.sqlite3$")
+    pattern = re.compile(r"^bigpaw-weekly-(\d{4})-W(\d{2})\.sqlite3$")
     candidates = []
     for item in files:
         match = pattern.fullmatch(item.get("name", ""))
