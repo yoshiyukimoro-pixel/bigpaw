@@ -43,6 +43,15 @@ def init_schema(con):
     );
     CREATE INDEX IF NOT EXISTS idx_planned_litter_inquiries
         ON planned_litter_inquiries(planned_litter_id, created_at);
+    CREATE TABLE IF NOT EXISTS planned_litter_links(
+        planned_inquiry_id TEXT PRIMARY KEY REFERENCES planned_litter_inquiries(id),
+        inquiry_id TEXT NOT NULL UNIQUE REFERENCES inquiries(id),
+        puppy_id TEXT NOT NULL REFERENCES puppies(id),
+        linked_by TEXT NOT NULL REFERENCES users(id),
+        linked_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_planned_litter_links_puppy
+        ON planned_litter_links(puppy_id);
     """)
 
 
@@ -128,6 +137,106 @@ def handle(h, method, path, query, ctx):
         con.close()
         h.send_json([public_row(row) for row in rows])
         return True
+    if method == 'GET' and path == '/api/planned-litters/operator/overview':
+        user = h.require(['operator'])
+        if not user: return True
+        con = db()
+        rows = con.execute("""
+            SELECT i.id, i.planned_litter_id, i.buyer_id, i.name, i.email,
+                   i.preferred_gender, i.status, i.created_at,
+                   p.breeder_id, p.title, p.expected_birth, p.phase,
+                   p.status AS listing_status, b.kennel_name,
+                   l.puppy_id AS linked_puppy_id, l.inquiry_id AS linked_inquiry_id,
+                   pup.name AS linked_puppy_name, d.id AS linked_deal_id,
+                   d.status AS linked_deal_status
+            FROM planned_litter_inquiries i
+            JOIN planned_litters p ON p.id=i.planned_litter_id
+            JOIN breeders b ON b.id=p.breeder_id
+            LEFT JOIN planned_litter_links l ON l.planned_inquiry_id=i.id
+            LEFT JOIN puppies pup ON pup.id=l.puppy_id
+            LEFT JOIN deals d ON d.inquiry_id=l.inquiry_id
+            ORDER BY i.created_at DESC LIMIT 500""").fetchall()
+        con.close()
+        h.send_json([dict(r) for r in rows])
+        return True
+    # The original buyer and litter inquiry remain permanent audit context.
+    # This conversion only creates a normal puppy inquiry, NOT a deal/payment/reservation.
+    match_link = re.fullmatch(r'/api/planned-litters/inquiries/([^/]+)/link-puppy', path)
+    if method == 'POST' and match_link:
+        user = h.require(['breeder', 'operator'])
+        if not user: return True
+        body = h.json_body()
+        puppy_id = str(body.get('puppyId') or '').strip() if isinstance(body, dict) else ''
+        if not re.fullmatch(r'[a-zA-Z0-9_-]{1,100}', puppy_id):
+            h.send_json({'error':'puppy_required','message':'生まれた子犬を選択してください。'},400)
+            return True
+        con = db()
+        try:
+            con.execute('BEGIN IMMEDIATE')
+            old = con.execute("""
+                SELECT i.*, p.breeder_id, p.breed_key, p.title
+                FROM planned_litter_inquiries i JOIN planned_litters p
+                ON p.id=i.planned_litter_id WHERE i.id=?""",(match_link.group(1),)).fetchone()
+            if not old:
+                h.send_json({'error':'not_found'},404)
+                return True
+            bid = authorized_breeder(con,user,old['breeder_id'] if user['role']=='operator' else '')
+            if bid != old['breeder_id']:
+                h.send_json({'error':'forbidden'},403)
+                return True
+            existing = con.execute("SELECT * FROM planned_litter_links WHERE planned_inquiry_id=?",
+                                   (old['id'],)).fetchone()
+            if existing:
+                if existing['puppy_id']!=puppy_id:
+                    h.send_json({'error':'already_linked','message':'この予約希望は別の子犬に紐付け済みです。変更が必要な場合は運営にご相談ください。'},409)
+                else:
+                    h.send_json({'ok':True,'alreadyLinked':True,'inquiryId':existing['inquiry_id'],
+                                 'puppyId':existing['puppy_id']})
+                return True
+            puppy = con.execute("SELECT id,breeder_id,name,breed_key,status FROM puppies WHERE id=?",
+                                (puppy_id,)).fetchone()
+            if not puppy or puppy['breeder_id']!=bid:
+                h.send_json({'error':'puppy_not_in_kennel','message':'この犬舎に登録された子犬を選んでください。'},403)
+                return True
+            if puppy['status']=='成約済み':
+                h.send_json({'error':'puppy_already_sold','message':'成約済みの子犬には紐付けられません。'},409)
+                return True
+            if old['breed_key'] and puppy['breed_key'] and old['breed_key']!=puppy['breed_key']:
+                h.send_json({'error':'breed_mismatch','message':'出産予定と犬種が一致する子犬を選んでください。'},409)
+                return True
+            # If the same buyer has already opened an ordinary inquiry for this puppy,
+            # reuse it rather than creating parallel sale threads for one animal.
+            regular = con.execute("""
+                SELECT q.id FROM inquiries q
+                LEFT JOIN planned_litter_links l ON l.inquiry_id=q.id
+                WHERE q.buyer_id=? AND q.breeder_id=? AND q.puppy_id=?
+                  AND l.inquiry_id IS NULL
+                ORDER BY q.created_at DESC LIMIT 1""",
+                (old['buyer_id'],bid,puppy['id'])).fetchone()
+            qid = regular['id'] if regular else ctx['make_id']('q_')
+            if not regular:
+                message = '出産予定「'+old['title']+'」の予約希望から引き継ぎ：\n'+old['message']
+                con.execute("""
+                    INSERT INTO inquiries
+                      (id,puppy_id,buyer_id,breeder_id,name,email,phone,preferred_date,message,status,created_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                    (qid,puppy['id'],old['buyer_id'],bid,old['name'],old['email'],'','',
+                     message,'未返信',now()))
+            con.execute("""INSERT INTO planned_litter_links
+                (planned_inquiry_id,inquiry_id,puppy_id,linked_by,linked_at)
+                VALUES(?,?,?,?,?)""",(old['id'],qid,puppy['id'],user['id'],now()))
+            if old['status']=='新着':
+                con.execute("UPDATE planned_litter_inquiries SET status='相談中',updated_at=? WHERE id=?",
+                            (now(),old['id']))
+            con.execute("INSERT INTO notifications VALUES(?,?,?,?,?,?,?)",
+                        (ctx['make_id']('n_'),old['buyer_id'],'inquiry','出産予定から子犬のご案内',
+                         '予約希望をいただいた出産予定から子犬「'+puppy['name']+'」のご案内に進みました。購入・予約の確約や決済は発生していません。',0,now()))
+            ctx['audit'](con,user['id'],'planned_inquiry_linked_to_puppy','planned_inquiry',old['id'],qid)
+            con.commit()
+            h.send_json({'ok':True,'alreadyLinked':False,'inquiryId':qid,'puppyId':puppy['id']},201)
+            return True
+        finally:
+            con.close()
     if method == 'GET' and path == '/api/planned-litters/mine':
         user = h.require(['breeder', 'operator'])
         if not user: return True
@@ -151,10 +260,16 @@ def handle(h, method, path, query, ctx):
             h.send_json({'error':'approved_breeder_required'},403)
             return True
         rows = con.execute("""
-            SELECT i.id, i.planned_litter_id, p.title, i.name, i.email,
-                   i.preferred_gender, i.message, i.status, i.created_at
+            SELECT i.id, i.planned_litter_id, p.title, p.breed_key, i.name, i.email,
+                   i.preferred_gender, i.message, i.status, i.created_at,
+                   l.puppy_id AS linked_puppy_id, l.inquiry_id AS linked_inquiry_id,
+                   pup.name AS linked_puppy_name, d.id AS linked_deal_id,
+                   d.status AS linked_deal_status
             FROM planned_litter_inquiries i JOIN planned_litters p
               ON i.planned_litter_id=p.id
+            LEFT JOIN planned_litter_links l ON l.planned_inquiry_id=i.id
+            LEFT JOIN puppies pup ON pup.id=l.puppy_id
+            LEFT JOIN deals d ON d.inquiry_id=l.inquiry_id
             WHERE p.breeder_id=?
             ORDER BY i.created_at DESC""", (bid,)).fetchall()
         con.close()
@@ -299,6 +414,11 @@ def handle(h, method, path, query, ctx):
             con.execute("INSERT INTO notifications VALUES(?,?,?,?,?,?,?)",
                 (ctx['make_id']('n_'),owner['user_id'],'inquiry','予約希望の問い合わせ',
                  rows[0]['title']+'に新しい予約希望が届きました',0,now()))
+        operators = con.execute("SELECT id,email FROM users WHERE role='operator'").fetchall()
+        for op in operators:
+            con.execute("INSERT INTO notifications VALUES(?,?,?,?,?,?,?)",
+                        (ctx['make_id']('n_'),op['id'],'inquiry','新しい出産予定の予約希望',
+                         rows[0]['title']+'に予約希望が届きました。運営の予約希望追跡から確認してください。',0,now()))
         con.commit()
         if owner:
             contact = con.execute('SELECT email FROM users WHERE id=?',(owner['user_id'],)).fetchone()
@@ -310,6 +430,11 @@ def handle(h, method, path, query, ctx):
             ctx['send_mail'](recipient,'BIG PAW 予約希望の問い合わせ',
                 rows[0]['title']+'に事前相談が届きました。\n\n'+
                 ctx['public_url']+'/planned-litter-manage.html')
+        for op in operators:
+            if op['email'] and op['email']!=recipient:
+                ctx['send_mail'](op['email'],'BIG PAW 出産予定への予約希望（運営確認）',
+                    rows[0]['title']+'に予約希望が入りました。\n\n'+
+                    ctx['public_url']+'/operator-planned-litter-inquiries.html')
         h.send_json({'id':lid,'status':'新着'},201)
         return True
     match = re.fullmatch(r'/api/planned-litters/inquiries/([^/]+)',path)

@@ -87,6 +87,7 @@ async function check(engine,label){
    await assertBreederBlue(mpage,label+' breeder mobile manager after late theme flip');
    await mpage.locator('#breed').selectOption({label:'シベリアン・ハスキー'});
    assert.equal(await mpage.locator('#breed').inputValue(),'siberian-husky',label+' visible Husky selection posts slug key');
+   await mpage.locator('#breed').selectOption(item.breedKey);
    await mpage.locator('#phase').selectOption('交配予定');
    const title=item.title+' '+label;
    await mpage.locator('#title').fill(title);
@@ -105,7 +106,7 @@ async function check(engine,label){
    const list=await api(manager,'GET','/planned-litters/mine');
    const created=list.filter(x=>x.title===title);
    assert.equal(created.length,1,'created through actual browser form');
-   assert.equal(created[0].breed_key,'siberian-husky','saved Husky must retain correct slug key');
+   assert.equal(created[0].breed_key,item.breedKey,'saved planned litter must retain correct breed key');
    // The next-registration action deliberately unlocks the button. Missing fields
    // must show an explanation instead of silently blocking a native form submit.
    await mpage.locator('#newListing').click();
@@ -156,6 +157,26 @@ async function check(engine,label){
    const ownInquiry=latest.filter(x=>x.planned_litter_id===lid);
    assert.equal(ownInquiry.length,1,'received buyer interest');
    assert.equal(ownInquiry[0].preferred_gender,'女の子');
+   // Real browser: connect an existing reservation-interest to a newborn puppy.
+   const puppyRows=await api(manager,'GET','/breeder/puppies');
+   const target=puppyRows.find(p=>p.breedKey===item.breedKey&&p.status!=='成約済み');
+   assert(target,'seed puppy matching planned litter must exist; never silently skip sale bridge');
+   {
+     await mpage.reload({waitUntil:'domcontentloaded'});
+     await mpage.waitForFunction(()=>document.querySelector('#inquiries')?.textContent.includes('山田'),null,{timeout:20000});
+     const inquiryCard=mpage.locator('#inquiries article.item').filter({hasText:title});
+     await inquiryCard.locator('select[aria-label="紐付ける子犬"]').selectOption(target.id);
+     mpage.on('dialog',async d=>{await d.accept()});
+     await inquiryCard.getByRole('button',{name:'この子犬に紐付ける'}).click();
+     await mpage.waitForFunction(text=>[...document.querySelectorAll('#inquiries article.item')].some(x=>x.textContent.includes(text)&&x.textContent.includes('子犬に紐付け済み')),title,{timeout:20000});
+     const linked=await api(manager,'GET','/planned-litters/inquiries');
+     const result=linked.find(x=>x.id===ownInquiry[0].id);
+     assert(result.linked_inquiry_id,'normal inquiry linked');
+     const salePage=await manager.newPage();
+     await salePage.goto(url+'/breeder-deal-report.html?inquiry='+encodeURIComponent(result.linked_inquiry_id),{waitUntil:'domcontentloaded'});
+     await salePage.waitForFunction(id=>document.querySelector('#inquiry')?.value===id,result.linked_inquiry_id,{timeout:20000});
+     await salePage.close();
+   }
    // Managing visibility must immediately hide the public listing.
    await mpage.locator('#listings article.item').filter({hasText:title}).getByRole('button',{name:'非公開に変更'}).click();
    await mpage.waitForFunction(text=>[...document.querySelectorAll('#listings article.item')].some(x=>x.textContent.includes(text)&&x.textContent.includes('非公開')),title,{timeout:20000});
