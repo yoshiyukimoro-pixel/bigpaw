@@ -796,7 +796,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('X-Frame-Options','SAMEORIGIN')
         self.send_header('Referrer-Policy','strict-origin-when-cross-origin')
         self.send_header('Permissions-Policy','camera=(), microphone=(), geolocation=()')
-        self.send_header('Content-Security-Policy',"default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'")
+        self.send_header('Content-Security-Policy',"default-src 'self'; img-src 'self' data: blob: https://*.cloudflarestream.com https://*.videodelivery.net; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://*.cloudflarestream.com https://*.videodelivery.net; frame-src 'self' https://*.cloudflarestream.com https://*.videodelivery.net; frame-ancestors 'self'; base-uri 'self'; form-action 'self'")
         if IS_PRODUCTION: self.send_header('Strict-Transport-Security','max-age=31536000; includeSubDomains')
         super().end_headers()
     def send_json(self,obj,status=200,extra=None):
@@ -1597,10 +1597,9 @@ https://www.bigpaw.site/'''
                 con.close(); delete_stream_video(uid)
                 return self.send_json({'error':'video_processing_failed','message':'動画を処理できませんでした。別の動画を選択してください。'},422)
             old_uid=str(puppy['video_uid'] or '') if 'video_uid' in puppy.keys() else ''
-            if u['role']=='breeder':
-                con.execute("UPDATE puppies SET video_uid=?,video_status=?,review_status='pending',moderation_note='',published_at=NULL WHERE id=?",(uid,state,puppy['id']))
-            else:
-                con.execute('UPDATE puppies SET video_uid=?,video_status=? WHERE id=?',(uid,state,puppy['id']))
+            # Keep the existing approved-breeder edit policy: adding/replacing a video
+            # must not make an otherwise public puppy disappear.
+            con.execute('UPDATE puppies SET video_uid=?,video_status=? WHERE id=?',(uid,state,puppy['id']))
             audit(con,u['id'],'puppy_video_attached','puppy',puppy['id'],uid); con.commit()
             out=con.execute('SELECT * FROM puppies WHERE id=?',(puppy['id'],)).fetchone(); con.close()
             if old_uid and old_uid!=uid: delete_stream_video(old_uid)
