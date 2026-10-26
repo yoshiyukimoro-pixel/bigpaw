@@ -85,6 +85,9 @@
     backups(){return this.request('/operator/backups')},
     createBackup(){return this.request('/operator/backup',{method:'POST',body:{}})},
     restoreBackup(filename,confirmation){return this.request('/operator/restore-backup',{method:'POST',body:{filename,confirmation}})},
+    createPuppyVideoUpload(id,v){return this.request('/puppies/'+encodeURIComponent(id)+'/video-upload',{method:'POST',body:v})},
+    attachPuppyVideo(id,uid){return this.request('/puppies/'+encodeURIComponent(id)+'/video',{method:'POST',body:{uid}})},
+    deletePuppyVideo(id){return this.request('/puppies/'+encodeURIComponent(id)+'/video',{method:'DELETE'})},
     upload(file,puppyId=''){const f=new FormData();f.append('file',file);if(puppyId)f.append('puppyId',puppyId);return this.request('/uploads',{method:'POST',body:f})}
   };
   window.BigPawAPI=API;
