@@ -3,6 +3,7 @@ name: Weekly Drive backup safety checks
 on:
   pull_request:
     paths:
+      - 'Dockerfile'
       - 'app/backend/server.py'
       - 'scripts/weekly_drive_backup.py'
       - 'scripts/test_weekly_drive_backup.py'
@@ -31,3 +32,11 @@ jobs:
           python -m py_compile scripts/weekly_drive_scheduler.py
           python scripts/test_weekly_drive_scheduler.py
           python scripts/test_weekly_drive_retention.py
+
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image without deploying
+        run: docker build --tag bigpaw-weekly-backup-ci .
