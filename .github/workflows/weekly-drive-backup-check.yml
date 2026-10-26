@@ -1,0 +1,25 @@
+name: Weekly Drive backup safety checks
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/weekly_drive_backup.py'
+      - 'scripts/test_weekly_drive_backup.py'
+      - '.github/workflows/weekly-drive-backup-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check Python syntax and SQLite snapshot
+        run: |
+          python -m py_compile scripts/weekly_drive_backup.py
+          python scripts/test_weekly_drive_backup.py
