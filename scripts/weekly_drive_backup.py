@@ -9,6 +9,8 @@ Required environment:
 This script runs via the opt-in web-service scheduler; it does not alter local retention.
 """
 import datetime as dt
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -46,6 +48,14 @@ def normalize_client_secret(raw: str) -> tuple[str, bool]:
     elif len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
         value = value[1:-1].strip()
     return value, value != original
+
+
+def client_secret_matches_expected(secret: str):
+    expected = os.environ.get("BIGPAW_GOOGLE_CLIENT_SECRET_SHA256", "").strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", expected):
+        return None
+    actual = hashlib.sha256(secret.encode("utf-8")).hexdigest()
+    return hmac.compare_digest(actual, expected)
 
 
 class OAuthRefreshFailed(RuntimeError):
@@ -88,7 +98,10 @@ def refresh_access_token() -> str:
                 + ("1" if bool(secret) else "0")
                 + "|secret_len=" + str(len(secret))
                 + "|prefix_ok=" + ("1" if secret.startswith("GOCSPX-") else "0")
-                + "|normalized=" + ("1" if normalized else "0"),
+                + "|normalized=" + ("1" if normalized else "0")
+                + "|matches_reference="
+                + ("na" if client_secret_matches_expected(secret) is None
+                   else ("1" if client_secret_matches_expected(secret) else "0")),
                 flush=True,
             )
         raise OAuthRefreshFailed(safe_code) from None
