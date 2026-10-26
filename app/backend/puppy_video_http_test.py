@@ -165,13 +165,18 @@ def main():
 
                 attached=call(base,'POST','/api/puppies/p1/video',{'uid':ticket['uid']},breeder,201)
                 check(attached['videoUid']==ticket['uid'],'video attached to owner puppy')
-                check(attached['reviewStatus']=='pending','breeder video change enters moderation')
-                check(call(base,'GET','/api/puppies/p1',expected=404)['error']=='not_found','pending video update not public before review')
-                call(base,'PATCH','/api/operator/listings/p1',{'reviewStatus':'approved','moderationNote':''},operator)
+                check(attached['reviewStatus']=='approved','approved breeder video edit stays public')
                 public=call(base,'GET','/api/puppies/p1')
                 check(public['videoUid']==ticket['uid'],'approved video public')
                 check(public['videoEmbedUrl']==f'https://customer-testcustomer.cloudflarestream.com/{ticket["uid"]}/iframe','public embed URL')
                 check(public['videoThumbnailUrl'].endswith('/thumbnails/thumbnail.jpg'),'thumbnail URL')
+                page=urlopen(base+'/puppy-detail.html',timeout=7).read().decode('utf-8','replace')
+                check('puppy-video-public.js' in page,'public detail loads additive video renderer')
+                headers=Request(base+'/puppy-detail.html',method='GET')
+                with urlopen(headers,timeout=7) as response:
+                    csp=response.headers.get('Content-Security-Policy','')
+                check('frame-src' in csp and 'cloudflarestream.com' in csp,'CSP allows Stream iframe')
+                check('connect-src' in csp and 'videodelivery.net' in csp,'CSP allows direct Stream upload')
 
                 check(call(base,'POST','/api/puppies/p1/video',{'uid':'longvideo1'},operator,400)['error']=='video_too_long','backend rejects >60 second video')
                 check('longvideo1' in state.deleted,'overlong Cloudflare object cleaned')
