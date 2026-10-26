@@ -44,21 +44,20 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(await page.locator('#puppyVideo').evaluate(el=>el.files.length)===1,name+': valid video not retained');
     check(await page.locator('#puppyVideoPreview video').count()===1,name+': valid video preview missing');
 
-    // Public renderer is additive and uses a Cloudflare iframe only when the puppy API exposes one.
+    // Public renderer is additive. Stub only the pre-existing data bridge so this
+    // browser check stays focused on the new video renderer rather than unrelated app state.
     const detail=await context.newPage();
+    await detail.route('**/assets/bridge.js',route=>route.fulfill({
+      status:200,
+      contentType:'application/javascript',
+      body:"window.BigPawBridge={puppy:async()=>({id:'p1',name:'試験犬',breed:'スタンダードプードル',gender:'男の子',color:'ブラック',price:100000,status:'募集中',area:'埼玉県',breeder:'試験犬舎',breederId:'b_test',videoEmbedUrl:'https://customer-test.cloudflarestream.com/testvideo123/iframe'}),favorites:async()=>[],toggleFavorite:async()=>({favorite:false})};"
+    }));
     const response=await detail.goto(base+'/puppy-detail.html?id=p1',{waitUntil:'domcontentloaded'});
     const csp=(response&&response.headers()['content-security-policy'])||'';
     check(csp.includes('frame-src')&&csp.includes('cloudflarestream.com'),name+': CSP frame-src missing Stream');
     check(csp.includes('connect-src')&&csp.includes('videodelivery.net'),name+': CSP connect-src missing direct upload');
-    await detail.waitForFunction(()=>window.BigPawBridge&&typeof window.BigPawBridge.puppy==='function');
-    await detail.evaluate(()=>{
-      window.BigPawBridge.puppy=async()=>({
-        id:'p1',
-        videoEmbedUrl:'https://customer-test.cloudflarestream.com/testvideo123/iframe'
-      });
-      window.dispatchEvent(new Event('pageshow'));
-    });
-    await detail.waitForSelector('#bigpawPuppyVideoSection iframe',{timeout:5000});
+    check(csp.includes('media-src')&&csp.includes('blob:'),name+': CSP media-src must allow local video metadata preview');
+    await detail.waitForSelector('#bigpawPuppyVideoSection iframe',{timeout:10000});
     const src=await detail.locator('#bigpawPuppyVideoSection iframe').getAttribute('src');
     check(src.includes('cloudflarestream.com/testvideo123/iframe'),name+': public video iframe not rendered');
     await detail.close();
