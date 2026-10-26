@@ -250,7 +250,7 @@ def handle(h, method, path, query, ctx):
             h.send_json({'error':'approved_breeder_required'},403)
             return True
         rows = con.execute("""
-            SELECT i.id, i.planned_litter_id, p.title, i.name, i.email,
+            SELECT i.id, i.planned_litter_id, p.title, p.breed_key, i.name, i.email,
                    i.preferred_gender, i.message, i.status, i.created_at,
                    l.puppy_id AS linked_puppy_id, l.inquiry_id AS linked_inquiry_id,
                    pup.name AS linked_puppy_name, d.id AS linked_deal_id,
