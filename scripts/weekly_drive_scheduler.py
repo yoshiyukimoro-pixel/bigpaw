@@ -41,8 +41,16 @@ def maybe_schedule_weekly_backup():
             with _LOCK:
                 _LAST_SUCCESS_WEEK = week
         except Exception as exc:
-            # Do not log tokens, credentials, or response bodies.
-            print("WEEKLY_DRIVE_BACKUP_FAILED|" + type(exc).__name__, flush=True)
+            # Do not log tokens, credentials, response bodies, or arbitrary exception text.
+            kind = type(exc).__name__
+            detail = ""
+            if kind == "RefreshError":
+                msg = str(exc).lower()
+                for code in ("invalid_grant", "invalid_client", "unauthorized_client", "invalid_scope"):
+                    if code in msg:
+                        detail = "|" + code
+                        break
+            print("WEEKLY_DRIVE_BACKUP_FAILED|" + kind + detail, flush=True)
         finally:
             with _LOCK:
                 _RUNNING = False
