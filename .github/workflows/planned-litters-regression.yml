@@ -1,0 +1,101 @@
+name: Planned litter reservation-interest regression
+on:
+  push:
+    branches:
+      - feature/planned-litter-inquiries-20261026
+  pull_request:
+    paths:
+      - 'app/backend/planned_litters.py'
+      - 'app/backend/planned_litters_http_test.py'
+      - 'app/backend/server.py'
+      - 'app/planned-litters.html'
+      - 'app/planned-litter-manage.html'
+      - 'app/index.html'
+      - 'app/admin.html'
+      - 'app/search.html'
+      - 'app/search-list-rebuild.html'
+      - '.github/workflows/planned-litters-regression.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Release-gate integration and existing Docker regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static syntax and embedded browser script checks
+        run: |
+          set -euo pipefail
+          python3 -m py_compile app/backend/planned_litters.py app/backend/planned_litters_http_test.py app/backend/server.py
+          node --check scripts/test-planned-litters-browser.cjs
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess
+          class Inline(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.scripts=[]
+                  self.inside=False
+              def handle_starttag(self,tag,attrs):
+                  if tag=='script':
+                      self.inside=not bool(dict(attrs).get('src'))
+                      if self.inside: self.scripts.append('')
+              def handle_data(self,data):
+                  if self.inside and self.scripts: self.scripts[-1]+=data
+              def handle_endtag(self,tag):
+                  if tag=='script': self.inside=False
+          for path in ('app/planned-litters.html','app/planned-litter-manage.html','app/admin.html','app/search.html','app/search-list-rebuild.html'):
+              x=Inline()
+              x.feed(Path(path).read_text(encoding='utf-8'))
+              for i,s in enumerate(x.scripts):
+                  if s.strip():
+                      t=Path('/tmp')/('check-'+Path(path).stem+'-'+str(i)+'.js')
+                      t.write_text(s,encoding='utf-8')
+                      subprocess.run(['node','--check',str(t)],check=True)
+              print('HTML_INLINE_SYNTAX_OK',path)
+          for source in ('app/search.html','app/search-list-rebuild.html'):
+              html=Path(source).read_text(encoding='utf-8')
+              assert 'href="planned-litters.html"' in html, ('planned_search_link_missing',source)
+          assert "SEARCH_REBUILD_LIVE_OK" in Path('app/backend/start_live.py').read_text(encoding='utf-8')
+          print('PRODUCTION_REGENERATED_SEARCH_LINK_OK')
+          PY
+      - name: Build the full production-equivalent Docker image and existing release gates
+        run: docker build --no-cache -t bigpaw-planned-litter-regression .
+      - name: Test planned litter API against disposable running server
+        run: docker run --rm -e BIGPAW_ENV=development -e BIGPAW_DEV_LINKS=0 bigpaw-planned-litter-regression python3 backend/planned_litters_http_test.py
+      - name: Launch isolated development server for real mobile browser tests
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-planned-browser -p 18097:8080 \
+            -e PORT=8080 -e BIGPAW_ENV=development \
+            -e BIGPAW_DATA_DIR=/tmp/planned-browser-regression-only \
+            -e BIGPAW_DEV_LINKS=0 bigpaw-planned-litter-regression \
+            python3 backend/server.py
+          ok=0
+          for i in $(seq 1 40);do
+            if curl -fsS http://127.0.0.1:18097/api/health >/dev/null 2>&1;then ok=1;break;fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ];then docker logs bigpaw-planned-browser --tail 100;exit 1;fi
+      - name: Install real browser test engines
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps webkit
+      - name: Run actual buyer and breeder flows on mobile Chrome and Safari WebKit
+        run: node scripts/test-planned-litters-browser.cjs http://127.0.0.1:18097
+      - name: Clean up isolated browser database and test server
+        if: always()
+        run: docker rm -f bigpaw-planned-browser >/dev/null 2>&1 || true
+      - name: Confirm no new conventional puppy, payment or deal routes were added
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/backend/planned_litters.py').read_text()
+          for marker in ("INSERT INTO puppies","INSERT INTO deals","INSERT INTO payments","reservation_paid","contract_preparing"):
+              assert marker not in p, marker
+          assert "authorized_breeder(" in p
+          assert "billing_suspended" in p
+          print("NON_BINDING_RESERVATION_SEPARATION_OK")
+          PY

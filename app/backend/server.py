@@ -10,6 +10,7 @@ For public deployment, run behind HTTPS, configure SMTP and production credentia
 and use durable/off-site storage appropriate to the hosting environment.
 """
 from __future__ import annotations
+import planned_litters as bp_planned_litters
 
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote, urlencode
@@ -570,6 +571,7 @@ def valid_image_bytes(raw: bytes, mime: str) -> bool:
 
 def init_db():
     con = db(); con.executescript(SCHEMA)
+    bp_planned_litters.init_schema(con)
     ensure_column(con,'users','email_verified','INTEGER NOT NULL DEFAULT 0')
     ensure_column(con,'users','terms_accepted_at','INTEGER')
     ensure_column(con,'users','privacy_accepted_at','INTEGER')
@@ -788,6 +790,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not urlparse(self.path).path.startswith('/api/') and self.static_blocked(self.path):
             self.send_error(404); return
         parsed=urlparse(self.path); path=parsed.path; q=parse_qs(parsed.query)
+        if bp_planned_litters.handle(self, 'GET', path, q, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
         m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)
         if m:
             u=self.require(['buyer','breeder','operator'])
@@ -1462,6 +1465,7 @@ https://www.bigpaw.site/'''
             if token:
                 con=db(); con.execute('DELETE FROM sessions WHERE token=?',(token,)); con.commit(); con.close()
             return self.send_json({'ok':True},200,{'Set-Cookie':session_cookie_header('',clear=True)})
+        if bp_planned_litters.handle(self, 'POST', path, {}, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
         if path=='/api/puppies':
             u=self.require(['buyer','breeder','operator']);
             if not u:return
@@ -1782,6 +1786,7 @@ https://www.bigpaw.site/'''
                     sets.extend(["review_status='pending'","moderation_note=''",'published_at=NULL'])
                 args.append(m.group(1)); con.execute('UPDATE puppies SET '+','.join(sets)+' WHERE id=?',args); audit(con,u['id'],'puppy_updated','puppy',m.group(1),','.join(body.keys())); con.commit()
             r=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone(); con.close(); return self.send_json(puppy_json(r))
+        if bp_planned_litters.handle(self, 'PATCH', path, {}, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
         return self.send_json({'error':'not_found'},404)
 
 if __name__=='__main__':

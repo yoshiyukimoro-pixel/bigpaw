@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>交配・出産予定／予約希望受付｜BIG PAW</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+body{background:#fff9fc;color:#29242b}.pl-wrap{max-width:1040px;margin:auto;padding:24px 16px 64px}.pl-hero{background:linear-gradient(120deg,#fff0dc,#ffeaf2);padding:27px;border:1px solid #f4d6d0;border-radius:20px}.pl-hero h1{margin:0 0 9px;font-size:clamp(22px,4vw,32px)}.pl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px;margin-top:18px}.pl-card{background:white;border:1px solid #efdae3;border-radius:17px;padding:20px;box-shadow:0 3px 12px #6a46600b}.pl-card h2{font-size:19px;margin:11px 0}.pl-tag{display:inline-block;background:#fff0c9;color:#814b12;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800}.pl-muted{color:#706575;line-height:1.8}.pl-card p{white-space:pre-wrap;overflow-wrap:anywhere}.pl-button{display:inline-block;padding:12px 17px;border:0;border-radius:11px;background:#bb4f82;color:#fff;text-decoration:none;font-weight:800;cursor:pointer}.pl-button:hover{background:#9d3a68}.pl-form{display:grid;gap:12px}.pl-form input,.pl-form select,.pl-form textarea{width:100%;box-sizing:border-box;padding:12px;border:1px solid #cbbac4;border-radius:10px;font:inherit}.pl-form label{font-weight:700;display:block;margin-bottom:4px}.pl-form textarea{min-height:130px}.pl-hide{display:none!important}.pl-warning{background:#fff8e2;border:1px solid #e8c47c;border-radius:12px;padding:13px;line-height:1.8;margin-top:12px}.pl-notice{padding:14px;border:1px solid #d8ccd1;background:white;border-radius:12px;margin:15px 0}.pl-back{display:inline-block;margin:18px 0;color:#924269}
+</style></head><body>
+<header class="site-header"><div class="wrap nav"><a class="logo" href="index.html">🐾 BIG PAW</a><nav class="navlinks"><a href="search.html">子犬を探す</a><a href="breeders.html">ブリーダー</a><a href="mypage.html">マイページ</a></nav></div></header>
+<main class="pl-wrap">
+<section class="pl-hero"><h1>🐾 交配・出産予定と予約希望受付</h1><p>生まれる前から気になる犬舎に相談できます。ご希望はブリーダーに伝えられますが、子犬の確保や売買の成立を保証するものではありません。</p></section>
+<div id="listArea"><h2 style="margin-top:26px">予約希望を受け付けている犬舎</h2><div id="list" class="pl-grid" aria-live="polite">読み込み中…</div></div>
+<section id="detailArea" class="pl-hide">
+<a class="pl-back" href="planned-litters.html">‹ 一覧に戻る</a>
+<div id="detail" class="pl-card"></div>
+<div class="pl-warning">これは事前相談・仮予約希望の受付です。送信だけで購入予約の成立、優先順位の確約、予約金の請求・決済は発生しません。正式な取引は子犬誕生後の現物確認・必要な対面説明等を経て別途行います。</div>
+<section class="pl-card" style="margin-top:18px"><h2>この出産予定について問い合わせる</h2>
+<form id="interestForm" class="pl-form">
+<div><label for="preferredGender">希望する性別</label><select id="preferredGender"><option>どちらでも</option><option>男の子</option><option>女の子</option></select></div>
+<div><label for="message">希望内容・質問（10〜1500文字）</label><textarea id="message" required minlength="10" maxlength="1500" placeholder="希望する性別やお迎え時期、大型犬との暮らしなどをご記入ください。"></textarea></div>
+<label style="font-weight:normal"><input id="agree" type="checkbox" required style="width:auto"> <a href="terms.html" target="_blank" rel="noopener">利用規約</a>・<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>に同意し、仮予約希望は購入を確約しないことを理解しました</label>
+<button class="pl-button" id="send" type="submit">予約希望・事前相談を送信</button>
+<div id="result" role="status"></div></form>
+</section></section></main>
+<script src="assets/api.js"></script><script>
+const el=id=>document.getElementById(id), qs=new URLSearchParams(location.search), selected=qs.get('id');
+const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function dateText(x){return x?escapeHtml(x.replace(/-/g,'/')):'未定'}
+function card(x){
+ return '<article class="pl-card"><span class="pl-tag">'+escapeHtml(x.phase)+'・予約希望受付中</span><h2>'+escapeHtml(x.title)+'</h2><div class="pl-muted">'+escapeHtml(x.breed)+'｜'+escapeHtml(x.prefecture)+'｜'+escapeHtml(x.kennel_name)+'</div><p>'+escapeHtml(x.description)+'</p><div class="pl-muted">交配予定：'+dateText(x.planned_mating)+'<br>出産予定：'+dateText(x.expected_birth)+'</div><a class="pl-button" href="planned-litters.html?id='+encodeURIComponent(x.id)+'">詳しく見る・相談する</a></article>';
+}
+(async()=>{
+ try{
+   if(!selected){
+      const list=await BigPawAPI.request('/planned-litters');
+      el('list').innerHTML=list.length?list.map(card).join(''):'<div class="pl-notice">現在、受付中の出産予定はありません。</div>';
+      return;
+   }
+   el('listArea').classList.add('pl-hide');
+   el('detailArea').classList.remove('pl-hide');
+   const x=await BigPawAPI.request('/planned-litters/'+encodeURIComponent(selected));
+   el('detail').innerHTML='<span class="pl-tag">'+escapeHtml(x.phase)+'・予約希望受付中</span><h2>'+escapeHtml(x.title)+'</h2><p class="pl-muted">'+escapeHtml(x.kennel_name)+'／'+escapeHtml(x.prefecture)+'／'+escapeHtml(x.breed)+'</p><p>'+escapeHtml(x.description)+'</p><p class="pl-muted">交配予定：'+dateText(x.planned_mating)+'　出産予定：'+dateText(x.expected_birth)+'</p>';
+ }catch(err){
+   el(selected?'detail':'list').textContent='情報を取得できませんでした。受付が終了したか、通信に問題がある可能性があります。';
+   el('interestForm')?.classList.add('pl-hide');
+ }
+})();
+el('interestForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!selected)return;
+ const btn=el('send'), result=el('result');btn.disabled=true;result.textContent='送信中…';
+ try{
+   await BigPawAPI.request('/planned-litters/'+encodeURIComponent(selected)+'/inquiries',{method:'POST',body:{message:el('message').value,preferredGender:el('preferredGender').value}});
+   result.textContent='事前相談を送信しました。ブリーダーからの案内をお待ちください。';
+   el('interestForm').reset();btn.textContent='送信済み';
+ }catch(err){
+   result.textContent=err.status===401?'送信には購入希望者の会員ログインが必要です。ログイン後にもう一度送信してください。':err.status===429?'同じ内容への連続送信はできません。':'送信できませんでした。受付状況を確認してください。';
+   if(err.status===401)result.innerHTML+='<p><a href="login.html">ログイン画面へ</a></p>';
+   btn.disabled=false;
+ }
+});
+</script></body></html>
