@@ -98,11 +98,23 @@ async function check(engine,label){
    await mpage.waitForFunction(()=>document.querySelector('#saveFeedback')?.textContent.includes('登録が完了しました'),null,{timeout:20000});
    assert.match(await mpage.locator('#saveFeedback').textContent(),/登録が完了しました/,label+' must show save confirmation beside button');
    assert.equal(await mpage.locator('#title').inputValue(),'','successful registration clears the form');
+   assert.equal((await mpage.locator('#saveBtn').textContent()).trim(),'✅ 登録済み',label+' save button must visibly switch to registered');
+   assert(await mpage.locator('#saveBtn').isDisabled(),label+' saving twice must be blocked');
+   assert(await mpage.locator('#newListing').isVisible(),label+' user has an explicit next-registration action');
    await mpage.waitForFunction(text=>document.querySelector('#listings')?.textContent.includes(text),title,{timeout:20000});
    const list=await api(manager,'GET','/planned-litters/mine');
    const created=list.filter(x=>x.title===title);
    assert.equal(created.length,1,'created through actual browser form');
    assert.equal(created[0].breed_key,'siberian-husky','saved Husky must retain correct slug key');
+   // The next-registration action deliberately unlocks the button. Missing fields
+   // must show an explanation instead of silently blocking a native form submit.
+   await mpage.locator('#newListing').click();
+   assert.equal((await mpage.locator('#saveBtn').textContent()).trim(),'この内容で登録する');
+   assert(await mpage.locator('#saveBtn').isEnabled());
+   await mpage.locator('#saveBtn').click();
+   await mpage.waitForFunction(()=>document.querySelector('#saveFeedback')?.textContent.includes('必須項目を確認してください'),null,{timeout:5000});
+   const afterInvalid=await api(manager,'GET','/planned-litters/mine');
+   assert.equal(afterInvalid.filter(x=>x.title===title).length,1,'invalid repeat must not create duplicate');
    const lid=created[0].id;
    // Anonymous public page and individual detail.
    const publicContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
