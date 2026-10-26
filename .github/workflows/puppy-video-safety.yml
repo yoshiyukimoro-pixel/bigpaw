@@ -84,8 +84,11 @@ jobs:
             exit 1
           fi
 
-      - name: Run existing full smoke regression on disposable server
-        run: python3 app/backend/smoke_test.py http://127.0.0.1:18106
+      - name: Run current sale, fee, payment and contract regression
+        run: docker run --rm bigpaw-puppy-video python3 backend/first_sale_workflow_test.py /app
+
+      - name: Run current inquiry, photo, search and favorite regression
+        run: docker run --rm bigpaw-puppy-video python3 backend/inquiry_cancellation_test.py /app
 
       - name: Install real browser engines and ffmpeg
         run: |
