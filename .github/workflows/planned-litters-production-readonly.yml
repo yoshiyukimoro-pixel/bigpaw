@@ -1,0 +1,61 @@
+name: Planned litter production read-only verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/backend/planned_litters.py'
+      - 'app/backend/server.py'
+      - 'app/planned-litters.html'
+      - 'app/planned-litter-manage.html'
+      - 'app/index.html'
+      - 'app/search.html'
+      - 'app/admin.html'
+      - '.github/workflows/planned-litters-production-readonly.yml'
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Wait for deployment and verify public new reservation-interest endpoints without writes
+        run: |
+          python3 - <<'PY'
+          import json,time,urllib.request,urllib.error
+          base='https://bigpaw.site'
+          expected=('交配・出産予定と予約希望受付','予約希望・事前相談を送信','これは事前相談・仮予約希望')
+          def read(path):
+              req=urllib.request.Request(base+path,headers={
+                  'Cache-Control':'no-cache',
+                  'Pragma':'no-cache',
+                  'User-Agent':'BIGPAW-planned-litter-release-GET-only/1.0',
+              },method='GET')
+              with urllib.request.urlopen(req,timeout=18) as r:
+                  if r.status!=200: raise RuntimeError('HTTP '+str(r.status)+' '+path)
+                  return r.read(2000000).decode('utf-8')
+          for attempt in range(90):
+              try:
+                  health=json.loads(read('/api/health'))
+                  assert health.get('ok') and health.get('environment')=='production',health
+                  public=read('/planned-litters.html?release=planned-litter-20261026')
+                  for term in expected: assert term in public,('new_public_missing',term)
+                  listings=json.loads(read('/api/planned-litters'))
+                  assert isinstance(listings,list),('list_type',type(listings).__name__)
+                  for item in listings:
+                      assert set(('id','breed','phase','status','kennel_name')).issubset(item),item
+                      assert item.get('status')=='受付中',item
+                      assert 'email' not in item and 'message' not in item,item
+                  admin=read('/admin.html?release=planned-litter-20261026')
+                  assert 'planned-litter-manage.html' in admin,'new_admin_entry_missing'
+                  search=read('/search.html?release=planned-litter-20261026')
+                  assert 'planned-litters.html' in search,'new_search_entry_missing'
+                  home=read('/?release=planned-litter-20261026')
+                  assert 'planned-litters.html' in home,'new_home_entry_missing'
+                  assert '子犬を探す' in search and '子犬を探す' in home,'existing_navigation_missing'
+                  print('PLANNED_LITTER_PRODUCTION_READONLY_OK|health|public_list|reserved_page|admin|search|home|no_writes|item_count='+str(len(listings)))
+                  break
+              except (Exception,AssertionError) as exc:
+                  if attempt in (0,10,20,30,40,50,60,70,80,89):
+                      print('Deployment verification attempt '+str(attempt+1)+': '+type(exc).__name__+': '+str(exc)[:180],flush=True)
+                  if attempt==89: raise
+                  time.sleep(5)
+          PY
