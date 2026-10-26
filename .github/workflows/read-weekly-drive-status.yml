@@ -1,4 +1,4 @@
-name: Read weekly Drive status
+name: Verify weekly Drive status probe removed
 
 on:
   push:
@@ -12,7 +12,9 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Read production backup status
+      - name: Verify temporary status endpoint is gone
         run: |
           set -euo pipefail
-          curl -fsS --retry 2 --connect-timeout 10 --max-time 20 https://bigpaw.site/weekly-drive-status.json
+          code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 20 https://bigpaw.site/weekly-drive-status.json)"
+          echo "HTTP_STATUS=$code"
+          test "$code" = "404"
