@@ -7,6 +7,7 @@ on:
       - 'scripts/test_weekly_drive_backup.py'
       - 'scripts/weekly_drive_scheduler.py'
       - 'scripts/test_weekly_drive_scheduler.py'
+      - 'scripts/test_weekly_drive_retention.py'
       - '.github/workflows/weekly-drive-backup-check.yml'
   workflow_dispatch:
 
@@ -27,3 +28,4 @@ jobs:
           python scripts/test_weekly_drive_backup.py
           python -m py_compile scripts/weekly_drive_scheduler.py
           python scripts/test_weekly_drive_scheduler.py
+          python scripts/test_weekly_drive_retention.py
