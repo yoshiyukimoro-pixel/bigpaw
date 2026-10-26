@@ -44,7 +44,13 @@ def maybe_schedule_weekly_backup():
             # Do not log tokens, credentials, response bodies, or arbitrary exception text.
             kind = type(exc).__name__
             detail = ""
-            if kind == "RefreshError":
+            safe_code = getattr(exc, "safe_code", "")
+            if kind == "OAuthRefreshFailed" and safe_code in {
+                "invalid_grant", "invalid_client", "unauthorized_client", "invalid_scope",
+                "http_error", "network_error", "invalid_response", "missing_access_token",
+            }:
+                detail = "|" + safe_code
+            elif kind == "RefreshError":
                 msg = str(exc).lower()
                 for code in ("invalid_grant", "invalid_client", "unauthorized_client", "invalid_scope"):
                     if code in msg:
