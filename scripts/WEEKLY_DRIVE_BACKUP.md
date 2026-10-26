@@ -6,7 +6,7 @@
 
 Use Google OAuth user consent and a refresh token, not a service account. The
 Google Cloud OAuth app must enable Google Drive API. Authorize the exact
-`https://www.googleapis.com/auth/drive.file` scope and obtain a refresh token
+`https://www.googleapis.com/auth/drive` scope and obtain a refresh token
 using a trusted OAuth flow. Note: in OAuth **Testing** mode, refresh tokens may
 expire after seven days. Configure the consent screen and verification/publication
 as appropriate before relying on unattended backups.
@@ -56,3 +56,5 @@ The live application's SQLite path is selected by `BIGPAW_DATA_DIR`:
 if set, `<BIGPAW_DATA_DIR>/bigpaw.sqlite3`; otherwise `app/backend/bigpaw.sqlite3` in the container. This is source-code behavior, **not** confirmation of Railway's actual environment or volume mount. Do not run an isolated cron service without verifying access to the same persistent volume. A safe alternative is a minimal background timer in the existing web process, gated by opt-in environment variables, but it requires careful concurrency and restart tests.
 
 Offline GitHub Actions workflow `Weekly Drive backup safety checks` passed for commit `5818006980ef639e7b16998500e1f3b2892468f1`. This does not test Drive upload.
+
+**Security review:** Existing folder access may require the broader restricted Google Drive OAuth scope (`drive`), rather than `drive.file` which typically limits access to app-created or user-selected files. This is a sensitive permission: confirm explicit owner consent and Google OAuth verification requirements. Do not request credentials in chat. A narrower permission design (e.g. OAuth Picker for the folder or a dedicated new folder) should be evaluated before release.
