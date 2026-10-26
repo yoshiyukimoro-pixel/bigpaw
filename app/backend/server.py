@@ -463,6 +463,17 @@ def automation_monitor_loop(interval_seconds=None):
             run_automations_once()
         except Exception as exc:
             print(f'[automation-monitor] {exc}')
+        # Offsite uploads are strictly opt-in; keep failures isolated from normal operations.
+        if os.environ.get('BIGPAW_WEEKLY_DRIVE_BACKUP_ENABLED') == '1':
+            try:
+                import sys
+                scripts_dir = str(ROOT / 'scripts')
+                if scripts_dir not in sys.path:
+                    sys.path.insert(0, scripts_dir)
+                from weekly_drive_scheduler import maybe_schedule_weekly_backup
+                maybe_schedule_weekly_backup()
+            except Exception as exc:
+                print(f'[weekly-drive-scheduler] {type(exc).__name__}', flush=True)
         time.sleep(max(60,interval_seconds))
 
 
