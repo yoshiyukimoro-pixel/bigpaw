@@ -21,6 +21,7 @@
       }
     }catch(e){}
   }
+  window.BigPawPuppyVideoPublic={render};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(render,250));
   else setTimeout(render,250);
   window.addEventListener('pageshow',()=>setTimeout(render,350));
