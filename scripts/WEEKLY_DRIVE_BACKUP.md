@@ -49,3 +49,10 @@ Desired schedule: Monday weekly (timezone explicitly set/verified).
 No public backup URL, weakened operator login, or production change is needed
 for this draft. Never claim automatic protection until a real Drive file is
 verified after the scheduled run.
+
+## Verified from source code
+
+The live application's SQLite path is selected by `BIGPAW_DATA_DIR`:
+if set, `<BIGPAW_DATA_DIR>/bigpaw.sqlite3`; otherwise `app/backend/bigpaw.sqlite3` in the container. This is source-code behavior, **not** confirmation of Railway's actual environment or volume mount. Do not run an isolated cron service without verifying access to the same persistent volume. A safe alternative is a minimal background timer in the existing web process, gated by opt-in environment variables, but it requires careful concurrency and restart tests.
+
+Offline GitHub Actions workflow `Weekly Drive backup safety checks` passed for commit `5818006980ef639e7b16998500e1f3b2892468f1`. This does not test Drive upload.
