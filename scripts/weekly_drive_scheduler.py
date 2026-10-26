@@ -70,6 +70,9 @@ def maybe_schedule_weekly_backup():
                 "http_error", "network_error", "invalid_response", "missing_access_token",
             }:
                 detail = "|" + safe_code
+                safe_detail = getattr(exc, "safe_detail", "")
+                if safe_code == "invalid_client" and safe_detail:
+                    detail += "|" + safe_detail
             elif kind == "RefreshError":
                 msg = str(exc).lower()
                 for code in ("invalid_grant", "invalid_client", "unauthorized_client", "invalid_scope"):
