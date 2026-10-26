@@ -6,8 +6,8 @@ const longVideo=process.argv[4]||'/tmp/bp-long.mp4';
 
 function check(ok,msg){if(!ok)throw new Error(msg)}
 
-async function run(engine,name,contextOptions){
-  const browser=await engine.launch({headless:true});
+async function run(engine,name,contextOptions,launchOptions={}){
+  const browser=await engine.launch({headless:true,...launchOptions});
   const context=await browser.newContext(contextOptions);
   const page=await context.newPage();
   const errors=[];
@@ -86,7 +86,8 @@ async function run(engine,name,contextOptions){
 }
 
 (async()=>{
-  await run(chromium,'chromium-desktop',{viewport:{width:1365,height:900}});
+  const chromePath=process.env.BIGPAW_CHROME_PATH||'';
+  await run(chromium,'chromium-desktop',{viewport:{width:1365,height:900}},chromePath?{executablePath:chromePath}:{});
   await run(webkit,'webkit-iphone',{
     viewport:{width:390,height:844},
     userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1',
