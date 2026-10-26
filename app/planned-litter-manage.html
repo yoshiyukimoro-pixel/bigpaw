@@ -70,7 +70,7 @@ el('listingForm').addEventListener('submit',async e=>{
    const me=await BigPawAPI.me();role=me.role;
    if(role!=='breeder'&&role!=='operator')throw Error('ブリーダーまたは運営アカウントでログインしてください。');
    if(role==='operator'&&!scope)throw Error('運営のブリーダー管理画面から犬舎を選択してください。');
-   for(const b of (window.BIGPAW_BREEDS||[])){if(!b.key||b.key==='other')continue;const o=new Option(b.ja,b.key);el('breed').add(o)}
+   for(const b of (window.BIGPAW_BREEDS||[])){if(!b.key)continue;const o=new Option(b.ja,b.key);el('breed').add(o)}
    await refresh();
  }catch(err){el('notice').textContent='利用できません：'+(err.message||'ログイン状態をご確認ください。');el('notice').className='error';el('listingForm').querySelectorAll('input,select,textarea,button').forEach(x=>x.disabled=true);el('listings').textContent='ログイン・登録承認状況をご確認ください。';el('inquiries').textContent='';}
 })();
