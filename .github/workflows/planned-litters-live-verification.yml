@@ -39,8 +39,10 @@ jobs:
               with urllib.request.urlopen(req,timeout=20) as response:
                   if response.status!=200:
                       raise AssertionError(path+' HTTP '+str(response.status))
-                  if response.url.split('?')[0]!=ORIGIN+path:
-                      raise AssertionError(path+' unexpected redirect')
+                  expected=(ORIGIN+path).split('?',1)[0]
+                  actual=response.url.split('?',1)[0]
+                  if actual!=expected:
+                      raise AssertionError(path+' unexpected redirect to '+response.url)
                   return response.read(2500000).decode('utf-8')
 
           def check():
