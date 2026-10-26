@@ -6,9 +6,7 @@ Never start a separate Railway service or attach the live volume elsewhere.
 import datetime as dt
 import os
 import threading
-from zoneinfo import ZoneInfo
-
-JST = ZoneInfo("Asia/Tokyo")
+JST = dt.timezone(dt.timedelta(hours=9), name="JST")
 _LOCK = threading.Lock()
 _RUNNING = False
 _LAST_ATTEMPT_WEEK = None

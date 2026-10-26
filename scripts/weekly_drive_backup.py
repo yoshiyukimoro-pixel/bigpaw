@@ -16,6 +16,8 @@ import sqlite3
 import sys
 import tempfile
 
+JST = dt.timezone(dt.timedelta(hours=9), name="JST")
+
 
 def snapshot(source: Path, destination: Path):
     if not source.is_file():
@@ -122,7 +124,7 @@ def main():
     if not all(os.environ.get(key) for key in required):
         raise RuntimeError("Google OAuth credentials missing; configure Railway secrets")
     # ISO week gives one unique backup name per week, regardless of retry date.
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.timezone.utc).astimezone(JST)
     year, week, _ = now.isocalendar()
     filename = f"bigpaw-weekly-{year}-W{week:02d}.sqlite3"
     with tempfile.TemporaryDirectory(prefix="bigpaw-offsite-") as tmp:
