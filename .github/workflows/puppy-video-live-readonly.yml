@@ -1,0 +1,71 @@
+name: Puppy video live read-only verification
+
+on:
+  push:
+    branches:
+      - verify/puppy-video-live-20261026
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Verify production puppy video release with GET only
+        run: |
+          python3 - <<'PY'
+          import json,time,urllib.request
+          ORIGIN='https://bigpaw.site'
+          def get(path):
+              req=urllib.request.Request(ORIGIN+path,headers={
+                  'Cache-Control':'no-cache',
+                  'Pragma':'no-cache',
+                  'User-Agent':'BIGPAW-puppy-video-live-readonly/1.0',
+                  'Accept':'application/json,text/html,*/*'
+              })
+              with urllib.request.urlopen(req,timeout=20) as r:
+                  body=r.read(3000000).decode('utf-8','replace')
+                  return r.status,r.url,dict(r.headers),body
+
+          def check():
+              status,url,headers,body=get('/api/health?video_release=20261026')
+              assert status==200,(status,url)
+              health=json.loads(body)
+              assert health.get('ok') is True and health.get('environment')=='production',health
+
+              status,url,headers,editor=get('/breeder-puppy-new.html?video_release=20261026')
+              assert status==200,(status,url)
+              assert '動画を追加（1本まで）' in editor,'video control not served'
+              assert '動画は60秒以内でアップロードしてください。60秒を超える動画は登録できません。' in editor,'60-second guidance not served'
+              assert 'assets/puppy-video.js?v=20261026-1' in editor,'video editor script not served'
+              csp=headers.get('Content-Security-Policy','')
+              assert 'media-src' in csp and 'blob:' in csp,'video preview CSP missing'
+              assert 'cloudflarestream.com' in csp and 'videodelivery.net' in csp,'Cloudflare Stream CSP missing'
+
+              status,url,headers,detail=get('/puppy-detail.html?id=p1&video_release=20261026')
+              assert status==200,(status,url)
+              assert 'assets/puppy-video-public.js?v=20261026-1' in detail,'public video renderer not served'
+
+              status,url,headers,body=get('/api/puppies?video_release=20261026')
+              assert status==200,(status,url)
+              puppies=json.loads(body)
+              assert isinstance(puppies,list),'public puppy API not a list'
+
+              print('LIVE_PUPPY_VIDEO_READONLY_OK|production_health|editor_control|60s_guidance|stream_csp|public_renderer|puppy_api',flush=True)
+
+          last=None
+          for attempt in range(50):
+              try:
+                  check()
+                  break
+              except Exception as exc:
+                  last=exc
+                  if attempt in (0,5,10,20,30,40,49):
+                      print('Waiting for production video release',attempt+1,type(exc).__name__,str(exc)[:180],flush=True)
+                  if attempt==49:
+                      raise
+                  time.sleep(5)
+          PY
