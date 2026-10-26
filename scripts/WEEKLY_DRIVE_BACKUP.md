@@ -1,40 +1,51 @@
-# Weekly BIG PAW offsite backup — deployment checklist
+# BIG PAW — weekly Google Drive offsite backup
 
-Status: PROPOSED ONLY. The utility in `scripts/weekly_drive_backup.py` is not
-installed, scheduled, or connected to the live BIG PAW service.
+**Status: draft, not deployed or scheduled.** This change does not affect the existing local automatic backup.
 
-## Important: Google Drive authentication
+## Authorization for personal Google Drive
 
-A Google service account generally cannot create files in a normal personal
-"My Drive" folder because it has no storage quota. **Do not deploy this version
-against the owner's ordinary My Drive folder without first validating a
-supported authentication/storage configuration.** The current script expects
-Application Default Credentials from a service account and is appropriate
-only when the destination is a Shared Drive that allows service-account writes,
-or another explicitly verified configuration.
+Use Google OAuth user consent and a refresh token, not a service account. The
+Google Cloud OAuth app must enable Google Drive API. Authorize the exact
+`https://www.googleapis.com/auth/drive.file` scope and obtain a refresh token
+using a trusted OAuth flow. Note: in OAuth **Testing** mode, refresh tokens may
+expire after seven days. Configure the consent screen and verification/publication
+as appropriate before relying on unattended backups.
 
-The owner-selected folder ID is
-`1HU8KMz1n1ZmiiV67RR69u73UpwCHva0r`. Its Shared Drive eligibility has
-not been verified.
+Never paste OAuth client secrets or refresh tokens into GitHub, public chat,
+commits, screenshots, or documentation. Store all secrets in Railway's protected
+environment variables. Revoke credentials immediately if exposed.
 
-## Required before any production change
+Target Drive folder:
+`1HU8KMz1n1ZmiiV67RR69u73UpwCHva0r` (BIG PAW Backups).
+Verify that the OAuth user can write to this folder.
 
-1. Select and verify a supported Drive authorization method. For a personal
-   My Drive destination, prefer user-authorized OAuth credentials with refresh
-   token stored in Railway secrets, not in GitHub.
-2. Verify that the Railway persistent volume contains the live SQLite DB
-   and determine its exact path; do not guess from the repository layout.
-3. Install `google-auth` and `google-api-python-client` in a separate
-   scheduled service/image, without changing the existing web service.
-4. Provide credentials via protected secret/file mounts. Never commit keys,
-   refresh tokens, SQLite files, or user data to this public repository.
-5. Configure a weekly Monday cron schedule in the deployment platform.
-6. Test against a non-production database and a test Drive folder; check
-   SQLite `PRAGMA integrity_check`, uploaded size, and restoration.
-7. Test retry/duplicate behavior and failure notifications.
-8. Confirm the production upload exists in Drive before claiming success.
+## Required Railway configuration (not yet performed)
 
-## Existing behavior preserved
+Use a dedicated scheduled worker **with access to the same persistent SQLite
+volume** as the web service, if the hosting platform supports safe volume
+sharing. Railway volumes are typically mounted to a single service; verify
+this first. If sharing is not supported, design a safe alternative rather
+than guessing the DB path or copying a stale database from source control.
 
-The web server's existing automatic local backup and retention are not
-modified. No operator auth bypass or unauthenticated download endpoint is added.
+Required variables:
+- `BIGPAW_DB_PATH`: verified path to the production SQLite database
+- `BIGPAW_DRIVE_FOLDER_ID`: folder ID above
+- `BIGPAW_GOOGLE_CLIENT_ID`: OAuth client ID
+- `BIGPAW_GOOGLE_CLIENT_SECRET`: OAuth client secret
+- `BIGPAW_GOOGLE_REFRESH_TOKEN`: OAuth refresh token
+
+Python packages: `google-auth`, `google-api-python-client`.
+Command: `python scripts/weekly_drive_backup.py`.
+Desired schedule: Monday weekly (timezone explicitly set/verified).
+
+## Production release gate
+
+1. Confirm volume access and user-authorized Drive write permissions.
+2. Run local test on a temporary SQLite database (no production records).
+3. Run upload test to a separate test folder; check file size and restore it.
+4. Verify failure handling, retries, logs, and notification ownership.
+5. Only then enable production scheduling and verify a real upload.
+
+No public backup URL, weakened operator login, or production change is needed
+for this draft. Never claim automatic protection until a real Drive file is
+verified after the scheduled run.
