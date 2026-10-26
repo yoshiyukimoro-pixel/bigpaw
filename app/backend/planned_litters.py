@@ -204,14 +204,24 @@ def handle(h, method, path, query, ctx):
             if old['breed_key'] and puppy['breed_key'] and old['breed_key']!=puppy['breed_key']:
                 h.send_json({'error':'breed_mismatch','message':'出産予定と犬種が一致する子犬を選んでください。'},409)
                 return True
-            qid = ctx['make_id']('q_')
-            message = '出産予定「'+old['title']+'」の予約希望から引き継ぎ：\n'+old['message']
-            con.execute("""
-                INSERT INTO inquiries
-                  (id,puppy_id,buyer_id,breeder_id,name,email,phone,preferred_date,message,status,created_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                (qid,puppy['id'],old['buyer_id'],bid,old['name'],old['email'],'','',
-                 message,'未返信',now()))
+            # If the same buyer has already opened an ordinary inquiry for this puppy,
+            # reuse it rather than creating parallel sale threads for one animal.
+            regular = con.execute("""
+                SELECT q.id FROM inquiries q
+                LEFT JOIN planned_litter_links l ON l.inquiry_id=q.id
+                WHERE q.buyer_id=? AND q.breeder_id=? AND q.puppy_id=?
+                  AND l.inquiry_id IS NULL
+                ORDER BY q.created_at DESC LIMIT 1""",
+                (old['buyer_id'],bid,puppy['id'])).fetchone()
+            qid = regular['id'] if regular else ctx['make_id']('q_')
+            if not regular:
+                message = '出産予定「'+old['title']+'」の予約希望から引き継ぎ：\n'+old['message']
+                con.execute("""
+                    INSERT INTO inquiries
+                      (id,puppy_id,buyer_id,breeder_id,name,email,phone,preferred_date,message,status,created_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                    (qid,puppy['id'],old['buyer_id'],bid,old['name'],old['email'],'','',
+                     message,'未返信',now()))
             con.execute("""INSERT INTO planned_litter_links
                 (planned_inquiry_id,inquiry_id,puppy_id,linked_by,linked_at)
                 VALUES(?,?,?,?,?)""",(old['id'],qid,puppy['id'],user['id'],now()))
