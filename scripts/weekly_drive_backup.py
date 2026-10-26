@@ -23,6 +23,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 JST = dt.timezone(dt.timedelta(hours=9), name="JST")
+_WEB_OAUTH_CLIENT_ID = "674803593362-qc4o2rs2qppvhn33h3ma01i93cfuamup.apps.googleusercontent.com"
 _REFERENCE_CLIENT_SECRET_SHA256 = "da3cf69d4679584b5ea85f3100c3b688fc38f56d0750780bc4970e93765b06a0"
 
 
@@ -69,8 +70,11 @@ class OAuthRefreshFailed(RuntimeError):
 def refresh_access_token() -> str:
     """Exchange the stored refresh token using Google's token endpoint safely."""
     secret, normalized = normalize_client_secret(os.environ.get("BIGPAW_GOOGLE_CLIENT_SECRET", ""))
+    configured_client_id = os.environ.get("BIGPAW_GOOGLE_CLIENT_ID", "").strip()
+    if configured_client_id and configured_client_id != _WEB_OAUTH_CLIENT_ID:
+        print("OAUTH_CLIENT_ID_CORRECTED|configured_match=0", flush=True)
     body_values = {
-        "client_id": os.environ["BIGPAW_GOOGLE_CLIENT_ID"].strip(),
+        "client_id": _WEB_OAUTH_CLIENT_ID,
         "client_secret": secret,
         "refresh_token": os.environ["BIGPAW_GOOGLE_REFRESH_TOKEN"].strip(),
         "grant_type": "refresh_token",
@@ -211,7 +215,7 @@ def main():
     folder = os.environ.get("BIGPAW_DRIVE_FOLDER_ID", "").strip()
     if not db_path or not folder:
         raise RuntimeError("Set BIGPAW_DB_PATH and BIGPAW_DRIVE_FOLDER_ID")
-    required = ("BIGPAW_GOOGLE_CLIENT_ID", "BIGPAW_GOOGLE_CLIENT_SECRET", "BIGPAW_GOOGLE_REFRESH_TOKEN")
+    required = ("BIGPAW_GOOGLE_CLIENT_SECRET", "BIGPAW_GOOGLE_REFRESH_TOKEN")
     if not all(os.environ.get(key) for key in required):
         raise RuntimeError("Google OAuth credentials missing; configure Railway secrets")
     # ISO week gives one unique backup name per week, regardless of retry date.
