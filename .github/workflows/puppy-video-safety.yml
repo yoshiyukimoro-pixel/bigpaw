@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/puppy-video-cloudflare-20261026
+      - main
   pull_request:
     paths:
       - 'app/backend/server.py'
@@ -101,3 +102,54 @@ jobs:
           curl -fsS http://127.0.0.1:18106/api/health || true
           docker logs bigpaw-video-browser --tail 120 || true
           docker rm -f bigpaw-video-browser >/dev/null 2>&1 || true
+
+
+  puppy-video-production-readonly:
+    name: Production video read-only verification
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Wait for production release and verify video configuration without writes
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,time,urllib.request
+          base='https://bigpaw.site'
+          headers={'Cache-Control':'no-cache','User-Agent':'BIGPAW-puppy-video-readonly/1.0'}
+          def read(path):
+              req=urllib.request.Request(base+path,headers=headers)
+              with urllib.request.urlopen(req,timeout=15) as r:
+                  if r.status!=200:
+                      raise RuntimeError(f'{path} HTTP {r.status}')
+                  return r.read(2500000).decode('utf-8','replace')
+          last=''
+          for attempt in range(90):
+              try:
+                  health=json.loads(read('/api/health?release=puppy-video-20261026'))
+                  editor=read('/breeder-puppy-new.html?release=puppy-video-20261026')
+                  public=read('/puppy-detail.html?id=p1&release=puppy-video-20261026')
+                  js=read('/assets/puppy-video.js?v=20261026-1&release=puppy-video-20261026')
+                  public_js=read('/assets/puppy-video-public.js?v=20261026-1&release=puppy-video-20261026')
+                  if not (health.get('ok') and health.get('environment')=='production'):
+                      raise AssertionError('production health not ready: '+repr(health))
+                  if '動画を追加（1本まで）' not in editor or '60秒以内' not in editor:
+                      raise AssertionError('video editor release marker not live')
+                  if 'MAX_SECONDS=60' not in js:
+                      raise AssertionError('60-second browser guard not live')
+                  if 'puppy-video-public.js' not in public or 'videoEmbedUrl' not in public_js:
+                      raise AssertionError('public player release marker not live')
+                  configured=bool(health.get('videoConfigured'))
+                  print('PUPPY_VIDEO_PRODUCTION_CODE_LIVE|editor|60sec|public_player|health',flush=True)
+                  print('PUPPY_VIDEO_STREAM_CONFIGURED|'+('yes' if configured else 'no'),flush=True)
+                  if not configured:
+                      raise AssertionError('Cloudflare Stream production credentials are not configured')
+                  break
+              except Exception as exc:
+                  last=f'{type(exc).__name__}: {exc}'
+                  if attempt==89:
+                      raise
+                  print('Waiting for production puppy-video rollout, check',attempt+1,last,flush=True)
+                  time.sleep(4)
+          print('PUPPY_VIDEO_PRODUCTION_READONLY_OK|code_live|stream_configured|no_writes',flush=True)
+          PY
