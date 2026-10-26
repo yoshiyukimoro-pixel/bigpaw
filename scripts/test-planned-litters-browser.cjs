@@ -27,6 +27,20 @@ async function api(context,method,path,payload){
  assert(response.ok(),method+' '+path+' response '+response.status()+' '+(await response.text()).slice(0,200));
  return response.json();
 }
+async function assertBreederBlue(page,where){
+ const state=await page.evaluate(()=>({
+   theme:document.documentElement.getAttribute('data-bp-page-theme'),
+   bodyBg:getComputedStyle(document.body).backgroundColor,
+   topbarBg:getComputedStyle(document.querySelector('.topbar')).backgroundImage,
+   saveBg:getComputedStyle(document.querySelector('#saveBtn')).backgroundColor,
+   titleBorder:getComputedStyle(document.querySelector('#title')).borderColor
+ }));
+ assert.equal(state.theme,'breeder',where+' must remain breeder themed');
+ assert.equal(state.bodyBg,'rgb(243, 248, 255)',where+' body must be breeder blue');
+ assert(state.topbarBg.includes('rgb(95, 143, 195)'),where+' topbar must use breeder blue: '+state.topbarBg);
+ assert.equal(state.saveBg,'rgb(36, 91, 148)',where+' save button must be blue');
+ assert.equal(state.titleBorder,'rgb(184, 200, 216)',where+' input border must be blue/gray');
+}
 async function check(engine,label){
  const browser=await engine.launch({headless:true,...(label==='chromium'&&chromePath()?{executablePath:chromePath(),args:['--no-sandbox']}: {})});
  try{
@@ -37,11 +51,14 @@ async function check(engine,label){
    await login(manager,'dog44@bigpaw.jp','demo1234');
    await mpage.goto(url+'/admin.html',{waitUntil:'domcontentloaded'});
    await mpage.locator('a.dashboard-action[href="planned-litter-manage.html"]').waitFor({state:'visible',timeout:20000});
+   const dashboardPlannedBg=await mpage.locator('a.dashboard-action[href="planned-litter-manage.html"]').evaluate(el=>getComputedStyle(el).backgroundColor);
+   assert.equal(dashboardPlannedBg,'rgb(228, 241, 255)',label+' breeder dashboard planned-litter entry must be blue');
    // The new feature must be reachable even if the mobile sidebar is hidden.
    await mpage.locator('a.dashboard-action[href="planned-litter-manage.html"]').click();
    await mpage.waitForURL('**/planned-litter-manage.html');
    await mpage.locator('#listings').waitFor();
    await mpage.waitForFunction(()=>document.querySelector('#listings')&&!document.querySelector('#listings').textContent.includes('読み込み中'),null,{timeout:20000});
+   await assertBreederBlue(mpage,label+' breeder mobile manager');
    await mpage.locator('#breed').selectOption('standard-poodle');
    await mpage.locator('#phase').selectOption('交配予定');
    const title=item.title+' '+label;
@@ -91,9 +108,40 @@ async function check(engine,label){
       const width=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}));
       assert(width.scroll<=width.viewport+20,label+' '+where+' mobile overflow '+JSON.stringify(width));
    }
+   // Operator dashboard stays yellow, but operator proxying the breeder manager keeps the breeder page blue.
+   const operator=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+   await login(operator,'admin@bigpaw.jp','admin1234');
+   const opage=await operator.newPage();
+   opage.on('pageerror',e=>errors.push('operator: '+e.message));
+   await opage.goto(url+'/operator-admin.html',{waitUntil:'domcontentloaded'});
+   const operatorTheme=await opage.evaluate(()=>({
+     theme:document.documentElement.getAttribute('data-bp-page-theme'),
+     bodyBg:getComputedStyle(document.body).backgroundColor
+   }));
+   assert.equal(operatorTheme.theme,'operator',label+' operator dashboard theme');
+   assert.equal(operatorTheme.bodyBg,'rgb(255, 251, 234)',label+' operator dashboard must remain yellow');
+   await opage.goto(url+'/planned-litter-manage.html?breederId=b_dog44',{waitUntil:'domcontentloaded'});
+   await opage.locator('#listings').waitFor();
+   await opage.waitForFunction(()=>document.querySelector('#listings')&&!document.querySelector('#listings').textContent.includes('読み込み中'),null,{timeout:20000});
+   await assertBreederBlue(opage,label+' operator proxy breeder manager');
+   await opage.locator('#bigpaw-operator-review-banner').waitFor({state:'visible',timeout:10000});
+   assert((await opage.locator('#bigpaw-operator-review-banner').textContent()).includes('運営確認モード'));
+
+   // Desktop-sized browser check covers PC/desktop Safari layout as well as the mobile checks above.
+   const desktop=await browser.newContext({viewport:{width:1440,height:900}});
+   await login(desktop,'dog44@bigpaw.jp','demo1234');
+   const dpage=await desktop.newPage();
+   dpage.on('pageerror',e=>errors.push('desktop: '+e.message));
+   await dpage.goto(url+'/planned-litter-manage.html',{waitUntil:'domcontentloaded'});
+   await dpage.locator('#listings').waitFor();
+   await dpage.waitForFunction(()=>document.querySelector('#listings')&&!document.querySelector('#listings').textContent.includes('読み込み中'),null,{timeout:20000});
+   await assertBreederBlue(dpage,label+' breeder desktop manager');
+   const desktopWidth=await dpage.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}));
+   assert(desktopWidth.scroll<=desktopWidth.viewport+20,label+' desktop overflow '+JSON.stringify(desktopWidth));
+
    assert(!errors.length,label+' browser errors: '+errors.join('; '));
-   console.log('PLANNED_LITTER_BROWSER_OK '+label+' mobile form, public listing, buyer inquiry, private status');
-   await buyer.close();await publicContext.close();await manager.close();
+   console.log('PLANNED_LITTER_BROWSER_OK '+label+' mobile+desktop blue breeder theme, yellow operator dashboard, operator proxy, form, public listing, buyer inquiry, private status');
+   await desktop.close();await operator.close();await buyer.close();await publicContext.close();await manager.close();
  }finally{await browser.close()}
 }
 (async()=>{await check(chromium,'chromium');await check(webkit,'webkit')})().catch(e=>{console.error(e);process.exit(1)});
