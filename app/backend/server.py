@@ -463,17 +463,22 @@ def automation_monitor_loop(interval_seconds=None):
             run_automations_once()
         except Exception as exc:
             print(f'[automation-monitor] {exc}')
-        # Offsite uploads are strictly opt-in; keep failures isolated from normal operations.
-        if os.environ.get('BIGPAW_WEEKLY_DRIVE_BACKUP_ENABLED') == '1':
-            try:
-                import sys
-                scripts_dir = str(ROOT / 'scripts')
-                if scripts_dir not in sys.path:
-                    sys.path.insert(0, scripts_dir)
-                from weekly_drive_scheduler import maybe_schedule_weekly_backup
-                maybe_schedule_weekly_backup()
-            except Exception as exc:
-                print(f'[weekly-drive-scheduler] {type(exc).__name__}', flush=True)
+        time.sleep(max(60,interval_seconds))
+
+
+def weekly_drive_monitor_loop(interval_seconds=None):
+    """Run the opt-in Drive scheduler independently from billing/email automations."""
+    interval_seconds=interval_seconds or AUTOMATION_INTERVAL_SECONDS
+    import sys
+    scripts_dir = str(ROOT / 'scripts')
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    while True:
+        try:
+            from weekly_drive_scheduler import maybe_schedule_weekly_backup
+            maybe_schedule_weekly_backup()
+        except Exception as exc:
+            print(f'[weekly-drive-monitor] {type(exc).__name__}', flush=True)
         time.sleep(max(60,interval_seconds))
 
 
@@ -1785,7 +1790,7 @@ if __name__=='__main__':
             raise SystemExit('Production requires BIGPAW_ADMIN_EMAIL and BIGPAW_ADMIN_PASSWORD (12+ chars)')
         if DEV_LINKS:
             raise SystemExit('BIGPAW_DEV_LINKS must be 0 in production')
-    init_db(); threading.Thread(target=automation_monitor_loop,daemon=True,name='automation-monitor').start(); os.chdir(ROOT); port=int(os.environ.get('PORT','8080'))
+    init_db(); threading.Thread(target=automation_monitor_loop,daemon=True,name='automation-monitor').start(); threading.Thread(target=weekly_drive_monitor_loop,daemon=True,name='weekly-drive-monitor').start(); os.chdir(ROOT); port=int(os.environ.get('PORT','8080'))
 try:
     _c=db()
     _rows=_c.execute("SELECT p.id,p.breed,p.breed_key,p.review_status,p.status,p.breeder_id,COALESCE(b.review_status,''),COALESCE(b.billing_suspended,0) FROM puppies p LEFT JOIN breeders b ON b.id=p.breeder_id ORDER BY p.created_at DESC").fetchall()

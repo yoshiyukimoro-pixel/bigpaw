@@ -1,12 +1,14 @@
 """Opt-in weekly Drive upload scheduler for the existing BIG PAW web process.
 
-This module must be called from the already-running automation monitor loop.
-Never start a separate process or attach the live Railway volume elsewhere.
+Called from a dedicated lightweight monitor thread inside the existing web service.
+Never start a separate Railway service or attach the live volume elsewhere.
 """
 import datetime as dt
 import os
 import threading
+from zoneinfo import ZoneInfo
 
+JST = ZoneInfo("Asia/Tokyo")
 _LOCK = threading.Lock()
 _RUNNING = False
 _LAST_ATTEMPT_WEEK = None
@@ -14,15 +16,15 @@ _LAST_SUCCESS_WEEK = None
 
 
 def maybe_schedule_weekly_backup():
-    """Start one upload thread on Mondays, if explicitly enabled and configured.
+    """Start one upload thread on Mondays in Japan time, if explicitly enabled.
 
     Retries are allowed after restart; the uploader rejects duplicate weekly names.
-    Failed attempts are retried on the next automation tick, at most one per hour.
+    Failed attempts are retried on the next monitor tick, at most one per hour.
     """
     global _RUNNING, _LAST_ATTEMPT_WEEK
     if os.environ.get("BIGPAW_WEEKLY_DRIVE_BACKUP_ENABLED") != "1":
         return False
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.timezone.utc).astimezone(JST)
     if now.weekday() != 0:
         return False
     week = now.strftime("%G-W%V")
@@ -47,5 +49,6 @@ def maybe_schedule_weekly_backup():
             with _LOCK:
                 _RUNNING = False
 
+    print("WEEKLY_DRIVE_BACKUP_SCHEDULED|" + week, flush=True)
     threading.Thread(target=worker, daemon=True, name="weekly-drive-backup").start()
     return True
