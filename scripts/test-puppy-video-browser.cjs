@@ -28,6 +28,9 @@ async function run(engine,name,contextOptions,launchOptions={}){
     console.log('VIDEO_BROWSER_STAGE',name,'editor');
     await page.goto(base+'/breeder-puppy-new.html',{waitUntil:'domcontentloaded'});
     await page.waitForSelector('#puppyVideo',{state:'visible'});
+    // Login performs an intentional unauthenticated /api/me probe before the
+    // session is established. Do not treat that expected 401 as a video error.
+    errors.length=0;
     const note=await page.locator('#puppyVideoBox').innerText();
     check(note.includes('動画を追加（1本まで）'),name+': one-video wording missing');
     check(note.includes('60秒以内'),name+': 60-second wording missing');
