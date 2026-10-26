@@ -1,0 +1,116 @@
+name: Puppy video Cloudflare Stream safety gate
+
+on:
+  push:
+    branches:
+      - feature/puppy-video-cloudflare-20261026
+  pull_request:
+    paths:
+      - 'app/backend/server.py'
+      - 'app/backend/puppy_video_http_test.py'
+      - 'app/assets/api.js'
+      - 'app/assets/puppy-video.js'
+      - 'app/assets/puppy-video-public.js'
+      - 'app/breeder-puppy-new.html'
+      - 'app/puppy-detail.html'
+      - 'scripts/test-puppy-video-browser.cjs'
+      - '.github/workflows/puppy-video-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  puppy-video-safety:
+    name: Docker, existing regressions, Chrome and Safari
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static syntax and safety assertions
+        run: |
+          set -euo pipefail
+          python3 -m py_compile app/backend/server.py app/backend/puppy_video_http_test.py
+          node --check app/assets/api.js
+          node --check app/assets/puppy-video.js
+          node --check app/assets/puppy-video-public.js
+          node --check scripts/test-puppy-video-browser.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('app/backend/server.py').read_text(encoding='utf-8')
+          ui=Path('app/breeder-puppy-new.html').read_text(encoding='utf-8')
+          js=Path('app/assets/puppy-video.js').read_text(encoding='utf-8')
+          public=Path('app/assets/puppy-video-public.js').read_text(encoding='utf-8')
+          assert 'PUPPY_VIDEO_MAX_SECONDS = 60' in s
+          assert "'maxDurationSeconds':PUPPY_VIDEO_MAX_SECONDS" in s
+          assert 'video_uid' in s and 'video_status' in s
+          assert "create_stream_direct_upload" in s
+          assert "delete_stream_video" in s
+          assert "https://*.cloudflarestream.com" in s
+          assert "https://*.videodelivery.net" in s
+          assert '動画を追加（1本まで）' in ui
+          assert '動画は60秒以内でアップロードしてください。60秒を超える動画は登録できません。' in ui
+          assert 'MAX_SECONDS=60' in js
+          assert 'videoEmbedUrl' in public
+          # Video bytes must never be written to the existing Railway upload directory.
+          video_route=s[s.index("m=re.fullmatch(r'/api/puppies/([^/]+)/video-upload'"):s.index("if path=='/api/puppies':",s.index("m=re.fullmatch(r'/api/puppies/([^/]+)/video-upload'"))]
+          assert 'UPLOADS' not in video_route
+          print('PUPPY_VIDEO_STATIC_SAFETY_OK')
+          PY
+
+      - name: Build full production-equivalent Docker image
+        run: docker build --no-cache -t bigpaw-puppy-video .
+
+      - name: Run isolated Stream backend regression against built image
+        run: |
+          docker run --rm             -e BIGPAW_ENV=development             -e BIGPAW_DEV_LINKS=0             bigpaw-puppy-video python3 backend/puppy_video_http_test.py
+
+      - name: Run existing planned-litter regression against built image
+        run: |
+          docker run --rm             -e BIGPAW_ENV=development             -e BIGPAW_DEV_LINKS=0             bigpaw-puppy-video python3 backend/planned_litters_http_test.py
+
+      - name: Launch disposable built server
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-video-browser -p 18106:8080             -e PORT=8080             -e BIGPAW_ENV=development             -e BIGPAW_DATA_DIR=/tmp/bigpaw-video-browser             -e BIGPAW_DEV_LINKS=0             -e BIGPAW_AUTOMATION_INTERVAL_SECONDS=86400             bigpaw-puppy-video python3 backend/server.py
+          ok=0
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18106/api/health >/dev/null 2>&1; then ok=1; break; fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ]; then
+            docker logs bigpaw-video-browser --tail 200
+            exit 1
+          fi
+
+      - name: Run existing full smoke regression on disposable server
+        run: python3 app/backend/smoke_test.py http://127.0.0.1:18106
+
+      - name: Install real browser engines and ffmpeg
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium webkit
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+      - name: Generate real short and over-60-second video fixtures
+        run: |
+          set -euo pipefail
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=c=black:s=96x96:r=2 -t 2             -c:v libx264 -pix_fmt yuv420p -movflags +faststart /tmp/bp-short.mp4
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=c=black:s=96x96:r=1 -t 61             -c:v libx264 -pix_fmt yuv420p -movflags +faststart /tmp/bp-long.mp4
+          test -s /tmp/bp-short.mp4
+          test -s /tmp/bp-long.mp4
+
+      - name: Run desktop Chrome and iPhone Safari WebKit regression
+        run: node scripts/test-puppy-video-browser.cjs http://127.0.0.1:18106 /tmp/bp-short.mp4 /tmp/bp-long.mp4
+
+      - name: Final health check and cleanup
+        if: always()
+        run: |
+          curl -fsS http://127.0.0.1:18106/api/health || true
+          docker logs bigpaw-video-browser --tail 120 || true
+          docker rm -f bigpaw-video-browser >/dev/null 2>&1 || true
