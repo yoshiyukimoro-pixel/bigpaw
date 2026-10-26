@@ -93,7 +93,7 @@ def main():
         check(deal['puppy_id']==pid,'deal linked')
         pay=call('POST','/api/deals/'+did+'/reservation',{'amount':100000},user='u_demo',expected=201)
         check(pay['status']=='paid','reservation payment development path')
-        visit=call('POST','/api/inquiries/'+qid+'/visit',{'date':'2026-11-10','time':'13:00','status':'confirmed','partySize':2},user='u_dog44',expected=201)
+        visit=call('POST','/api/inquiries/'+qid+'/visit',{'date':'2026-11-10','time':'13:00','status':'confirmed','partySize':2,'transport':'オンライン見学'},user='u_dog44',expected=201)
         check(visit.get('status')=='confirmed','breeder confirms visit before contract')
         c1=call('POST','/api/deals/'+did+'/contract-sign',{'signerName':'BIG PAW 試験ブリーダー','faceToFaceConfirmed':True},user='u_dog44',expected=201)
         check(c1.get('breeder_signed_at') and c1.get('breeder_signer_name'),'breeder face-to-face contract sign')
