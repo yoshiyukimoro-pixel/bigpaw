@@ -88,7 +88,7 @@ jobs:
         run: |
           set -euo pipefail
           npm install --no-save --no-audit --no-fund playwright
-          npx playwright install chromium webkit
+          npx playwright install --with-deps chromium webkit
       - name: Run actual buyer and breeder flows on mobile Chrome and Safari WebKit
         run: node scripts/test-planned-litters-browser.cjs http://127.0.0.1:18097
       - name: Clean up isolated browser database and test server
