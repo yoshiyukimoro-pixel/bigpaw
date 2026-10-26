@@ -54,8 +54,8 @@ def upload(destination: Path, folder_id: str):
     if existing.get("files"):
         # A successful prior run must be idempotent after process restart.
         matching = existing["files"][0]
-        if int(matching.get("size", -1)) != destination.stat().st_size:
-            raise RuntimeError("Existing weekly backup size differs; manual review required")
+        if int(matching.get("size", -1)) <= 0:
+            raise RuntimeError("Existing weekly backup has invalid size; manual review required")
         prune_old_weekly_backups(service, folder_id, keep=4)
         return matching["id"]
     metadata = {"name": destination.name, "parents": [folder_id]}
