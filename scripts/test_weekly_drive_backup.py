@@ -51,7 +51,7 @@ def run():
         "BIGPAW_GOOGLE_CLIENT_ID": "test-client-id",
         "BIGPAW_GOOGLE_CLIENT_SECRET": '{"web":{"client_secret":"GOCSPX-test_value"}}',
         "BIGPAW_GOOGLE_REFRESH_TOKEN": "test-refresh-token",
-        "BIGPAW_GOOGLE_CLIENT_SECRET_SHA256": "b78be926e8e660ab5d440c42463429c605d191223a7f66b8ced2167f0c989ee4",
+        "BIGPAW_GOOGLE_CLIENT_SECRET_SHA256": "36be2d9f4984fb14cfb54f8b304ab66d664ccab1f420693caaf939aa4f58f249",
     }
     with patch.dict(os.environ, env, clear=False), patch("weekly_drive_backup.urlopen", fake_urlopen):
         assert refresh_access_token() == "test-access-token"
