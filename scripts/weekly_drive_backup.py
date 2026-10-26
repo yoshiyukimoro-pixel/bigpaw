@@ -9,8 +9,6 @@ Required environment:
 This script runs via the opt-in web-service scheduler; it does not alter local retention.
 """
 import datetime as dt
-import hashlib
-import hmac
 import json
 import os
 import re
@@ -24,7 +22,6 @@ from urllib.request import Request, urlopen
 
 JST = dt.timezone(dt.timedelta(hours=9), name="JST")
 _WEB_OAUTH_CLIENT_ID = "674803593362-qc4o2rs2qppvhn33h3ma01i93cfuamup.apps.googleusercontent.com"
-_REFERENCE_CLIENT_SECRET_SHA256 = "da3cf69d4679584b5ea85f3100c3b688fc38f56d0750780bc4970e93765b06a0"
 
 
 
@@ -52,24 +49,16 @@ def normalize_client_secret(raw: str) -> tuple[str, bool]:
     return value, value != original
 
 
-def client_secret_matches_expected(secret: str):
-    expected = os.environ.get("BIGPAW_GOOGLE_CLIENT_SECRET_SHA256", "").strip().lower() or _REFERENCE_CLIENT_SECRET_SHA256
-    if not re.fullmatch(r"[0-9a-f]{64}", expected):
-        return None
-    actual = hashlib.sha256(secret.encode("utf-8")).hexdigest()
-    return hmac.compare_digest(actual, expected)
-
 
 class OAuthRefreshFailed(RuntimeError):
-    def __init__(self, safe_code: str, safe_detail: str = ""):
+    def __init__(self, safe_code: str):
         self.safe_code = safe_code
-        self.safe_detail = safe_detail
         super().__init__("Google OAuth refresh failed")
 
 
 def refresh_access_token() -> str:
     """Exchange the stored refresh token using Google's token endpoint safely."""
-    secret, normalized = normalize_client_secret(os.environ.get("BIGPAW_GOOGLE_CLIENT_SECRET", ""))
+    secret, _ = normalize_client_secret(os.environ.get("BIGPAW_GOOGLE_CLIENT_SECRET", ""))
     configured_client_id = os.environ.get("BIGPAW_GOOGLE_CLIENT_ID", "").strip()
     if configured_client_id and configured_client_id != _WEB_OAUTH_CLIENT_ID:
         print("OAUTH_CLIENT_ID_CORRECTED|configured_match=0", flush=True)
@@ -98,17 +87,7 @@ def refresh_access_token() -> str:
                 safe_code = candidate
         except Exception:
             pass
-        safe_detail = ""
-        if safe_code == "invalid_client":
-            match = client_secret_matches_expected(secret)
-            safe_detail = (
-                "secret_len=" + str(len(secret))
-                + "|prefix_ok=" + ("1" if secret.startswith("GOCSPX-") else "0")
-                + "|normalized=" + ("1" if normalized else "0")
-                + "|matches_reference=" + ("na" if match is None else ("1" if match else "0"))
-            )
-            print("OAUTH_CLIENT_CONFIG_DIAG|" + safe_detail, flush=True)
-        raise OAuthRefreshFailed(safe_code, safe_detail) from None
+        raise OAuthRefreshFailed(safe_code) from None
     except (URLError, TimeoutError, OSError):
         raise OAuthRefreshFailed("network_error") from None
     except (ValueError, TypeError, json.JSONDecodeError):
