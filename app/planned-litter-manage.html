@@ -114,7 +114,7 @@ async function refresh(){
          const pick=document.createElement('select');pick.setAttribute('aria-label','紐付ける子犬');pick.append(new Option('生まれた子犬を選択',''));
          for(const p of options)pick.append(new Option((p.name||'子犬')+'（'+(p.breed||'犬種未設定')+'）',p.id));
          const button=document.createElement('button');button.type='button';button.textContent='この子犬に紐付ける';button.style.marginLeft='6px';button.onclick=()=>linkPlannedInquiry(item,pick.value,button);
-         const controls=document.createElement('div');controls.className='buttons';controls.style.alignItems='center';controls.style.marginTop='12px';pick.style.maxWidth='100%';pick.style.flex='1 1 230px';button.style.marginLeft='0';button.style.flex='0 1 auto';controls.append(pick,button);connection.append(controls);
+         const controls=document.createElement('div');controls.className='';controls.style.cssText='display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:16px;position:relative;isolation:isolate';pick.style.cssText='display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box';button.style.cssText='display:block;width:100%;min-height:48px;margin:0;position:relative;z-index:1;cursor:pointer;background:#245b94;color:#fff;border:0;border-radius:9px;font-weight:800';controls.append(pick,button);connection.append(controls);
       }else{
          const link=document.createElement('a');link.textContent='＋ 子犬を掲載して紐付ける';link.href='breeder-puppy-new.html'+(role==='operator'?'?breederId='+encodeURIComponent(scope):'');connection.append(link);
       }
