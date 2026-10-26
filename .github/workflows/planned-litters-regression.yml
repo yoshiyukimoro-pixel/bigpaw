@@ -27,6 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile app/backend/planned_litters.py app/backend/planned_litters_http_test.py app/backend/server.py
+          node --check scripts/test-planned-litters-browser.cjs
           python3 - <<'PY'
           from html.parser import HTMLParser
           from pathlib import Path
@@ -58,6 +59,29 @@ jobs:
         run: docker build --no-cache -t bigpaw-planned-litter-regression .
       - name: Test planned litter API against disposable running server
         run: docker run --rm -e BIGPAW_ENV=development -e BIGPAW_DEV_LINKS=0 bigpaw-planned-litter-regression python3 backend/planned_litters_http_test.py
+      - name: Launch isolated development server for real mobile browser tests
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-planned-browser -p 18097:8080 \
+            -e PORT=8080 -e BIGPAW_ENV=development \
+            -e BIGPAW_DATA_DIR=/tmp/planned-browser-regression-only \
+            -e BIGPAW_DEV_LINKS=0 bigpaw-planned-litter-regression \
+            python3 backend/server.py
+          ok=0
+          for i in $(seq 1 40);do
+            if curl -fsS http://127.0.0.1:18097/api/health >/dev/null 2>&1;then ok=1;break;fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ];then docker logs bigpaw-planned-browser --tail 100;exit 1;fi
+      - name: Install real browser test engines
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps webkit
+      - name: Run actual buyer and breeder flows on mobile Chrome and Safari WebKit
+        run: node scripts/test-planned-litters-browser.cjs http://127.0.0.1:18097
+      - name: Clean up isolated browser database and test server
+        if: always()
+        run: docker rm -f bigpaw-planned-browser >/dev/null 2>&1 || true
       - name: Confirm no new conventional puppy, payment or deal routes were added
         run: |
           python3 - <<'PY'
