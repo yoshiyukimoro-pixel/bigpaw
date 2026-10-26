@@ -50,12 +50,12 @@ async function check(engine,label){
    mpage.on('pageerror',e=>errors.push('manage: '+e.message));
    await login(manager,'dog44@bigpaw.jp','demo1234');
    await mpage.goto(url+'/admin.html',{waitUntil:'domcontentloaded'});
-   await mpage.locator('a.dashboard-action[href="planned-litter-manage.html"]').waitFor({state:'visible',timeout:20000});
-   const dashboardPlannedBg=await mpage.locator('a.dashboard-action[href="planned-litter-manage.html"]').evaluate(el=>getComputedStyle(el).backgroundColor);
+   await mpage.locator('a.dashboard-action[href^="planned-litter-manage.html"]').waitFor({state:'visible',timeout:20000});
+   const dashboardPlannedBg=await mpage.locator('a.dashboard-action[href^="planned-litter-manage.html"]').evaluate(el=>getComputedStyle(el).backgroundColor);
    assert.equal(dashboardPlannedBg,'rgb(228, 241, 255)',label+' breeder dashboard planned-litter entry must be blue');
    // The new feature must be reachable even if the mobile sidebar is hidden.
-   await mpage.locator('a.dashboard-action[href="planned-litter-manage.html"]').click();
-   await mpage.waitForURL('**/planned-litter-manage.html');
+   await mpage.locator('a.dashboard-action[href^="planned-litter-manage.html"]').click();
+   await mpage.waitForURL('**/planned-litter-manage.html?v=20261026-blue2');
    await mpage.locator('#listings').waitFor();
    await mpage.waitForFunction(()=>document.querySelector('#listings')&&!document.querySelector('#listings').textContent.includes('読み込み中'),null,{timeout:20000});
    await assertBreederBlue(mpage,label+' breeder mobile manager');
