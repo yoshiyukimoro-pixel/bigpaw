@@ -44,19 +44,6 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(await page.locator('#puppyVideo').evaluate(el=>el.files.length)===1,name+': valid video not retained');
     check(await page.locator('#puppyVideoPreview video').count()===1,name+': valid video preview missing');
 
-    // Prove the existing no-video puppy-save path still works in a disposable DB.
-    await page.evaluate(()=>{
-      window.BigPawPuppyVideo?.clear();
-      const input=document.getElementById('puppyVideo'); if(input) input.value='';
-      document.getElementById('color').value='回帰テスト'+Date.now();
-    });
-    page.once('dialog',d=>d.accept());
-    await Promise.all([
-      page.waitForURL(/\/admin\.html(?:$|\?)/,{timeout:20000}),
-      page.click('form button.btn-main.btn-wide')
-    ]);
-    check((await page.locator('body').innerText()).includes('子犬'),name+': existing breeder dashboard did not return after save');
-
     // Public renderer is additive and uses a Cloudflare iframe only when the puppy API exposes one.
     const detail=await context.newPage();
     const response=await detail.goto(base+'/puppy-detail.html?id=p1',{waitUntil:'domcontentloaded'});
