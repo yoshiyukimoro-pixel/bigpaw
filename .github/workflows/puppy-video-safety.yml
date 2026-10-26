@@ -95,11 +95,11 @@ jobs:
             sudo apt-get install -y ffmpeg
           fi
           ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=c=black:s=96x96:r=2 -t 2 \
-            -c:v libx264 -pix_fmt yuv420p -movflags +faststart /tmp/bp-short.mp4
+            -c:v libvpx-vp9 -b:v 80k -deadline realtime /tmp/bp-short.webm
           ffmpeg -hide_banner -loglevel error -y -f lavfi -i color=c=black:s=96x96:r=1 -t 61 \
-            -c:v libx264 -pix_fmt yuv420p -movflags +faststart /tmp/bp-long.mp4
-          test -s /tmp/bp-short.mp4
-          test -s /tmp/bp-long.mp4
+            -c:v libvpx-vp9 -b:v 80k -deadline realtime /tmp/bp-long.webm
+          test -s /tmp/bp-short.webm
+          test -s /tmp/bp-long.webm
 
       - name: Run desktop Chrome and iPhone Safari WebKit in official browser image
         run: |
@@ -107,7 +107,7 @@ jobs:
           docker run --rm --network host \
             -v "$PWD:/work" -v /tmp:/tmp -w /work \
             mcr.microsoft.com/playwright:v1.55.0-noble \
-            bash -lc 'set -e; npm install --no-save playwright@1.55.0 >/dev/null 2>&1; node scripts/test-puppy-video-browser.cjs http://127.0.0.1:18106 /tmp/bp-short.mp4 /tmp/bp-long.mp4'
+            bash -lc 'set -e; npm install --no-save playwright@1.55.0 >/dev/null 2>&1; node scripts/test-puppy-video-browser.cjs http://127.0.0.1:18106 /tmp/bp-short.webm /tmp/bp-long.webm'
 
       - name: Final health check and cleanup
         if: always()
