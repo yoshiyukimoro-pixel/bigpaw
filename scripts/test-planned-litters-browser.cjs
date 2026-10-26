@@ -55,10 +55,20 @@ async function check(engine,label){
    assert.equal(dashboardPlannedBg,'rgb(228, 241, 255)',label+' breeder dashboard planned-litter entry must be blue');
    // The new feature must be reachable even if the mobile sidebar is hidden.
    await mpage.locator('a.dashboard-action[href^="planned-litter-manage.html"]').click();
-   await mpage.waitForURL('**/planned-litter-manage.html?v=20261026-blue2');
+   await mpage.waitForURL('**/planned-litter-manage.html?v=20261026-blue3');
    await mpage.locator('#listings').waitFor();
    await mpage.waitForFunction(()=>document.querySelector('#listings')&&!document.querySelector('#listings').textContent.includes('読み込み中'),null,{timeout:20000});
    await assertBreederBlue(mpage,label+' breeder mobile manager');
+   // Reproduce the reported iPhone symptom: a late theme mutation/pink stylesheet must not win after the initial blue paint.
+   await mpage.evaluate(()=>{
+     document.documentElement.setAttribute('data-bp-page-theme','buyer');
+     const late=document.createElement('style');
+     late.id='test-late-pink-theme';
+     late.textContent='body{background:#fff7fb!important}.topbar{background:#ef7fa8!important}';
+     document.head.appendChild(late);
+   });
+   await mpage.waitForFunction(()=>document.documentElement.getAttribute('data-bp-page-theme')==='breeder'&&getComputedStyle(document.body).backgroundColor==='rgb(243, 248, 255)'&&getComputedStyle(document.querySelector('.topbar')).backgroundImage.includes('rgb(95, 143, 195)'),null,{timeout:5000});
+   await assertBreederBlue(mpage,label+' breeder mobile manager after late pink override');
    await mpage.locator('#breed').selectOption('standard-poodle');
    await mpage.locator('#phase').selectOption('交配予定');
    const title=item.title+' '+label;
