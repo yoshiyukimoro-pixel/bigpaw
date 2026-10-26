@@ -8,6 +8,9 @@ on:
       - 'app/planned-litters.html'
       - 'app/planned-litter-manage.html'
       - 'app/admin.html'
+      - 'app/mobile-global-nav.js'
+      - 'app/breeder-mobile-nav.js'
+      - 'app/backend/breeder_mobile_menu_runtime_patch.py'
       - 'app/index.html'
       - 'app/search.html'
       - 'app/search-list-rebuild.html'
@@ -49,6 +52,10 @@ jobs:
               manage=read('/planned-litter-manage.html')
               assert '出産予定・予約希望の管理' in manage
               assert 'auth-return-fix.js' in manage
+              assert 'mobile-global-nav.js?v=20261026-planned-menu-blue1' in manage,'planned manager must serve fresh mobile menu script'
+              nav=read('/mobile-global-nav.js?v=20261026-planned-menu-blue1')
+              assert "'/planned-litter-manage.html'" in nav,'planned manager missing from breeder page classification'
+              assert "'出産予定・予約希望','/planned-litter-manage.html?v=20261026-blue3'" in nav,'planned menu item missing from breeder mobile menu'
               main=read('/')
               assert 'href="planned-litters.html"' in main
               search=read('/search.html')
@@ -58,7 +65,7 @@ jobs:
               # Do not inspect or print private customer data; no writes and no login.
               puppy=json.loads(read('/api/puppies'))
               assert isinstance(puppy,list),'regular public puppies endpoint still returns an array'
-              print('LIVE_PLANNED_LITTER_READONLY_OK|health|public_list|manager_page|home|search|planned_api|normal_puppy_api',flush=True)
+              print('LIVE_PLANNED_LITTER_READONLY_OK|health|public_list|manager_page|breeder_blue_mobile_menu|home|search|planned_api|normal_puppy_api',flush=True)
 
           for attempt in range(45):
               try:

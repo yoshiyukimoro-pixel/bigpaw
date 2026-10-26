@@ -59,6 +59,20 @@ async function check(engine,label){
    await mpage.locator('#listings').waitFor();
    await mpage.waitForFunction(()=>document.querySelector('#listings')&&!document.querySelector('#listings').textContent.includes('読み込み中'),null,{timeout:20000});
    await assertBreederBlue(mpage,label+' breeder mobile manager');
+   // The shared mobile menu must classify the planned-litter manager as a breeder page.
+   await mpage.locator('#bp-global-mobile-menu-button').waitFor({state:'visible',timeout:10000});
+   await mpage.locator('#bp-global-mobile-menu-button').click();
+   const menuState=await mpage.evaluate(()=>({
+     tone:document.documentElement.getAttribute('data-bp-mobile-tone'),
+     drawerBg:getComputedStyle(document.querySelector('#bp-global-mobile-menu-drawer')).backgroundColor,
+     drawerLabel:document.querySelector('#bp-global-mobile-menu-drawer')?.textContent||'',
+     plannedCurrent:!!document.querySelector('#bp-global-mobile-menu-drawer a.bp-current[href^="/planned-litter-manage.html"]')
+   }));
+   assert.equal(menuState.tone,'breeder',label+' planned-litter mobile menu tone must be breeder');
+   assert.equal(menuState.drawerBg,'rgb(243, 248, 255)',label+' planned-litter mobile menu drawer must be blue');
+   assert(menuState.drawerLabel.includes('ブリーダー管理'),label+' planned-litter mobile menu must be breeder menu');
+   assert(menuState.plannedCurrent,label+' planned-litter mobile menu must highlight reservation page');
+   await mpage.locator('#bp-global-mobile-menu-drawer .bp-close').click();
    // Reproduce the reported runtime failure: a late script/theme flip must not turn the page pink.
    await mpage.evaluate(()=>{
      document.documentElement.setAttribute('data-bp-page-theme','buyer');

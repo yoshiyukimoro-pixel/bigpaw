@@ -10,6 +10,9 @@ on:
       - 'app/index.html'
       - 'app/search.html'
       - 'app/admin.html'
+      - 'app/mobile-global-nav.js'
+      - 'app/breeder-mobile-nav.js'
+      - 'app/backend/breeder_mobile_menu_runtime_patch.py'
       - '.github/workflows/planned-litters-production-readonly.yml'
 
 jobs:
@@ -44,6 +47,11 @@ jobs:
                       assert set(('id','breed','phase','status','kennel_name')).issubset(item),item
                       assert item.get('status')=='受付中',item
                       assert 'email' not in item and 'message' not in item,item
+                  manage=read('/planned-litter-manage.html?release=planned-menu-blue-20261026')
+                  assert 'mobile-global-nav.js?v=20261026-planned-menu-blue1' in manage,'planned_manager_mobile_menu_version_missing'
+                  nav=read('/mobile-global-nav.js?v=20261026-planned-menu-blue1')
+                  assert "'/planned-litter-manage.html'" in nav,'planned_manager_not_breeder_mobile_page'
+                  assert "'出産予定・予約希望','/planned-litter-manage.html?v=20261026-blue3'" in nav,'planned_mobile_menu_item_missing'
                   admin=read('/admin.html?release=planned-litter-20261026')
                   assert 'planned-litter-manage.html' in admin,'new_admin_entry_missing'
                   search=read('/search.html?release=planned-litter-20261026')
@@ -51,7 +59,7 @@ jobs:
                   home=read('/?release=planned-litter-20261026')
                   assert 'planned-litters.html' in home,'new_home_entry_missing'
                   assert '子犬を探す' in search and '子犬を探す' in home,'existing_navigation_missing'
-                  print('PLANNED_LITTER_PRODUCTION_READONLY_OK|health|public_list|reserved_page|admin|search|home|no_writes|item_count='+str(len(listings)))
+                  print('PLANNED_LITTER_PRODUCTION_READONLY_OK|health|public_list|reserved_page|manager_blue_mobile_menu|admin|search|home|no_writes|item_count='+str(len(listings)))
                   break
               except (Exception,AssertionError) as exc:
                   if attempt in (0,10,20,30,40,50,60,70,80,89):
