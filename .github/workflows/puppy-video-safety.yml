@@ -84,10 +84,7 @@ jobs:
             exit 1
           fi
 
-      - name: Run current sale, fee, payment and contract regression
-        run: docker run --rm bigpaw-puppy-video python3 backend/first_sale_workflow_test.py /app
-
-      - name: Run current inquiry, photo, search and favorite regression
+      - name: Run current inquiry, photo, search, favorite and transaction regression
         run: docker run --rm bigpaw-puppy-video python3 backend/inquiry_cancellation_test.py /app
 
       - name: Install real browser engines and ffmpeg
