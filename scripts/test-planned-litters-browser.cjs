@@ -41,25 +41,26 @@ async function check(engine,label){
    await mpage.locator('a.dashboard-action[href="planned-litter-manage.html"]').click();
    await mpage.waitForURL('**/planned-litter-manage.html');
    await mpage.locator('#listings').waitFor();
-   await mpage.waitForFunction(()=>document.querySelector('#listings')?.textContent.includes('まだ出産予定'),null,{timeout:20000});
+   await mpage.waitForFunction(()=>document.querySelector('#listings')&&!document.querySelector('#listings').textContent.includes('読み込み中'),null,{timeout:20000});
    await mpage.locator('#breed').selectOption('standard-poodle');
    await mpage.locator('#phase').selectOption('交配予定');
-   await mpage.locator('#title').fill(item.title);
+   const title=item.title+' '+label;
+   await mpage.locator('#title').fill(title);
    await mpage.locator('#plannedMating').fill(item.plannedMating);
    await mpage.locator('#expectedBirth').fill(item.expectedBirth);
    await mpage.locator('#description').fill(item.description);
    await mpage.locator('#saveBtn').click();
-   await mpage.waitForFunction(()=>document.querySelector('#listings')?.textContent.includes('2027年春'),null,{timeout:20000});
+   await mpage.waitForFunction(text=>document.querySelector('#listings')?.textContent.includes(text),title,{timeout:20000});
    const list=await api(manager,'GET','/planned-litters/mine');
-   assert.equal(list.length,1,'created through actual browser form');
-   assert.equal(list[0].title,item.title);
-   const lid=list[0].id;
+   const created=list.filter(x=>x.title===title);
+   assert.equal(created.length,1,'created through actual browser form');
+   const lid=created[0].id;
    // Anonymous public page and individual detail.
    const publicContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
    const publicPage=await publicContext.newPage();
    publicPage.on('pageerror',e=>errors.push('public: '+e.message));
    await publicPage.goto(url+'/planned-litters.html',{waitUntil:'domcontentloaded'});
-   await publicPage.getByText(item.title).waitFor();
+   await publicPage.getByText(title).waitFor();
    await publicPage.getByRole('link',{name:'詳しく見る・相談する'}).click();
    await publicPage.waitForURL('**/planned-litters.html?id=*');
    await publicPage.getByText('これは事前相談・仮予約希望').waitFor();
@@ -78,11 +79,12 @@ async function check(engine,label){
    await mpage.reload({waitUntil:'domcontentloaded'});
    await mpage.waitForFunction(()=>document.querySelector('#inquiries')?.textContent.includes('山田'),null,{timeout:20000});
    const latest=await api(manager,'GET','/planned-litters/inquiries');
-   assert.equal(latest.length,1,'received buyer interest');
-   assert.equal(latest[0].preferred_gender,'女の子');
+   const ownInquiry=latest.filter(x=>x.planned_litter_id===lid);
+   assert.equal(ownInquiry.length,1,'received buyer interest');
+   assert.equal(ownInquiry[0].preferred_gender,'女の子');
    // Managing visibility must immediately hide the public listing.
-   await mpage.locator('#listings button').filter({hasText:'非公開に変更'}).click();
-   await mpage.waitForFunction(()=>document.querySelector('#listings')?.textContent.includes('非公開'),null,{timeout:20000});
+   await mpage.locator('#listings article.item').filter({hasText:title}).getByRole('button',{name:'非公開に変更'}).click();
+   await mpage.waitForFunction(text=>[...document.querySelectorAll('#listings article.item')].some(x=>x.textContent.includes(text)&&x.textContent.includes('非公開')),title,{timeout:20000});
    await publicPage.goto(url+'/planned-litters.html',{waitUntil:'domcontentloaded'});
    await publicPage.getByText('現在、受付中の出産予定はありません。').waitFor({timeout:20000});
    for(const [page,where] of [[mpage,'manage'],[bpage,'buyer'],[publicPage,'public']]){
