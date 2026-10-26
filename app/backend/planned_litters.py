@@ -201,6 +201,31 @@ def handle(h, method, path, query, ctx):
         h.send_json(result,201)
         return True
     match = re.fullmatch(r'/api/planned-litters/([^/]+)', path)
+    if method == 'DELETE' and match:
+        user = h.require(['breeder','operator'])
+        if not user: return True
+        con = db()
+        old = con.execute("SELECT id,breeder_id FROM planned_litters WHERE id=?", (match.group(1),)).fetchone()
+        if not old:
+            con.close()
+            h.send_json({'error':'not_found'},404)
+            return True
+        bid = authorized_breeder(con,user,str(old['breeder_id']) if user['role']=='operator' else '')
+        if bid != old['breeder_id']:
+            con.close()
+            h.send_json({'error':'forbidden'},403)
+            return True
+        if con.execute("SELECT 1 FROM planned_litter_inquiries WHERE planned_litter_id=? LIMIT 1", (old['id'],)).fetchone():
+            con.close()
+            h.send_json({'error':'planned_litter_has_inquiries',
+                         'message':'予約希望・事前相談の履歴があるため削除できません。「非公開」または「終了」に変更してください。'},409)
+            return True
+        con.execute("DELETE FROM planned_litters WHERE id=? AND breeder_id=?", (old['id'],bid))
+        ctx['audit'](con,user['id'],'planned_litter_deleted','planned_litter',old['id'])
+        con.commit()
+        con.close()
+        h.send_json({'ok':True,'id':old['id']})
+        return True
     if method == 'PATCH' and match:
         user = h.require(['breeder','operator'])
         if not user: return True

@@ -42,6 +42,19 @@ function resetForm(){editing='';el('listingForm').reset();el('formHeading').text
 function saveFeedback(message,error=false){const node=el('saveFeedback');node.textContent=message;node.classList.remove('hide');node.classList.toggle('error',error);node.scrollIntoView({behavior:'smooth',block:'nearest'})}
 function fillForm(id){const x=items.find(x=>x.id===id);if(!x)return;resetForm();el('saveFeedback').classList.add('hide');editing=id;for(const [f,key] of [['breed','breed_key'],['phase','phase'],['title','title'],['plannedMating','planned_mating'],['expectedBirth','expected_birth'],['description','description'],['status','status']])el(f).value=x[key]||'';el('formHeading').textContent='掲載情報を編集する';el('saveBtn').textContent='変更内容を保存する';el('cancelEdit').classList.remove('hide');el('listingForm').scrollIntoView({behavior:'smooth',block:'center'})}
 async function setListingStatus(id,status){try{await BigPawAPI.request('/planned-litters/'+encodeURIComponent(id),{method:'PATCH',body:{status}});await refresh();el('notice').textContent='掲載状態を変更しました。'}catch(err){el('notice').textContent='変更できませんでした。';el('notice').className='error'}}
+async function deleteListing(id,title,button){
+ if(!window.confirm('「'+title+'」を削除しますか？\n削除すると元には戻せません。'))return;
+ button.disabled=true;button.textContent='削除中…';
+ try{
+  await BigPawAPI.request('/planned-litters/'+encodeURIComponent(id),{method:'DELETE'});
+  if(editing===id){resetForm();el('saveFeedback').classList.add('hide')}
+  await refresh();
+  el('notice').className='';el('notice').textContent='✅ 「'+title+'」を削除しました。';
+ }catch(err){
+  const message=err.status===409?'予約希望が届いているため削除できません。「非公開」か「終了」に変更してください。':(err.message||'削除できませんでした。');
+  el('notice').className='error';el('notice').textContent=message;window.alert(message);
+ }finally{button.disabled=false;button.textContent='削除'}
+}
 async function setInquiryStatus(id,status){try{await BigPawAPI.request('/planned-litters/inquiries/'+encodeURIComponent(id),{method:'PATCH',body:{status}});await refresh();el('notice').textContent='問い合わせの状態を変更しました。'}catch(err){el('notice').textContent='変更できませんでした。';el('notice').className='error'}}
 async function refresh(){
  const suffix=role==='operator'?'?breederId='+encodeURIComponent(scope):'';
@@ -55,6 +68,7 @@ async function refresh(){
    box.innerHTML='<strong>'+esc(item.title)+'</strong><p class="muted">'+esc(item.breed)+'｜'+esc(item.phase)+'｜'+esc(item.status)+'<br>'+esc(item.description)+'</p>';
    const tools=document.createElement('div');tools.className='buttons';
    const edit=document.createElement('button');edit.textContent='編集';edit.onclick=()=>fillForm(item.id);tools.append(edit);
+   const remove=document.createElement('button');remove.type='button';remove.textContent='削除';remove.style.color='#9b1b30';remove.style.borderColor='#c95f75';remove.onclick=()=>deleteListing(item.id,item.title,remove);tools.append(remove);
    for(const choice of ['受付中','非公開','終了']){
       if(choice===item.status)continue;
       const button=document.createElement('button');button.textContent=choice+'に変更';button.onclick=()=>setListingStatus(item.id,choice);tools.append(button);

@@ -116,6 +116,19 @@ async function check(engine,label){
    const afterInvalid=await api(manager,'GET','/planned-litters/mine');
    assert.equal(afterInvalid.filter(x=>x.title===title).length,1,'invalid repeat must not create duplicate');
    const lid=created[0].id;
+   // The breeder can cancel deletion, then remove only an uncontacted planned litter.
+   const temporary=await api(manager,'POST','/planned-litters',{...item,title:'削除ボタンテスト '+label});
+   await mpage.reload({waitUntil:'domcontentloaded'});
+   await mpage.waitForFunction(text=>document.querySelector('#listings')?.textContent.includes(text),temporary.title,{timeout:20000});
+   const tempCard=mpage.locator('#listings article.item').filter({hasText:temporary.title});
+   await tempCard.getByRole('button',{name:'削除'}).waitFor();
+   mpage.once('dialog',dialog=>dialog.dismiss());
+   await tempCard.getByRole('button',{name:'削除'}).click();
+   assert.equal((await api(manager,'GET','/planned-litters/mine')).filter(x=>x.id===temporary.id).length,1,label+' cancel preserves listing');
+   mpage.once('dialog',dialog=>dialog.accept());
+   await tempCard.getByRole('button',{name:'削除'}).click();
+   await mpage.waitForFunction(text=>!document.querySelector('#listings')?.textContent.includes(text),temporary.title,{timeout:20000});
+   assert.equal((await api(manager,'GET','/planned-litters/mine')).filter(x=>x.id===temporary.id).length,0,label+' delete removes listing');
    // Anonymous public page and individual detail.
    const publicContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
    const publicPage=await publicContext.newPage();
