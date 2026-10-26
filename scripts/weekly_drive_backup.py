@@ -32,7 +32,14 @@ def upload(destination: Path, folder_id: str):
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
 
-    credentials = Credentials(\n        token=None,\n        refresh_token=os.environ["BIGPAW_GOOGLE_REFRESH_TOKEN"],\n        token_uri="https://oauth2.googleapis.com/token",\n        client_id=os.environ["BIGPAW_GOOGLE_CLIENT_ID"],\n        client_secret=os.environ["BIGPAW_GOOGLE_CLIENT_SECRET"],\n        scopes=["https://www.googleapis.com/auth/drive.file"],\n    )
+    credentials = Credentials(
+        token=None,
+        refresh_token=os.environ["BIGPAW_GOOGLE_REFRESH_TOKEN"],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=os.environ["BIGPAW_GOOGLE_CLIENT_ID"],
+        client_secret=os.environ["BIGPAW_GOOGLE_CLIENT_SECRET"],
+        scopes=["https://www.googleapis.com/auth/drive.file"],
+    )
     service = build("drive", "v3", credentials=credentials, cache_discovery=False)
     safe_name = destination.name.replace("'", "\\'")
     query = f"name = '{safe_name}' and '{folder_id}' in parents and trashed = false"
@@ -54,7 +61,9 @@ def main():
     folder = os.environ.get("BIGPAW_DRIVE_FOLDER_ID", "").strip()
     if not db_path or not folder:
         raise RuntimeError("Set BIGPAW_DB_PATH and BIGPAW_DRIVE_FOLDER_ID")
-    required = ("BIGPAW_GOOGLE_CLIENT_ID", "BIGPAW_GOOGLE_CLIENT_SECRET", "BIGPAW_GOOGLE_REFRESH_TOKEN")\n    if not all(os.environ.get(key) for key in required):\n        raise RuntimeError("Google OAuth credentials missing; configure Railway secrets")
+    required = ("BIGPAW_GOOGLE_CLIENT_ID", "BIGPAW_GOOGLE_CLIENT_SECRET", "BIGPAW_GOOGLE_REFRESH_TOKEN")
+    if not all(os.environ.get(key) for key in required):
+        raise RuntimeError("Google OAuth credentials missing; configure Railway secrets")
     # ISO week gives one unique backup name per week, regardless of retry date.
     now = dt.datetime.now(dt.timezone.utc)
     year, week, _ = now.isocalendar()
