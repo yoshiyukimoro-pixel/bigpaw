@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Optional weekly offsite SQLite snapshot upload. Run from a scheduled Railway job.
+"""Optional weekly offsite SQLite snapshot upload from the existing web service.
 
 Required environment:
  BIGPAW_DRIVE_FOLDER_ID: destination Google Drive folder ID
  BIGPAW_GOOGLE_CLIENT_ID / BIGPAW_GOOGLE_CLIENT_SECRET / BIGPAW_GOOGLE_REFRESH_TOKEN: OAuth secrets
  BIGPAW_DB_PATH: absolute path to the persistent SQLite database
 
-This script does not run from the web server or alter local retention.
+This script runs via the opt-in web-service scheduler; it does not alter local retention.
 """
 import datetime as dt
 import os
+import re
 from pathlib import Path
 import sqlite3
 import sys
@@ -58,7 +59,49 @@ def upload(destination: Path, folder_id: str):
                                      supportsAllDrives=True).execute()
     if int(created.get("size", -1)) != destination.stat().st_size:
         raise RuntimeError("Uploaded size mismatch; investigate Drive file before relying on backup")
+    prune_old_weekly_backups(service, folder_id, keep=4)
     return created["id"]
+
+
+def prune_old_weekly_backups(service, folder_id: str, keep: int = 4):
+    """Keep newest four BIG PAW weekly snapshots only; never touch other files.
+
+    Called only after a new backup was uploaded and its size verified.
+    """
+    if keep < 1:
+        raise ValueError("At least one backup must be retained")
+    def quote_query(value):
+        return value.replace(chr(92), chr(92) * 2).replace("'", chr(92) + "'")
+    query = f"'{quote_query(folder_id)}' in parents and trashed = false"
+    files = []
+    token = None
+    while True:
+        result = service.files().list(
+            q=query, fields="nextPageToken,files(id,name)",
+            page_size=1000, page_token=token,
+            supportsAllDrives=True, includeItemsFromAllDrives=True,
+        ).execute()
+        files.extend(result.get("files", []))
+        token = result.get("nextPageToken")
+        if not token:
+            break
+    pattern = re.compile(r"^bigpaw-weekly-(\\d{4})-W(\\d{2})\\.sqlite3$")
+    candidates = []
+    for item in files:
+        match = pattern.fullmatch(item.get("name", ""))
+        if match and item.get("id"):
+            year, week = map(int, match.groups())
+            try:
+                dt.date.fromisocalendar(year, week, 1)
+            except ValueError:
+                continue
+            candidates.append((year, week, item["id"]))
+    candidates.sort(reverse=True)
+    for _, _, file_id in candidates[keep:]:
+        # Move to Drive trash instead of permanent deletion.
+        service.files().update(fileId=file_id, body={"trashed": True},
+                               supportsAllDrives=True).execute()
+    return max(0, len(candidates) - keep)
 
 
 def main():
