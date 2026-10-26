@@ -156,6 +156,25 @@ async function check(engine,label){
    const ownInquiry=latest.filter(x=>x.planned_litter_id===lid);
    assert.equal(ownInquiry.length,1,'received buyer interest');
    assert.equal(ownInquiry[0].preferred_gender,'女の子');
+   // Real browser: connect an existing reservation-interest to a newborn puppy.
+   const puppyRows=await api(manager,'GET','/breeder/puppies');
+   const target=puppyRows.find(p=>p.breedKey==='siberian-husky'&&p.status!=='成約済み');
+   if(target){
+     await mpage.reload({waitUntil:'domcontentloaded'});
+     await mpage.waitForFunction(()=>document.querySelector('#inquiries')?.textContent.includes('山田'),null,{timeout:20000});
+     const inquiryCard=mpage.locator('#inquiries article.item').filter({hasText:title});
+     await inquiryCard.locator('select[aria-label="紐付ける子犬"]').selectOption(target.id);
+     mpage.on('dialog',async d=>{await d.accept()});
+     await inquiryCard.getByRole('button',{name:'この子犬に紐付ける'}).click();
+     await mpage.waitForFunction(text=>[...document.querySelectorAll('#inquiries article.item')].some(x=>x.textContent.includes(text)&&x.textContent.includes('子犬に紐付け済み')),title,{timeout:20000});
+     const linked=await api(manager,'GET','/planned-litters/inquiries');
+     const result=linked.find(x=>x.id===ownInquiry[0].id);
+     assert(result.linked_inquiry_id,'normal inquiry linked');
+     const salePage=await manager.newPage();
+     await salePage.goto(url+'/breeder-deal-report.html?inquiry='+encodeURIComponent(result.linked_inquiry_id),{waitUntil:'domcontentloaded'});
+     await salePage.waitForFunction(id=>document.querySelector('#inquiry')?.value===id,result.linked_inquiry_id,{timeout:20000});
+     await salePage.close();
+   }
    // Managing visibility must immediately hide the public listing.
    await mpage.locator('#listings article.item').filter({hasText:title}).getByRole('button',{name:'非公開に変更'}).click();
    await mpage.waitForFunction(text=>[...document.querySelectorAll('#listings article.item')].some(x=>x.textContent.includes(text)&&x.textContent.includes('非公開')),title,{timeout:20000});
