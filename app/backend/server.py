@@ -89,6 +89,12 @@ AUTOMATION_INTERVAL_SECONDS = int(os.environ.get('BIGPAW_AUTOMATION_INTERVAL_SEC
 AUTO_BACKUP_HOURS = int(os.environ.get('BIGPAW_AUTO_BACKUP_HOURS','24'))
 AUTO_BACKUP_KEEP = int(os.environ.get('BIGPAW_AUTO_BACKUP_KEEP','14'))
 MAX_UPLOAD_BYTES = int(os.environ.get('BIGPAW_MAX_UPLOAD_BYTES', str(8*1024*1024)))
+CLOUDFLARE_STREAM_ACCOUNT_ID = os.environ.get('BIGPAW_CLOUDFLARE_STREAM_ACCOUNT_ID','').strip()
+CLOUDFLARE_STREAM_API_TOKEN = os.environ.get('BIGPAW_CLOUDFLARE_STREAM_API_TOKEN','').strip()
+CLOUDFLARE_STREAM_CUSTOMER_CODE = os.environ.get('BIGPAW_CLOUDFLARE_STREAM_CUSTOMER_CODE','').strip()
+CLOUDFLARE_STREAM_API_BASE = os.environ.get('BIGPAW_CLOUDFLARE_STREAM_API_BASE','https://api.cloudflare.com/client/v4').rstrip('/')
+PUPPY_VIDEO_MAX_SECONDS = 60
+PUPPY_VIDEO_MAX_BYTES = 200 * 1024 * 1024
 BILLING_ISSUER_NAME = os.environ.get('BIGPAW_BILLING_ISSUER_NAME','BIG PAW運営').strip()
 BILLING_POSTAL = os.environ.get('BIGPAW_BILLING_POSTAL','').strip()
 BILLING_ADDRESS = os.environ.get('BIGPAW_BILLING_ADDRESS','').strip()
@@ -569,6 +575,74 @@ def valid_image_bytes(raw: bytes, mime: str) -> bool:
     if mime=='image/webp': return len(raw)>=12 and raw[:4]==b'RIFF' and raw[8:12]==b'WEBP'
     return False
 
+def stream_configured():
+    return bool(CLOUDFLARE_STREAM_ACCOUNT_ID and CLOUDFLARE_STREAM_API_TOKEN and CLOUDFLARE_STREAM_CUSTOMER_CODE)
+
+def stream_embed_url(uid):
+    uid=str(uid or '').strip()
+    if not uid or not CLOUDFLARE_STREAM_CUSTOMER_CODE: return ''
+    return f"https://customer-{CLOUDFLARE_STREAM_CUSTOMER_CODE}.cloudflarestream.com/{quote(uid,safe='')}/iframe"
+
+def stream_thumbnail_url(uid):
+    uid=str(uid or '').strip()
+    if not uid or not CLOUDFLARE_STREAM_CUSTOMER_CODE: return ''
+    return f"https://customer-{CLOUDFLARE_STREAM_CUSTOMER_CODE}.cloudflarestream.com/{quote(uid,safe='')}/thumbnails/thumbnail.jpg"
+
+def stream_api_json(method, path, payload=None):
+    if not CLOUDFLARE_STREAM_ACCOUNT_ID or not CLOUDFLARE_STREAM_API_TOKEN:
+        raise RuntimeError('stream_not_configured')
+    data=None
+    headers={'Authorization':'Bearer '+CLOUDFLARE_STREAM_API_TOKEN,'Accept':'application/json'}
+    if payload is not None:
+        data=json.dumps(payload,ensure_ascii=False).encode('utf-8')
+        headers['Content-Type']='application/json'
+    req=Request(CLOUDFLARE_STREAM_API_BASE+path,data=data,headers=headers,method=method)
+    with urlopen(req,timeout=20) as response:
+        raw=response.read()
+    out=json.loads(raw or b'{}')
+    if isinstance(out,dict) and out.get('success') is False:
+        raise RuntimeError('stream_api_error:'+json.dumps(out.get('errors') or [],ensure_ascii=False)[:500])
+    return out
+
+def create_stream_direct_upload(puppy_id, user_id, filename=''):
+    host=(urlparse(PUBLIC_BASE_URL).hostname or '').strip()
+    origins=[]
+    if host:
+        origins.append(host)
+        if '.' in host and not re.fullmatch(r'\d+(?:\.\d+){3}',host):
+            alt=host[4:] if host.startswith('www.') else 'www.'+host
+            if alt not in origins: origins.append(alt)
+    payload={
+        'maxDurationSeconds':PUPPY_VIDEO_MAX_SECONDS,
+        'creator':str(user_id or '')[:64],
+        'meta':{'puppyId':str(puppy_id),'name':str(filename or '')[:180]},
+        'requireSignedURLs':False,
+    }
+    if origins: payload['allowedOrigins']=origins
+    path='/accounts/'+quote(CLOUDFLARE_STREAM_ACCOUNT_ID,safe='')+'/stream/direct_upload'
+    out=stream_api_json('POST',path,payload)
+    result=(out or {}).get('result') or {}
+    uid=str(result.get('uid') or '').strip()
+    upload_url=str(result.get('uploadURL') or '').strip()
+    if not uid or not upload_url: raise RuntimeError('stream_direct_upload_missing_fields')
+    return {'uid':uid,'uploadURL':upload_url,'maxSeconds':PUPPY_VIDEO_MAX_SECONDS}
+
+def stream_video_details(uid):
+    path='/accounts/'+quote(CLOUDFLARE_STREAM_ACCOUNT_ID,safe='')+'/stream/'+quote(str(uid),safe='')
+    out=stream_api_json('GET',path)
+    return (out or {}).get('result') or {}
+
+def delete_stream_video(uid):
+    uid=str(uid or '').strip()
+    if not uid or not CLOUDFLARE_STREAM_ACCOUNT_ID or not CLOUDFLARE_STREAM_API_TOKEN: return False
+    try:
+        path='/accounts/'+quote(CLOUDFLARE_STREAM_ACCOUNT_ID,safe='')+'/stream/'+quote(uid,safe='')
+        stream_api_json('DELETE',path)
+        return True
+    except Exception as exc:
+        print('[BIG PAW] Cloudflare Stream cleanup failed:',type(exc).__name__,str(exc)[:300],flush=True)
+        return False
+
 def init_db():
     con = db(); con.executescript(SCHEMA)
     bp_planned_litters.init_schema(con)
@@ -579,6 +653,8 @@ def init_db():
     ensure_column(con,'puppies','review_status',"TEXT NOT NULL DEFAULT 'approved'")
     ensure_column(con,'puppies','moderation_note',"TEXT DEFAULT ''")
     ensure_column(con,'puppies','published_at','INTEGER')
+    ensure_column(con,'puppies','video_uid',"TEXT DEFAULT ''")
+    ensure_column(con,'puppies','video_status',"TEXT DEFAULT ''")
     ensure_column(con,'breeders','billing_suspended','INTEGER NOT NULL DEFAULT 0')
     ensure_column(con,'breeders','billing_suspended_at','INTEGER')
     ensure_column(con,'breeders','billing_suspension_reason',"TEXT DEFAULT ''")
@@ -652,6 +728,10 @@ def puppy_json(r):
       'areaKey':d['area_key'],'breeder':d['breeder_name'],'breederId':d['breeder_id'],'weight':d['weight'],'adultMin':d['adult_min'],
       'adultMax':d['adult_max'],'health':bool(d['health']),'birth':d['birth'],'desc':d['description'],
       'father':d['father'],'mother':d['mother'],'imageUrl':d['image_url'],'createdAt':d['created_at'],
+      'videoUid':d.get('video_uid','') if isinstance(d,dict) else '',
+      'videoStatus':d.get('video_status','') if isinstance(d,dict) else '',
+      'videoEmbedUrl':stream_embed_url(d.get('video_uid','')) if isinstance(d,dict) else '',
+      'videoThumbnailUrl':stream_thumbnail_url(d.get('video_uid','')) if isinstance(d,dict) else '',
       'reviewStatus':d.get('review_status','approved') if isinstance(d,dict) else 'approved','moderationNote':d.get('moderation_note','') if isinstance(d,dict) else ''
     }
 
@@ -1466,6 +1546,65 @@ https://www.bigpaw.site/'''
                 con=db(); con.execute('DELETE FROM sessions WHERE token=?',(token,)); con.commit(); con.close()
             return self.send_json({'ok':True},200,{'Set-Cookie':session_cookie_header('',clear=True)})
         if bp_planned_litters.handle(self, 'POST', path, {}, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
+        m=re.fullmatch(r'/api/puppies/([^/]+)/video-upload',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            if not stream_configured(): return self.send_json({'error':'video_stream_not_configured','message':'動画機能は現在設定中です。'},503)
+            body=self.json_body(); file_size=int(body.get('fileSize') or 0); filename=str(body.get('fileName') or '')
+            if file_size<=0: return self.send_json({'error':'video_file_required'},400)
+            if file_size>PUPPY_VIDEO_MAX_BYTES: return self.send_json({'error':'video_file_too_large','message':'動画の容量が大きすぎます。200MB以内の動画を選択してください。'},413)
+            con=db(); puppy=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy: con.close(); return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b or puppy['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
+            con.close()
+            try:
+                ticket=create_stream_direct_upload(puppy['id'],u['id'],filename)
+            except Exception as exc:
+                print('[BIG PAW] Cloudflare Stream upload URL failed:',type(exc).__name__,str(exc)[:300],flush=True)
+                return self.send_json({'error':'video_upload_unavailable','message':'動画アップロードを開始できませんでした。'},502)
+            return self.send_json(ticket,201)
+        m=re.fullmatch(r'/api/puppies/([^/]+)/video',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            if not stream_configured(): return self.send_json({'error':'video_stream_not_configured','message':'動画機能は現在設定中です。'},503)
+            body=self.json_body(); uid=str(body.get('uid') or '').strip()
+            if not re.fullmatch(r'[A-Za-z0-9_-]{8,64}',uid): return self.send_json({'error':'invalid_video_uid'},400)
+            con=db(); puppy=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy: con.close(); return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b or puppy['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
+            try:
+                details=stream_video_details(uid)
+            except Exception as exc:
+                con.close(); print('[BIG PAW] Cloudflare Stream detail failed:',type(exc).__name__,str(exc)[:300],flush=True)
+                return self.send_json({'error':'video_verification_failed','message':'動画の確認に失敗しました。'},502)
+            meta=details.get('meta') or {}
+            if str(meta.get('puppyId') or '')!=str(puppy['id']):
+                con.close(); return self.send_json({'error':'video_puppy_mismatch'},403)
+            duration=details.get('duration')
+            try: duration=float(duration) if duration is not None else None
+            except (TypeError,ValueError): duration=None
+            if duration is not None and duration>PUPPY_VIDEO_MAX_SECONDS+0.05:
+                con.close(); delete_stream_video(uid)
+                return self.send_json({'error':'video_too_long','message':'動画は60秒以内にしてください。'},400)
+            state=str((details.get('status') or {}).get('state') or ('ready' if details.get('readyToStream') else 'processing'))
+            if state=='error':
+                con.close(); delete_stream_video(uid)
+                return self.send_json({'error':'video_processing_failed','message':'動画を処理できませんでした。別の動画を選択してください。'},422)
+            old_uid=str(puppy['video_uid'] or '') if 'video_uid' in puppy.keys() else ''
+            if u['role']=='breeder':
+                con.execute("UPDATE puppies SET video_uid=?,video_status=?,review_status='pending',moderation_note='',published_at=NULL WHERE id=?",(uid,state,puppy['id']))
+            else:
+                con.execute('UPDATE puppies SET video_uid=?,video_status=? WHERE id=?',(uid,state,puppy['id']))
+            audit(con,u['id'],'puppy_video_attached','puppy',puppy['id'],uid); con.commit()
+            out=con.execute('SELECT * FROM puppies WHERE id=?',(puppy['id'],)).fetchone(); con.close()
+            if old_uid and old_uid!=uid: delete_stream_video(old_uid)
+            return self.send_json(puppy_json(out),201)
         if path=='/api/puppies':
             u=self.require(['buyer','breeder','operator']);
             if not u:return
@@ -1578,6 +1717,20 @@ https://www.bigpaw.site/'''
     def do_DELETE(self):
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
         path=urlparse(self.path).path
+        m=re.fullmatch(r'/api/puppies/([^/]+)/video',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            con=db(); puppy=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy: con.close(); return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b or puppy['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
+            uid=str(puppy['video_uid'] or '') if 'video_uid' in puppy.keys() else ''
+            con.execute("UPDATE puppies SET video_uid='',video_status='' WHERE id=?",(puppy['id'],))
+            audit(con,u['id'],'puppy_video_removed','puppy',puppy['id'],uid); con.commit(); con.close()
+            cleaned=delete_stream_video(uid) if uid else True
+            return self.send_json({'ok':True,'streamDeleted':cleaned})
         m=re.fullmatch(r'/api/puppies/([^/]+)',path)
         if m:
             u=self.require(['breeder','operator'])
@@ -1591,6 +1744,7 @@ https://www.bigpaw.site/'''
             if con.execute('SELECT 1 FROM inquiries WHERE puppy_id=? LIMIT 1',(puppy['id'],)).fetchone() or con.execute('SELECT 1 FROM deals WHERE puppy_id=? LIMIT 1',(puppy['id'],)).fetchone():
                 con.close(); return self.send_json({'error':'puppy_has_transactions','message':'問い合わせ・取引履歴があるため削除できません。非公開に変更してください。'},409)
             uploads=con.execute('SELECT stored_name FROM uploads WHERE puppy_id=?',(puppy['id'],)).fetchall()
+            video_uid=str(puppy['video_uid'] or '') if 'video_uid' in puppy.keys() else ''
             con.execute('DELETE FROM uploads WHERE puppy_id=?',(puppy['id'],))
             con.execute('DELETE FROM favorites WHERE puppy_id=?',(puppy['id'],))
             con.execute('DELETE FROM puppies WHERE id=?',(puppy['id'],))
@@ -1599,6 +1753,7 @@ https://www.bigpaw.site/'''
             for row in uploads:
                 try:(UPLOADS / row['stored_name']).unlink(missing_ok=True)
                 except Exception:pass
+            if video_uid: delete_stream_video(video_uid)
             return self.send_json({'ok':True})
         m=re.fullmatch(r'/api/puppies/([^/]+)/photos/([^/]+)',path)
         if m:
