@@ -1192,7 +1192,6 @@ https://www.bigpaw.site/'''
     def do_POST(self):
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
         path=urlparse(self.path).path
-        if bp_planned_litters.handle(self, 'POST', path, {}, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
         m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
         if m:
             u=self.require();
@@ -1466,6 +1465,7 @@ https://www.bigpaw.site/'''
             if token:
                 con=db(); con.execute('DELETE FROM sessions WHERE token=?',(token,)); con.commit(); con.close()
             return self.send_json({'ok':True},200,{'Set-Cookie':session_cookie_header('',clear=True)})
+        if bp_planned_litters.handle(self, 'POST', path, {}, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
         if path=='/api/puppies':
             u=self.require(['buyer','breeder','operator']);
             if not u:return
