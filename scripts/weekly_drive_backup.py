@@ -3,7 +3,7 @@
 
 Required environment:
  BIGPAW_DRIVE_FOLDER_ID: destination Google Drive folder ID
- BIGPAW_GOOGLE_CLIENT_ID / BIGPAW_GOOGLE_REFRESH_TOKEN: OAuth credentials
+ BIGPAW_GOOGLE_CLIENT_ID / BIGPAW_GOOGLE_CLIENT_SECRET / BIGPAW_GOOGLE_REFRESH_TOKEN: OAuth credentials
  BIGPAW_DB_PATH: absolute path to the persistent SQLite database
 
 This script runs via the opt-in web-service scheduler; it does not alter local retention.
@@ -24,6 +24,30 @@ JST = dt.timezone(dt.timedelta(hours=9), name="JST")
 
 
 
+def normalize_client_secret(raw: str) -> tuple[str, bool]:
+    """Extract a Google OAuth client secret from common pasted forms without logging it."""
+    original = str(raw or "")
+    value = original.strip()
+    # Accept a pasted full credential JSON object as well as a bare value.
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, dict):
+            if isinstance(parsed.get("web"), dict) and parsed["web"].get("client_secret"):
+                value = str(parsed["web"]["client_secret"]).strip()
+            elif parsed.get("client_secret"):
+                value = str(parsed["client_secret"]).strip()
+    except Exception:
+        pass
+    # Remove accidental visual line breaks and surrounding syntax.
+    value = value.replace("\r", "").replace("\n", "").strip()
+    match = re.search(r"GOCSPX-[A-Za-z0-9_-]+", value)
+    if match:
+        value = match.group(0)
+    elif len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        value = value[1:-1].strip()
+    return value, value != original
+
+
 class OAuthRefreshFailed(RuntimeError):
     def __init__(self, safe_code: str):
         self.safe_code = safe_code
@@ -31,16 +55,15 @@ class OAuthRefreshFailed(RuntimeError):
 
 
 def refresh_access_token() -> str:
-    """Exchange the stored refresh token using Google's documented REST flow.
-
-    client_secret is intentionally omitted; Google documents it as optional for
-    refresh-token exchange. Never include OAuth values in raised errors or logs.
-    """
-    body = urlencode({
-        "client_id": os.environ["BIGPAW_GOOGLE_CLIENT_ID"],
-        "refresh_token": os.environ["BIGPAW_GOOGLE_REFRESH_TOKEN"],
+    """Exchange the stored refresh token using Google's token endpoint safely."""
+    secret, normalized = normalize_client_secret(os.environ.get("BIGPAW_GOOGLE_CLIENT_SECRET", ""))
+    body_values = {
+        "client_id": os.environ["BIGPAW_GOOGLE_CLIENT_ID"].strip(),
+        "client_secret": secret,
+        "refresh_token": os.environ["BIGPAW_GOOGLE_REFRESH_TOKEN"].strip(),
         "grant_type": "refresh_token",
-    }).encode("utf-8")
+    }
+    body = urlencode(body_values).encode("utf-8")
     request = Request(
         "https://oauth2.googleapis.com/token",
         data=body,
@@ -59,6 +82,15 @@ def refresh_access_token() -> str:
                 safe_code = candidate
         except Exception:
             pass
+        if safe_code == "invalid_client":
+            print(
+                "OAUTH_CLIENT_CONFIG_DIAG|secret_present="
+                + ("1" if bool(secret) else "0")
+                + "|secret_len=" + str(len(secret))
+                + "|prefix_ok=" + ("1" if secret.startswith("GOCSPX-") else "0")
+                + "|normalized=" + ("1" if normalized else "0"),
+                flush=True,
+            )
         raise OAuthRefreshFailed(safe_code) from None
     except (URLError, TimeoutError, OSError):
         raise OAuthRefreshFailed("network_error") from None
@@ -166,7 +198,7 @@ def main():
     folder = os.environ.get("BIGPAW_DRIVE_FOLDER_ID", "").strip()
     if not db_path or not folder:
         raise RuntimeError("Set BIGPAW_DB_PATH and BIGPAW_DRIVE_FOLDER_ID")
-    required = ("BIGPAW_GOOGLE_CLIENT_ID", "BIGPAW_GOOGLE_REFRESH_TOKEN")
+    required = ("BIGPAW_GOOGLE_CLIENT_ID", "BIGPAW_GOOGLE_CLIENT_SECRET", "BIGPAW_GOOGLE_REFRESH_TOKEN")
     if not all(os.environ.get(key) for key in required):
         raise RuntimeError("Google OAuth credentials missing; configure Railway secrets")
     # ISO week gives one unique backup name per week, regardless of retry date.
