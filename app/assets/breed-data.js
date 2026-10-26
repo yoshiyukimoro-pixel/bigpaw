@@ -181,7 +181,9 @@ function installPickerSuggestions(){
 
 function installBreederOther(){
   const sel=document.getElementById('breed');
-  if(!sel||document.getElementById('fBreed'))return;
+  // The planned-litter form owns its breed <select> and submits slug-valued breedKey.
+  // The puppy editor's Japanese-valued picker must not replace those options.
+  if(!sel||document.getElementById('fBreed')||document.getElementById('listingForm'))return;
 
   const current=sel.value;
   const all=Array.isArray(window.BIGPAW_BREEDS)?window.BIGPAW_BREEDS:[];
