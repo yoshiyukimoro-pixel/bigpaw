@@ -3,7 +3,7 @@
 
 Required environment:
  BIGPAW_DRIVE_FOLDER_ID: destination Google Drive folder ID
- BIGPAW_GOOGLE_CLIENT_ID / BIGPAW_GOOGLE_CLIENT_SECRET / BIGPAW_GOOGLE_REFRESH_TOKEN: OAuth secrets
+ BIGPAW_GOOGLE_CLIENT_ID / BIGPAW_GOOGLE_REFRESH_TOKEN: OAuth credentials
  BIGPAW_DB_PATH: absolute path to the persistent SQLite database
 
 This script runs via the opt-in web-service scheduler; it does not alter local retention.
@@ -40,7 +40,6 @@ def upload(destination: Path, folder_id: str):
         refresh_token=os.environ["BIGPAW_GOOGLE_REFRESH_TOKEN"],
         token_uri="https://oauth2.googleapis.com/token",
         client_id=os.environ["BIGPAW_GOOGLE_CLIENT_ID"],
-        client_secret=os.environ["BIGPAW_GOOGLE_CLIENT_SECRET"],
         scopes=["https://www.googleapis.com/auth/drive"],
     )
     service = build("drive", "v3", credentials=credentials, cache_discovery=False)
@@ -120,7 +119,7 @@ def main():
     folder = os.environ.get("BIGPAW_DRIVE_FOLDER_ID", "").strip()
     if not db_path or not folder:
         raise RuntimeError("Set BIGPAW_DB_PATH and BIGPAW_DRIVE_FOLDER_ID")
-    required = ("BIGPAW_GOOGLE_CLIENT_ID", "BIGPAW_GOOGLE_CLIENT_SECRET", "BIGPAW_GOOGLE_REFRESH_TOKEN")
+    required = ("BIGPAW_GOOGLE_CLIENT_ID", "BIGPAW_GOOGLE_REFRESH_TOKEN")
     if not all(os.environ.get(key) for key in required):
         raise RuntimeError("Google OAuth credentials missing; configure Railway secrets")
     # ISO week gives one unique backup name per week, regardless of retry date.
