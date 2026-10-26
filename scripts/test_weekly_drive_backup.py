@@ -6,7 +6,7 @@ import tempfile
 from unittest.mock import patch
 from urllib.parse import parse_qs
 
-from weekly_drive_backup import refresh_access_token, snapshot
+from weekly_drive_backup import client_secret_matches_expected, refresh_access_token, snapshot
 
 
 class FakeTokenResponse:
@@ -51,9 +51,11 @@ def run():
         "BIGPAW_GOOGLE_CLIENT_ID": "test-client-id",
         "BIGPAW_GOOGLE_CLIENT_SECRET": '{"web":{"client_secret":"GOCSPX-test_value"}}',
         "BIGPAW_GOOGLE_REFRESH_TOKEN": "test-refresh-token",
+        "BIGPAW_GOOGLE_CLIENT_SECRET_SHA256": "36be2d9f4984fb14cfb54f8b304ab66d664ccab1f420693caaf939aa4f58f249",
     }
     with patch.dict(os.environ, env, clear=False), patch("weekly_drive_backup.urlopen", fake_urlopen):
         assert refresh_access_token() == "test-access-token"
+        assert client_secret_matches_expected("GOCSPX-test_value") is True
     assert captured["url"] == "https://oauth2.googleapis.com/token"
     assert captured["body"]["client_id"] == ["test-client-id"]
     assert captured["body"]["refresh_token"] == ["test-refresh-token"]
