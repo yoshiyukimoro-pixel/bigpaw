@@ -49,6 +49,7 @@ def run():
 
     env = {
         "BIGPAW_GOOGLE_CLIENT_ID": "test-client-id",
+        "BIGPAW_GOOGLE_CLIENT_SECRET": '{"web":{"client_secret":"GOCSPX-test_value"}}',
         "BIGPAW_GOOGLE_REFRESH_TOKEN": "test-refresh-token",
     }
     with patch.dict(os.environ, env, clear=False), patch("weekly_drive_backup.urlopen", fake_urlopen):
@@ -57,10 +58,10 @@ def run():
     assert captured["body"]["client_id"] == ["test-client-id"]
     assert captured["body"]["refresh_token"] == ["test-refresh-token"]
     assert captured["body"]["grant_type"] == ["refresh_token"]
-    assert "client_secret" not in captured["body"]
+    assert captured["body"]["client_secret"] == ["GOCSPX-test_value"]
     assert captured["timeout"] == 20
 
-    print("PASS: SQLite snapshot and direct OAuth refresh request without client secret")
+    print("PASS: SQLite snapshot and normalized OAuth client secret request")
 
 
 if __name__ == "__main__":
