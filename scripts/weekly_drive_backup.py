@@ -41,8 +41,13 @@ def upload(destination: Path, folder_id: str):
         scopes=["https://www.googleapis.com/auth/drive"],
     )
     service = build("drive", "v3", credentials=credentials, cache_discovery=False)
-    safe_name = destination.name.replace("'", "\\'")
-    query = f"name = '{safe_name}' and '{folder_id}' in parents and trashed = false"
+    def quote_query(value):
+        return value.replace(chr(92), chr(92) * 2).replace("'", chr(92) + "'")
+
+    query = (
+        f"name = '{quote_query(destination.name)}' and "
+        f"'{quote_query(folder_id)}' in parents and trashed = false"
+    )
     existing = service.files().list(q=query, fields="files(id,name,size),nextPageToken",page_size=100,
                                     supportsAllDrives=True,includeItemsFromAllDrives=True).execute()
     if existing.get("files"):
