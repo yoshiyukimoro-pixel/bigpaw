@@ -14,7 +14,7 @@
 <div><label for="expectedBirth">出産予定日（未定の場合は空欄）</label><input id="expectedBirth" type="date"></div>
 <div><label for="status">掲載状態</label><select id="status"><option>受付中</option><option>非公開</option><option>終了</option></select></div>
 <div class="whole"><label for="description">犬舎・両親犬・出産予定などのご案内</label><textarea id="description" required maxlength="1500" placeholder="交配予定や出産予定、父犬と母犬の情報、予約希望者へのご案内を書いてください。"></textarea></div>
-<div class="whole"><button id="saveBtn" class="btn-pl" type="submit">この内容で登録する</button> <button id="cancelEdit" type="button" class="btn btn-sub hide">編集をやめる</button></div>
+<div class="whole"><button id="saveBtn" class="btn-pl" type="submit">この内容で登録する</button> <button id="cancelEdit" type="button" class="btn btn-sub hide">編集をやめる</button> <button id="newListing" type="button" class="btn btn-sub hide">別の出産予定を新しく登録する</button></div>
 <div id="saveFeedback" class="whole save-feedback hide" role="status" aria-live="polite"></div>
 </form></section>
 <section class="panel"><h2>登録済みの出産予定</h2><div id="listings" class="box-list">読み込み中…</div></section>
@@ -38,9 +38,9 @@ const el=id=>document.getElementById(id),scope=new URLSearchParams(location.sear
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let editing='',items=[],role='';
 const payload=()=>{const b=el('breed').selectedOptions[0];return {breed:b.textContent,breedKey:b.value,title:el('title').value,phase:el('phase').value,plannedMating:el('plannedMating').value,expectedBirth:el('expectedBirth').value,description:el('description').value,status:el('status').value,...(role==='operator'?{breederId:scope}:{})}};
-function resetForm(){editing='';el('listingForm').reset();el('formHeading').textContent='交配・出産予定を登録する';el('saveBtn').textContent='この内容で登録する';el('cancelEdit').classList.add('hide')}
+function resetForm(){editing='';el('listingForm').reset();el('formHeading').textContent='交配・出産予定を登録する';el('saveBtn').textContent='この内容で登録する';el('saveBtn').disabled=false;el('cancelEdit').classList.add('hide');el('newListing').classList.add('hide')}
 function saveFeedback(message,error=false){const node=el('saveFeedback');node.textContent=message;node.classList.remove('hide');node.classList.toggle('error',error);node.scrollIntoView({behavior:'smooth',block:'nearest'})}
-function fillForm(id){const x=items.find(x=>x.id===id);if(!x)return;editing=id;for(const [f,key] of [['breed','breed_key'],['phase','phase'],['title','title'],['plannedMating','planned_mating'],['expectedBirth','expected_birth'],['description','description'],['status','status']])el(f).value=x[key]||'';el('formHeading').textContent='掲載情報を編集する';el('saveBtn').textContent='変更内容を保存する';el('cancelEdit').classList.remove('hide');el('listingForm').scrollIntoView({behavior:'smooth',block:'center'})}
+function fillForm(id){const x=items.find(x=>x.id===id);if(!x)return;resetForm();el('saveFeedback').classList.add('hide');editing=id;for(const [f,key] of [['breed','breed_key'],['phase','phase'],['title','title'],['plannedMating','planned_mating'],['expectedBirth','expected_birth'],['description','description'],['status','status']])el(f).value=x[key]||'';el('formHeading').textContent='掲載情報を編集する';el('saveBtn').textContent='変更内容を保存する';el('cancelEdit').classList.remove('hide');el('listingForm').scrollIntoView({behavior:'smooth',block:'center'})}
 async function setListingStatus(id,status){try{await BigPawAPI.request('/planned-litters/'+encodeURIComponent(id),{method:'PATCH',body:{status}});await refresh();el('notice').textContent='掲載状態を変更しました。'}catch(err){el('notice').textContent='変更できませんでした。';el('notice').className='error'}}
 async function setInquiryStatus(id,status){try{await BigPawAPI.request('/planned-litters/inquiries/'+encodeURIComponent(id),{method:'PATCH',body:{status}});await refresh();el('notice').textContent='問い合わせの状態を変更しました。'}catch(err){el('notice').textContent='変更できませんでした。';el('notice').className='error'}}
 async function refresh(){
@@ -72,7 +72,17 @@ async function refresh(){
    selector.value=item.status;selector.onchange=()=>setInquiryStatus(item.id,selector.value);box.append(selector);iqRoot.append(box);
  }
 }
-el('cancelEdit').onclick=resetForm;
+el('cancelEdit').onclick=()=>{resetForm();el('saveFeedback').classList.add('hide')};
+el('newListing').onclick=()=>{resetForm();el('saveFeedback').classList.add('hide');el('notice').textContent='';el('breed').focus()};
+function showMissingFields(){
+ const bad=[...el('listingForm').querySelectorAll('input,select,textarea')].filter(x=>!x.disabled&&!x.validity.valid);
+ if(!bad.length)return;
+ const names=bad.map(x=>document.querySelector('label[for="'+x.id+'"]')?.textContent.trim()||x.id);
+ const message='⚠️ 必須項目を確認してください：'+names.join('、');
+ el('notice').textContent=message;el('notice').className='error';saveFeedback(message,true);
+}
+// Native validation prevents submit events. Show visible feedback even when no API call is made.
+el('listingForm').addEventListener('invalid',()=>showMissingFields(),true);
 el('listingForm').addEventListener('submit',async e=>{
  e.preventDefault();const btn=el('saveBtn');btn.disabled=true;el('notice').className='';el('notice').textContent='保存中…';
  saveFeedback('保存しています…');
@@ -82,7 +92,11 @@ el('listingForm').addEventListener('submit',async e=>{
    // The server returns success only after the database commit.
    await BigPawAPI.request(editing?'/planned-litters/'+encodeURIComponent(editing):'/planned-litters',{method:editing?'PATCH':'POST',body});
    resetForm();
-   const success=wasEditing?'✅ 変更内容を保存しました。':'✅ 登録が完了しました。下の「登録済みの出産予定」に追加されました。もう一度登録ボタンを押す必要はありません。';
+   // A committed save visibly changes the button, and locks repeat submissions.
+   btn.textContent=wasEditing?'✅ 変更を保存済み':'✅ 登録済み';
+   btn.disabled=true;
+   el('newListing').classList.remove('hide');
+   const success=wasEditing?'✅ 変更内容を保存しました。':'✅ 登録が完了しました。下の「登録済みの出産予定」に追加されました。同じ内容を再登録する必要はありません。';
    saveFeedback(success);el('notice').textContent='出産予定を保存しました。';
    // A readback failure is not a save failure: never encourage a duplicate submission.
    try{await refresh()}catch(readErr){
@@ -92,7 +106,7 @@ el('listingForm').addEventListener('submit',async e=>{
  }catch(err){
    const message='保存できませんでした：'+(err.message||'入力項目をご確認ください。');
    el('notice').textContent=message;el('notice').className='error';saveFeedback(message,true);
- }finally{btn.disabled=false}
+ }finally{if(!btn.textContent.includes('保存済み')&&!btn.textContent.includes('登録済み'))btn.disabled=false}
 });
 el('listingForm').addEventListener('input',()=>el('saveFeedback').classList.add('hide'));
 el('listingForm').addEventListener('change',()=>el('saveFeedback').classList.add('hide'));
