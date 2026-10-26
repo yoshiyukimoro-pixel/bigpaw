@@ -36,7 +36,7 @@ async function check(engine,label){
    mpage.on('pageerror',e=>errors.push('manage: '+e.message));
    await login(manager,'dog44@bigpaw.jp','demo1234');
    await mpage.goto(url+'/admin.html',{waitUntil:'domcontentloaded'});
-   await mpage.locator('a[href="planned-litter-manage.html"]').first().waitFor({timeout:20000});
+   await mpage.locator('a.dashboard-action[href="planned-litter-manage.html"]').waitFor({state:'visible',timeout:20000});
    // The new feature must be reachable even if the mobile sidebar is hidden.
    await mpage.locator('a.dashboard-action[href="planned-litter-manage.html"]').click();
    await mpage.waitForURL('**/planned-litter-manage.html');
