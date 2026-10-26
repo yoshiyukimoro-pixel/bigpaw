@@ -49,7 +49,7 @@ def upload(destination: Path, folder_id: str):
         f"name = '{quote_query(destination.name)}' and "
         f"'{quote_query(folder_id)}' in parents and trashed = false"
     )
-    existing = service.files().list(q=query, fields="files(id,name,size),nextPageToken",page_size=100,
+    existing = service.files().list(q=query, fields="files(id,name,size),nextPageToken",pageSize=100,
                                     supportsAllDrives=True,includeItemsFromAllDrives=True).execute()
     if existing.get("files"):
         raise RuntimeError("Backup filename already exists; refusing to overwrite")
@@ -78,7 +78,7 @@ def prune_old_weekly_backups(service, folder_id: str, keep: int = 4):
     while True:
         result = service.files().list(
             q=query, fields="nextPageToken,files(id,name)",
-            page_size=1000, page_token=token,
+            pageSize=1000, pageToken=token,
             supportsAllDrives=True, includeItemsFromAllDrives=True,
         ).execute()
         files.extend(result.get("files", []))
