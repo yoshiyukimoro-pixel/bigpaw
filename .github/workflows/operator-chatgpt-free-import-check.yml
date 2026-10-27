@@ -5,6 +5,13 @@ on:
     branches:
       - feat/operator-free-chatgpt-import-20261015
       - fix/free-import-submit-feedback-20261015
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/assets/operator-chatgpt-free-import.js'
+      - 'scripts/test-operator-chatgpt-free-import.cjs'
+      - '.github/workflows/operator-chatgpt-free-import-check.yml'
   workflow_dispatch:
 
 jobs:
