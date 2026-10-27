@@ -140,6 +140,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(raw.ok(),name+': public detail HTTP failed');
     const csp=raw.headers()['content-security-policy']||'';
     check(csp.includes('frame-src')&&csp.includes('cloudflarestream.com'),name+': CSP frame-src missing Stream');
+    check(csp.includes('https://videodelivery.net'),name+': CSP blocks apex videodelivery.net Stream fallback iframe');
     check(csp.includes('connect-src')&&csp.includes('videodelivery.net'),name+': CSP connect-src missing direct upload');
     check(csp.includes('media-src')&&csp.includes('blob:'),name+': CSP media-src must allow local video metadata preview');
 
