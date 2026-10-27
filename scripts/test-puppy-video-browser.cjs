@@ -258,9 +258,21 @@ async function run(engine,name,contextOptions,launchOptions={}){
       if(existing)existing.remove();
       await window.BigPawPuppyVideoPublic.render();
       const frame=document.querySelector('#bigpawPuppyVideoSection iframe');
-      return frame?frame.getAttribute('src'):'';
+      const slot=document.getElementById('bigpawPuppyVideoSlot');
+      const gallery=document.getElementById('bigpawRealGallery')||document.querySelector('.gallery');
+      const info=document.querySelector('main .section');
+      const video=document.getElementById('bigpawPuppyVideoSection');
+      return {
+        src:frame?.getAttribute('src')||'',
+        inSlot:!!(slot&&video&&slot.contains(video)),
+        afterGallery:!!(gallery&&slot&&(gallery.compareDocumentPosition(slot)&Node.DOCUMENT_POSITION_FOLLOWING)),
+        beforeInfo:!!(info&&slot&&(slot.compareDocumentPosition(info)&Node.DOCUMENT_POSITION_FOLLOWING)),
+        outsideDescription:!document.getElementById('bigpawDetailMore')?.contains(video)
+      };
     });
-    check(rendered.includes('cloudflarestream.com/testvideo123/iframe'),name+': public video iframe not rendered');
+    check(rendered.src.includes('cloudflarestream.com/testvideo123/iframe'),name+': public video iframe not rendered');
+    check(rendered.inSlot&&rendered.afterGallery&&rendered.beforeInfo&&rendered.outsideDescription,
+      name+': video must be directly below photo gallery and before the puppy title card: '+JSON.stringify(rendered));
     await detail.close();
 
     // A stalled mobile upload must never trap the user on a disabled Save
