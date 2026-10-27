@@ -162,6 +162,11 @@
     if(/https?:\/\/|[\w.+-]+@[\w.-]+\.\w+/.test(desc)){
       note.push('紹介文にURLまたはメールアドレスがあります。公開前に削除してください。');
     }
+    // The operator's imported form has its own complete publish guard below.
+    // Native HTML5 validation can cancel submit before savePuppy() is called
+    // (observed on iPhone Safari). Only opt out AFTER a scoped JSON import,
+    // never for an ordinary breeder form or an unreviewed submission.
+    form.noValidate=true;
     imported=true;
     reviewed.checked=false;
     message(note.join('\n'),warnings.length>0);
@@ -185,7 +190,12 @@
     ];
     for(const [key,label] of required){
       const value=String(target(key)?.value||'').trim();
-      if(!value||(key==='price'&&!(Number(value)>0)))problems.push(label+'が未入力です。');
+      if(!value||(key==='price'&&(!Number.isInteger(Number(value))||!(Number(value)>0))))problems.push(label+'が未入力です。');
+      if(key==='birth'&&value){
+        const d=new Date(value+'T00:00:00Z');
+        if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value)||!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==value)
+          problems.push('生年月日が正しくありません。');
+      }
     }
     const files=document.getElementById('photo')?.files?.length||0;
     const selected=(typeof selectedPhotos!=='undefined'&&Array.isArray(selectedPhotos))?selectedPhotos.length:files;

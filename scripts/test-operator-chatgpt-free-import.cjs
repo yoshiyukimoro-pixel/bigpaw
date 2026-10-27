@@ -92,6 +92,7 @@ function submit(sim){
  assert.strictEqual(s.elements.color.value,'ホワイト');
  assert.strictEqual(s.elements.desc.value,data.fields.desc);
  assert.strictEqual(s.elements.appealPoint.value,'新しい家族を募集中');
+ assert.strictEqual(s.form.noValidate,true,'reviewed operator import uses explicit guard, avoiding Safari native submit suppression');
  assert.strictEqual(s.elements.vaccineStatus.value,'接種済み');
  assert(s.parts.bpFreeFeedback.textContent.includes('マイクロチップ'),'missing info shown');
  assert(s.parts.bpFreeFeedback.textContent.includes('価格内訳'),'warnings shown');
@@ -132,6 +133,7 @@ function submit(sim){
  s.parts.bpFreeReviewed.checked=true;
  e=submit(s);
  assert(e.prevented,'incomplete core fields cannot be published');
+ assert.strictEqual(s.form.noValidate,true,'native bypass does not bypass importer required-field guard');
  assert.strictEqual(s.elements.price['aria-invalid'],'true','missing price is marked invalid');
  assert.strictEqual(s.elements.birth['aria-invalid'],'true','missing birth is marked invalid');
  assert(s.elements.price.didScroll||s.elements.birth.didScroll||s.elements.gender.didScroll,'scrolls to missing required field');
@@ -151,6 +153,7 @@ function submit(sim){
  // ordinary breeder never sees operator-only panel
  s=await simulate({role:'breeder'});
  assert(!s.form.child,'free panel hidden for regular breeder');
+ assert.notStrictEqual(s.form.noValidate,true,'ordinary breeder keeps native browser validation');
  // wrong kennel selection fails closed
  s=await simulate({scope:'b_wrong'});
  importData(s,data);
