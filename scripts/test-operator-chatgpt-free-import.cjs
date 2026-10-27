@@ -39,8 +39,8 @@ async function simulate({role='operator',scope='b_miyamoto',verified='b_miyamoto
  const panel=el('SECTION');panel.querySelector=(query)=>parts[query.slice(1)];
  const form=el('FORM'),publishButton=el('BUTTON');
  form.querySelector=(q)=>q==='button.btn-wide'?publishButton:null;
- form.insertBefore=(node)=>{if(node.id==='bpFreeListingPanel')form.child=node;else form.publishHint=node;};
- let created=0;const document={createElement:()=>created++===0?panel:el('DIV'),querySelector:q=>q==='form'?form:null,getElementById:id=>elements[id]||null};
+ form.insertBefore=(node)=>{if(node.id==='bpFreeListingPanel')form.child=node;else if(node.id==='bpFreePublishFeedback')form.publishHint=node;};
+ const document={head:{appendChild(){}},createElement:(tag)=>tag==='section'?panel:el(String(tag).toUpperCase()),querySelector:q=>q==='form'?form:null,getElementById:id=>elements[id]||null};
  const calls=[];
  elements.photo=el('INPUT');elements.photo.files=[{name:'dog-1.jpg'}];
  const ctx={document,window:{bigpawProxyId:verified},URLSearchParams,Option:function(t,v){this.textContent=t;this.value=v},
