@@ -33,6 +33,12 @@ async function simulate({role='operator',scope='b_miyamoto',verified='b_miyamoto
   const node=el(selectors[key]?'SELECT':'INPUT');
   if(selectors[key])node.options=selectors[key].map(s=>({value:s,textContent:s}));
   node.value=key==='price'?'258000':key==='color'?'ブラック':key==='birth'?'2026-07-01':'';
+  if(['breed','gender','birth','price','desc'].includes(key)){
+   const label=el('LABEL');label.appendChild=function(child){this.badge=child};label.querySelector=()=>null;
+   const wrapper={querySelector:q=>q==='label'?label:null};
+   node.closest=q=>q==='.field'?wrapper:null;
+   node.requiredLabel=label;
+  }
   elements[key]=node;
  }
  const parts={};for(const key of ['bpFreeJson','bpFreeImport','bpFreeFeedback','bpFreeReviewed'])parts[key]=el();
@@ -43,6 +49,9 @@ async function simulate({role='operator',scope='b_miyamoto',verified='b_miyamoto
  const document={head:{appendChild(){}},createElement:(tag)=>tag==='section'?panel:el(String(tag).toUpperCase()),querySelector:q=>q==='form'?form:null,getElementById:id=>elements[id]||null};
  const calls=[];
  elements.photo=el('INPUT');elements.photo.files=[{name:'dog-1.jpg'}];
+ const photoHeading=el('B');photoHeading.appendChild=function(child){this.badge=child};
+ elements.photo.closest=q=>q==='.photo-box'?{querySelector:s=>s==='b'?photoHeading:null}:null;
+ elements.photo.photoHeading=photoHeading;
  const ctx={document,window:{bigpawProxyId:verified},URLSearchParams,Option:function(t,v){this.textContent=t;this.value=v},
    Date,Event:class{constructor(type){this.type=type}},location:{search:scope?'?breederId='+scope:''},
    BigPawAPI:{me:async()=>{calls.push('me');return {role}}},
@@ -67,6 +76,8 @@ function submit(sim){
    missing:['マイクロチップの有無'],warnings:['価格内訳：12万円＋1万円']};
  let s=await simulate();
  assert.strictEqual(s.panel.id,'bpFreeListingPanel');
+ for(const key of ['breed','gender','birth','price','desc'])assert.strictEqual(s.elements[key].requiredLabel.badge.textContent,'必須',key+' shows required badge');
+ assert.strictEqual(s.elements.photo.photoHeading.badge.textContent,'必須・1枚以上','photo requirement shown before submit');
  assert.strictEqual(s.calls.length,1,'only sign-in lookup, no AI network');
  importData(s,data);
  assert.strictEqual(s.elements.puppyName.value,'ヤンヤン');
