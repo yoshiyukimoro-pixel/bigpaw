@@ -231,13 +231,19 @@
   form.addEventListener('submit',verify,true);
   // Native HTML5 validation fires "invalid" on the field and suppresses
   // submit. Keep the explanation visible beside the publish button.
-  form.addEventListener('invalid',function(){
+  form.addEventListener('invalid',function(event){
     if(!imported)return;
+    const field=event.target;
     const problems=blockers();
-    publishHint.textContent=problems.length
-      ?'掲載できない理由：\n・'+problems.join('\n・')
-      :'必須項目を確認してください。赤枠などで示された項目を修正してね。';
+    const fieldLabel=field?.closest?.('.field')?.querySelector?.('label')?.textContent?.trim()||field?.getAttribute?.('aria-label')||field?.id||'入力項目';
+    const nativeReason=field?.validationMessage||'入力内容を確認してください。';
+    const detail=fieldLabel+'：'+nativeReason;
+    if(!problems.includes(detail))problems.push(detail);
+    publishHint.textContent='掲載できない理由：\\n・'+problems.join('\\n・');
     publishHint.style.display='block';
     markRequired(problems);
+    if(field?.style){field.style.border='3px solid #c62828';field.style.backgroundColor='#fff0f0';}
+    field?.setAttribute?.('aria-invalid','true');
+    field?.scrollIntoView?.({block:'center',behavior:'smooth'});
   },true);
 })();
