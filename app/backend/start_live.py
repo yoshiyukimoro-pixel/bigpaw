@@ -179,6 +179,15 @@ def check_cloudflare_stream_once() -> None:
         print('BIGPAW_STREAM_PROBE|result=probe_exception|kind=' + type(exc).__name__, flush=True)
 
 
+def run_stream_tus_smoke_once() -> None:
+    """Safe 1.7KB synthetic media test on live Cloudflare, cleaned up immediately."""
+    try:
+        subprocess.run([sys.executable,str(ROOT/'backend'/'stream_tus_smoke_probe.py')],
+                       cwd=str(ROOT),timeout=100,check=False,env=os.environ.copy())
+    except Exception as exc:
+        print('BIGPAW_TUS_LIVE_SMOKE|phase=probe_exception|kind='+type(exc).__name__,flush=True)
+
+
 def main() -> int:
     heal_search('pre_server_start')
     child = subprocess.Popen([sys.executable, str(ROOT / 'backend' / 'server.py')], cwd=str(ROOT), env=os.environ.copy())
@@ -197,6 +206,8 @@ def main() -> int:
     if os.environ.get('BIGPAW_CLOUDFLARE_STREAM_ACCOUNT_ID') and os.environ.get('BIGPAW_CLOUDFLARE_STREAM_API_TOKEN'):
         stream_probe = threading.Thread(target=check_cloudflare_stream_once, daemon=True)
         stream_probe.start()
+        tus_smoke=threading.Thread(target=run_stream_tus_smoke_once,daemon=True)
+        tus_smoke.start()
     if os.environ.get('RESEND_API_KEY'):
         delivery_audit = threading.Thread(target=audit_operator_delivery_events, daemon=True)
         delivery_audit.start()

@@ -54,7 +54,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
     const source=require('fs').readFileSync('app/assets/puppy-video.js','utf8');
     const acceptedHosts=source.includes("'upload.cloudflarestream.com','upload.videodelivery.net'") &&
       source.includes("target.protocol!=='https:'") &&
-      source.includes('target.username || target.password');
+      source.includes('target.username||target.password');
     check(acceptedHosts,name+': strict allowlist missing actual Cloudflare upload host');
 
     console.log('VIDEO_BROWSER_STAGE',name,'overlong');
@@ -85,26 +85,49 @@ async function run(engine,name,contextOptions,launchOptions={}){
       ):data;
       await route.fulfill({response:upstream,json:updated});
     });
-    await page.route('**/api/puppies/p1/video-upload',async route=>{
+    await page.route('**/api/puppies/p1/video-tus-upload',async route=>{
       ticketCount+=1;
       await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
-        uid,uploadURL:'https://upload.cloudflarestream.com/mock-stream-direct-upload',maxSeconds:60
+        uid,uploadURL:'https://upload.cloudflarestream.com/tus/mock-stream-direct-upload',maxSeconds:60,protocol:'tus'
       })});
     });
     let uploadCount=0;
-    await page.route('https://upload.cloudflarestream.com/mock-stream-direct-upload',async route=>{
-      // Reproduce the real iPhone 4G timing: the form is still uploading
-      // when the breeder tries to save ordinary puppy fields.
+    await page.route('https://upload.cloudflarestream.com/tus/mock-stream-direct-upload',async route=>{
+      const req=route.request();
+      // Cross-origin PATCH requires CORS preflight on Chromium and Safari.
+      // Cloudflare accepts tus headers; the fixture must do the same.
+      if(req.method()==='OPTIONS'){
+        return route.fulfill({status:204,headers:{
+          'Access-Control-Allow-Origin':'*',
+          'Access-Control-Allow-Methods':'PATCH,HEAD,OPTIONS',
+          'Access-Control-Allow-Headers':'tus-resumable,upload-offset,content-type',
+          'Access-Control-Max-Age':'600'
+        }});
+      }
+      if(req.method()==='HEAD'){
+        return route.fulfill({status:200,headers:{
+          'Access-Control-Allow-Origin':'*','Access-Control-Expose-Headers':'Upload-Offset',
+          'Tus-Resumable':'1.0.0','Upload-Offset':String(uploadCount?shortVideo.buffer.length:0)
+        }});
+      }
+      // Cloudflare's resumable upload is a direct binary PATCH to an origin
+      // outside BIG PAW, with response offset proving real bytes were sent.
+      check(req.method()==='PATCH',name+': Stream tus upload must PATCH');
+      const body=req.postDataBuffer();
+      check((req.headers()['content-type']||'').includes('application/offset+octet-stream'),name+': tus binary type missing');
+      check(req.headers()['tus-resumable']==='1.0.0',name+': tus protocol header missing');
+      // Playwright's WebKit interception cannot read Blob-backed PATCH payloads
+      // (postDataBuffer() is null) even when fetch was passed a valid Blob.
+      // The browser-side probe below asserts the actual Blob byte length/prefix.
+      if(body!==null)check(body.length===shortVideo.buffer.length,
+        name+': intercepted tus body length incorrect: '+body.length);
+      else check(name==='webkit-iphone',name+': empty tus payload not expected on Chromium');
       await new Promise(resolve=>setTimeout(resolve,2300));
       uploadCount+=1;
-      const req=route.request();
-      // Verify real native form file bytes, not just that a ticket was issued.
-      check(req.method()==='POST',name+': Stream upload must POST');
-      const body=req.postDataBuffer();
-      check((req.headers()['content-type']||'').includes('multipart/form-data'),name+': expected native multipart form');
-      check(body&&body.includes(Buffer.from('name="file"'))&&body.includes(Buffer.from('short.webm'))&&body.length>100,
-        name+': native Safari upload did not include video file bytes');
-      await route.fulfill({status:200,contentType:'text/plain',body:'uploaded'});
+      await route.fulfill({status:204,headers:{
+        'Access-Control-Allow-Origin':'*','Access-Control-Expose-Headers':'Upload-Offset',
+        'Tus-Resumable':'1.0.0','Upload-Offset':String(shortVideo.buffer.length)
+      },body:''});
     });
     await page.route('**/api/puppies/p1/video',async route=>{
       if(!uploadCount){
@@ -119,17 +142,43 @@ async function run(engine,name,contextOptions,launchOptions={}){
         videoEmbedUrl:'https://videodelivery.net/'+uid+'/iframe'
       })});
     });
+    // Inspect the real File.slice Blob in the Safari page before handing
+    // it to native fetch. WebKit Playwright cannot expose Blob postDataBuffer.
+    await page.addInitScript(()=>{
+      const orig=window.fetch.bind(window);
+      window.fetch=async (url,opts)=>{
+        if(opts?.method==='PATCH'&&String(url).includes('upload.cloudflarestream.com/tus/')){
+          const buffer=await opts.body.arrayBuffer();
+          const bytes=new Uint8Array(buffer);
+          window.__bigpawTusByteProbe={length:bytes.byteLength,prefix:Array.from(bytes.slice(0,16))};
+        }
+        return orig(url,opts);
+      };
+    });
     await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='掲載内容を編集',null,{timeout:15000});
     await page.setInputFiles('#puppyVideo',shortVideo);
-    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('Cloudflareへ動画を送信中'),null,{timeout:15000});
+    // A small file may skip straight from preparing to received; the durable
+    // race invariant is that Save is disabled immediately on file selection.
+    await page.waitForFunction(()=>document.querySelector('.btn-main.btn-wide')?.disabled===true,null,{timeout:15000});
     check(await page.locator('.btn-main.btn-wide').isDisabled(),name+': Save must be disabled while iPhone video is still uploading');
     await page.waitForTimeout(400);
     check(page.url().includes('breeder-puppy-new.html?id=p1'),name+': editor navigated before upload receipt');
     check(!uploadCount&&!attachCount,name+': mock must still be uploading before receipt');
-    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:20000});
+    try{
+      await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:20000});
+    }catch(e){
+      const status=await page.locator('#puppyVideoStatus').innerText().catch(()=>'-');
+      throw new Error(name+': tus upload did not finish: status='+status+
+        ' tickets='+ticketCount+' patches='+uploadCount+' attaches='+attachCount+
+        ' browserErrors='+errors.slice(-4).join('; ')+' error='+e.message);
+    }
+    const byteProbe=await page.evaluate(()=>window.__bigpawTusByteProbe);
+    check(byteProbe?.length===shortVideo.buffer.length&&
+      JSON.stringify(byteProbe.prefix)===JSON.stringify([...shortVideo.buffer.slice(0,16)]),
+      name+': iPhone Blob handed to tus fetch does not contain the source video bytes');
     check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': Save must be enabled after video is really attached');
-    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': native multipart upload must reach Stream and attach once');
+    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': resumable tus upload must reach Stream and attach once');
     check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
     await page.reload({waitUntil:'domcontentloaded'});
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
@@ -213,6 +262,19 @@ async function run(engine,name,contextOptions,launchOptions={}){
     });
     check(rendered.includes('cloudflarestream.com/testvideo123/iframe'),name+': public video iframe not rendered');
     await detail.close();
+
+    // A stalled mobile upload must never trap the user on a disabled Save
+    // button; cancellation must keep any previously saved video intact.
+    console.log('VIDEO_BROWSER_STAGE',name,'cancel-stalled-upload');
+    await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
+    await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='掲載内容を編集',null,{timeout:15000});
+    await page.setInputFiles('#puppyVideo',shortVideo);
+    await page.locator('#cancelPuppyVideoUploadBtn').waitFor({state:'visible',timeout:15000});
+    check(await page.locator('.btn-main.btn-wide').isDisabled(),name+': Save should be disabled during active tus PATCH');
+    await page.locator('#cancelPuppyVideoUploadBtn').click();
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('通常の内容は保存できます'),null,{timeout:15000});
+    check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': Save did not unlock after cancelling tus');
+    check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': existing saved video was lost on cancel');
 
     // The mock deliberately responds 409 while the native multipart form is
     // still starting. It is an expected, retried "pending upload" state.
