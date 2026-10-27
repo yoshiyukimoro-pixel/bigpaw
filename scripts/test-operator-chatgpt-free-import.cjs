@@ -123,6 +123,9 @@ function submit(sim){
  s.parts.bpFreeReviewed.checked=true;
  e=submit(s);
  assert(e.prevented,'incomplete core fields cannot be published');
+ assert.strictEqual(s.elements.price['aria-invalid'],'true','missing price is marked invalid');
+ assert.strictEqual(s.elements.birth['aria-invalid'],'true','missing birth is marked invalid');
+ assert(s.elements.price.didScroll||s.elements.birth.didScroll||s.elements.gender.didScroll,'scrolls to missing required field');
  assert.strictEqual(s.elements.price.style.border,'3px solid #c62828','missing price marked red');
  assert.strictEqual(s.elements.price['aria-invalid'],'true','missing price accessible invalid state');
  assert(s.elements.gender.didScroll,'first missing field brought into view');
