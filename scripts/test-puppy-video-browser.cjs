@@ -205,7 +205,9 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(rendered.includes('cloudflarestream.com/testvideo123/iframe'),name+': public video iframe not rendered');
     await detail.close();
 
-    const serious=errors.filter(x=>!x.includes('cloudflarestream.com')&&!x.includes('ERR_NAME_NOT_RESOLVED'));
+    // The mock deliberately responds 409 while the native multipart form is
+    // still starting. It is an expected, retried "pending upload" state.
+    const serious=errors.filter(x=>!x.includes('cloudflarestream.com')&&!x.includes('ERR_NAME_NOT_RESOLVED')&&!x.includes('409 (Conflict)'));
     check(serious.length===0,name+': browser errors: '+serious.join(' | '));
     console.log('PUPPY_VIDEO_BROWSER_OK',name);
   }finally{
