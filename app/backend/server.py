@@ -917,6 +917,38 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(404); return
         parsed=urlparse(self.path); path=parsed.path; q=parse_qs(parsed.query)
         if bp_planned_litters.handle(self, 'GET', path, q, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
+        # Authenticated preview readiness: a persisted Stream UID is not proof
+        # that Cloudflare has finished transcoding and can play an iframe.
+        m=re.fullmatch(r'/api/puppies/([^/]+)/video-status',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            con=db()
+            puppy=con.execute('SELECT id,breeder_id,video_uid FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy:
+                con.close();return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                breeder=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not breeder or puppy['breeder_id']!=breeder['id']:
+                    con.close();return self.send_json({'error':'forbidden'},403)
+            uid=str(puppy['video_uid'] or '')
+            con.close()
+            if not uid:
+                return self.send_json({'hasVideo':False,'readyToStream':False,'state':'none'})
+            try:
+                details=stream_video_details(uid)
+                state=str((details.get('status') or {}).get('state') or 'processing').lower()
+                ready=details.get('readyToStream') is True and state!='error'
+            except Exception as exc:
+                # Keep the stored video and retry on the next read; a transient
+                # Cloudflare status failure must never remove a working upload.
+                print('[BIG PAW] Stream preview status check unavailable:',type(exc).__name__,flush=True)
+                state='unavailable'; ready=False
+            return self.send_json({
+                'hasVideo':True,'videoUid':uid,'readyToStream':ready,
+                'state':state,
+                'videoEmbedUrl':stream_embed_url(uid) if ready else ''
+            })
         m=re.fullmatch(r'/api/puppies/([^/]+)/photos',path)
         if m:
             u=self.require(['buyer','breeder','operator'])

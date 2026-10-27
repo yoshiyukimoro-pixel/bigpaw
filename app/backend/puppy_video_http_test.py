@@ -49,6 +49,7 @@ class MockStream:
         self.direct_payloads=[]
         self.tus_payloads=[]
         self.tus_meta={}
+        self.hold_preview=False
         self.deleted=[]
         self.counter=0
         self.base=''
@@ -70,6 +71,8 @@ class MockStream:
         if uid=='otherpuppy1':
             return {'uid':uid,'duration':12.0,'readyToStream':True,'status':{'state':'ready'},'meta':{'puppyId':'p2'}}
         if uid=='secondvideo1':
+            if self.hold_preview:
+                return {'uid':uid,'duration':18.5,'readyToStream':False,'status':{'state':'processing'},'meta':{'puppyId':'p1'}}
             return {'uid':uid,'duration':18.5,'readyToStream':True,'status':{'state':'ready'},'meta':{'puppyId':'p1'}}
         return {'uid':uid,'duration':59.4,'readyToStream':True,'status':{'state':'ready'},'meta':self.tus_meta.get(uid,{'puppyId':'p1'})}
 
@@ -230,6 +233,17 @@ def main():
                 check(replaced['videoUid']=='secondvideo1','one-video replacement')
                 check(ticket['uid'] in state.deleted,'old Stream video deleted on replacement')
                 check(call(base,'GET','/api/puppies/p1')['videoUid']=='secondvideo1','public exposes only replacement')
+                # A saved UID can still be transcoding: the private editor must
+                # wait for Cloudflare readyToStream instead of loading a broken iframe.
+                state.hold_preview=True
+                status=call(base,'GET','/api/puppies/p1/video-status',token=breeder)
+                check(status['hasVideo'] and status['videoUid']=='secondvideo1' and not status['readyToStream'] and not status['videoEmbedUrl'],'processing video has no premature iframe')
+                check(call(base,'GET','/api/puppies/p1/video-status',token=buyer,expected=403)['error']=='forbidden','buyer cannot poll breeder preview')
+                check(call(base,'GET','/api/puppies/p1')['videoUid']=='secondvideo1','preview check must not change saved public video')
+                state.hold_preview=False
+                status=call(base,'GET','/api/puppies/p1/video-status',token=breeder)
+                check(status['readyToStream'] and 'secondvideo1/iframe' in status['videoEmbedUrl'],'player appears only once transcoding is complete')
+                check(call(base,'GET','/api/puppies/p1/video-status',token=operator)['readyToStream'],'operator can inspect upload readiness')
 
                 # Create a different approved kennel and prove it cannot manage p1 video.
                 con=sqlite3.connect(str(Path(td)/'bigpaw.sqlite3'))
@@ -243,6 +257,7 @@ def main():
                 other=call(base,'POST','/api/login',{'email':'other-video@bigpaw.jp','password':pw})['token']
                 check(call(base,'POST','/api/puppies/p1/video-upload',{'fileName':'steal.mov','fileSize':1000},other,403)['error']=='forbidden','other kennel cannot provision video')
                 check(call(base,'DELETE','/api/puppies/p1/video',token=other,expected=403)['error']=='forbidden','other kennel cannot delete video')
+                check(call(base,'GET','/api/puppies/p1/video-status',token=other,expected=403)['error']=='forbidden','other kennel cannot inspect video readiness')
 
                 removed=call(base,'DELETE','/api/puppies/p1/video',token=breeder)
                 check(removed['ok'] is True,'owner deletes video')
@@ -250,6 +265,7 @@ def main():
                 mine=call(base,'GET','/api/breeder/puppies',token=breeder)
                 p1=next(x for x in mine if x['id']=='p1')
                 check(p1['videoUid']=='' and p1['videoEmbedUrl']=='','DB cleared after video delete')
+                check(call(base,'GET','/api/puppies/p1/video-status',token=breeder)['hasVideo'] is False,'deleted video returns no preview')
                 check(call(base,'GET','/api/puppies/p1')['videoUid']=='','public video removed without harming listing')
 
                 print('PUPPY_VIDEO_HTTP_INTEGRATION_OK: 1 video, 60s hard limit, ownership, moderation, replace/delete, public embed, existing APIs')

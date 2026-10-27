@@ -12,6 +12,8 @@
   let cancelRequested=false;
   let activeRequest=null;
   let currentPuppyId='';
+  let previewEpoch=0;
+  let previewTimer=0;
   const objectUrls=new Set();
   const $=id=>document.getElementById(id);
 
@@ -113,21 +115,67 @@
     setStatus('60秒以内です。保存すると動画を1本登録します。');
     return true;
   }
+  function stopPreviewCheck(){
+    previewEpoch+=1;
+    if(previewTimer)clearTimeout(previewTimer);
+    previewTimer=0;
+  }
+  async function checkExistingPreview(uid,epoch,attempt=0){
+    if(epoch!==previewEpoch)return;
+    const area=$('puppyVideoPlayback');
+    if(!area)return;
+    let response;
+    try{
+      response=await BigPawAPI.puppyVideoStatus(currentPuppyId);
+    }catch(e){
+      // Do not present a Cloudflare check failure as an upload failure.
+      // A publicly playable video is left intact on the server.
+      if(epoch!==previewEpoch)return;
+      area.textContent='動画は登録済みです。再生の準備状況を確認しています…';
+    }
+    if(epoch!==previewEpoch)return;
+    if(response){
+      if(response.videoUid!==uid || !response.hasVideo){
+        area.textContent='動画の状態が変わりました。編集画面を開き直して確認してください。';
+        return;
+      }
+      if(response.readyToStream && response.videoEmbedUrl){
+        const embed=String(response.videoEmbedUrl);
+        area.innerHTML='<div style="aspect-ratio:16/9"><iframe src="'+escapeHtml(embed)+'" title="子犬の動画" loading="lazy" style="width:100%;height:100%;border:0;border-radius:14px" allow="accelerometer; gyroscope; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';
+        return;
+      }
+      if(response.state==='error'){
+        area.textContent='動画の再生準備状況を確認してください。動画は削除されていません。';
+        return;
+      }
+      area.textContent='動画は登録済みです。再生できるようになるまで準備中です…';
+    }
+    // Bounded automatic checks, plus a manual retry that can be used later.
+    if(attempt<23){
+      previewTimer=setTimeout(()=>checkExistingPreview(uid,epoch,attempt+1),5000);
+    }else{
+      area.innerHTML='<div>動画は保存済みです。再生準備の確認が続いています。</div><button type="button" id="retryPuppyVideoPreviewBtn" class="btn btn-sub" style="margin-top:10px">再生できるか確認する</button>';
+      const b=$('retryPuppyVideoPreviewBtn');
+      if(b)b.onclick=()=>{
+        stopPreviewCheck();
+        const nextEpoch=previewEpoch;
+        area.textContent='再生準備を確認しています…';
+        checkExistingPreview(uid,nextEpoch,0);
+      };
+    }
+  }
   function renderExisting(p){
     currentPuppyId=String((p&&p.id)||currentPuppyId||'');
+    stopPreviewCheck();
     const box=$('puppyVideoExisting');
     if(!box)return;
-    const embed=String((p&&p.videoEmbedUrl)||'');
     const uid=String((p&&p.videoUid)||'');
-    if(embed){
-      box.innerHTML='<div style="margin-bottom:10px;font-weight:800">現在の動画</div><div style="aspect-ratio:16/9"><iframe src="'+escapeHtml(embed)+'" title="子犬の動画" style="width:100%;height:100%;border:0;border-radius:14px" allow="accelerometer; gyroscope; encrypted-media; picture-in-picture" allowfullscreen></iframe></div><button type="button" id="deletePuppyVideoBtn" class="btn btn-sub" style="margin-top:10px">この動画を削除</button>';
-      const b=$('deletePuppyVideoBtn');if(b)b.onclick=deleteExisting;
-    }else if(uid){
-      box.innerHTML='<div class="notice">動画を処理しています。しばらくすると公開ページで再生できるようになります。</div><button type="button" id="deletePuppyVideoBtn" class="btn btn-sub" style="margin-top:10px">この動画を削除</button>';
-      const b=$('deletePuppyVideoBtn');if(b)b.onclick=deleteExisting;
-    }else{
-      box.innerHTML='';
-    }
+    if(!uid){box.innerHTML='';return}
+    // Even when the DB has a video UID, Stream may still be transcoding.
+    // Never auto-load its iframe before Cloudflare says readyToStream=true.
+    box.innerHTML='<div style="margin-bottom:10px;font-weight:800">現在の動画</div><div id="puppyVideoPlayback" role="status" aria-live="polite" class="notice">動画は登録済みです。再生の準備状況を確認しています…</div><button type="button" id="deletePuppyVideoBtn" class="btn btn-sub" style="margin-top:10px">この動画を削除</button>';
+    const b=$('deletePuppyVideoBtn');if(b)b.onclick=deleteExisting;
+    checkExistingPreview(uid,previewEpoch,0);
   }
   async function deleteExisting(){
     if(!currentPuppyId||!confirm('登録中の動画を削除しますか？'))return;
@@ -135,6 +183,7 @@
     if(btn){btn.disabled=true;btn.textContent='削除中…'}
     try{
       await BigPawAPI.deletePuppyVideo(currentPuppyId);
+      stopPreviewCheck();
       const box=$('puppyVideoExisting');if(box)box.innerHTML='';
       setStatus('動画を削除しました。');
     }catch(e){
