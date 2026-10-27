@@ -94,12 +94,21 @@ async function run(engine,name,contextOptions,launchOptions={}){
     let uploadCount=0;
     await page.route('https://upload.cloudflarestream.com/mock-stream-direct-upload',async route=>{
       uploadCount+=1;
-      // Real Stream receives video across origins. Simulate a successful upload
-      // without Access-Control-Allow-Origin: browser must not rely on readable CORS.
-      check(route.request().method()==='POST',name+': Stream upload must POST');
+      const req=route.request();
+      // Verify real native form file bytes, not just that a ticket was issued.
+      check(req.method()==='POST',name+': Stream upload must POST');
+      const body=req.postDataBuffer();
+      check((req.headers()['content-type']||'').includes('multipart/form-data'),name+': expected native multipart form');
+      check(body&&body.includes(Buffer.from('name="file"'))&&body.includes(Buffer.from('short.webm'))&&body.length>100,
+        name+': native Safari upload did not include video file bytes');
       await route.fulfill({status:200,contentType:'text/plain',body:'uploaded'});
     });
     await page.route('**/api/puppies/p1/video',async route=>{
+      if(!uploadCount){
+        await route.fulfill({status:409,contentType:'application/json',
+          body:JSON.stringify({error:'video_upload_not_received'})});
+        return;
+      }
       attachCount+=1;
       attachedUid=uid;
       await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
@@ -164,6 +173,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(csp.includes('https://videodelivery.net'),name+': CSP blocks apex videodelivery.net Stream fallback iframe');
     check(csp.includes('connect-src')&&csp.includes('videodelivery.net'),name+': CSP connect-src missing direct upload');
     check(csp.includes('media-src')&&csp.includes('blob:'),name+': CSP media-src must allow local video metadata preview');
+    check(csp.includes("form-action 'self' https://upload.cloudflarestream.com https://upload.videodelivery.net"),name+': CSP blocks native Stream upload');
 
     const detail=await context.newPage();
     await detail.goto(base+'/puppy-detail.html?id=p1',{waitUntil:'domcontentloaded'});
