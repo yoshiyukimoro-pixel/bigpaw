@@ -35,7 +35,7 @@ jobs:
       - name: Static syntax and safety assertions
         run: |
           set -euo pipefail
-          python3 -m py_compile app/backend/server.py app/backend/puppy_video_http_test.py app/backend/cloudflare_stream_probe.py app/backend/cloudflare_stream_probe_test.py app/backend/start_live.py app/backend/final_core_regression_test.py
+          python3 -m py_compile app/backend/server.py app/backend/puppy_video_http_test.py app/backend/cloudflare_stream_probe.py app/backend/cloudflare_stream_probe_test.py app/backend/start_live.py app/backend/stream_tus_smoke_probe.py app/backend/final_core_regression_test.py
           node --check app/assets/api.js
           node --check app/assets/puppy-video.js
           node --check app/assets/puppy-video-public.js
@@ -60,6 +60,13 @@ jobs:
           # Video bytes must never be written to the existing Railway upload directory.
           video_route=s[s.index("m=re.fullmatch(r'/api/puppies/([^/]+)/video-upload'"):s.index("if path=='/api/puppies':",s.index("m=re.fullmatch(r'/api/puppies/([^/]+)/video-upload'"))]
           assert 'UPLOADS' not in video_route
+          import ast,base64,zlib
+          probe=Path('app/backend/stream_tus_smoke_probe.py').read_text(encoding='utf-8')
+          module=ast.parse(probe)
+          seed=next(x.value.value for x in module.body if isinstance(x,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='DATA' for t in x.targets))
+          sample=zlib.decompress(base64.b64decode(seed))
+          assert 1024<len(sample)<10000 and sample[4:8]==b'ftyp'
+          assert 'finally:' in probe and 'DELETE' in probe
           print('PUPPY_VIDEO_STATIC_SAFETY_OK')
           PY
 
