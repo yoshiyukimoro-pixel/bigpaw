@@ -636,7 +636,8 @@ def create_stream_resumable_upload(puppy_id, user_id, file_size, filename=''):
     root='/accounts/'+quote(CLOUDFLARE_STREAM_ACCOUNT_ID,safe='')+'/stream'
     metadata=[
         'name '+base64.b64encode(str(filename or 'puppy-video')[:160].encode()).decode('ascii'),
-        'maxdurationseconds '+base64.b64encode(str(PUPPY_VIDEO_MAX_SECONDS).encode()).decode('ascii')
+        'maxdurationseconds '+base64.b64encode(str(PUPPY_VIDEO_MAX_SECONDS).encode()).decode('ascii'),
+        'puppyId '+base64.b64encode(str(puppy_id).encode()).decode('ascii')
     ]
     headers={'Authorization':'Bearer '+CLOUDFLARE_STREAM_API_TOKEN,
              'Tus-Resumable':'1.0.0','Upload-Length':str(file_size),
@@ -664,6 +665,9 @@ def create_stream_resumable_upload(puppy_id, user_id, file_size, filename=''):
             'allowedOrigins':origins,'requireSignedURLs':False,
             'maxDurationSeconds':PUPPY_VIDEO_MAX_SECONDS
         })
+        verified=stream_video_details(uid)
+        if str((verified.get('meta') or {}).get('puppyId') or '')!=str(puppy_id):
+            raise RuntimeError('tus_puppy_binding_missing')
     except Exception:
         delete_stream_video(uid)
         raise
