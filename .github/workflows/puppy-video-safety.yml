@@ -97,10 +97,11 @@ jobs:
       - name: Run desktop Chrome and iPhone Safari WebKit in official browser image
         run: |
           set -euo pipefail
-          docker run --rm --network host \
+          echo "VIDEO_BROWSER_GATE_START"
+          timeout 360s docker run --rm --network host \
             -v "$PWD:/work" -v /tmp:/tmp -w /work \
             mcr.microsoft.com/playwright:v1.55.0-noble \
-            bash -lc 'set -e; npm install --no-save playwright@1.55.0 >/dev/null 2>&1; node scripts/test-puppy-video-browser.cjs http://127.0.0.1:18106'
+            bash -lc 'set -e; echo VIDEO_BROWSER_NPM_START; timeout 90s npm install --no-save playwright@1.55.0 >/dev/null 2>&1; echo VIDEO_BROWSER_RUN_START; timeout 240s node scripts/test-puppy-video-browser.cjs http://127.0.0.1:18106; echo VIDEO_BROWSER_GATE_OK'
 
       - name: Final health check and cleanup
         if: always()
