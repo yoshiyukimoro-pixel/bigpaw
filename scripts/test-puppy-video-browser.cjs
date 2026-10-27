@@ -267,6 +267,12 @@ async function run(engine,name,contextOptions,launchOptions={}){
         inSlot:!!(slot&&video&&slot.contains(video)),
         afterGallery:!!(gallery&&slot&&(gallery.compareDocumentPosition(slot)&Node.DOCUMENT_POSITION_FOLLOWING)),
         beforeInfo:!!(info&&slot&&(slot.compareDocumentPosition(info)&Node.DOCUMENT_POSITION_FOLLOWING)),
+        galleryPresent:!!gallery,
+        precedingElement:slot?.previousElementSibling?{
+          tag:slot.previousElementSibling.tagName,
+          id:slot.previousElementSibling.id,
+          className:slot.previousElementSibling.className
+        }:null,
         outsideDescription:!document.getElementById('bigpawDetailMore')?.contains(video)
       };
     });
