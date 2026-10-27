@@ -137,7 +137,12 @@
     // A no-cors POST still sends the video directly to Cloudflare (never Railway);
     // its opaque response is NOT proof of success. Verify receipt through our API.
     const target=new URL(ticket.uploadURL);
-    if(target.protocol!=='https:'||target.hostname!=='upload.videodelivery.net'){
+    // Cloudflare Stream currently issues upload.cloudflarestream.com URLs;
+    // older tickets use upload.videodelivery.net. Accept ONLY these official
+    // Cloudflare Stream upload hosts, never arbitrary third-party domains.
+    if(target.protocol!=='https:' ||
+       !['upload.cloudflarestream.com','upload.videodelivery.net'].includes(target.hostname) ||
+       target.username || target.password){
       throw new Error('動画の送信先を確認できませんでした。');
     }
     try{
