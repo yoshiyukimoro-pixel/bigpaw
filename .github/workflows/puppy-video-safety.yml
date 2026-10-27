@@ -9,6 +9,9 @@ on:
     paths:
       - 'app/backend/server.py'
       - 'app/backend/puppy_video_http_test.py'
+      - 'app/backend/cloudflare_stream_probe.py'
+      - 'app/backend/cloudflare_stream_probe_test.py'
+      - 'app/backend/start_live.py'
       - 'app/assets/api.js'
       - 'app/assets/puppy-video.js'
       - 'app/assets/puppy-video-public.js'
@@ -32,7 +35,7 @@ jobs:
       - name: Static syntax and safety assertions
         run: |
           set -euo pipefail
-          python3 -m py_compile app/backend/server.py app/backend/puppy_video_http_test.py app/backend/final_core_regression_test.py
+          python3 -m py_compile app/backend/server.py app/backend/puppy_video_http_test.py app/backend/cloudflare_stream_probe.py app/backend/cloudflare_stream_probe_test.py app/backend/start_live.py app/backend/final_core_regression_test.py
           node --check app/assets/api.js
           node --check app/assets/puppy-video.js
           node --check app/assets/puppy-video-public.js
@@ -66,6 +69,9 @@ jobs:
       - name: Run isolated Stream backend regression against built image
         run: |
           docker run --rm             -e BIGPAW_ENV=development             -e BIGPAW_DEV_LINKS=0             bigpaw-puppy-video python3 backend/puppy_video_http_test.py
+
+      - name: Test sanitized Cloudflare 403 probe without external calls
+        run: docker run --rm bigpaw-puppy-video python3 backend/cloudflare_stream_probe_test.py
 
       - name: Run existing planned-litter regression against built image
         run: |
