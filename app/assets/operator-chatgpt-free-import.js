@@ -190,7 +190,7 @@
     ];
     for(const [key,label] of required){
       const value=String(target(key)?.value||'').trim();
-      if(!value||(key==='price'&&(!Number.isInteger(Number(value))||!(Number(value)>0))))problems.push(label+'が未入力か不正です。');
+      if(!value||(key==='price'&&(!Number.isInteger(Number(value))||!(Number(value)>0))))problems.push(label+'が未入力です。');
       if(key==='birth'&&value){
         const d=new Date(value+'T00:00:00Z');
         if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)||!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==value)
