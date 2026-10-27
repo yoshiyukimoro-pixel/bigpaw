@@ -6,6 +6,8 @@
   let selected=null;
   let pendingChoose=Promise.resolve(false);
   let selectionError=false;
+  let pendingUpload=Promise.resolve(null);
+  let uploadError=null;
   let currentPuppyId='';
   const objectUrls=new Set();
   const $=id=>document.getElementById(id);
@@ -138,7 +140,13 @@
       throw new Error('video_upload_failed_'+response.status+(detail?':'+detail.slice(0,120):''));
     }
     setStatus('動画を確認しています…');
-    const puppy=await BigPawAPI.attachPuppyVideo(currentPuppyId,ticket.uid);
+    await BigPawAPI.attachPuppyVideo(currentPuppyId,ticket.uid);
+    // Do not claim success until the video UID is read back from the database.
+    const puppies=await BigPawAPI.breederPuppies();
+    const puppy=Array.isArray(puppies)?puppies.find(p=>String(p.id)===currentPuppyId):null;
+    if(!puppy||String(puppy.videoUid||'')!==String(ticket.uid)){
+      throw new Error('動画の保存を確認できませんでした。再度お試しください。');
+    }
     selected=null;
     cleanupObjectUrls();
     const input=$('puppyVideo');if(input)input.value='';
@@ -156,7 +164,21 @@
         selectionError=false;
         pendingChoose=choose(file);
         const ok=await pendingChoose;
-        if(!ok){selectionError=!!file;input.value='';}
+        if(!ok){selectionError=!!file;input.value='';return;}
+        // Existing listing: save video immediately on selection, avoiding form-save races.
+        // Keep the file and a visible error if Cloudflare or the database rejects it.
+        if(currentPuppyId && file){
+          uploadError=null;
+          input.disabled=true;
+          try{
+            pendingUpload=uploadIfSelected(currentPuppyId).catch(e=>{
+              uploadError=e;
+              setStatus('動画を保存できませんでした：'+String(e.message||'通信エラー'),true);
+              return null;
+            });
+            await pendingUpload;
+          }finally{input.disabled=false;}
+        }
       });
     }
   }
@@ -166,8 +188,8 @@
     renderExisting,
     uploadIfSelected,
     hasSelected:()=>!!selected,
-    waitForSelection:async()=>{const valid=await pendingChoose;const input=$('puppyVideo');if(selectionError||(input&&input.files&&input.files.length&&!valid))throw new Error('動画を確認できませんでした。動画を選び直してください。');},
-    clear:()=>{selectionError=false;selected=null;cleanupObjectUrls();setPreview('');setStatus('')},
+    waitForSelection:async()=>{const valid=await pendingChoose;await pendingUpload;if(uploadError)throw uploadError;const input=$('puppyVideo');if(selectionError||(input&&input.files&&input.files.length&&!valid))throw new Error('動画を確認できませんでした。動画を選び直してください。');},
+    clear:()=>{selectionError=false;uploadError=null;selected=null;cleanupObjectUrls();setPreview('');setStatus('')},
     init
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();

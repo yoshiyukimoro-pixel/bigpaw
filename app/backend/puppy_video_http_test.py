@@ -180,6 +180,7 @@ def main():
                 with urlopen(headers,timeout=7) as response:
                     csp=response.headers.get('Content-Security-Policy','')
                 check('frame-src' in csp and 'cloudflarestream.com' in csp,'CSP allows Stream iframe')
+                check('https://videodelivery.net' in csp,'CSP allows Stream fallback domain without subdomain')
                 check('connect-src' in csp and 'videodelivery.net' in csp,'CSP allows direct Stream upload')
 
                 exact=call(base,'POST','/api/puppies/p1/video',{'uid':'exact60video1'},operator,201)

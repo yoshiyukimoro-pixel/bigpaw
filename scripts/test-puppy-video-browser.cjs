@@ -11,6 +11,13 @@ function check(ok,msg){if(!ok)throw new Error(msg)}
 async function run(engine,name,contextOptions,launchOptions={}){
   const browser=await engine.launch({headless:true,...launchOptions});
   const context=await browser.newContext(contextOptions);
+  // Keep this local browser test deterministic: mock only external Stream
+  // documents. The browser still enforces our real Content Security Policy.
+  const streamHtml='<!doctype html><html><body><button type="button">Mock Stream playback</button></body></html>';
+  await context.route('https://videodelivery.net/**',route=>
+    route.fulfill({status:200,contentType:'text/html',body:streamHtml}));
+  await context.route('https://customer-test.cloudflarestream.com/**',route=>
+    route.fulfill({status:200,contentType:'text/html',body:streamHtml}));
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',e=>errors.push('pageerror:'+e.message));
@@ -53,6 +60,86 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(await page.locator('#puppyVideo').evaluate(el=>el.files.length)===1,name+': valid video not retained');
     check(await page.locator('#puppyVideoPreview video').count()===1,name+': valid video preview missing');
 
+    // Reproduce the production symptom: on an existing puppy, selecting a video
+    // must upload immediately and persist across editor reload, not only preview.
+    console.log('VIDEO_BROWSER_STAGE',name,'existing-puppy-autosave-and-reload');
+    let attachedUid='';
+    let ticketCount=0;
+    let attachCount=0;
+    const uid='browserVideoAuto12345';
+    await page.route('**/api/breeder/puppies',async route=>{
+      const upstream=await route.fetch();
+      const data=await upstream.json();
+      const updated=Array.isArray(data)?data.map(p=>
+        String(p.id)==='p1'&&attachedUid?
+          {...p,videoUid:attachedUid,videoStatus:'ready',videoEmbedUrl:'https://videodelivery.net/'+attachedUid+'/iframe'}:p
+      ):data;
+      await route.fulfill({response:upstream,json:updated});
+    });
+    await page.route('**/api/puppies/p1/video-upload',async route=>{
+      ticketCount+=1;
+      await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
+        uid,uploadURL:base+'/mock-stream-direct-upload',maxSeconds:60
+      })});
+    });
+    await page.route('**/mock-stream-direct-upload',async route=>{
+      await route.fulfill({status:200,body:'{}'});
+    });
+    await page.route('**/api/puppies/p1/video',async route=>{
+      attachCount+=1;
+      attachedUid=uid;
+      await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
+        id:'p1',videoUid:uid,videoStatus:'ready',
+        videoEmbedUrl:'https://videodelivery.net/'+uid+'/iframe'
+      })});
+    });
+    await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
+    await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='掲載内容を編集',null,{timeout:15000});
+    await page.setInputFiles('#puppyVideo',shortVideo);
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:15000});
+    check(ticketCount===1&&attachCount===1,name+': selection must trigger one upload and attach without Save');
+    check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
+    check(await page.locator('#puppyVideoExisting iframe').getAttribute('src')==='https://videodelivery.net/'+uid+'/iframe',
+      name+': video missing after reopening editor');
+    // The seeded puppy predates required sales-policy fields injected by the
+    // production Docker build. Fill these to exercise a valid ordinary form save.
+    await page.locator('#breedingAllowed').selectOption({index:1});
+    await page.locator('#breederSaleAllowed').selectOption({index:1});
+    // Ordinary form Save must not initiate a duplicate upload or remove the video.
+    const formState=await page.evaluate(()=>{
+      const button=document.querySelector('.btn-main.btn-wide');
+      const form=button?.form;
+      return {
+        type:button?.type,hasForm:!!form,valid:form?.checkValidity(),
+        submitHandler:typeof window.savePuppy,
+        invalid:form?Array.from(form.elements).filter(e=>e.checkValidity&&!e.checkValidity())
+          .map(e=>({id:e.id,value:e.value,reason:e.validationMessage})):[],
+      };
+    });
+    console.log('VIDEO_BROWSER_FORM_STATE',name,JSON.stringify(formState));
+    check(formState.hasForm&&formState.valid,name+': breeder form invalid before video-safe save: '+JSON.stringify(formState));
+    let saveDialog='';
+    page.once('dialog',async dialog=>{saveDialog=dialog.message();await dialog.accept()});
+    try{
+      await Promise.all([
+        page.waitForURL(/\/admin\.html(?:$|\?)/,{waitUntil:'domcontentloaded',timeout:15000}),
+        page.locator('.btn-main.btn-wide').click()
+      ]);
+    }catch(e){
+      const diag=await page.evaluate(()=>({
+        href:location.href,saveLabel:document.querySelector('.btn-main.btn-wide')?.textContent,
+        videoStatus:document.getElementById('puppyVideoStatus')?.textContent
+      })).catch(x=>({error:String(x)}));
+      throw new Error(name+': form Save did not navigate: dialog='+saveDialog+' diag='+JSON.stringify(diag)+'; '+e.message);
+    }
+    check(saveDialog.includes('変更を保存しました'),name+': unexpected save message: '+saveDialog);
+    check(ticketCount===1&&attachCount===1,name+': form Save repeated video upload');
+    // Persistence was already verified with a real editor reload above. A
+    // second forced goto here races Safari's unrelated post-save login redirect.
+    console.log('PUPPY_VIDEO_AUTOSAVE_RELOAD_OK',name);
+
     // Public renderer is additive. Stub only the pre-existing data bridge so this
     // browser check stays focused on the new video renderer rather than unrelated app state.
     console.log('VIDEO_BROWSER_STAGE',name,'public-render');
@@ -60,6 +147,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(raw.ok(),name+': public detail HTTP failed');
     const csp=raw.headers()['content-security-policy']||'';
     check(csp.includes('frame-src')&&csp.includes('cloudflarestream.com'),name+': CSP frame-src missing Stream');
+    check(csp.includes('https://videodelivery.net'),name+': CSP blocks apex videodelivery.net Stream fallback iframe');
     check(csp.includes('connect-src')&&csp.includes('videodelivery.net'),name+': CSP connect-src missing direct upload');
     check(csp.includes('media-src')&&csp.includes('blob:'),name+': CSP media-src must allow local video metadata preview');
 
