@@ -5,6 +5,7 @@
   const MAX_BYTES=200*1024*1024;
   let selected=null;
   let pendingChoose=Promise.resolve(false);
+  let selectionError=false;
   let currentPuppyId='';
   const objectUrls=new Set();
   const $=id=>document.getElementById(id);
@@ -152,9 +153,10 @@
       input.dataset.bigpawVideoBound='1';
       input.addEventListener('change',async()=>{
         const file=input.files&&input.files[0];
+        selectionError=false;
         pendingChoose=choose(file);
         const ok=await pendingChoose;
-        if(!ok)input.value='';
+        if(!ok){selectionError=!!file;input.value='';}
       });
     }
   }
@@ -164,8 +166,8 @@
     renderExisting,
     uploadIfSelected,
     hasSelected:()=>!!selected,
-    waitForSelection:async()=>{const valid=await pendingChoose;const input=$('puppyVideo');if(input&&input.files&&input.files.length&&!valid)throw new Error('動画を確認できませんでした。動画を選び直してください。');},
-    clear:()=>{selected=null;cleanupObjectUrls();setPreview('');setStatus('')},
+    waitForSelection:async()=>{const valid=await pendingChoose;const input=$('puppyVideo');if(selectionError||(input&&input.files&&input.files.length&&!valid))throw new Error('動画を確認できませんでした。動画を選び直してください。');},
+    clear:()=>{selectionError=false;selected=null;cleanupObjectUrls();setPreview('');setStatus('')},
     init
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
