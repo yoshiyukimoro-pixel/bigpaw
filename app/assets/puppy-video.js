@@ -238,6 +238,7 @@
     }
     selected=null;
     cleanupObjectUrls();
+    const input=$('puppyVideo');
     if(input)input.value='';
     setPreview('');
     renderExisting(puppy);
