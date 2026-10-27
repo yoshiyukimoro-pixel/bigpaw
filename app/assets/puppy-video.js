@@ -133,14 +133,32 @@
     const fd=new FormData();
     fd.append('file',file,file.name||'puppy-video');
     setStatus('動画をアップロードしています…');
-    const response=await fetch(ticket.uploadURL,{method:'POST',body:fd});
-    if(!response.ok){
-      let detail='';
-      try{detail=await response.text()}catch(e){}
-      throw new Error('video_upload_failed_'+response.status+(detail?':'+detail.slice(0,120):''));
+    // Stream's one-time upload endpoint can omit CORS response headers on iPhone.
+    // A no-cors POST still sends the video directly to Cloudflare (never Railway);
+    // its opaque response is NOT proof of success. Verify receipt through our API.
+    const target=new URL(ticket.uploadURL);
+    if(target.protocol!=='https:'||target.hostname!=='upload.videodelivery.net'){
+      throw new Error('動画の送信先を確認できませんでした。');
     }
-    setStatus('動画を確認しています…');
-    await BigPawAPI.attachPuppyVideo(currentPuppyId,ticket.uid);
+    try{
+      const response=await fetch(ticket.uploadURL,{method:'POST',body:fd,mode:'no-cors',credentials:'omit'});
+      if(response.type!=='opaque'&&!response.ok)throw new Error('HTTP '+response.status);
+    }catch(e){
+      throw new Error('Cloudflareへの動画送信に失敗しました。通信状態を確認して、もう一度お試しください。');
+    }
+    setStatus('Cloudflareへの送信を確認しています…');
+    // Never attach or report saved while Cloudflare still says "pendingupload".
+    // Processing after actual receipt is allowed; the public player can wait.
+    for(let attempt=0;attempt<12;attempt++){
+      try{
+        await BigPawAPI.attachPuppyVideo(currentPuppyId,ticket.uid);
+        break;
+      }catch(e){
+        if(!e.data||e.data.error!=='video_upload_not_received')throw e;
+        if(attempt===11)throw new Error('動画の受信を確認できませんでした。通信状態を確認して、もう一度お試しください。');
+        await new Promise(resolve=>setTimeout(resolve,1500));
+      }
+    }
     // Do not claim success until the video UID is read back from the database.
     const puppies=await BigPawAPI.breederPuppies();
     const puppy=Array.isArray(puppies)?puppies.find(p=>String(p.id)===currentPuppyId):null;
