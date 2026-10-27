@@ -93,6 +93,9 @@ async function run(engine,name,contextOptions,launchOptions={}){
     });
     let uploadCount=0;
     await page.route('https://upload.cloudflarestream.com/mock-stream-direct-upload',async route=>{
+      // Reproduce the real iPhone 4G timing: the form is still uploading
+      // when the breeder tries to save ordinary puppy fields.
+      await new Promise(resolve=>setTimeout(resolve,2300));
       uploadCount+=1;
       const req=route.request();
       // Verify real native form file bytes, not just that a ticket was issued.
@@ -119,8 +122,14 @@ async function run(engine,name,contextOptions,launchOptions={}){
     await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='掲載内容を編集',null,{timeout:15000});
     await page.setInputFiles('#puppyVideo',shortVideo);
-    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:15000});
-    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': cross-origin no-cors upload must reach Stream and attach once');
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('Cloudflareへ動画を送信中'),null,{timeout:15000});
+    check(await page.locator('.btn-main.btn-wide').isDisabled(),name+': Save must be disabled while iPhone video is still uploading');
+    await page.waitForTimeout(400);
+    check(page.url().includes('breeder-puppy-new.html?id=p1'),name+': editor navigated before upload receipt');
+    check(!uploadCount&&!attachCount,name+': mock must still be uploading before receipt');
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:20000});
+    check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': Save must be enabled after video is really attached');
+    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': native multipart upload must reach Stream and attach once');
     check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
     await page.reload({waitUntil:'domcontentloaded'});
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
