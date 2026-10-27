@@ -100,7 +100,7 @@
 
   <main class="bp-search-page">
     <h1>子犬を探す</h1>
-    <p style="margin:0 0 16px"><a href="planned-litters.html" style="display:block;background:#fff0dd;border:1px solid #eac18c;padding:13px 16px;border-radius:12px;color:#884413;font-weight:800;text-decoration:none">🐾 まだ生まれていない子犬も探す｜交配・出産予定の予約希望受付</a></p>
+    <p id="bpPlannedLittersBanner" style="display:none;margin:0 0 16px"><a href="planned-litters.html" style="display:block;background:#fff0dd;border:1px solid #eac18c;padding:13px 16px;border-radius:12px;color:#884413;font-weight:800;text-decoration:none">🐾 出産予定の子犬を探す｜予約希望受付中</a></p>
     <section class="bp-filter-card" aria-label="子犬の条件">
       <h2>子犬を選ぶ</h2>
       <div class="bp-filter-grid">
@@ -356,6 +356,11 @@
           }
           syncAreaChecks();
           source=await BigPawBridge.puppies();
+          // Public banner appears only when the public reservation list has entries.
+          try{
+            const planned=await BigPawAPI.request('/planned-litters');
+            if(Array.isArray(planned)&&planned.length>0)document.getElementById('bpPlannedLittersBanner').style.display='block';
+          }catch(e){/* Keep the banner hidden if listings cannot be verified. */}
           // A failed featured request must NEVER prevent the ordinary search from working.
           try{
             const featured=await fetch('/api/oshiwan',{credentials:'same-origin',cache:'no-store'});
