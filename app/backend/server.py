@@ -629,6 +629,46 @@ def create_stream_direct_upload(puppy_id, user_id, filename=''):
     if not uid or not upload_url: raise RuntimeError('stream_direct_upload_missing_fields')
     return {'uid':uid,'uploadURL':upload_url,'maxSeconds':PUPPY_VIDEO_MAX_SECONDS}
 
+def create_stream_resumable_upload(puppy_id, user_id, file_size, filename=''):
+    """Obtain Stream tus Location server-side; client PATCHes bytes to Cloudflare only."""
+    import base64
+    from urllib.parse import urlsplit
+    root='/accounts/'+quote(CLOUDFLARE_STREAM_ACCOUNT_ID,safe='')+'/stream'
+    metadata=[
+        'name '+base64.b64encode(str(filename or 'puppy-video')[:160].encode()).decode('ascii'),
+        'maxdurationseconds '+base64.b64encode(str(PUPPY_VIDEO_MAX_SECONDS).encode()).decode('ascii')
+    ]
+    headers={'Authorization':'Bearer '+CLOUDFLARE_STREAM_API_TOKEN,
+             'Tus-Resumable':'1.0.0','Upload-Length':str(file_size),
+             'Upload-Metadata':','.join(metadata),'Upload-Creator':str(user_id)[:64]}
+    req=Request(CLOUDFLARE_STREAM_API_BASE+root+'?direct_user=true',
+                data=b'',headers=headers,method='POST')
+    with urlopen(req,timeout=25) as response:
+        if response.status!=201: raise RuntimeError('tus_create_failed')
+        location=str(response.headers.get('Location') or '')
+        uid=str(response.headers.get('stream-media-id') or '')
+    parts=urlsplit(location)
+    # A signed direct-user URL is secret and must never be logged.
+    if parts.scheme!='https' or parts.hostname not in (
+            'upload.cloudflarestream.com','upload.videodelivery.net') or not re.fullmatch(r'[A-Za-z0-9_-]{8,64}',uid):
+        raise RuntimeError('tus_invalid_upload_destination')
+    # Preserve the existing per-puppy authorization check at attach time.
+    # Stream's tus creation headers do not support arbitrary puppyId metadata.
+    try:
+        host=(urlparse(PUBLIC_BASE_URL).hostname or '').strip()
+        origins=[host] if host else []
+        if host=='bigpaw.site':origins.append('www.bigpaw.site')
+        if host=='www.bigpaw.site':origins.append('bigpaw.site')
+        stream_api_json('POST',root+'/'+quote(uid,safe=''),{
+            'meta':{'puppyId':str(puppy_id),'name':str(filename or '')[:180]},
+            'allowedOrigins':origins,'requireSignedURLs':False,
+            'maxDurationSeconds':PUPPY_VIDEO_MAX_SECONDS
+        })
+    except Exception:
+        delete_stream_video(uid)
+        raise
+    return {'uid':uid,'uploadURL':location,'maxSeconds':PUPPY_VIDEO_MAX_SECONDS,'protocol':'tus'}
+
 def stream_video_details(uid):
     path='/accounts/'+quote(CLOUDFLARE_STREAM_ACCOUNT_ID,safe='')+'/stream/'+quote(str(uid),safe='')
     out=stream_api_json('GET',path)
@@ -1548,6 +1588,29 @@ https://www.bigpaw.site/'''
                 con=db(); con.execute('DELETE FROM sessions WHERE token=?',(token,)); con.commit(); con.close()
             return self.send_json({'ok':True},200,{'Set-Cookie':session_cookie_header('',clear=True)})
         if bp_planned_litters.handle(self, 'POST', path, {}, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
+        m=re.fullmatch(r'/api/puppies/([^/]+)/video-tus-upload',path)
+        if m:
+            u=self.require(['breeder','operator'])
+            if not u:return
+            if not stream_configured():return self.send_json({'error':'video_stream_not_configured'},503)
+            body=self.json_body()
+            file_size=int(body.get('fileSize') or 0)
+            if file_size<=0:return self.send_json({'error':'video_file_required'},400)
+            if file_size>PUPPY_VIDEO_MAX_BYTES:return self.send_json({'error':'video_file_too_large','message':'動画は200MB以内にしてください。'},413)
+            filename=str(body.get('fileName') or '')[:180]
+            con=db(); puppy=con.execute('SELECT * FROM puppies WHERE id=?',(m.group(1),)).fetchone()
+            if not puppy:con.close();return self.send_json({'error':'not_found'},404)
+            if u['role']=='breeder':
+                b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
+                if not b or puppy['breeder_id']!=b['id']:
+                    con.close();return self.send_json({'error':'forbidden'},403)
+            con.close()
+            try:
+                ticket=create_stream_resumable_upload(puppy['id'],u['id'],file_size,filename)
+            except Exception as exc:
+                print('[BIG PAW] Stream tus upload provision failed:',type(exc).__name__,flush=True)
+                return self.send_json({'error':'video_upload_unavailable','message':'動画の送信先を作成できませんでした。'},502)
+            return self.send_json(ticket,201)
         m=re.fullmatch(r'/api/puppies/([^/]+)/video-upload',path)
         if m:
             u=self.require(['breeder','operator'])
