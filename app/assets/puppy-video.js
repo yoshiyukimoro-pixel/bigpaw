@@ -163,7 +163,8 @@
     durationAllowed,
     renderExisting,
     uploadIfSelected,
-    hasSelected:()=>!!selected||!!($('puppyVideo')&&$('puppyVideo').files&&$('puppyVideo').files.length),
+    hasSelected:()=>!!selected,
+    waitForSelection:async()=>{const valid=await pendingChoose;const input=$('puppyVideo');if(input&&input.files&&input.files.length&&!valid)throw new Error('動画を確認できませんでした。動画を選び直してください。');},
     clear:()=>{selected=null;cleanupObjectUrls();setPreview('');setStatus('')},
     init
   };
