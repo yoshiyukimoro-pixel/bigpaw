@@ -39,6 +39,7 @@ async function simulate({role='operator',scope='b_miyamoto',verified='b_miyamoto
    node.closest=q=>q==='.field'?wrapper:null;
    node.requiredLabel=label;
   }
+  node.id=key;
   elements[key]=node;
  }
  const parts={};for(const key of ['bpFreeJson','bpFreeImport','bpFreeFeedback','bpFreeReviewed'])parts[key]=el();
