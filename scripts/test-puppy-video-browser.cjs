@@ -96,6 +96,10 @@ async function run(engine,name,contextOptions,launchOptions={}){
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
     check(await page.locator('#puppyVideoExisting iframe').getAttribute('src')==='https://videodelivery.net/'+uid+'/iframe',
       name+': video missing after reopening editor');
+    // The seeded puppy predates required sales-policy fields injected by the
+    // production Docker build. Fill these to exercise a valid ordinary form save.
+    await page.locator('#breedingAllowed').selectOption({index:1});
+    await page.locator('#breederSaleAllowed').selectOption({index:1});
     // Ordinary form Save must not initiate a duplicate upload or remove the video.
     const formState=await page.evaluate(()=>{
       const button=document.querySelector('.btn-main.btn-wide');
