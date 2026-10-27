@@ -129,8 +129,8 @@ async function run(engine,name,contextOptions,launchOptions={}){
     }
     check(saveDialog.includes('変更を保存しました'),name+': unexpected save message: '+saveDialog);
     check(ticketCount===1&&attachCount===1,name+': form Save repeated video upload');
-    await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
-    await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
+    // Persistence was already verified with a real editor reload above. A
+    // second forced goto here races Safari's unrelated post-save login redirect.
     console.log('PUPPY_VIDEO_AUTOSAVE_RELOAD_OK',name);
 
     // Public renderer is additive. Stub only the pre-existing data bridge so this
