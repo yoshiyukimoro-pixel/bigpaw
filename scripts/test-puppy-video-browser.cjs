@@ -216,6 +216,19 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(rendered.includes('cloudflarestream.com/testvideo123/iframe'),name+': public video iframe not rendered');
     await detail.close();
 
+    // A stalled mobile upload must never trap the user on a disabled Save
+    // button; cancellation must keep any previously saved video intact.
+    console.log('VIDEO_BROWSER_STAGE',name,'cancel-stalled-upload');
+    await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
+    await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='掲載内容を編集',null,{timeout:15000});
+    await page.setInputFiles('#puppyVideo',shortVideo);
+    await page.locator('#cancelPuppyVideoUploadBtn').waitFor({state:'visible',timeout:15000});
+    check(await page.locator('.btn-main.btn-wide').isDisabled(),name+': Save should be disabled during active tus PATCH');
+    await page.locator('#cancelPuppyVideoUploadBtn').click();
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('通常の内容は保存できます'),null,{timeout:15000});
+    check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': Save did not unlock after cancelling tus');
+    check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': existing saved video was lost on cancel');
+
     // The mock deliberately responds 409 while the native multipart form is
     // still starting. It is an expected, retried "pending upload" state.
     const serious=errors.filter(x=>!x.includes('cloudflarestream.com')&&!x.includes('ERR_NAME_NOT_RESOLVED')&&!x.includes('409 (Conflict)'));
