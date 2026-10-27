@@ -13,6 +13,7 @@
   if(document.head&&document.head.appendChild)document.head.appendChild(blueStyle);
   // Explain required fields before the user attempts to publish.
   const requiredNames={breed:'犬種',gender:'性別',birth:'生年月日',price:'価格（税込）',desc:'紹介文'};
+  // Required markers are guidance only; publishing guards still validate actual values.
   const requiredStyle=document.createElement('style');
   requiredStyle.textContent='.bp-required-mark{display:inline-block;margin-left:6px;color:#a82020;font-size:12px;font-weight:800}.bp-optional-mark{display:inline-block;margin-left:6px;color:#64748b;font-size:12px;font-weight:600}';
   if(document.head&&document.head.appendChild)document.head.appendChild(requiredStyle);
