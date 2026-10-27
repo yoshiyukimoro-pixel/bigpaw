@@ -10,7 +10,7 @@
   const blueStyle=document.createElement('style');
   blueStyle.id='bpProxyPhotoBlue';
   blueStyle.textContent='.bp-account-page .photo-box{background:#edf5ff!important;border-color:#5f8fc3!important;color:#244d78!important}.bp-account-page .photo-box .muted{color:#426582!important}';
-  document.head.appendChild(blueStyle);
+  if(document.head&&document.head.appendChild)document.head.appendChild(blueStyle);
   const panel=document.createElement('section');
   panel.id='bpFreeListingPanel';
   panel.style.cssText='border:2px solid #b9d5ed;background:#f3f9ff;border-radius:16px;padding:16px;margin:16px 0 20px;line-height:1.7';
