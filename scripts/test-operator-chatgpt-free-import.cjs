@@ -109,7 +109,7 @@ function submit(sim){
  const nativeField=s.elements.price;
  nativeField.validationMessage='正しい数値を入力してください。';
  s.form.listeners.invalid({target:nativeField});
- assert(s.form.publishHint.textContent.includes('税込価格'),'invalid event identifies exact field');
+ assert(s.form.publishHint.textContent.includes('価格（税込）'),'invalid event identifies exact field');
  assert(s.form.publishHint.textContent.includes('正しい数値を入力してください。'),'invalid event identifies browser reason');
  assert.strictEqual(nativeField.style.border,'3px solid #c62828','native invalid field highlighted red');
  assert(nativeField.didScroll,'native invalid field scrolled into view');
