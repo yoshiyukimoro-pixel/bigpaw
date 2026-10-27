@@ -53,6 +53,59 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(await page.locator('#puppyVideo').evaluate(el=>el.files.length)===1,name+': valid video not retained');
     check(await page.locator('#puppyVideoPreview video').count()===1,name+': valid video preview missing');
 
+    // Reproduce the production symptom: on an existing puppy, selecting a video
+    // must upload immediately and persist across editor reload, not only preview.
+    console.log('VIDEO_BROWSER_STAGE',name,'existing-puppy-autosave-and-reload');
+    let attachedUid='';
+    let ticketCount=0;
+    let attachCount=0;
+    const uid='browserVideoAuto12345';
+    await page.route('**/api/breeder/puppies',async route=>{
+      const upstream=await route.fetch();
+      const data=await upstream.json();
+      const updated=Array.isArray(data)?data.map(p=>
+        String(p.id)==='p1'&&attachedUid?
+          {...p,videoUid:attachedUid,videoStatus:'ready',videoEmbedUrl:'https://videodelivery.net/'+attachedUid+'/iframe'}:p
+      ):data;
+      await route.fulfill({response:upstream,json:updated});
+    });
+    await page.route('**/api/puppies/p1/video-upload',async route=>{
+      ticketCount+=1;
+      await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
+        uid,uploadURL:base+'/mock-stream-direct-upload',maxSeconds:60
+      })});
+    });
+    await page.route('**/mock-stream-direct-upload',async route=>{
+      await route.fulfill({status:200,body:'{}'});
+    });
+    await page.route('**/api/puppies/p1/video',async route=>{
+      attachCount+=1;
+      attachedUid=uid;
+      await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
+        id:'p1',videoUid:uid,videoStatus:'ready',
+        videoEmbedUrl:'https://videodelivery.net/'+uid+'/iframe'
+      })});
+    });
+    await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
+    await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='掲載内容を編集',null,{timeout:15000});
+    await page.setInputFiles('#puppyVideo',shortVideo);
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:15000});
+    check(ticketCount===1&&attachCount===1,name+': selection must trigger one upload and attach without Save');
+    check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
+    check(await page.locator('#puppyVideoExisting iframe').getAttribute('src')==='https://videodelivery.net/'+uid+'/iframe',
+      name+': video missing after reopening editor');
+    // Ordinary form Save must not initiate a duplicate upload or remove the video.
+    await Promise.all([
+      page.waitForURL(/\/admin\.html(?:$|\?)/,{timeout:15000}),
+      page.locator('.btn-main.btn-wide').click()
+    ]);
+    check(ticketCount===1&&attachCount===1,name+': form Save repeated video upload');
+    await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
+    await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
+    console.log('PUPPY_VIDEO_AUTOSAVE_RELOAD_OK',name);
+
     // Public renderer is additive. Stub only the pre-existing data bridge so this
     // browser check stays focused on the new video renderer rather than unrelated app state.
     console.log('VIDEO_BROWSER_STAGE',name,'public-render');
