@@ -49,12 +49,12 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(policy.max===60&&policy.at60===true&&policy.over===false,name+': JS duration boundary wrong');
     // The production Cloudflare response now uses upload.cloudflarestream.com.
     // Regressions must exercise this real hostname, not only the legacy domain.
-    const acceptedHosts=await page.evaluate(async()=>{
-      const source=await fetch('/assets/puppy-video.js?assert-hosts=1').then(r=>r.text());
-      return source.includes("'upload.cloudflarestream.com','upload.videodelivery.net'") &&
-        source.includes("target.protocol!=='https:'") &&
-        source.includes('target.username || target.password');
-    });
+    // Static host safety is checked without a browser fetch, so browser
+    // testing remains focused on the live upload/reopen path.
+    const source=require('fs').readFileSync('app/assets/puppy-video.js','utf8');
+    const acceptedHosts=source.includes("'upload.cloudflarestream.com','upload.videodelivery.net'") &&
+      source.includes("target.protocol!=='https:'") &&
+      source.includes('target.username || target.password');
     check(acceptedHosts,name+': strict allowlist missing actual Cloudflare upload host');
 
     console.log('VIDEO_BROWSER_STAGE',name,'overlong');
