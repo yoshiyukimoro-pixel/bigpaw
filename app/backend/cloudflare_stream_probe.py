@@ -13,9 +13,9 @@ import re
 from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
-VERSION = "20261027-v1"
+VERSION = "20261027-v2"
 MARKER = ".bigpaw-cloudflare-stream-probe-" + VERSION + ".json"
 
 def errors_from_body(raw):
@@ -74,6 +74,12 @@ def probe_once(env=None, fetch=urlopen, out=print):
         else:
             uid = str((doc.get("result") or {}).get("uid") or "")
             result = {"result": "ticket_created"}
+            # Log only the host/scheme, never the one-time credential-bearing URL.
+            upload_url = str((doc.get("result") or {}).get("uploadURL") or "")
+            parsed = urlsplit(upload_url)
+            hostname = str(parsed.hostname or "").lower()
+            result["upload_host"] = hostname if re.fullmatch(r"[a-z0-9.-]{1,253}", hostname) else "invalid_hostname"
+            result["upload_scheme"] = parsed.scheme if parsed.scheme in ("http", "https") else "other"
             # Delete *only* the newly generated, unused ticket to release storage.
             if re.fullmatch(r"[A-Za-z0-9_-]{8,64}", uid):
                 del_req = Request(base + "/accounts/" + quote(account, safe="") +
