@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 from urllib.parse import quote, urlsplit
 
-VERSION = "20261027-v2"
+VERSION = "20261027-v3"
 MARKER = ".bigpaw-cloudflare-stream-probe-" + VERSION + ".json"
 
 def errors_from_body(raw):
@@ -64,6 +64,32 @@ def probe_once(env=None, fetch=urlopen, out=print):
     req = Request(url, data=json.dumps(payload).encode("utf-8"),
                   headers={"Authorization": "Bearer " + token, "Content-Type": "application/json",
                            "Accept": "application/json"}, method="POST")
+    result = {"result": "unknown"}
+    # Read-only review of the recent Stream objects issued for the currently
+    # affected puppy. Never print filenames, UIDs, creator IDs or credentials.
+    # This lets us distinguish an uploaded but unlinked video from a ticket
+    # that never received the actual file, without asking another upload.
+    try:
+        recent_url=(base + "/accounts/" + quote(account, safe="") +
+                    "/stream?after=2026-10-27T08%3A00%3A00Z&limit=100")
+        recent_req=Request(recent_url,headers={"Authorization":"Bearer "+token,
+                                               "Accept":"application/json"},method="GET")
+        with fetch(recent_req,timeout=15) as response:
+            recent_doc=json.loads(response.read(400000) or b"{}")
+        items=recent_doc.get("result",[]) if isinstance(recent_doc,dict) else []
+        matches=[x for x in items if isinstance(x,dict) and
+                 (x.get("meta") or {}).get("puppyId")=="p_6a584ad3b6fb"]
+        by_state={}
+        for item in matches:
+            status=str(((item.get("status") or {}).get("state") or "unknown")).lower()
+            if status not in ("pendingupload","queued","inprogress","ready","error","downloading"):
+                status="other"
+            by_state[status]=by_state.get(status,0)+1
+        label=",".join(str(k)+":"+str(v) for k,v in sorted(by_state.items())) or "none"
+        out("BIGPAW_STREAM_RECENT|status=ok|affected_video_tickets="+str(len(matches))+
+            "|states="+label)
+    except Exception as exc:
+        out("BIGPAW_STREAM_RECENT|status=unavailable|error_type="+type(exc).__name__)
     result = {"result": "unknown"}
     try:
         with fetch(req, timeout=15) as response:
