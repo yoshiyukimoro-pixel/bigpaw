@@ -9,6 +9,8 @@
   let pendingUpload=Promise.resolve(null);
   let uploadError=null;
   let uploadInProgress=false;
+  let cancelRequested=false;
+  let activeRequest=null;
   let currentPuppyId='';
   const objectUrls=new Set();
   const $=id=>document.getElementById(id);
@@ -23,6 +25,24 @@
     el.textContent=message||'';
     el.style.color=isError?'#b42318':'';
     el.style.fontWeight=isError?'700':'';
+  }
+  function showCancelButton(show){
+    let b=$('cancelPuppyVideoUploadBtn');
+    if(!b&&$('puppyVideoStatus')){
+      b=document.createElement('button');
+      b.type='button';
+      b.id='cancelPuppyVideoUploadBtn';
+      b.textContent='動画送信を中止して通常の保存に戻る';
+      b.style.cssText='display:none;margin-top:8px;padding:8px 12px;border:1px solid #777;border-radius:8px;background:white';
+      $('puppyVideoStatus').insertAdjacentElement('afterend',b);
+      b.addEventListener('click',()=>{
+        if(!uploadInProgress)return;
+        cancelRequested=true;
+        if(activeRequest)activeRequest.abort();
+        setStatus('動画の送信を中止しています…');
+      });
+    }
+    if(b)b.style.display=show?'inline-block':'none';
   }
   function setPreview(html){
     const el=$('puppyVideoPreview');
@@ -148,16 +168,20 @@
     const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
     let offset=0;
     while(offset<file.size){
+      if(cancelRequested)throw new Error('video_upload_cancelled');
       const end=Math.min(file.size,offset+chunkSize);
       let success=false;
       for(let retry=0;retry<6&&!success;retry++){
         if(retry)await pause(Math.min(12000,1000*Math.pow(2,retry)));
         try{
+          if(cancelRequested)throw new Error('video_upload_cancelled');
+          activeRequest=new AbortController();
           const res=await fetch(target.href,{
-            method:'PATCH',mode:'cors',credentials:'omit',
+            method:'PATCH',mode:'cors',credentials:'omit',signal:activeRequest.signal,
             headers:{...common,'Upload-Offset':String(offset),'Content-Type':'application/offset+octet-stream'},
             body:file.slice(offset,end)
           });
+          activeRequest=null;
           if(!res.ok)throw new Error('HTTP '+res.status);
           const next=Number(res.headers.get('Upload-Offset'));
           if(!Number.isSafeInteger(next)||next<=offset||next>end){
@@ -166,6 +190,8 @@
           offset=next;
           success=true;
         }catch(error){
+          activeRequest=null;
+          if(cancelRequested)throw new Error('video_upload_cancelled');
           // On a dropped mobile connection the chunk might already have
           // reached Stream. Recover offset by HEAD before ever retrying bytes.
           try{
@@ -191,7 +217,9 @@
     }
     setStatus('送信完了。Cloudflareで動画の登録を確認しています…');
     for(let attempt=0;attempt<50;attempt++){
+      if(cancelRequested)throw new Error('video_upload_cancelled');
       if(attempt)await pause(2000);
+      if(cancelRequested)throw new Error('video_upload_cancelled');
       try{
         await BigPawAPI.attachPuppyVideo(currentPuppyId,ticket.uid);
         break;
@@ -224,6 +252,7 @@
         const file=input.files&&input.files[0];
         selectionError=false;
         uploadError=null;
+        cancelRequested=false;
         // This promise MUST be assigned synchronously with the change event.
         // Previously the async listener awaited metadata before assigning
         // pendingUpload, letting a fast Save button bypass the upload entirely.
@@ -235,6 +264,7 @@
         if(savingExisting){
           uploadInProgress=true;
           if(saveButton)saveButton.disabled=true;
+          showCancelButton(true);
         }
         pendingUpload=pendingChoose.then(async ok=>{
           if(!ok){
@@ -247,6 +277,15 @@
           try{
             return await uploadIfSelected(currentPuppyId);
           }catch(e){
+            if(cancelRequested){
+              selected=null;
+              input.value='';
+              cleanupObjectUrls();
+              setPreview('');
+              uploadError=null;
+              setStatus('動画の送信を中止しました。通常の内容は保存できます。');
+              return null;
+            }
             uploadError=e;
             setStatus('動画を保存できませんでした：'+String(e.message||'通信エラー'),true);
             return null;
@@ -259,6 +298,8 @@
           return null;
         }).finally(()=>{
           uploadInProgress=false;
+          activeRequest=null;
+          showCancelButton(false);
           if(saveButton)saveButton.disabled=priorDisabled;
         });
       });
