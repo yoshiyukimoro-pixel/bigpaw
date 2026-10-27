@@ -39,6 +39,7 @@ async function simulate({role='operator',scope='b_miyamoto',verified='b_miyamoto
    node.closest=q=>q==='.field'?wrapper:null;
    node.requiredLabel=label;
   }
+  node.id=key;
   elements[key]=node;
  }
  const parts={};for(const key of ['bpFreeJson','bpFreeImport','bpFreeFeedback','bpFreeReviewed'])parts[key]=el();
@@ -104,6 +105,14 @@ function submit(sim){
  s.parts.bpFreeReviewed.checked=true;
  e=submit(s);
  assert(!e.prevented,'publish allowed after completing review with photo');
+ // A native form invalid event (e.g. Safari numeric validation) must expose the exact field and reason.
+ const nativeField=s.elements.price;
+ nativeField.validationMessage='正しい数値を入力してください。';
+ s.form.listeners.invalid({target:nativeField});
+ assert(s.form.publishHint.textContent.includes('価格（税込）'),'invalid event identifies exact field');
+ assert(s.form.publishHint.textContent.includes('正しい数値を入力してください。'),'invalid event identifies browser reason');
+ assert.strictEqual(nativeField.style.border,'3px solid #c62828','native invalid field highlighted red');
+ assert(nativeField.didScroll,'native invalid field scrolled into view');
  // Missing photos must be stated clearly and block accidental publication.
  s.elements.photo.files=[];
  clickEvent={preventDefault(){this.prevented=true},stopImmediatePropagation(){this.stopped=true}};
