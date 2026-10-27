@@ -11,6 +11,13 @@ function check(ok,msg){if(!ok)throw new Error(msg)}
 async function run(engine,name,contextOptions,launchOptions={}){
   const browser=await engine.launch({headless:true,...launchOptions});
   const context=await browser.newContext(contextOptions);
+  // Keep this local browser test deterministic: mock only external Stream
+  // documents. The browser still enforces our real Content Security Policy.
+  const streamHtml='<!doctype html><html><body><button type="button">Mock Stream playback</button></body></html>';
+  await context.route('https://videodelivery.net/**',route=>
+    route.fulfill({status:200,contentType:'text/html',body:streamHtml}));
+  await context.route('https://customer-test.cloudflarestream.com/**',route=>
+    route.fulfill({status:200,contentType:'text/html',body:streamHtml}));
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',e=>errors.push('pageerror:'+e.message));
