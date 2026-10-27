@@ -1594,7 +1594,13 @@ https://www.bigpaw.site/'''
             if duration is not None and duration>PUPPY_VIDEO_MAX_SECONDS:
                 con.close(); delete_stream_video(uid)
                 return self.send_json({'error':'video_too_long','message':'動画は60秒以内にしてください。'},400)
-            state=str((details.get('status') or {}).get('state') or ('ready' if details.get('readyToStream') else 'processing'))
+            state=str((details.get('status') or {}).get('state') or ('ready' if details.get('readyToStream') else 'processing')).lower()
+            # A direct-upload ticket exists before the video bytes reach Stream.
+            # In particular no-cors browser POSTs have opaque responses, so
+            # reject an unused ticket instead of falsely marking it saved.
+            if state in ('pendingupload','pending_upload','uploading','waitingforupload'):
+                con.close()
+                return self.send_json({'error':'video_upload_not_received','message':'Cloudflareへの動画送信を確認しています。'},409)
             if state=='error':
                 con.close(); delete_stream_video(uid)
                 return self.send_json({'error':'video_processing_failed','message':'動画を処理できませんでした。別の動画を選択してください。'},422)
