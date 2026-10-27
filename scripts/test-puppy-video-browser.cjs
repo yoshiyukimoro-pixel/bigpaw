@@ -142,6 +142,18 @@ async function run(engine,name,contextOptions,launchOptions={}){
         videoEmbedUrl:'https://videodelivery.net/'+uid+'/iframe'
       })});
     });
+    let previewPolls=0;
+    await page.route('**/api/puppies/p1/video-status',async route=>{
+      previewPolls+=1;
+      // The upload is stored but still processing on the first status check.
+      // The editor must not show Cloudflare's premature black error iframe.
+      const ready=previewPolls>1;
+      await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+        hasVideo:true,videoUid:uid,readyToStream:ready,
+        state:ready?'ready':'processing',
+        videoEmbedUrl:ready?'https://videodelivery.net/'+uid+'/iframe':''
+      })});
+    });
     // Inspect the real File.slice Blob in the Safari page before handing
     // it to native fetch. WebKit Playwright cannot expose Blob postDataBuffer.
     await page.addInitScript(()=>{
@@ -179,6 +191,10 @@ async function run(engine,name,contextOptions,launchOptions={}){
       name+': iPhone Blob handed to tus fetch does not contain the source video bytes');
     check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': Save must be enabled after video is really attached');
     check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': resumable tus upload must reach Stream and attach once');
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoPlayback')?.textContent.includes('再生できるようになるまで準備中'),null,{timeout:10000});
+    check(await page.locator('#puppyVideoExisting iframe').count()===0,name+': editor iframe appeared before Stream readyToStream');
+    await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
+    check(previewPolls>=2,name+': editor did not verify Stream readiness before player');
     check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
     await page.reload({waitUntil:'domcontentloaded'});
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
