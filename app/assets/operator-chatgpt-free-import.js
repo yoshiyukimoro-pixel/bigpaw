@@ -85,7 +85,10 @@
       el.value=s;
     }else if(dropdowns.has(k)){
       const s=String(value).trim();
+      // Breeder messages often contain middle dots/spaces absent from breed labels.
+      const normalized=s.replace(/[・･\s　]/g,'');
       let option=[...el.options].find(o=>o.value===s||o.textContent===s);
+      if(!option&&k==='breed')option=[...el.options].find(o=>String(o.value||o.textContent).replace(/[・･\s　]/g,'')===normalized);
       if(!option&&s!=='未登録'&&(k==='father'||k==='mother')){
         option=new Option(s,s);el.add(option);
       }
