@@ -99,7 +99,7 @@ def mock_handler(state):
                 self.end_headers()
                 return
             prefix='/client/v4/accounts/test-account/stream/'
-            if self.path.startswith(prefix):
+            if self.path.startswith(prefix) and self.path!=prefix+'direct_upload':
                 n=int(self.headers.get('Content-Length','0'))
                 payload=json.loads(self.rfile.read(n) or b'{}')
                 uid=self.path[len(prefix):]
