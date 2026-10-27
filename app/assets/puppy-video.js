@@ -8,6 +8,7 @@
   let selectionError=false;
   let pendingUpload=Promise.resolve(null);
   let uploadError=null;
+  let uploadInProgress=false;
   let currentPuppyId='';
   const objectUrls=new Set();
   const $=id=>document.getElementById(id);
@@ -218,29 +219,55 @@
     const input=$('puppyVideo');
     if(input&&!input.dataset.bigpawVideoBound){
       input.dataset.bigpawVideoBound='1';
-      input.addEventListener('change',async()=>{
+      input.addEventListener('change',()=>{
         const file=input.files&&input.files[0];
         selectionError=false;
+        uploadError=null;
+        // This promise MUST be assigned synchronously with the change event.
+        // Previously the async listener awaited metadata before assigning
+        // pendingUpload, letting a fast Save button bypass the upload entirely.
         pendingChoose=choose(file);
-        const ok=await pendingChoose;
-        if(!ok){selectionError=!!file;input.value='';return;}
-        // Existing listing: save video immediately on selection, avoiding form-save races.
-        // Keep the file and a visible error if Cloudflare or the database rejects it.
-        if(currentPuppyId && file){
-          uploadError=null;
+        const savingExisting=!!(file&&currentPuppyId);
+        const form=input.closest('form');
+        const saveButton=form&&form.querySelector('button[type="submit"], .btn-main.btn-wide');
+        const priorDisabled=saveButton?saveButton.disabled:false;
+        if(savingExisting){
+          uploadInProgress=true;
+          if(saveButton)saveButton.disabled=true;
+        }
+        pendingUpload=pendingChoose.then(async ok=>{
+          if(!ok){
+            selectionError=!!file;
+            input.value='';
+            return null;
+          }
+          if(!savingExisting)return null;
           input.disabled=true;
           try{
-            pendingUpload=uploadIfSelected(currentPuppyId).catch(e=>{
-              uploadError=e;
-              setStatus('動画を保存できませんでした：'+String(e.message||'通信エラー'),true);
-              return null;
-            });
-            await pendingUpload;
-          }finally{input.disabled=false;}
-        }
+            return await uploadIfSelected(currentPuppyId);
+          }catch(e){
+            uploadError=e;
+            setStatus('動画を保存できませんでした：'+String(e.message||'通信エラー'),true);
+            return null;
+          }finally{
+            input.disabled=false;
+          }
+        }).catch(e=>{
+          uploadError=e;
+          setStatus('動画を保存できませんでした：'+String(e.message||'通信エラー'),true);
+          return null;
+        }).finally(()=>{
+          uploadInProgress=false;
+          if(saveButton)saveButton.disabled=priorDisabled;
+        });
       });
     }
   }
+  window.addEventListener('beforeunload',event=>{
+    if(!uploadInProgress)return;
+    event.preventDefault();
+    event.returnValue='';
+  });
   window.BigPawPuppyVideo={
     maxSeconds:MAX_SECONDS,
     durationAllowed,
