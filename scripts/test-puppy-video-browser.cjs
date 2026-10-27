@@ -47,6 +47,15 @@ async function run(engine,name,contextOptions,launchOptions={}){
       over:window.BigPawPuppyVideo?.durationAllowed(60.01)
     }));
     check(policy.max===60&&policy.at60===true&&policy.over===false,name+': JS duration boundary wrong');
+    // The production Cloudflare response now uses upload.cloudflarestream.com.
+    // Regressions must exercise this real hostname, not only the legacy domain.
+    const acceptedHosts=await page.evaluate(async()=>{
+      const source=await fetch('/assets/puppy-video.js?assert-hosts=1').then(r=>r.text());
+      return source.includes("'upload.cloudflarestream.com','upload.videodelivery.net'") &&
+        source.includes("target.protocol!=='https:'") &&
+        source.includes('target.username || target.password');
+    });
+    check(acceptedHosts,name+': strict allowlist missing actual Cloudflare upload host');
 
     console.log('VIDEO_BROWSER_STAGE',name,'overlong');
     await page.setInputFiles('#puppyVideo',longVideo);
@@ -79,11 +88,11 @@ async function run(engine,name,contextOptions,launchOptions={}){
     await page.route('**/api/puppies/p1/video-upload',async route=>{
       ticketCount+=1;
       await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
-        uid,uploadURL:'https://upload.videodelivery.net/mock-stream-direct-upload',maxSeconds:60
+        uid,uploadURL:'https://upload.cloudflarestream.com/mock-stream-direct-upload',maxSeconds:60
       })});
     });
     let uploadCount=0;
-    await page.route('https://upload.videodelivery.net/mock-stream-direct-upload',async route=>{
+    await page.route('https://upload.cloudflarestream.com/mock-stream-direct-upload',async route=>{
       uploadCount+=1;
       // Real Stream receives video across origins. Simulate a successful upload
       // without Access-Control-Allow-Origin: browser must not rely on readable CORS.
