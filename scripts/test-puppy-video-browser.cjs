@@ -116,7 +116,12 @@ async function run(engine,name,contextOptions,launchOptions={}){
       const body=req.postDataBuffer();
       check((req.headers()['content-type']||'').includes('application/offset+octet-stream'),name+': tus binary type missing');
       check(req.headers()['tus-resumable']==='1.0.0',name+': tus protocol header missing');
-      check(body&&body.length===shortVideo.buffer.length,name+': transmitted file bytes missing from tus request: actual='+(body?body.length:'null')+' expected='+shortVideo.buffer.length+' method='+req.method()+' contentLength='+(req.headers()['content-length']||'absent'));
+      // Playwright's WebKit interception cannot read Blob-backed PATCH payloads
+      // (postDataBuffer() is null) even when fetch was passed a valid Blob.
+      // The browser-side probe below asserts the actual Blob byte length/prefix.
+      if(body!==null)check(body.length===shortVideo.buffer.length,
+        name+': intercepted tus body length incorrect: '+body.length);
+      else check(name==='webkit-iphone',name+': empty tus payload not expected on Chromium');
       await new Promise(resolve=>setTimeout(resolve,2300));
       uploadCount+=1;
       await route.fulfill({status:204,headers:{
@@ -137,6 +142,19 @@ async function run(engine,name,contextOptions,launchOptions={}){
         videoEmbedUrl:'https://videodelivery.net/'+uid+'/iframe'
       })});
     });
+    // Inspect the real File.slice Blob in the Safari page before handing
+    // it to native fetch. WebKit Playwright cannot expose Blob postDataBuffer.
+    await page.addInitScript(()=>{
+      const orig=window.fetch.bind(window);
+      window.fetch=async (url,opts)=>{
+        if(opts?.method==='PATCH'&&String(url).includes('upload.cloudflarestream.com/tus/')){
+          const buffer=await opts.body.arrayBuffer();
+          const bytes=new Uint8Array(buffer);
+          window.__bigpawTusByteProbe={length:bytes.byteLength,prefix:Array.from(bytes.slice(0,16))};
+        }
+        return orig(url,opts);
+      };
+    });
     await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='掲載内容を編集',null,{timeout:15000});
     await page.setInputFiles('#puppyVideo',shortVideo);
@@ -155,6 +173,10 @@ async function run(engine,name,contextOptions,launchOptions={}){
         ' tickets='+ticketCount+' patches='+uploadCount+' attaches='+attachCount+
         ' browserErrors='+errors.slice(-4).join('; ')+' error='+e.message);
     }
+    const byteProbe=await page.evaluate(()=>window.__bigpawTusByteProbe);
+    check(byteProbe?.length===shortVideo.buffer.length&&
+      JSON.stringify(byteProbe.prefix)===JSON.stringify([...shortVideo.buffer.slice(0,16)]),
+      name+': iPhone Blob handed to tus fetch does not contain the source video bytes');
     check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': Save must be enabled after video is really attached');
     check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': resumable tus upload must reach Stream and attach once');
     check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
