@@ -47,6 +47,8 @@ class MockStream:
     def __init__(self):
         self.lock=threading.Lock()
         self.direct_payloads=[]
+        self.tus_payloads=[]
+        self.tus_meta={}
         self.deleted=[]
         self.counter=0
         self.base=''
@@ -69,7 +71,7 @@ class MockStream:
             return {'uid':uid,'duration':12.0,'readyToStream':True,'status':{'state':'ready'},'meta':{'puppyId':'p2'}}
         if uid=='secondvideo1':
             return {'uid':uid,'duration':18.5,'readyToStream':True,'status':{'state':'ready'},'meta':{'puppyId':'p1'}}
-        return {'uid':uid,'duration':59.4,'readyToStream':True,'status':{'state':'ready'},'meta':{'puppyId':'p1'}}
+        return {'uid':uid,'duration':59.4,'readyToStream':True,'status':{'state':'ready'},'meta':self.tus_meta.get(uid,{'puppyId':'p1'})}
 
 
 def mock_handler(state):
@@ -84,6 +86,25 @@ def mock_handler(state):
             self.end_headers()
             self.wfile.write(raw)
         def do_POST(self):
+            if self.path=='/client/v4/accounts/test-account/stream?direct_user=true':
+                size=int(self.headers.get('Upload-Length','0'))
+                assert size>0 and self.headers.get('Tus-Resumable')=='1.0.0'
+                assert 'maxdurationseconds ' in self.headers.get('Upload-Metadata','')
+                uid=state.next_uid()
+                state.tus_payloads.append({'uid':uid,'size':size,'headers':dict(self.headers)})
+                self.send_response(201)
+                self.send_header('Location','https://upload.cloudflarestream.com/tus/'+uid)
+                self.send_header('stream-media-id',uid)
+                self.send_header('Content-Length','0')
+                self.end_headers()
+                return
+            prefix='/client/v4/accounts/test-account/stream/'
+            if self.path.startswith(prefix):
+                n=int(self.headers.get('Content-Length','0'))
+                payload=json.loads(self.rfile.read(n) or b'{}')
+                uid=self.path[len(prefix):]
+                state.tus_meta[uid]=payload.get('meta') or {}
+                return self.send_json({'success':True,'result':{'uid':uid,'meta':payload.get('meta')}})
             if self.path=='/client/v4/accounts/test-account/stream/direct_upload':
                 n=int(self.headers.get('Content-Length','0'))
                 payload=json.loads(self.rfile.read(n) or b'{}')
@@ -161,6 +182,12 @@ def main():
                 too_big=200*1024*1024+1
                 check(call(base,'POST','/api/puppies/p1/video-upload',{'fileName':'huge.mov','fileSize':too_big},breeder,413)['error']=='video_file_too_large','basic upload size guard')
 
+                tus=call(base,'POST','/api/puppies/p1/video-tus-upload',{'fileName':'iphone.mov','fileSize':19*1024*1024},breeder,201)
+                check(tus['protocol']=='tus' and tus['uploadURL'].startswith('https://upload.cloudflarestream.com/tus/'),'tus direct-user upload provision')
+                check(len(state.tus_payloads)==1 and state.tus_payloads[0]['size']==19*1024*1024,'tus upload size received')
+                check(state.tus_meta.get(tus['uid'],{}).get('puppyId')=='p1','tus media explicitly scoped to original puppy')
+                check(call(base,'POST','/api/puppies/p1/video-tus-upload',{'fileName':'bad.mov','fileSize':19*1024*1024},buyer,403)['error']=='forbidden','buyer cannot provision tus direct upload')
+                check(call(base,'POST','/api/puppies/p1/video',{'uid':tus['uid']},breeder,201)['videoUid']==tus['uid'],'verified tus media persists and can be played')
                 ticket=call(base,'POST','/api/puppies/p1/video-upload',{'fileName':'puppy.mov','fileSize':50*1024*1024},breeder,201)
                 check(ticket['maxSeconds']==60 and ticket['uid'].startswith('testvideo'),'ticket created')
                 payload=state.direct_payloads[-1]
