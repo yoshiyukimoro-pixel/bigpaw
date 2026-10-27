@@ -97,10 +97,21 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(await page.locator('#puppyVideoExisting iframe').getAttribute('src')==='https://videodelivery.net/'+uid+'/iframe',
       name+': video missing after reopening editor');
     // Ordinary form Save must not initiate a duplicate upload or remove the video.
-    await Promise.all([
-      page.waitForURL(/\/admin\.html(?:$|\?)/,{timeout:15000}),
-      page.locator('.btn-main.btn-wide').click()
-    ]);
+    let saveDialog='';
+    page.once('dialog',async dialog=>{saveDialog=dialog.message();await dialog.accept()});
+    try{
+      await Promise.all([
+        page.waitForURL(/\/admin\.html(?:$|\?)/,{waitUntil:'domcontentloaded',timeout:15000}),
+        page.locator('.btn-main.btn-wide').click()
+      ]);
+    }catch(e){
+      const diag=await page.evaluate(()=>({
+        href:location.href,saveLabel:document.querySelector('.btn-main.btn-wide')?.textContent,
+        videoStatus:document.getElementById('puppyVideoStatus')?.textContent
+      })).catch(x=>({error:String(x)}));
+      throw new Error(name+': form Save did not navigate: dialog='+saveDialog+' diag='+JSON.stringify(diag)+'; '+e.message);
+    }
+    check(saveDialog.includes('変更を保存しました'),name+': unexpected save message: '+saveDialog);
     check(ticketCount===1&&attachCount===1,name+': form Save repeated video upload');
     await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
