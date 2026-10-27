@@ -184,6 +184,7 @@ def main():
                 check('frame-src' in csp and 'cloudflarestream.com' in csp,'CSP allows Stream iframe')
                 check('https://videodelivery.net' in csp,'CSP allows Stream fallback domain without subdomain')
                 check('connect-src' in csp and 'videodelivery.net' in csp,'CSP allows direct Stream upload')
+                check("form-action 'self' https://upload.cloudflarestream.com https://upload.videodelivery.net" in csp,'native iPhone Stream form upload allowed only to official upload hosts')
 
                 # An issued upload ticket without uploaded bytes cannot appear saved.
                 pending=call(base,'POST','/api/puppies/p1/video',{'uid':'notuploaded1'},breeder,409)
