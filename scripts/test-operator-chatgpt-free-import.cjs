@@ -19,7 +19,7 @@ function el(tagName='INPUT'){
 async function simulate({role='operator',scope='b_miyamoto',verified='b_miyamoto',editId=''}={}){
  const elements={};
  const selectors={
-  breed:['','スタンダードプードル','サモエド'],
+  breed:['','スタンダードプードル','サモエド','グレートピレニーズ'],
   gender:['男の子','女の子'],
   father:['クラージュ','未登録'],mother:['ミルク','未登録'],
   healthStatus:['未登録','未実施','実施済み','実施済み（異常なし）'],
@@ -71,6 +71,9 @@ function submit(sim){
  importData(s,data);
  assert.strictEqual(s.elements.puppyName.value,'ヤンヤン');
  assert.strictEqual(s.elements.breed.value,'サモエド');
+ importData(s,{fields:{breed:'グレート・ピレニーズ',gender:'男の子',birth:'2026-09-07',price:280000,desc:'11月3日からお迎え可能'}});
+ assert.strictEqual(s.elements.breed.value,'グレートピレニーズ','middle dot in Great Pyrenees normalized');
+ importData(s,data);
  assert.strictEqual(s.elements.gender.value,'男の子');
  assert.strictEqual(s.elements.birth.value,'2024-09-04');
  assert.strictEqual(s.elements.price.value,'130000');
