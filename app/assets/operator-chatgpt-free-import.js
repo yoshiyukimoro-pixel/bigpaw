@@ -239,7 +239,7 @@
     const nativeReason=field?.validationMessage||'入力内容を確認してください。';
     const detail=fieldLabel+'：'+nativeReason;
     if(!problems.includes(detail))problems.push(detail);
-    publishHint.textContent='掲載できない理由：\\n・'+problems.join('\\n・');
+    publishHint.textContent='掲載できない理由：\n・'+problems.join('\n・');
     publishHint.style.display='block';
     markRequired(problems);
     if(field?.style){field.style.border='3px solid #c62828';field.style.backgroundColor='#fff0f0';}
