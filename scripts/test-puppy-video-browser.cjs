@@ -97,6 +97,18 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(await page.locator('#puppyVideoExisting iframe').getAttribute('src')==='https://videodelivery.net/'+uid+'/iframe',
       name+': video missing after reopening editor');
     // Ordinary form Save must not initiate a duplicate upload or remove the video.
+    const formState=await page.evaluate(()=>{
+      const button=document.querySelector('.btn-main.btn-wide');
+      const form=button?.form;
+      return {
+        type:button?.type,hasForm:!!form,valid:form?.checkValidity(),
+        submitHandler:typeof window.savePuppy,
+        invalid:form?Array.from(form.elements).filter(e=>e.checkValidity&&!e.checkValidity())
+          .map(e=>({id:e.id,value:e.value,reason:e.validationMessage})):[],
+      };
+    });
+    console.log('VIDEO_BROWSER_FORM_STATE',name,JSON.stringify(formState));
+    check(formState.hasForm&&formState.valid,name+': breeder form invalid before video-safe save: '+JSON.stringify(formState));
     let saveDialog='';
     page.once('dialog',async dialog=>{saveDialog=dialog.message();await dialog.accept()});
     try{
