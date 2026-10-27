@@ -139,6 +139,7 @@
        target.username||target.password){
       throw new Error('動画の送信先を確認できませんでした。');
     }
+    setStatus('動画をCloudflareへ送信中… 0%');
     // Cloudflare's resumable tus protocol gives a real HTTP status and offset.
     // Unlike the old hidden-iframe POST, failures cannot silently appear saved.
     // File bytes go from Safari straight to Cloudflare (never Railway).
