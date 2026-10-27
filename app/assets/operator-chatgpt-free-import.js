@@ -235,7 +235,7 @@
     if(!imported)return;
     const field=event.target;
     const problems=blockers();
-    const fieldLabel=field?.closest?.('.field')?.querySelector?.('label')?.textContent?.trim()||field?.getAttribute?.('aria-label')||field?.id||'入力項目';
+    const fieldLabel=field?.closest?.('.field')?.querySelector?.('label')?.textContent?.trim()||requiredNames[field?.id]||field?.getAttribute?.('aria-label')||field?.id||'入力項目';
     const nativeReason=field?.validationMessage||'入力内容を確認してください。';
     const detail=fieldLabel+'：'+nativeReason;
     if(!problems.includes(detail))problems.push(detail);
