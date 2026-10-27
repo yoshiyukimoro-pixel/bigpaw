@@ -19,7 +19,7 @@ function el(tagName='INPUT'){
 async function simulate({role='operator',scope='b_miyamoto',verified='b_miyamoto',editId=''}={}){
  const elements={};
  const selectors={
-  breed:['','スタンダードプードル','サモエド'],
+  breed:['','スタンダードプードル','サモエド','グレートピレニーズ'],
   gender:['男の子','女の子'],
   father:['クラージュ','未登録'],mother:['ミルク','未登録'],
   healthStatus:['未登録','未実施','実施済み','実施済み（異常なし）'],
@@ -33,16 +33,25 @@ async function simulate({role='operator',scope='b_miyamoto',verified='b_miyamoto
   const node=el(selectors[key]?'SELECT':'INPUT');
   if(selectors[key])node.options=selectors[key].map(s=>({value:s,textContent:s}));
   node.value=key==='price'?'258000':key==='color'?'ブラック':key==='birth'?'2026-07-01':'';
+  if(['breed','gender','birth','price','desc'].includes(key)){
+   const label=el('LABEL');label.appendChild=function(child){this.badge=child};label.querySelector=()=>null;
+   const wrapper={querySelector:q=>q==='label'?label:null};
+   node.closest=q=>q==='.field'?wrapper:null;
+   node.requiredLabel=label;
+  }
   elements[key]=node;
  }
  const parts={};for(const key of ['bpFreeJson','bpFreeImport','bpFreeFeedback','bpFreeReviewed'])parts[key]=el();
  const panel=el('SECTION');panel.querySelector=(query)=>parts[query.slice(1)];
  const form=el('FORM'),publishButton=el('BUTTON');
  form.querySelector=(q)=>q==='button.btn-wide'?publishButton:null;
- form.insertBefore=(node)=>{if(node.id==='bpFreeListingPanel')form.child=node;else form.publishHint=node;};
- let created=0;const document={createElement:()=>created++===0?panel:el('DIV'),querySelector:q=>q==='form'?form:null,getElementById:id=>elements[id]||null};
+ form.insertBefore=(node)=>{if(node.id==='bpFreeListingPanel')form.child=node;else if(node.id==='bpFreePublishFeedback')form.publishHint=node;};
+ const document={head:{appendChild(){}},createElement:(tag)=>tag==='section'?panel:el(String(tag).toUpperCase()),querySelector:q=>q==='form'?form:null,getElementById:id=>elements[id]||null};
  const calls=[];
  elements.photo=el('INPUT');elements.photo.files=[{name:'dog-1.jpg'}];
+ const photoHeading=el('B');photoHeading.appendChild=function(child){this.badge=child};
+ elements.photo.closest=q=>q==='.photo-box'?{querySelector:s=>s==='b'?photoHeading:null}:null;
+ elements.photo.photoHeading=photoHeading;
  const ctx={document,window:{bigpawProxyId:verified},URLSearchParams,Option:function(t,v){this.textContent=t;this.value=v},
    Date,Event:class{constructor(type){this.type=type}},location:{search:scope?'?breederId='+scope:''},
    BigPawAPI:{me:async()=>{calls.push('me');return {role}}},
@@ -67,10 +76,15 @@ function submit(sim){
    missing:['マイクロチップの有無'],warnings:['価格内訳：12万円＋1万円']};
  let s=await simulate();
  assert.strictEqual(s.panel.id,'bpFreeListingPanel');
+ for(const key of ['breed','gender','birth','price','desc'])assert.strictEqual(s.elements[key].requiredLabel.badge.textContent,'必須',key+' shows required badge');
+ assert.strictEqual(s.elements.photo.photoHeading.badge.textContent,'必須・1枚以上','photo requirement shown before submit');
  assert.strictEqual(s.calls.length,1,'only sign-in lookup, no AI network');
  importData(s,data);
  assert.strictEqual(s.elements.puppyName.value,'ヤンヤン');
  assert.strictEqual(s.elements.breed.value,'サモエド');
+ importData(s,{fields:{breed:'グレート・ピレニーズ',gender:'男の子',birth:'2026-09-07',price:280000,desc:'11月3日からお迎え可能'}});
+ assert.strictEqual(s.elements.breed.value,'グレートピレニーズ','middle dot in Great Pyrenees normalized');
+ importData(s,data);
  assert.strictEqual(s.elements.gender.value,'男の子');
  assert.strictEqual(s.elements.birth.value,'2024-09-04');
  assert.strictEqual(s.elements.price.value,'130000');
@@ -109,6 +123,12 @@ function submit(sim){
  s.parts.bpFreeReviewed.checked=true;
  e=submit(s);
  assert(e.prevented,'incomplete core fields cannot be published');
+ assert.strictEqual(s.elements.price['aria-invalid'],'true','missing price is marked invalid');
+ assert.strictEqual(s.elements.birth['aria-invalid'],'true','missing birth is marked invalid');
+ assert(s.elements.price.didScroll||s.elements.birth.didScroll||s.elements.gender.didScroll,'scrolls to missing required field');
+ assert.strictEqual(s.elements.price.style.border,'3px solid #c62828','missing price marked red');
+ assert.strictEqual(s.elements.price['aria-invalid'],'true','missing price accessible invalid state');
+ assert(s.elements.gender.didScroll,'first missing field brought into view');
  // malformed JSON must never mutate prior state
  s.parts.bpFreeJson.value='LINEの文章そのまま';
  s.parts.bpFreeImport.listeners.click();

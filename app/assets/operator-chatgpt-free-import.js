@@ -6,6 +6,39 @@
   if(!account||account.role!=='operator'||(typeof editId!=='undefined'&&editId))return;
   const scope=new URLSearchParams(location.search).get('breederId')||'';
   const form=document.querySelector('form');if(!form)return;
+  // Operator proxy is still a breeder-facing form: keep photo/video areas blue.
+  const blueStyle=document.createElement('style');
+  blueStyle.id='bpProxyPhotoBlue';
+  blueStyle.textContent='.bp-account-page .photo-box{background:#edf5ff!important;border-color:#5f8fc3!important;color:#244d78!important}.bp-account-page .photo-box .muted{color:#426582!important}';
+  if(document.head&&document.head.appendChild)document.head.appendChild(blueStyle);
+  // Explain required fields before the user attempts to publish.
+  const requiredNames={breed:'犬種',gender:'性別',birth:'生年月日',price:'価格（税込）',desc:'紹介文'};
+  // Required markers are guidance only; publishing guards still validate actual values.
+  const requiredStyle=document.createElement('style');
+  requiredStyle.textContent='.bp-required-mark{display:inline-block;margin-left:6px;color:#a82020;font-size:12px;font-weight:800}.bp-optional-mark{display:inline-block;margin-left:6px;color:#64748b;font-size:12px;font-weight:600}';
+  if(document.head&&document.head.appendChild)document.head.appendChild(requiredStyle);
+  for(const [key,label] of Object.entries(requiredNames)){
+    const input=document.getElementById(key);
+    const wrapper=input&&input.closest&&input.closest('.field');
+    const labelNode=wrapper&&wrapper.querySelector&&wrapper.querySelector('label');
+    if(!labelNode||labelNode.querySelector('.bp-required-mark'))continue;
+    const mark=document.createElement('span');
+    mark.className='bp-required-mark';
+    mark.textContent='必須';
+    labelNode.appendChild(mark);
+  }
+  const photoInput=document.getElementById('photo');
+  const photoBox=photoInput&&photoInput.closest&&photoInput.closest('.photo-box');
+  const photoHeading=photoBox&&photoBox.querySelector&&photoBox.querySelector('b');
+  if(photoHeading){
+    const mark=document.createElement('span');
+    mark.className='bp-required-mark';mark.textContent='必須・1枚以上';
+    photoHeading.appendChild(mark);
+  }
+  const reviewedHint=document.createElement('p');
+  reviewedHint.style.cssText='font-size:12px;color:#a82020;font-weight:700;margin:4px 0';
+  reviewedHint.textContent='※ 掲載には必須項目・写真1枚以上・内容確認のチェックが必要です。';
+  form.insertBefore(reviewedHint,form.querySelector('.stepbar')||form.firstChild);
   const panel=document.createElement('section');
   panel.id='bpFreeListingPanel';
   panel.style.cssText='border:2px solid #b9d5ed;background:#f3f9ff;border-radius:16px;padding:16px;margin:16px 0 20px;line-height:1.7';
@@ -80,7 +113,10 @@
       el.value=s;
     }else if(dropdowns.has(k)){
       const s=String(value).trim();
+      // Breeder messages often contain middle dots/spaces absent from breed labels.
+      const normalized=s.replace(/[・･\s　]/g,'');
       let option=[...el.options].find(o=>o.value===s||o.textContent===s);
+      if(!option&&k==='breed')option=[...el.options].find(o=>String(o.value||o.textContent).replace(/[・･\s　]/g,'')===normalized);
       if(!option&&s!=='未登録'&&(k==='father'||k==='mother')){
         option=new Option(s,s);el.add(option);
       }
@@ -157,10 +193,24 @@
     if(!reviewed.checked)problems.push('画面上部の「掲載先の犬舎、金額、文章、健康情報、写真を自分で確認しました」にチェックを入れてください。');
     return problems;
   }
+  function markRequired(problems){
+    const labels={breed:'犬種',gender:'性別',birth:'生年月日',price:'税込価格',desc:'紹介文'};
+    let first=null;
+    for(const [key,label] of Object.entries(labels)){
+      const el=target(key);if(!el)continue;
+      const missing=problems.includes(label+'が未入力です。');
+      el.style.border=missing?'3px solid #c62828':'';
+      el.style.backgroundColor=missing?'#fff0f0':'';
+      el.setAttribute('aria-invalid',missing?'true':'false');
+      if(missing&&!first)first=el;
+    }
+    return first;
+  }
   function verify(event){
     if(!imported)return false;  // Ordinary manual operator listing not changed.
     const problems=blockers();
     if(!problems.length){
+      markRequired([]);
       publishHint.textContent='';
       publishHint.style.display='none';
       return false;
@@ -172,7 +222,9 @@
     const txt='まだ掲載できません。次の内容を確認してね。\n・'+problems.join('\n・');
     publishHint.textContent=txt;
     publishHint.style.display='block';
+    const first=markRequired(problems);
     message(txt,true);
+    if(first)first.scrollIntoView({block:'center',behavior:'smooth'});
     return true;
   }
   if(publishButton)publishButton.addEventListener('click',verify,true);
@@ -186,5 +238,6 @@
       ?'掲載できない理由：\n・'+problems.join('\n・')
       :'必須項目を確認してください。赤枠などで示された項目を修正してね。';
     publishHint.style.display='block';
+    markRequired(problems);
   },true);
 })();
