@@ -57,6 +57,8 @@ class MockStream:
             return f'testvideo{self.counter:02d}abcdefgh'
 
     def details(self,uid):
+        if uid=='notuploaded1':
+            return {'uid':uid,'duration':None,'readyToStream':False,'status':{'state':'pendingupload'},'meta':{'puppyId':'p1'}}
         if uid=='exact60video1':
             return {'uid':uid,'duration':60.0,'readyToStream':True,'status':{'state':'ready'},'meta':{'puppyId':'p1'}}
         if uid=='slightlylong1':
@@ -182,6 +184,11 @@ def main():
                 check('frame-src' in csp and 'cloudflarestream.com' in csp,'CSP allows Stream iframe')
                 check('https://videodelivery.net' in csp,'CSP allows Stream fallback domain without subdomain')
                 check('connect-src' in csp and 'videodelivery.net' in csp,'CSP allows direct Stream upload')
+
+                # An issued upload ticket without uploaded bytes cannot appear saved.
+                pending=call(base,'POST','/api/puppies/p1/video',{'uid':'notuploaded1'},breeder,409)
+                check(pending['error']=='video_upload_not_received','unused Stream upload ticket rejected')
+                check(call(base,'GET','/api/puppies/p1')['videoUid']==ticket['uid'],'rejecting pending upload preserves existing video')
 
                 exact=call(base,'POST','/api/puppies/p1/video',{'uid':'exact60video1'},operator,201)
                 check(exact['videoUid']=='exact60video1','backend accepts exactly 60.0-second video')
