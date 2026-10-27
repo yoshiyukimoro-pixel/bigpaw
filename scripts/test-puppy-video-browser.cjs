@@ -140,7 +140,9 @@ async function run(engine,name,contextOptions,launchOptions={}){
     await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='掲載内容を編集',null,{timeout:15000});
     await page.setInputFiles('#puppyVideo',shortVideo);
-    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画をCloudflareへ送信中'),null,{timeout:15000});
+    // A small file may skip straight from preparing to received; the durable
+    // race invariant is that Save is disabled immediately on file selection.
+    await page.waitForFunction(()=>document.querySelector('.btn-main.btn-wide')?.disabled===true,null,{timeout:15000});
     check(await page.locator('.btn-main.btn-wide').isDisabled(),name+': Save must be disabled while iPhone video is still uploading');
     await page.waitForTimeout(400);
     check(page.url().includes('breeder-puppy-new.html?id=p1'),name+': editor navigated before upload receipt');
