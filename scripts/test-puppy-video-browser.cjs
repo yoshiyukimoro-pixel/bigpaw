@@ -79,11 +79,16 @@ async function run(engine,name,contextOptions,launchOptions={}){
     await page.route('**/api/puppies/p1/video-upload',async route=>{
       ticketCount+=1;
       await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
-        uid,uploadURL:base+'/mock-stream-direct-upload',maxSeconds:60
+        uid,uploadURL:'https://upload.videodelivery.net/mock-stream-direct-upload',maxSeconds:60
       })});
     });
-    await page.route('**/mock-stream-direct-upload',async route=>{
-      await route.fulfill({status:200,body:'{}'});
+    let uploadCount=0;
+    await page.route('https://upload.videodelivery.net/mock-stream-direct-upload',async route=>{
+      uploadCount+=1;
+      // Real Stream receives video across origins. Simulate a successful upload
+      // without Access-Control-Allow-Origin: browser must not rely on readable CORS.
+      check(route.request().method()==='POST',name+': Stream upload must POST');
+      await route.fulfill({status:200,contentType:'text/plain',body:'uploaded'});
     });
     await page.route('**/api/puppies/p1/video',async route=>{
       attachCount+=1;
@@ -97,7 +102,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
     await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='掲載内容を編集',null,{timeout:15000});
     await page.setInputFiles('#puppyVideo',shortVideo);
     await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:15000});
-    check(ticketCount===1&&attachCount===1,name+': selection must trigger one upload and attach without Save');
+    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': cross-origin no-cors upload must reach Stream and attach once');
     check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
     await page.reload({waitUntil:'domcontentloaded'});
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
