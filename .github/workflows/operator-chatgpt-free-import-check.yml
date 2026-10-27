@@ -5,7 +5,6 @@ on:
     branches:
       - feat/operator-free-chatgpt-import-20261015
       - fix/free-import-submit-feedback-20261015
-      - fix/proxy-listing-validation-blue-20261027
   pull_request:
     branches:
       - main
