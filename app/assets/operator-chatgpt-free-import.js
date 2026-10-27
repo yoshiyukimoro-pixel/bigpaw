@@ -11,6 +11,33 @@
   blueStyle.id='bpProxyPhotoBlue';
   blueStyle.textContent='.bp-account-page .photo-box{background:#edf5ff!important;border-color:#5f8fc3!important;color:#244d78!important}.bp-account-page .photo-box .muted{color:#426582!important}';
   if(document.head&&document.head.appendChild)document.head.appendChild(blueStyle);
+  // Explain required fields before the user attempts to publish.
+  const requiredNames={breed:'犬種',gender:'性別',birth:'生年月日',price:'価格（税込）',desc:'紹介文'};
+  const requiredStyle=document.createElement('style');
+  requiredStyle.textContent='.bp-required-mark{display:inline-block;margin-left:6px;color:#a82020;font-size:12px;font-weight:800}.bp-optional-mark{display:inline-block;margin-left:6px;color:#64748b;font-size:12px;font-weight:600}';
+  if(document.head&&document.head.appendChild)document.head.appendChild(requiredStyle);
+  for(const [key,label] of Object.entries(requiredNames)){
+    const input=document.getElementById(key);
+    const wrapper=input&&input.closest&&input.closest('.field');
+    const labelNode=wrapper&&wrapper.querySelector&&wrapper.querySelector('label');
+    if(!labelNode||labelNode.querySelector('.bp-required-mark'))continue;
+    const mark=document.createElement('span');
+    mark.className='bp-required-mark';
+    mark.textContent='必須';
+    labelNode.appendChild(mark);
+  }
+  const photoInput=document.getElementById('photo');
+  const photoBox=photoInput&&photoInput.closest&&photoInput.closest('.photo-box');
+  const photoHeading=photoBox&&photoBox.querySelector&&photoBox.querySelector('b');
+  if(photoHeading){
+    const mark=document.createElement('span');
+    mark.className='bp-required-mark';mark.textContent='必須・1枚以上';
+    photoHeading.appendChild(mark);
+  }
+  const reviewedHint=document.createElement('p');
+  reviewedHint.style.cssText='font-size:12px;color:#a82020;font-weight:700;margin:4px 0';
+  reviewedHint.textContent='※ 掲載には必須項目・写真1枚以上・内容確認のチェックが必要です。';
+  form.insertBefore(reviewedHint,form.querySelector('.stepbar')||form.firstChild);
   const panel=document.createElement('section');
   panel.id='bpFreeListingPanel';
   panel.style.cssText='border:2px solid #b9d5ed;background:#f3f9ff;border-radius:16px;padding:16px;margin:16px 0 20px;line-height:1.7';
