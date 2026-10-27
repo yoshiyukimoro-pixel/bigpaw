@@ -136,8 +136,13 @@ async function run(engine,name,contextOptions,launchOptions={}){
         return;
       }
       attachCount+=1;
+      // Reproduce the actual iPhone incident: the server has committed the
+      // video, but Safari loses the POST acknowledgement ("Load failed"/499).
+      // The next authenticated GET must find this exact UID and show success,
+      // without a second upload or false red "保存できませんでした".
       attachedUid=uid;
-      await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
+      if(attachCount===1){await route.abort('failed');return;}
+      await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
         id:'p1',videoUid:uid,videoStatus:'ready',
         videoEmbedUrl:'https://videodelivery.net/'+uid+'/iframe'
       })});
@@ -190,7 +195,9 @@ async function run(engine,name,contextOptions,launchOptions={}){
       JSON.stringify(byteProbe.prefix)===JSON.stringify([...shortVideo.buffer.slice(0,16)]),
       name+': iPhone Blob handed to tus fetch does not contain the source video bytes');
     check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': Save must be enabled after video is really attached');
-    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': resumable tus upload must reach Stream and attach once');
+    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': lost POST response must recover by exact-UID readback with no duplicate upload');
+    check(!((await page.locator('#puppyVideoStatus').innerText()).includes('動画を保存できませんでした')),
+      name+': red false failure shown for already persisted video after Safari Load failed');
     await page.waitForFunction(()=>document.querySelector('#puppyVideoPlayback')?.textContent.includes('再生できるようになるまで準備中'),null,{timeout:10000});
     check(await page.locator('#puppyVideoExisting iframe').count()===0,name+': editor iframe appeared before Stream readyToStream');
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
