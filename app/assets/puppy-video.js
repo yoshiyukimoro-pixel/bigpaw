@@ -208,7 +208,7 @@
     }
     selected=null;
     cleanupObjectUrls();
-    const input=$('puppyVideo');if(input)input.value='';
+    if(input)input.value='';
     setPreview('');
     renderExisting(puppy);
     setStatus('動画を登録しました。');
