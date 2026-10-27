@@ -2,6 +2,7 @@
   'use strict';
   let cachedVideo=null;
   let rerenderTimer=0;
+  let attempts=0;
 
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
@@ -30,8 +31,11 @@
       let p=cachedVideo;
       if(!p){
         p=await BigPawBridge.puppy(id);
-        if(!p||!p.videoEmbedUrl)return false;
-        cachedVideo={id:p.id||id,videoEmbedUrl:p.videoEmbedUrl};
+        if(!p)return false;
+        const uid=String(p.videoUid||'');
+        const embed=String(p.videoEmbedUrl||(uid&&/^[A-Za-z0-9_-]{8,64}$/.test(uid)?'https://videodelivery.net/'+uid+'/iframe':''));
+        if(!embed)return false;
+        cachedVideo={id:p.id||id,videoEmbedUrl:embed};
       }
       return insert(cachedVideo);
     }catch(e){
@@ -59,6 +63,7 @@
       watch();
       schedule(250);
       setTimeout(()=>schedule(0),900);
+      [2000,5000,10000].forEach(ms=>setTimeout(()=>schedule(0),ms));
     });
   }else{
     watch();
