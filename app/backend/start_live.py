@@ -168,6 +168,17 @@ def run_one_time_operator_mail_probe() -> None:
         print('BIGPAW_MAIL_TEST|result=probe_exception|kind=' + type(exc).__name__, flush=True)
 
 
+def check_cloudflare_stream_once() -> None:
+    """Run a single isolated connection check without exposing API credentials."""
+    try:
+        subprocess.run(
+            [sys.executable, str(ROOT / 'backend' / 'cloudflare_stream_probe.py')],
+            cwd=str(ROOT), timeout=40, check=False, env=os.environ.copy(),
+        )
+    except Exception as exc:
+        print('BIGPAW_STREAM_PROBE|result=probe_exception|kind=' + type(exc).__name__, flush=True)
+
+
 def main() -> int:
     heal_search('pre_server_start')
     child = subprocess.Popen([sys.executable, str(ROOT / 'backend' / 'server.py')], cwd=str(ROOT), env=os.environ.copy())
@@ -183,6 +194,9 @@ def main() -> int:
     signal.signal(signal.SIGINT, forward)
     verifier = threading.Thread(target=delayed_verify, daemon=True)
     verifier.start()
+    if os.environ.get('BIGPAW_CLOUDFLARE_STREAM_ACCOUNT_ID') and os.environ.get('BIGPAW_CLOUDFLARE_STREAM_API_TOKEN'):
+        stream_probe = threading.Thread(target=check_cloudflare_stream_once, daemon=True)
+        stream_probe.start()
     if os.environ.get('RESEND_API_KEY'):
         delivery_audit = threading.Thread(target=audit_operator_delivery_events, daemon=True)
         delivery_audit.start()
