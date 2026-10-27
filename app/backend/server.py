@@ -576,17 +576,19 @@ def valid_image_bytes(raw: bytes, mime: str) -> bool:
     return False
 
 def stream_configured():
-    return bool(CLOUDFLARE_STREAM_ACCOUNT_ID and CLOUDFLARE_STREAM_API_TOKEN and CLOUDFLARE_STREAM_CUSTOMER_CODE)
+    return bool(CLOUDFLARE_STREAM_ACCOUNT_ID and CLOUDFLARE_STREAM_API_TOKEN)
 
 def stream_embed_url(uid):
     uid=str(uid or '').strip()
-    if not uid or not CLOUDFLARE_STREAM_CUSTOMER_CODE: return ''
-    return f"https://customer-{CLOUDFLARE_STREAM_CUSTOMER_CODE}.cloudflarestream.com/{quote(uid,safe='')}/iframe"
+    if not uid: return ''
+    host = f'customer-{CLOUDFLARE_STREAM_CUSTOMER_CODE}.cloudflarestream.com' if CLOUDFLARE_STREAM_CUSTOMER_CODE else 'videodelivery.net'
+    return f"https://{host}/{quote(uid,safe='')}/iframe"
 
 def stream_thumbnail_url(uid):
     uid=str(uid or '').strip()
-    if not uid or not CLOUDFLARE_STREAM_CUSTOMER_CODE: return ''
-    return f"https://customer-{CLOUDFLARE_STREAM_CUSTOMER_CODE}.cloudflarestream.com/{quote(uid,safe='')}/thumbnails/thumbnail.jpg"
+    if not uid: return ''
+    host = f'customer-{CLOUDFLARE_STREAM_CUSTOMER_CODE}.cloudflarestream.com' if CLOUDFLARE_STREAM_CUSTOMER_CODE else 'videodelivery.net'
+    return f"https://{host}/{quote(uid,safe='')}/thumbnails/thumbnail.jpg"
 
 def stream_api_json(method, path, payload=None):
     if not CLOUDFLARE_STREAM_ACCOUNT_ID or not CLOUDFLARE_STREAM_API_TOKEN:
