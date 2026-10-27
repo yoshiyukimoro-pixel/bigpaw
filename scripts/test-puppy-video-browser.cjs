@@ -85,26 +85,28 @@ async function run(engine,name,contextOptions,launchOptions={}){
       ):data;
       await route.fulfill({response:upstream,json:updated});
     });
-    await page.route('**/api/puppies/p1/video-upload',async route=>{
+    await page.route('**/api/puppies/p1/video-tus-upload',async route=>{
       ticketCount+=1;
       await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
-        uid,uploadURL:'https://upload.cloudflarestream.com/mock-stream-direct-upload',maxSeconds:60
+        uid,uploadURL:'https://upload.cloudflarestream.com/tus/mock-stream-direct-upload',maxSeconds:60,protocol:'tus'
       })});
     });
     let uploadCount=0;
-    await page.route('https://upload.cloudflarestream.com/mock-stream-direct-upload',async route=>{
-      // Reproduce the real iPhone 4G timing: the form is still uploading
-      // when the breeder tries to save ordinary puppy fields.
+    await page.route('https://upload.cloudflarestream.com/tus/mock-stream-direct-upload',async route=>{
+      // Cloudflare's resumable upload is a direct binary PATCH to an origin
+      // outside BIG PAW, with response offset proving real bytes were sent.
+      const req=route.request();
+      check(req.method()==='PATCH',name+': Stream tus upload must PATCH');
+      const body=req.postDataBuffer();
+      check((req.headers()['content-type']||'').includes('application/offset+octet-stream'),name+': tus binary type missing');
+      check(req.headers()['tus-resumable']==='1.0.0',name+': tus protocol header missing');
+      check(body&&body.length===shortVideo.buffer.length,name+': transmitted file bytes missing from tus request');
       await new Promise(resolve=>setTimeout(resolve,2300));
       uploadCount+=1;
-      const req=route.request();
-      // Verify real native form file bytes, not just that a ticket was issued.
-      check(req.method()==='POST',name+': Stream upload must POST');
-      const body=req.postDataBuffer();
-      check((req.headers()['content-type']||'').includes('multipart/form-data'),name+': expected native multipart form');
-      check(body&&body.includes(Buffer.from('name="file"'))&&body.includes(Buffer.from('short.webm'))&&body.length>100,
-        name+': native Safari upload did not include video file bytes');
-      await route.fulfill({status:200,contentType:'text/plain',body:'uploaded'});
+      await route.fulfill({status:204,headers:{
+        'Access-Control-Allow-Origin':'*','Access-Control-Expose-Headers':'Upload-Offset',
+        'Tus-Resumable':'1.0.0','Upload-Offset':String(shortVideo.buffer.length)
+      },body:''});
     });
     await page.route('**/api/puppies/p1/video',async route=>{
       if(!uploadCount){
@@ -122,14 +124,14 @@ async function run(engine,name,contextOptions,launchOptions={}){
     await page.goto(base+'/breeder-puppy-new.html?id=p1',{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='掲載内容を編集',null,{timeout:15000});
     await page.setInputFiles('#puppyVideo',shortVideo);
-    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('Cloudflareへ動画を送信中'),null,{timeout:15000});
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('Cloudflareへ動画を'),null,{timeout:15000});
     check(await page.locator('.btn-main.btn-wide').isDisabled(),name+': Save must be disabled while iPhone video is still uploading');
     await page.waitForTimeout(400);
     check(page.url().includes('breeder-puppy-new.html?id=p1'),name+': editor navigated before upload receipt');
     check(!uploadCount&&!attachCount,name+': mock must still be uploading before receipt');
     await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:20000});
     check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': Save must be enabled after video is really attached');
-    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': native multipart upload must reach Stream and attach once');
+    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': resumable tus upload must reach Stream and attach once');
     check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
     await page.reload({waitUntil:'domcontentloaded'});
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
