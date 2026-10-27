@@ -93,9 +93,25 @@ async function run(engine,name,contextOptions,launchOptions={}){
     });
     let uploadCount=0;
     await page.route('https://upload.cloudflarestream.com/tus/mock-stream-direct-upload',async route=>{
+      const req=route.request();
+      // Cross-origin PATCH requires CORS preflight on Chromium and Safari.
+      // Cloudflare accepts tus headers; the fixture must do the same.
+      if(req.method()==='OPTIONS'){
+        return route.fulfill({status:204,headers:{
+          'Access-Control-Allow-Origin':'*',
+          'Access-Control-Allow-Methods':'PATCH,HEAD,OPTIONS',
+          'Access-Control-Allow-Headers':'tus-resumable,upload-offset,content-type',
+          'Access-Control-Max-Age':'600'
+        }});
+      }
+      if(req.method()==='HEAD'){
+        return route.fulfill({status:200,headers:{
+          'Access-Control-Allow-Origin':'*','Access-Control-Expose-Headers':'Upload-Offset',
+          'Tus-Resumable':'1.0.0','Upload-Offset':String(uploadCount?shortVideo.buffer.length:0)
+        }});
+      }
       // Cloudflare's resumable upload is a direct binary PATCH to an origin
       // outside BIG PAW, with response offset proving real bytes were sent.
-      const req=route.request();
       check(req.method()==='PATCH',name+': Stream tus upload must PATCH');
       const body=req.postDataBuffer();
       check((req.headers()['content-type']||'').includes('application/offset+octet-stream'),name+': tus binary type missing');
@@ -129,7 +145,14 @@ async function run(engine,name,contextOptions,launchOptions={}){
     await page.waitForTimeout(400);
     check(page.url().includes('breeder-puppy-new.html?id=p1'),name+': editor navigated before upload receipt');
     check(!uploadCount&&!attachCount,name+': mock must still be uploading before receipt');
-    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:20000});
+    try{
+      await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:20000});
+    }catch(e){
+      const status=await page.locator('#puppyVideoStatus').innerText().catch(()=>'-');
+      throw new Error(name+': tus upload did not finish: status='+status+
+        ' tickets='+ticketCount+' patches='+uploadCount+' attaches='+attachCount+
+        ' browserErrors='+errors.slice(-4).join('; ')+' error='+e.message);
+    }
     check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': Save must be enabled after video is really attached');
     check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': resumable tus upload must reach Stream and attach once');
     check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
