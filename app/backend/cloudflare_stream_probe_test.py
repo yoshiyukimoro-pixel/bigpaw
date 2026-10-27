@@ -50,6 +50,7 @@ def run():
             return FakeResponse({"success":True,"result":None})
         got=probe_once(env,granted,printed.append)
         assert got["result"]=="ticket_created" and got["ticket_deleted"] is True
+        assert got["upload_host"]=="upload.videodelivery.net" and got["upload_scheme"]=="https"
         assert len(calls)==2
         assert "hidden" not in str(printed)
     print("BIGPAW_STREAM_DIAGNOSTIC_TEST_OK|403_sanitized|once_only|ticket_deleted")
