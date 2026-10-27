@@ -166,11 +166,15 @@
     form.style.display='none';
     const marker=document.createComment('bigpaw-video-input-slot');
     const originalName=input.name;
+    const originalDisabled=input.disabled;
     input.parentNode.insertBefore(marker,input);
     document.body.appendChild(frame);
     document.body.appendChild(form);
     form.appendChild(input);
     input.name='file';
+    // Disabled form fields are omitted from multipart submissions. The file
+    // picker is temporarily inside the hidden form and cannot be reselected.
+    input.disabled=false;
     try{
       form.submit();
       setStatus('Cloudflareへ動画を送信中です。完了するまで画面を閉じずにお待ちください…');
@@ -191,6 +195,7 @@
       }
     }finally{
       input.name=originalName;
+      input.disabled=originalDisabled;
       if(marker.parentNode)marker.parentNode.replaceChild(input,marker);
       form.remove();
       frame.remove();
