@@ -54,7 +54,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
     const source=require('fs').readFileSync('app/assets/puppy-video.js','utf8');
     const acceptedHosts=source.includes("'upload.cloudflarestream.com','upload.videodelivery.net'") &&
       source.includes("target.protocol!=='https:'") &&
-      source.includes('target.username || target.password');
+      source.includes('target.username||target.password');
     check(acceptedHosts,name+': strict allowlist missing actual Cloudflare upload host');
 
     console.log('VIDEO_BROWSER_STAGE',name,'overlong');
