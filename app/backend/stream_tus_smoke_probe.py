@@ -63,6 +63,13 @@ def run(env=None,fetch=urlopen,out=print):
             if state and state!='pendingupload':
                 result['phase']='processed_or_queued'
                 result['state']=state if state in ('queued','inprogress','ready','error','downloading') else 'other'
+                if state=='ready':
+                    try:
+                        with fetch(Request('https://videodelivery.net/'+quote(uid,safe='')+'/iframe',
+                             method='GET'),timeout=15) as player:
+                            result['player_http_ok']=(player.status==200)
+                    except Exception:
+                        result['player_http_ok']=False
                 break
             time.sleep(1)
         if result['phase']=='bytes_received':result['phase']='processing_not_yet_visible'
