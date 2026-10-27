@@ -112,6 +112,9 @@ function submit(sim){
  s.parts.bpFreeReviewed.checked=true;
  e=submit(s);
  assert(e.prevented,'incomplete core fields cannot be published');
+ assert.strictEqual(s.elements.price.style.border,'3px solid #c62828','missing price marked red');
+ assert.strictEqual(s.elements.price['aria-invalid'],'true','missing price accessible invalid state');
+ assert(s.elements.price.didScroll,'first missing field brought into view');
  // malformed JSON must never mutate prior state
  s.parts.bpFreeJson.value='LINEの文章そのまま';
  s.parts.bpFreeImport.listeners.click();
