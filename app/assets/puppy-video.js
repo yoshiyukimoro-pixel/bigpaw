@@ -149,7 +149,8 @@
     // The hidden frame is NOT evidence of success; only the authenticated
     // Cloudflare status check on the server can confirm delivery.
     const input=$('puppyVideo');
-    if(!input||!input.files||!input.files.length||input.files[0]!==file){
+    if(!input||!input.files||!input.files.length||
+       input.files[0].size!==file.size||input.files[0].name!==file.name){
       throw new Error('送信する動画ファイルを確認できません。もう一度選択してください。');
     }
     const frame=document.createElement('iframe');
