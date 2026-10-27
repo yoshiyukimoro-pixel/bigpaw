@@ -259,7 +259,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
       await window.BigPawPuppyVideoPublic.render();
       const frame=document.querySelector('#bigpawPuppyVideoSection iframe');
       const slot=document.getElementById('bigpawPuppyVideoSlot');
-      const gallery=document.getElementById('bigpawRealGallery')||document.querySelector('.gallery');
+      const gallery=document.getElementById('bigpawStableGallery')||document.getElementById('bigpawRealGallery')||document.querySelector('.gallery');
       const info=document.querySelector('main .section');
       const video=document.getElementById('bigpawPuppyVideoSection');
       return {
