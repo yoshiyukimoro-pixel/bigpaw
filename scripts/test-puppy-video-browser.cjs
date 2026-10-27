@@ -116,7 +116,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
       const body=req.postDataBuffer();
       check((req.headers()['content-type']||'').includes('application/offset+octet-stream'),name+': tus binary type missing');
       check(req.headers()['tus-resumable']==='1.0.0',name+': tus protocol header missing');
-      check(body&&body.length===shortVideo.buffer.length,name+': transmitted file bytes missing from tus request');
+      check(body&&body.length===shortVideo.buffer.length,name+': transmitted file bytes missing from tus request: actual='+(body?body.length:'null')+' expected='+shortVideo.buffer.length+' method='+req.method()+' contentLength='+(req.headers()['content-length']||'absent'));
       await new Promise(resolve=>setTimeout(resolve,2300));
       uploadCount+=1;
       await route.fulfill({status:204,headers:{
