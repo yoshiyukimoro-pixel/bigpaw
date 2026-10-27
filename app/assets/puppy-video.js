@@ -130,8 +130,6 @@
     setStatus('動画のアップロードを準備しています…');
     const ticket=await BigPawAPI.createPuppyVideoUpload(currentPuppyId,{fileName:file.name||'puppy-video',fileSize:file.size});
     if(!ticket||!ticket.uid||!ticket.uploadURL)throw new Error('video_upload_ticket_missing');
-    const fd=new FormData();
-    fd.append('file',file,file.name||'puppy-video');
     setStatus('動画をアップロードしています…');
     // Stream's one-time upload endpoint can omit CORS response headers on iPhone.
     // A no-cors POST still sends the video directly to Cloudflare (never Railway);
@@ -145,24 +143,62 @@
        target.username || target.password){
       throw new Error('動画の送信先を確認できませんでした。');
     }
-    try{
-      const response=await fetch(ticket.uploadURL,{method:'POST',body:fd,mode:'no-cors',credentials:'omit'});
-      if(response.type!=='opaque'&&!response.ok)throw new Error('HTTP '+response.status);
-    }catch(e){
-      throw new Error('Cloudflareへの動画送信に失敗しました。通信状態を確認して、もう一度お試しください。');
+    // Safari sometimes fails to deliver the File from a cross-origin fetch.
+    // Use the browser's native multipart/form-data HTML upload to the genuine
+    // one-time Cloudflare Stream endpoint. No video bytes pass through Railway.
+    // The hidden frame is NOT evidence of success; only the authenticated
+    // Cloudflare status check on the server can confirm delivery.
+    const input=$('puppyVideo');
+    if(!input||!input.files||!input.files.length||
+       input.files[0].size!==file.size||input.files[0].name!==file.name){
+      throw new Error('送信する動画ファイルを確認できません。もう一度選択してください。');
     }
-    setStatus('Cloudflareへの送信を確認しています…');
-    // Never attach or report saved while Cloudflare still says "pendingupload".
-    // Processing after actual receipt is allowed; the public player can wait.
-    for(let attempt=0;attempt<12;attempt++){
-      try{
-        await BigPawAPI.attachPuppyVideo(currentPuppyId,ticket.uid);
-        break;
-      }catch(e){
-        if(!e.data||e.data.error!=='video_upload_not_received')throw e;
-        if(attempt===11)throw new Error('動画の受信を確認できませんでした。通信状態を確認して、もう一度お試しください。');
-        await new Promise(resolve=>setTimeout(resolve,1500));
+    const frame=document.createElement('iframe');
+    const frameName='bigpaw-stream-upload-'+Date.now()+'-'+Math.floor(Math.random()*100000);
+    frame.name=frameName;
+    frame.setAttribute('aria-hidden','true');
+    frame.style.display='none';
+    const form=document.createElement('form');
+    form.method='POST';
+    form.enctype='multipart/form-data';
+    form.action=target.href;
+    form.target=frameName;
+    form.style.display='none';
+    const marker=document.createComment('bigpaw-video-input-slot');
+    const originalName=input.name;
+    const originalDisabled=input.disabled;
+    input.parentNode.insertBefore(marker,input);
+    document.body.appendChild(frame);
+    document.body.appendChild(form);
+    form.appendChild(input);
+    input.name='file';
+    // Disabled form fields are omitted from multipart submissions. The file
+    // picker is temporarily inside the hidden form and cannot be reselected.
+    input.disabled=false;
+    try{
+      form.submit();
+      setStatus('Cloudflareへ動画を送信中です。完了するまで画面を閉じずにお待ちください…');
+      // An upload on 4G can take more than a minute. The server returns 409
+      // until Stream has actually received the bytes. Never present success
+      // based solely on the temporary local video preview.
+      for(let attempt=0;attempt<90;attempt++){
+        if(attempt>0)await new Promise(resolve=>setTimeout(resolve,2000));
+        try{
+          await BigPawAPI.attachPuppyVideo(currentPuppyId,ticket.uid);
+          break;
+        }catch(e){
+          if(!e.data||e.data.error!=='video_upload_not_received')throw e;
+          if(attempt===89){
+            throw new Error('Cloudflareで動画の受信を確認できませんでした。保存されていないため、通信状況を確認して再度お試しください。');
+          }
+        }
       }
+    }finally{
+      input.name=originalName;
+      input.disabled=originalDisabled;
+      if(marker.parentNode)marker.parentNode.replaceChild(input,marker);
+      form.remove();
+      frame.remove();
     }
     // Do not claim success until the video UID is read back from the database.
     const puppies=await BigPawAPI.breederPuppies();
@@ -172,7 +208,7 @@
     }
     selected=null;
     cleanupObjectUrls();
-    const input=$('puppyVideo');if(input)input.value='';
+    if(input)input.value='';
     setPreview('');
     renderExisting(puppy);
     setStatus('動画を登録しました。');
