@@ -11,14 +11,19 @@
     if(!p||!p.videoEmbedUrl)return false;
     const section=document.createElement('section');
     section.id='bigpawPuppyVideoSection';
-    section.className='detailsection';
-    section.style.marginTop='20px';
+    // The public video belongs after the photo gallery, before the puppy
+    // information/title card. Keep video transport, UID, and player untouched.
+    section.className='card pad bigpaw-video-feature';
+    section.style.cssText='margin:0 0 20px;width:100%;box-sizing:border-box';
     section.innerHTML='<h2>動画</h2><p class="muted" style="margin-top:-4px">この子の様子を動画でご覧いただけます。</p><div style="aspect-ratio:16/9;width:100%;background:#111;border-radius:16px;overflow:hidden"><iframe src="'+esc(p.videoEmbedUrl)+'" title="子犬の動画" loading="lazy" style="width:100%;height:100%;border:0;display:block" allow="accelerometer; gyroscope; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';
-    const more=document.getElementById('bigpawDetailMore');
-    if(more)more.insertBefore(section,more.firstChild);
-    else{
-      const main=document.querySelector('main')||document.body;
-      main.appendChild(section);
+    const slot=document.getElementById('bigpawPuppyVideoSlot');
+    if(slot){
+      slot.appendChild(section);
+    }else{
+      // Backward-compatible placement if the older HTML is cached.
+      const gallery=document.getElementById('bigpawRealGallery')||document.querySelector('.gallery');
+      if(gallery)gallery.insertAdjacentElement('afterend',section);
+      else return false;
     }
     return true;
   }
