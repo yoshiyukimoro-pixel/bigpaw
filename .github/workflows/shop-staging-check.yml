@@ -1,0 +1,28 @@
+name: BIG PAW dog food catalog staging safety
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - 'app/shop.html'
+      - 'scripts/test-shop-staging.py'
+      - 'scripts/test-shop-staging.cjs'
+      - '.github/workflows/shop-staging-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-and-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert catalog size and prevent checkout
+        run: python3 scripts/test-shop-staging.py
+      - name: Test Chromium and iPhone Safari/WebKit with no production requests
+        run: |
+          timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs'
