@@ -1770,13 +1770,35 @@ https://www.bigpaw.site/'''
             qid=make_id('q_'); con.execute('''INSERT INTO inquiries(id,puppy_id,buyer_id,breeder_id,name,email,phone,preferred_date,message,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)''',
                 (qid,puppy_id,u['id'],p['breeder_id'],body.get('name',(u['last']+' '+u['first']).strip()),body.get('email',u['email']),body.get('phone',''),body.get('preferredDate',''),body.get('message',''),'未返信',now()))
             breeder_email=None
+            breeder_name=p['breeder_name'] or '未登録の犬舎'
             if p['breeder_id']:
-                br=con.execute('SELECT user_id FROM breeders WHERE id=?',(p['breeder_id'],)).fetchone()
+                br=con.execute('SELECT user_id,kennel_name FROM breeders WHERE id=?',(p['breeder_id'],)).fetchone()
                 if br:
+                    breeder_name=br['kennel_name'] or breeder_name
                     con.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',(make_id('n_'),br['user_id'],'inquiry','新しい問い合わせ',f"{p['name']}に問い合わせが届きました",0,now()))
                     bu=con.execute('SELECT email FROM users WHERE id=?',(br['user_id'],)).fetchone(); breeder_email=bu['email'] if bu else None
+            for op in con.execute("SELECT id FROM users WHERE role='operator'").fetchall():
+                con.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',(
+                    make_id('n_'),op['id'],'inquiry','新しい子犬問い合わせ',
+                    f"{breeder_name} / {p['name']} に問い合わせが届きました",0,now()))
             con.commit(); con.close()
             if breeder_email: send_mail(breeder_email,'BIG PAW 新しい問い合わせ',f"{p['name']}に新しい問い合わせが届きました。\n\n{PUBLIC_BASE_URL}/breeder-inquiries.html")
+            # One operator mail per saved inquiry, independent of the number of operator accounts.
+            # Do not expose the buyer's private contact details in email.
+            operator_mail_body=(
+                f"BIG PAWに新しい子犬の問い合わせが届きました。\n\n"
+                f"犬舎：{breeder_name}\n"
+                f"子犬：{p['name']}\n"
+                f"問い合わせ番号：{qid}\n\n"
+                f"運営管理画面で内容をご確認ください。\n"
+                f"{PUBLIC_BASE_URL}/messages.html?mode=operator&inquiry={qid}"
+            )
+            try:
+                if not send_mail('info@bigpaw.site','BIG PAW 子犬への新しい問い合わせ（運営通知）',operator_mail_body):
+                    print('OPERATOR_INQUIRY_MAIL|result=failed|inquiry='+qid,flush=True)
+            except Exception as exc:
+                # The buyer must still receive a successful response after a committed inquiry.
+                print('OPERATOR_INQUIRY_MAIL|result=exception|kind='+type(exc).__name__,flush=True)
             return self.send_json({'id':qid,'status':'未返信'},201)
         m=re.fullmatch(r'/api/favorites/([^/]+)',path)
         if m:
