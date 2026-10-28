@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const {chromium,webkit}=require('playwright');
 const BASE='http://127.0.0.1:18087';
-const oldRequest='オンライン見学を希望\n第1希望 2026-11-01 14:00';
+const oldRequest='オンライン見学を希望（LINE・FaceTimeなど）\n第1希望 2026-11-01 14:00\n第2希望 2026-11-02 11:30';
 const fixture=(message,kind)=>({id:'q_test',puppy_id:'p_test',name:'テスト購入者',puppy_name:'テスト子犬',breeder_name:'犬舎',status:'未返信',preferred_date:kind==='inperson'?'2026-11-01':'',message});
 async function stub(page,inquiry){
  const posts=[];
@@ -12,7 +12,7 @@ async function stub(page,inquiry){
    let value,code=200;
    if(path==='/api/puppies/p_test')value={id:'p_test',name:'テスト子犬',breed:'スタンダードプードル',color:'ブラック',gender:'男の子',breeder:'犬舎'};
    else if(path==='/api/me')value={id:'u_test',role:'buyer',email:'buyer@example.test'};
-   else if(path==='/api/inquiries'&&method==='GET')value=[inquiry||fixture('オンラインでの相談を希望（LINE・FaceTimeなど）','online')];
+   else if(path==='/api/inquiries'&&method==='GET')value=[inquiry||fixture(oldRequest,'online')];
    else if(path==='/api/inquiries'&&method==='POST')value={id:'q_test'};
    else if(path==='/api/inquiries/q_test/messages')value=[];
    else if(path==='/api/health')value={ok:true,videoConfigured:false};
@@ -30,9 +30,13 @@ async function buyer(browser,name){
  await page.goto(BASE+'/inquiry.html?id=p_test');
  await page.waitForFunction(()=>document.querySelector('#puppyLabel')?.textContent.includes('犬舎'));
  const online=page.locator('#kind');
- await online.selectOption({label:'オンラインでの相談を希望（LINE・FaceTimeなど）'});
- assert.equal(await page.locator('#visitDateField1').isVisible(),false);
- assert.equal(await page.locator('#visitDateField2').isVisible(),false);
+ await online.selectOption({label:'オンライン見学を希望（LINE・FaceTimeなど）'});
+ assert.equal(await page.locator('#visitDateField1').isVisible(),true);
+ assert.equal(await page.locator('#visitDateField2').isVisible(),true);
+ await page.locator('#date1').fill('2026-11-01');
+ await page.locator('#preferredTime1').fill('14:00');
+ await page.locator('#date2').fill('2026-11-02');
+ await page.locator('#preferredTime2').fill('11:30');
  assert.equal(await page.locator('#externalVideoHelp').isVisible(),true);
  assert.match(await page.locator('#externalVideoHelp').innerText(),/LINEやFaceTime/);
  await page.locator('#name').fill('テスト購入者');
@@ -45,9 +49,10 @@ async function buyer(browser,name){
  await page.waitForFunction(()=>location.pathname.endsWith('messages.html')&&location.search.includes('q_test'));
  const inquiryPosts=posts.filter(p=>p.path==='/api/inquiries');
  assert.equal(inquiryPosts.length,1,name+' online should send exactly one ordinary inquiry');
- assert.equal(inquiryPosts[0].body.preferredDate,'');
+ assert.equal(inquiryPosts[0].body.preferredDate,'2026-11-01');
  assert.match(inquiryPosts[0].body.message,/LINEで相談したいです/);
- assert.doesNotMatch(inquiryPosts[0].body.message,/第1希望/);
+ assert.match(inquiryPosts[0].body.message,/第1希望 2026-11-01 14:00/);
+ assert.match(inquiryPosts[0].body.message,/第2希望 2026-11-02 11:30/);
  assert.equal(posts.filter(p=>/\/visit$|\/video-room$/.test(p.path)).length,0);
  await page.close();
  
@@ -79,8 +84,17 @@ async function breeder(browser,name){
  assert.match(await page.locator('#inquiryList').innerText(),/LINE・FaceTime/);
  assert.equal(await page.locator('.bp-visit-action').count(),0,'online consult cannot be confirmed as BIG PAW visit');
  assert.equal(await page.locator('a[href*="online-visit.html"]').count(),0);
- assert.equal(await page.locator('#visits').innerText(),'0件');
+ assert.equal(await page.locator('#visits').innerText(),'1件');
+ assert.match(await page.locator('#inquiryList').innerText(),/第1希望 2026-11-01 14:00/);
+ assert.match(await page.locator('#inquiryList').innerText(),/第2希望 2026-11-02 11:30/);
  assert.equal(await page.locator('a[href="messages.html?inquiry=q_test"]').count(),1);
+ const msgPage=await browser.newPage({viewport:{width:390,height:844}});
+ await stub(msgPage,fixture(oldRequest,'online'));
+ await msgPage.goto(BASE+'/messages.html?inquiry=q_test');
+ await msgPage.waitForFunction(()=>document.querySelector('#who')?.textContent.includes('テスト購入者'));
+ assert.equal(await msgPage.locator('#visitLink').isVisible(),false,'online visit must be arranged by chat, not site confirmation');
+ assert.match(await msgPage.locator('#stepHint').innerText(),/第1・第2希望日時/);
+ await msgPage.close();
  await page.close();
  const inperson=await browser.newPage({viewport:{width:390,height:844}});
  await stub(inperson,fixture('現地で見学を希望\n第1希望 2026-11-01 14:00','inperson'));
