@@ -153,7 +153,7 @@ jobs:
                       raise AssertionError('60-second browser guard not live')
                   if 'puppy-video-public.js' not in public or 'videoEmbedUrl' not in public_js:
                       raise AssertionError('public player release marker not live')
-                  configured=bool(health.get('videoConfigured'))
+                  configured=bool(health.get('puppyVideoConfigured'))
                   print('PUPPY_VIDEO_PRODUCTION_CODE_LIVE|editor|60sec|public_player|health',flush=True)
                   print('PUPPY_VIDEO_STREAM_CONFIGURED|'+('yes' if configured else 'no'),flush=True)
                   if not configured:

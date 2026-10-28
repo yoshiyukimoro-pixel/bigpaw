@@ -170,6 +170,8 @@ def main():
                         time.sleep(.25)
                 else:
                     raise AssertionError('server health timeout')
+                check(call(base,'GET','/api/health').get('puppyVideoConfigured') is True,
+                      'puppyVideoConfigured health signal matches the mock Stream environment')
 
                 buyer=call(base,'POST','/api/login',{'email':'demo@bigpaw.jp','password':'demo1234'})['token']
                 breeder=call(base,'POST','/api/login',{'email':'dog44@bigpaw.jp','password':'demo1234'})['token']
