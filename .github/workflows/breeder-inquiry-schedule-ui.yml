@@ -1,0 +1,74 @@
+name: Breeder inquiry scheduling and blue UI regression
+on:
+  pull_request:
+    paths:
+      - "app/breeder-inquiries.html"
+      - "app/visit-confirm.html"
+      - "app/messages.html"
+      - "app/notifications.html"
+      - "app/attention-alerts.js"
+      - "app/mobile-global-nav.js"
+      - "scripts/test-breeder-inquiry-schedule-ui.cjs"
+      - ".github/workflows/breeder-inquiry-schedule-ui.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/breeder-inquiries.html"
+      - "app/visit-confirm.html"
+      - "app/messages.html"
+      - "app/notifications.html"
+      - "app/attention-alerts.js"
+      - "app/mobile-global-nav.js"
+      - "scripts/test-breeder-inquiry-schedule-ui.cjs"
+      - ".github/workflows/breeder-inquiry-schedule-ui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check source syntax
+        run: |
+          node --check app/attention-alerts.js
+          node --check scripts/test-breeder-inquiry-schedule-ui.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          from html.parser import HTMLParser
+          import subprocess
+          class Parser(HTMLParser):
+              def __init__(self):
+                  super().__init__();self.collect=False;self.scripts=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=='script' and 'src' not in dict(attrs):self.collect=True;self.scripts.append('')
+              def handle_endtag(self,tag):
+                  if tag=='script':self.collect=False
+              def handle_data(self,data):
+                  if self.collect:self.scripts[-1]+=data
+          for file in ['breeder-inquiries.html','visit-confirm.html','messages.html','notifications.html']:
+              p=Parser();p.feed(Path('app',file).read_text())
+              for i,s in enumerate(p.scripts):
+                  if not s.strip():continue
+                  result=subprocess.run(['node','--check'],input=s,text=True,capture_output=True)
+                  assert result.returncode==0,(file,i,result.stderr)
+          print('BREEDER_INQUIRY_INLINE_JS_VALID')
+          PY
+      - name: Install Chromium and iPhone Safari WebKit
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Start disposable static site
+        run: |
+          python3 -m http.server 18087 --bind 127.0.0.1 --directory app >/tmp/bigpaw-ui-only.log 2>&1 &
+          echo $! >/tmp/bigpaw-ui-only.pid
+          for i in $(seq 1 40); do curl -fsS http://127.0.0.1:18087/breeder-inquiries.html >/dev/null 2>&1 && break || sleep 1; done
+      - name: Verify mock inquiries, date choices, alerts, menus and role colors
+        run: node scripts/test-breeder-inquiry-schedule-ui.cjs
+      - name: Stop disposable server
+        if: always()
+        run: |
+          test ! -f /tmp/bigpaw-ui-only.pid || kill "$(cat /tmp/bigpaw-ui-only.pid)" || true
