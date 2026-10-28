@@ -1,0 +1,23 @@
+name: Public puppy inquiry button safety
+on:
+  pull_request:
+    paths:
+      - "app/puppy-detail.html"
+      - "app/inquiry.html"
+      - "app/backend/puppy_inquiry_cta_test.py"
+      - ".github/workflows/puppy-inquiry-cta-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/puppy-detail.html"
+      - "app/inquiry.html"
+      - "app/backend/puppy_inquiry_cta_test.py"
+      - ".github/workflows/puppy-inquiry-cta-safety.yml"
+  workflow_dispatch:
+jobs:
+  inquiry-cta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify visible puppy CTA on desktop/mobile and preserved inquiry workflow
+        run: python3 app/backend/puppy_inquiry_cta_test.py
