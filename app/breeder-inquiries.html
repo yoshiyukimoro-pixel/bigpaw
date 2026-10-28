@@ -22,17 +22,18 @@ function inquirySchedule(x){
  const pref=x.preferred_date||x.preferredDate||x.date1||'';
  if(!choices.length&&pref) choices.push('第1希望 '+pref);
  const body=lines.filter((s,i)=>i!==0&&!/^第[12]希望\s+\d{4}-\d{2}-\d{2}/.test(s)).join('\n');
- const visit=/見学/.test(kind)||choices.length>0;
- return {kind,choices,body,visit};
+ const online=kind.startsWith('オンライン')||kind.includes('オンライン見学');
+ const visit=!online&&(/見学/.test(kind)||choices.length>0);
+ return {kind,choices,body,visit,online};
 }
 function rowHtml(x,archived=false){
  const puppy=x.puppy_name||x.puppyName||'子犬',info=inquirySchedule(x),url=encodeURIComponent(x.id);
  const markBtn=!archived&&x.status==='未返信'?'<button class="btn btn-sub" onclick="mark('+JSON.stringify(x.id).replace(/"/g,'&quot;')+',&quot;返信済み&quot;)">対応済みにする</button> ':'';
  const actions=archived
   ?'<a class="btn btn-sub" href="messages.html?inquiry='+url+'">過去のやり取り</a> <a class="btn btn-sub" href="breeder-cancellation.html?inquiry='+url+'">取引中止内容</a>'
-  :'<a class="btn btn-main" href="messages.html?inquiry='+url+'">💬 購入希望者へ返信する</a> <a class="btn btn-sub bp-visit-action" href="visit-confirm.html?inquiry='+url+'">📅 '+(info.choices.length?'希望日時を確認・調整':'見学日程を調整')+'</a> '+markBtn+'<a class="btn btn-sub" href="online-visit.html?inquiry='+url+'">オンライン見学</a> <a class="btn btn-sub" href="breeder-deal-report.html?inquiry='+url+'">成約申請</a>';
- const dates=info.choices.length?info.choices.map(s=>'<div class="bp-visit-date">'+BigPaw.esc(s)+'</div>').join(''):(info.visit?'<div class="bp-visit-pending">見学希望日時は未入力です。購入希望者に希望日を確認してください。</div>':'<div class="bp-visit-pending">見学日時の指定はありません。</div>');
- return '<div class="table-row bp-breeder-inquiry-row"><div><span class="status">'+BigPaw.esc(x.status)+'</span></div><div><b>'+BigPaw.esc(puppy)+'</b>｜'+BigPaw.esc(x.name||'購入希望者')+'さん<div class="bp-inquiry-kind">お問い合わせ内容：'+BigPaw.esc(info.kind)+'</div><div class="bp-visit-dates"><b>見学の希望日時</b>'+dates+'</div>'+(info.body?'<div class="bp-inquiry-message">'+BigPaw.esc(info.body)+'</div>':'')+'<div class="bp-inquiry-actions">'+actions+'</div></div></div>';
+  :'<a class="btn btn-main" href="messages.html?inquiry='+url+'">💬 購入希望者へ返信する</a> '+(info.online?'':'<a class="btn btn-sub bp-visit-action" href="visit-confirm.html?inquiry='+url+'">📅 '+(info.choices.length?'希望日時を確認・調整':'見学日程を調整')+'</a> ')+markBtn+'<a class="btn btn-sub" href="breeder-deal-report.html?inquiry='+url+'">成約申請</a>';
+ const dates=info.online?'<div class="bp-visit-pending">オンラインの日時と通話方法は、購入希望者とメッセージで相談し、LINE・FaceTimeなどで直接行ってください。BIG PAWで予約や通話の管理はしません。</div>':info.choices.length?info.choices.map(s=>'<div class="bp-visit-date">'+BigPaw.esc(s)+'</div>').join(''):(info.visit?'<div class="bp-visit-pending">見学希望日時は未入力です。購入希望者に希望日を確認してください。</div>':'<div class="bp-visit-pending">見学日時の指定はありません。</div>');
+ return '<div class="table-row bp-breeder-inquiry-row"><div><span class="status">'+BigPaw.esc(x.status)+'</span></div><div><b>'+BigPaw.esc(puppy)+'</b>｜'+BigPaw.esc(x.name||'購入希望者')+'さん<div class="bp-inquiry-kind">お問い合わせ内容：'+BigPaw.esc(info.kind)+'</div><div class="bp-visit-dates"><b>'+(info.online?'オンラインのご相談（当事者間で調整）':'現地見学の希望日時')+'</b>'+dates+'</div>'+(info.body?'<div class="bp-inquiry-message">'+BigPaw.esc(info.body)+'</div>':'')+'<div class="bp-inquiry-actions">'+actions+'</div></div></div>';
 }
 function toggleClosed(){
  closedHistory.hidden=!closedHistory.hidden;
