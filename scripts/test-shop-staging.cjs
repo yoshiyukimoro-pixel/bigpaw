@@ -71,6 +71,8 @@ const {chromium, webkit} = require('playwright');
     assert.equal(await page.locator('#previewCheckout').isDisabled(),true,name+' no real checkout after adding');
     await page.locator('#previewCartContinue').click();
     await page.locator('.back').click();
+    assert.equal(await page.locator('a.prod').count(),14,name+' returns to matching ACANA brand');
+    assert.match(page.url(),/brand=ACANA/,name+' brand preserved in URL');
     assert.equal(await page.locator('#previewCartCount').innerText(),'1',name+' session cart persists across pages');
     await page.locator('#previewCartOpen').click();
     assert.equal(await page.locator('.cart-quantity').innerText(),'1',name+' preserved cart quantity');
