@@ -43,10 +43,11 @@ replacement = '''    def online_visit_email(self, inquiry_id, status, visit_date
 
 【通話方法について】
 BIG PAWでは日時の確認・確定までを行います。
-実際のビデオ通話はLINE・FaceTimeなどを、購入希望者とブリーダーが直接利用してください。
-BIG PAWのメッセージで、使うアプリや必要な連絡方法を相談してください。
-個人情報・連絡先は同意した相手にだけ共有してください。
-FaceTimeでは通話の参加リンクを使う方法もあります。
+実際のビデオ通話は購入希望者とブリーダーが直接行ってください。
+まずは電話番号・LINE IDを交換せずに参加できるFaceTimeの通話リンクなどをご検討ください。
+BIG PAWのメッセージで参加リンクを共有し、通話方法を相談してください。
+LINEなどを使う場合は双方で同意し、個人情報・連絡先は必要な相手にだけ共有してください。
+見学後の商談や成約報告はBIG PAWのメッセージ・成約手続きで行ってください。
 
 【BIG PAW メッセージ】
 {PUBLIC_BASE_URL}/messages.html?inquiry={inquiry_id}
@@ -64,6 +65,6 @@ FaceTimeでは通話の参加リンクを使う方法もあります。
 '''
 source = source[:start] + replacement + source[stop:]
 assert "Jitsi" not in source[source.index(begin):source.index(end, source.index(begin))]
-assert "LINE・FaceTime" in source[source.index(begin):source.index(end, source.index(begin))]
+assert "FaceTime" in source[source.index(begin):source.index(end, source.index(begin))]
 server_path.write_text(source, encoding="utf-8")
 print("ONLINE_VISIT_EXTERNAL_MAIL_OK|date_confirmed=BIGPAW|call=LINE_FACETIME|no_jitsi_steps", flush=True)
