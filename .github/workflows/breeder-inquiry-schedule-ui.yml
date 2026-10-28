@@ -5,6 +5,9 @@ on:
       - "app/breeder-inquiries.html"
       - "app/visit-confirm.html"
       - "app/messages.html"
+      - "app/inquiry.html"
+      - "app/online-visit.html"
+      - "scripts/test-external-video-consultation.cjs"
       - "app/notifications.html"
       - "app/attention-alerts.js"
       - "app/mobile-global-nav.js"
@@ -16,6 +19,9 @@ on:
       - "app/breeder-inquiries.html"
       - "app/visit-confirm.html"
       - "app/messages.html"
+      - "app/inquiry.html"
+      - "app/online-visit.html"
+      - "scripts/test-external-video-consultation.cjs"
       - "app/notifications.html"
       - "app/attention-alerts.js"
       - "app/mobile-global-nav.js"
@@ -36,6 +42,7 @@ jobs:
         run: |
           node --check app/attention-alerts.js
           node --check scripts/test-breeder-inquiry-schedule-ui.cjs
+          node --check scripts/test-external-video-consultation.cjs
           python3 - <<'PY'
           from pathlib import Path
           from html.parser import HTMLParser
@@ -49,7 +56,7 @@ jobs:
                   if tag=='script':self.collect=False
               def handle_data(self,data):
                   if self.collect:self.scripts[-1]+=data
-          for file in ['breeder-inquiries.html','visit-confirm.html','messages.html','notifications.html']:
+          for file in ['breeder-inquiries.html','visit-confirm.html','messages.html','notifications.html','inquiry.html','online-visit.html']:
               p=Parser();p.feed(Path('app',file).read_text())
               for i,s in enumerate(p.scripts):
                   if not s.strip():continue
@@ -70,6 +77,8 @@ jobs:
           for i in $(seq 1 40); do curl -fsS http://127.0.0.1:18087/breeder-inquiries.html >/dev/null 2>&1 && break || sleep 1; done
       - name: Verify mock inquiries, date choices, alerts, menus and role colors
         run: node scripts/test-breeder-inquiry-schedule-ui.cjs
+      - name: Verify external video consultation and unchanged in-person visit flow
+        run: node scripts/test-external-video-consultation.cjs
       - name: Stop disposable server
         if: always()
         run: |
