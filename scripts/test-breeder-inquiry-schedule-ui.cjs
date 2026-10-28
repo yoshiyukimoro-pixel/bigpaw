@@ -36,11 +36,13 @@ async function check(browser,browserName,viewport){
  for(const fixture of cases){
   const page=await browser.newPage({viewport});
   const errors=[];
-  page.on('pageerror',e=>errors.push(e.message));
+  page.on('pageerror',e=>errors.push('pageerror: '+e.message));
+  page.on('console',m=>{if(m.type()==='error')errors.push('console: '+m.text())});
+  page.on('requestfailed',r=>errors.push('request: '+r.url()+' '+(r.failure()?.errorText||'')));
   await routeApi(page,fixture);
   await page.goto(BASE+'/breeder-inquiries.html',{waitUntil:'domcontentloaded'});
   await enhance(page,true);
-  await page.waitForFunction(()=>document.querySelector('#inquiryList')?.textContent.includes('見学希望者'));
+  try{await page.waitForFunction(()=>document.querySelector('#inquiryList')?.textContent.includes('見学希望者'),{},{timeout:12000})}catch(e){const details=await page.evaluate(()=>({url:location.href,html:document.querySelector('#inquiryList')?.outerHTML,body:document.body?.innerText.slice(0,1500),role:document.documentElement.getAttribute('data-bp-mobile-tone')}));throw new Error('INQUIRY_LIST_NOT_READY|'+JSON.stringify({details,errors}))}
   assert.match(await page.locator('#inquiryList').innerText(),/テストの子犬/);
   assert.match(await page.locator('#inquiryList').innerText(),/現地で見学を希望/);
   assert.equal(await page.locator('#unread').innerText(),'1件');
