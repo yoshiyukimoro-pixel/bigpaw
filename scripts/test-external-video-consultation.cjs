@@ -140,8 +140,11 @@ async function breeder(browser,name){
  assert.ok(!msg.includes('onlineVisitRequestNotice'),'remove old booking alert script');
  assert.ok(!msg.includes("onlineVisit.href='online-visit.html"),'do not navigate to managed booking');
  assert.ok(msg.includes('LINE・FaceTimeなどでのオンライン相談'),'keep direct-call guidance');
- const finalPatch=require('node:fs').readFileSync(require('node:path').resolve(__dirname,'../app/backend/final_patch.py'),'utf8');
- assert.ok(finalPatch.includes('LINE・FaceTimeなどのビデオ通話は当事者同士で行います'),'confirm old Jitsi text is replaced in final production patch');
+ const docker=fs.readFileSync(path.resolve(__dirname,'../Dockerfile'),'utf8');
+ const externalMail=fs.readFileSync(path.resolve(__dirname,'../app/backend/external_online_visit_email_patch.py'),'utf8');
+ assert.ok(docker.includes('RUN ["python3", "backend/external_online_visit_email_patch.py"]'),'final production build must run external call email replacement');
+ assert.ok(externalMail.includes('FaceTime')&&externalMail.includes('BIG PAWのメッセージ'),'confirmed online email must use external call instructions');
+ assert.ok(!externalMail.includes('Jitsi Meetの画面が表示されたら'),'new mail patch must not send obsolete room instructions');
  const all=[
   ['chromium',chromium],
   ['iphone_webkit',webkit]
