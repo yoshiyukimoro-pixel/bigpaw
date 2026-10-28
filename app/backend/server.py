@@ -1312,8 +1312,10 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def online_visit_email(self, inquiry_id, status, visit_date, visit_time):
+        """Notify participants of an online visit time; video call is handled externally."""
         try:
-            con=db(); row=con.execute("SELECT i.buyer_id,p.breeder_id FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE i.id=?",(inquiry_id,)).fetchone()
+            con=db()
+            row=con.execute("SELECT i.buyer_id,p.breeder_id FROM inquiries i JOIN puppies p ON p.id=i.puppy_id WHERE i.id=?",(inquiry_id,)).fetchone()
             if not row: con.close(); return False
             if status=='proposed':
                 user=con.execute("SELECT u.email FROM breeders b JOIN users u ON u.id=b.user_id WHERE b.id=?",(row['breeder_id'],)).fetchone()
@@ -1321,28 +1323,17 @@ class Handler(SimpleHTTPRequestHandler):
                 user=con.execute("SELECT email FROM users WHERE id=?",(row['buyer_id'],)).fetchone()
             con.close()
             if not user or not user['email']: return False
-            subject="【BIG PAW】オンライン見学のお申し込みが入りました" if status=='proposed' else "【BIG PAW】オンライン見学の日時が確定しました"
-            lead="オンライン見学のお申し込みが入りました。\n希望日時：" if status=='proposed' else "オンライン見学の日時が確定しました。\n日時："
-            body=f'''オンライン見学の日時が確定しました。
-
-【確定日時】
-{visit_date} {visit_time}
-
-【当日の参加方法】
-1. 開始時刻になりましたらBIG PAWへログインしてください。
-2. 確定したオンライン見学画面を開き、「カメラを準備して入室」を押してください。
-3. Jitsi Meetの画面が表示されたら、青い「Join in browser」を押してください。
-4. カメラとマイクの使用を許可すると入室できます。
-5. 相手がまだ入室していない場合は、そのままお待ちください。相手が同じルームへ入室すると映像と音声がつながります。
-
-※購入希望者様・ブリーダー双方が同じ手順で入室します。
-※同時に入室する必要はありません。先に入った方はそのままお待ちください。
-※海外の電話番号へ電話をかける必要はありません。
-※PINコードの入力は必要ありません。
-※Jitsi Meetアプリのインストールは不要です。「Join in browser」からブラウザで参加できます。
-
-BIG PAW
-https://www.bigpaw.site/'''
+            confirmed=status=='confirmed'
+            subject="【BIG PAW】オンライン見学の日時が確定しました" if confirmed else "【BIG PAW】オンライン見学の希望日時が届きました"
+            header="オンライン見学の日時が確定しました。" if confirmed else "オンライン見学の希望日時が届きました。"
+            label="確定日時" if confirmed else "希望日時"
+            body=(f"{header}\n\n【{label}】\n{visit_date} {visit_time}\n\n"
+                  "【当日の通話方法】\n"
+                  "LINE・FaceTimeなど、ご希望のビデオ通話方法を購入希望者とブリーダーさんが直接相談して決めてください。\n"
+                  "BIG PAWではビデオ通話ルームを提供しません。参加するためのリンクやPINコードは発行されません。\n"
+                  "具体的な通話方法と連絡先は、必要な相手とだけ共有してください。\n\n"
+                  "※オンライン見学は、販売契約に必要な現物確認・対面説明の代わりにはなりません。\n\n"
+                  f"BIG PAW\n{PUBLIC_BASE_URL}/messages.html?inquiry={inquiry_id}")
             return send_mail(user['email'],subject,body)
         except Exception as e:
             print('[BIG PAW] online visit email failed:',e,flush=True); return False
