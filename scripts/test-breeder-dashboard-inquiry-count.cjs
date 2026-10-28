@@ -48,6 +48,15 @@ async function run({role='breeder',inquiries=[],breeders=[],breederId='',puppyRo
   r=await run({inquiries:[{status:'取引終了'},{status:'成約済み'},{status:'未返信'},{status:'見学調整中'}]});
   assert.equal(r.ctx.sInquiry.textContent,'2','only active inquiry statuses are counted');
 
+  r=await run({inquiries:[
+    {status:'返信済み',needs_reply:0},
+    {status:'見学確定',needs_reply:1},
+    {status:'未返信',needs_reply:0},
+    {status:'未返信',needs_reply:1},
+    {status:'取引終了',needs_reply:1}
+  ]});
+  assert.equal(r.ctx.sInquiry.textContent,'2','badge follows reply-needed flag, not historical status');
+
   const breeders=[{id:'b_dog44',kennel_name:'DOG44'},{id:'b_other',kennel_name:'別犬舎'}];
   const mixedPuppies=[
     {id:'p_dog44',breederId:'b_dog44',name:'DOG44の子犬',breed:'スタンダードプードル',gender:'男の子',color:'ブラック',status:'募集中',price:300000},
