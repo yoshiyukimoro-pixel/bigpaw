@@ -1,14 +1,36 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>オンライン見学｜BIG PAW</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="topbar">🐾 BIG PAW オンライン見学</div><header class="site-header"><div class="wrap nav"><a class="logo" href="index.html">🐾 BIG PAW</a><a class="btn btn-sub" href="messages.html">戻る</a></div></header><main class="wrap"><section class="section"><div class="card pad"><h1 id="visitTitle">オンライン見学</h1><p id="visitLead">購入希望者からブリーダーへオンライン見学を申し込み、日時確定後にこの画面から参加します。</p><div class="notice" style="margin-bottom:18px"><b>重要：</b>オンライン見学は、子犬の様子確認や事前相談のための補助機能です。販売契約前に法令上必要となる現物確認・対面説明の代わりにはなりません。契約前に、販売ブリーダーによる必要な現物確認・対面説明を受けてください。</div><div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px"><h2 id="visitDateTitle">オンライン見学の日時</h2><p id="visitDateLead">購入希望者から希望日時を送り、ブリーダーが確認して確定します。</p><label>希望日 <input id="videoDate" type="date"></label> <label>希望時間 <input id="videoTime" type="time"></label><button id="requestVideoBtn" type="button">オンライン見学を申し込む</button><p id="videoStatus" aria-live="polite"></p><button id="confirmVideoBtn" type="button" style="display:none">この日時で確定する</button></div><p class="notice">オンライン見学はBIG PAW専用ルームのほか、双方が合意した場合はLINEビデオ通話やFaceTimeも利用できます。外部通話の連絡先・日時は当事者間で確認してください。法令上必要な現物確認・対面説明は別途行ってください。</p><div class="notice">日時確定後、「オンライン見学に参加」からBIG PAWが設定した専用ビデオルームへ移動します。カメラ・マイクの許可は移動先で行います。</div><button id="joinBtn" class="btn btn-main btn-wide" type="button" style="display:none">📹 オンライン見学に参加</button></div></section></main><script src="assets/api.js"></script><script>
-const inquiryId=()=>new URLSearchParams(location.search).get('inquiry')||'';
-let videoReady=false;
-function localISODate(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
-function setDateFloor(){const today=localISODate();videoDate.min=today;if(!videoDate.value)videoDate.value=today}
-async function me(){try{return await BigPawAPI.me()}catch(e){return null}}
-async function checkVideoReady(){try{const h=await BigPawAPI.health();videoReady=!!h.videoConfigured}catch(e){videoReady=false}return videoReady}
-function showVideoNotReady(){requestVideoBtn.disabled=true;confirmVideoBtn.style.display='none';joinBtn.style.display='none';videoDate.disabled=true;videoTime.disabled=true;videoStatus.textContent='オンライン見学システムは現在準備中です。運営の設定完了後にご利用いただけます。'}
-async function requestOnlineVisit(){const st=videoStatus,b=requestVideoBtn,q=inquiryId(),d=videoDate.value,t=videoTime.value;if(!videoReady){showVideoNotReady();return}if(!q){st.textContent='問い合わせ画面からオンライン見学を開いてください。';return}if(!d||!t){st.textContent='希望日と時間を選んでください。';return}b.disabled=true;st.textContent='申し込みを送信しています…';try{await BigPawAPI.request('/inquiries/'+encodeURIComponent(q)+'/visit',{method:'POST',body:{date:d,time:t,transport:'オンライン見学',status:'proposed',faceToFaceConfirmed:false}});st.textContent='オンライン見学を申し込みました。ブリーダーの確認をお待ちください。'}catch(e){st.textContent='申し込みを送信できませんでした。'+(e.message?'（'+e.message+'）':'')}finally{b.disabled=false}}
-async function loadOnlineVisit(){setDateFloor();await checkVideoReady();const q=inquiryId();if(!q){videoStatus.textContent='問い合わせ画面からオンライン見学を開いてください。';requestVideoBtn.disabled=true;return}let v=null;try{v=await BigPawAPI.request('/inquiries/'+encodeURIComponent(q)+'/visit')}catch(e){if(e.status===401)location.href='login.html';if(!videoReady)showVideoNotReady();return}if(!v||!v.id){if(!videoReady)showVideoNotReady();return}const today=localISODate();videoDate.value=(v.visit_date&&v.visit_date>=today)?v.visit_date:today;videoTime.value=v.visit_time||'';if(v.transport!=='オンライン見学'){if(!videoReady)showVideoNotReady();return}if(!videoReady){showVideoNotReady();return}if(v.status==='confirmed'){videoStatus.textContent='オンライン見学は確定しています。';joinBtn.style.display='block';requestVideoBtn.style.display='none';return}const u=await me(),role=u?.role||'';if(role==='breeder'||role==='operator'){visitTitle.textContent='オンライン見学の申込み確認';visitLead.textContent='購入希望者からオンライン見学の申込みが届いています。希望日時を確認して確定してください。';visitDateTitle.textContent='購入希望者の希望日時';visitDateLead.textContent='購入希望者から届いた希望日時です。内容を確認して見学日時を確定してください。';videoStatus.textContent='購入希望者からオンライン見学の希望日時が届いています。';confirmVideoBtn.style.display='inline-block';requestVideoBtn.style.display='none';videoDate.disabled=true;videoTime.disabled=true}else{videoStatus.textContent='オンライン見学を申し込みました。ブリーダーの確認をお待ちください。';requestVideoBtn.style.display='none'}}
-async function confirmOnlineVisit(){const q=inquiryId(),d=videoDate.value,t=videoTime.value;if(!videoReady){showVideoNotReady();return}try{await BigPawAPI.request('/inquiries/'+encodeURIComponent(q)+'/visit',{method:'POST',body:{date:d,time:t,transport:'オンライン見学',status:'confirmed',faceToFaceConfirmed:false}});videoStatus.textContent='オンライン見学を確定しました。';confirmVideoBtn.style.display='none';joinBtn.style.display='block'}catch(e){videoStatus.textContent='確定できませんでした。'+(e.message?'（'+e.message+'）':'')}}
-async function joinRoom(){const q=inquiryId();if(!videoReady){showVideoNotReady();return}joinBtn.disabled=true;videoStatus.textContent='オンライン見学ルームを準備しています…';try{const v=await BigPawAPI.request('/inquiries/'+encodeURIComponent(q)+'/video-room');if(!v?.joinUrl)throw new Error('video_room_not_ready');location.href=v.joinUrl}catch(e){joinBtn.disabled=false;if(e.status===503){showVideoNotReady()}else{videoStatus.textContent='まだ入室できません。日時確定後、開始30分前から入室できます。'}}}
-requestVideoBtn.addEventListener('click',requestOnlineVisit);confirmVideoBtn.addEventListener('click',confirmOnlineVisit);joinBtn.addEventListener('click',joinRoom);loadOnlineVisit();
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>オンラインでのご相談について｜BIG PAW</title>
+<link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/account-page-theme.css?v=20261004">
+<style>
+main.wrap{max-width:810px}
+#onlineGuide{line-height:1.8}
+#onlineGuide .notice{margin:14px 0}
+#onlineGuide h2{font-size:1.15rem;margin-bottom:8px}
+#onlineGuide .btn{margin-top:12px}
+html[data-bp-page-theme="breeder"] body{background:#f3f8ff!important}
+html[data-bp-page-theme="breeder"] .btn-main{background:linear-gradient(135deg,#5f8fc3,#7da9d4)!important;color:white!important}
+html[data-bp-page-theme="operator"] body{background:#fffbea!important}
+</style></head><body class="bp-account-page">
+<div class="topbar">🐾 BIG PAW｜オンライン相談のご案内</div>
+<header class="site-header"><div class="wrap nav"><a class="logo" href="index.html"><span class="logo-mark">🐾</span>BIG PAW</a><nav class="navlinks"><a href="messages.html">メッセージ</a></nav></div></header>
+<main class="wrap"><section class="section"><div class="card pad" id="onlineGuide">
+<h1>オンラインでのご相談について</h1>
+<p><strong>オンライン見学の第1・第2希望日時をBIG PAWで送信し、ブリーダーが日程を確定できます。ビデオ通話ルームはBIG PAWでは提供しません。</strong></p>
+<p>子犬の様子をビデオ通話で確認したい場合は、日時を確定した後に双方が使いやすいLINE・FaceTimeなどで直接通話を行ってください。</p>
+<h2>ご利用方法</h2>
+<p>子犬詳細ページの「見学・問い合わせ」から「オンライン見学を希望」を選び、第1・第2希望の日時を入力してください。ブリーダーがBIG PAWで日程を確定します。通話方法はメッセージで相談し、連絡先は必要な相手とだけ共有してください。</p>
+<a id="conversationLink" class="btn btn-main btn-wide" href="messages.html">💬 見学日時・通話方法を相談する</a>
+<div class="notice"><strong>大切なお知らせ</strong><p>オンラインでの相談は子犬の様子確認や事前の話し合いに利用するものです。販売契約に必要な現物確認・対面説明の代わりにはなりません。契約前に販売ブリーダーから必要な説明等を受けてください。</p></div>
+</div></section></main>
+<script src="assets/api.js"></script>
+<script>
+(function(){
+  const inquiry=new URLSearchParams(location.search).get('inquiry');
+  if(inquiry)document.getElementById('conversationLink').href='messages.html?inquiry='+encodeURIComponent(inquiry);
+  BigPawAPI.me().then(u=>{
+    const role=String(u?.role||'');
+    document.documentElement.setAttribute('data-bp-page-theme',role==='breeder'?'breeder':role==='operator'?'operator':'buyer');
+  }).catch(()=>{});
+})();
 </script></body></html>
