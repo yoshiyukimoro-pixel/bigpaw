@@ -87,7 +87,7 @@
     restoreBackup(filename,confirmation){return this.request('/operator/restore-backup',{method:'POST',body:{filename,confirmation}})},
     createPuppyVideoUpload(id,v){return this.request('/puppies/'+encodeURIComponent(id)+'/video-upload',{method:'POST',body:v})},
     createPuppyTusUpload(id,v){return this.request('/puppies/'+encodeURIComponent(id)+'/video-tus-upload',{method:'POST',body:v})},
-    puppyVideoStatus(id){return this.request('/puppies/'+encodeURIComponent(id)+'/video-status',{cache:'no-store'})},
+    puppyVideoStatus(id,signal){return this.request('/puppies/'+encodeURIComponent(id)+'/video-status',{cache:'no-store',signal})},
     attachPuppyVideo(id,uid){return this.request('/puppies/'+encodeURIComponent(id)+'/video',{method:'POST',body:{uid}})},
     deletePuppyVideo(id){return this.request('/puppies/'+encodeURIComponent(id)+'/video',{method:'DELETE'})},
     upload(file,puppyId=''){const f=new FormData();f.append('file',file);if(puppyId)f.append('puppyId',puppyId);return this.request('/uploads',{method:'POST',body:f})}
