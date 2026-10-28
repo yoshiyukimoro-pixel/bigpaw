@@ -29,6 +29,20 @@ assert "noindex,nofollow" in shop
 assert "販売準備中" in shop and "価格準備中" in shop
 assert 'disabled>販売開始までお待ちください' in shop
 assert "localStorage" not in shop and "fetch(" not in shop, "No checkout/data mutation permitted"
+cart = Path("app/shop-cart-preview.js").read_text(encoding="utf-8")
+assert "shop-cart-preview.js" in shop, "Shop must load the preview cart"
+assert 'id="previewCartDialog"' in shop and 'id="previewCheckout" disabled' in shop
+assert "checkout" not in cart.lower() or "checkout disabled" in cart.lower(), "No real checkout permitted"
+assert "fetch(" not in cart and "XMLHttpRequest" not in cart and "sendBeacon" not in cart, "Cart must not contact a backend"
+assert "localStorage" not in cart and "window.open" not in cart, "No persistent or redirected checkout"
+assert 'sessionStorage' in cart, "Cart preview must only store session-level cart state"
+assert 'referenceMsrpExTax' in cart, "Cart uses reference MSRP only"
+assert '仕入' not in cart and '卸値' not in cart and 'wholesalePrice' not in cart
+with tempfile.TemporaryDirectory() as tmp:
+    node_path = Path(tmp) / "cart.js"
+    node_path.write_text(cart, encoding="utf-8")
+    subprocess.run(["node", "--check", str(node_path)], check=True)
+
 assert "app/backend" not in shop, "Shop must remain independent from backend"
 assert "ziwi-venison" in shop and "ziwi-tripe-lamb" in shop
 assert 'id="brandCards"' in shop and 'id="catalogStart"' in shop
