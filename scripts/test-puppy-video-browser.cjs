@@ -39,6 +39,8 @@ async function run(engine,name,contextOptions,launchOptions={}){
     // session is established. Do not treat that expected 401 as a video error.
     errors.length=0;
     const note=await page.locator('#puppyVideoBox').innerText();
+    const editorScript=await page.locator('script[src*="assets/puppy-video.js"]').getAttribute('src');
+    check(editorScript.includes('20261028-upload-guidance1'),name+': editor did not load the upload-guidance cache version');
     check(note.includes('動画を追加（1本まで）'),name+': one-video wording missing');
     check(note.includes('60秒以内'),name+': 60-second wording missing');
     const policy=await page.evaluate(()=>({
