@@ -160,17 +160,18 @@
       '次の自動確認まで：約'+Math.max(0,Math.ceil((previewNextCheckAt-Date.now())/1000))+'秒':
       previewChecking?'現在、Cloudflareに確認中です':
       waiting?'まもなく自動確認します':'自動確認は停止しています';
-    area.innerHTML='<strong>'+title+'</strong>'+
-      '<div style="margin-top:7px">✅ 動画の登録・保存が完了しました。</div>'+
-      '<div style="margin-top:7px">'+note+'</div>'+
-      '<div style="margin-top:7px">この間も、変更内容の保存やほかの画面への移動ができます。</div>'+
-      '<div style="margin-top:9px;font-size:13px">この画面での確認開始から：'+previewElapsed()+
-      ' ／ '+next+'</div>'+warning+
-      '<button type="button" id="retryPuppyVideoPreviewBtn" class="btn btn-sub" style="margin-top:10px">今すぐ再生状況を確認する</button>';
-    const button=$('retryPuppyVideoPreviewBtn');
-    if(button){
-      button.disabled=previewChecking;
-      button.onclick=()=>{
+    // Do not recreate the button every second: on mobile Safari a DOM
+    // replacement between touchstart and touchend can swallow the tap.
+    if(area.dataset.previewState!==previewState||!$('puppyVideoProgressTime')){
+      area.innerHTML='<strong>'+title+'</strong>'+
+        '<div style="margin-top:7px">✅ 動画の登録・保存が完了しました。</div>'+
+        '<div style="margin-top:7px">'+note+'</div>'+
+        '<div style="margin-top:7px">この間も、変更内容の保存やほかの画面への移動ができます。</div>'+
+        '<div id="puppyVideoProgressTime" style="margin-top:9px;font-size:13px"></div>'+warning+
+        '<button type="button" id="retryPuppyVideoPreviewBtn" class="btn btn-sub" style="margin-top:10px">今すぐ再生状況を確認する</button>';
+      area.dataset.previewState=previewState;
+      const button=$('retryPuppyVideoPreviewBtn');
+      if(button)button.onclick=()=>{
         if(previewChecking)return;
         if(previewTimer)clearTimeout(previewTimer);
         previewTimer=0;
@@ -178,6 +179,10 @@
         checkExistingPreview(previewCurrentUid,previewEpoch);
       };
     }
+    const clock=$('puppyVideoProgressTime');
+    if(clock)clock.textContent='この画面での確認開始から：'+previewElapsed()+' ／ '+next;
+    const button=$('retryPuppyVideoPreviewBtn');
+    if(button)button.disabled=previewChecking;
   }
   function schedulePreviewCheck(uid,epoch){
     if(epoch!==previewEpoch||uid!==previewCurrentUid)return;
