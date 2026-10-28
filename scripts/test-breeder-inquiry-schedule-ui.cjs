@@ -8,7 +8,7 @@ const cases=[
  {name:'without_visit_date',kind:'現地で見学を希望',preferred_date:'',message:'現地で見学を希望\n子犬に会いたいです'},
 ];
 function routeApi(page,fixture,role='breeder'){
- const item={id:'q_test',puppy_id:'p_test',name:'見学希望者',status:'未返信',puppy_name:'テストの子犬',breeder_name:'テスト犬舎',...fixture};
+ const item={...fixture,id:'q_test',puppy_id:'p_test',name:'見学希望者',status:'未返信',puppy_name:'テストの子犬',breeder_name:'テスト犬舎'};
  const notifications=[{id:'n1',kind:'inquiry',title:'新しい問い合わせ',body:'テストの子犬に問い合わせが届きました',created_at:1793180000}];
  return page.route('**/api/**', async route=>{
   const url=new URL(route.request().url());
@@ -37,7 +37,6 @@ async function check(browser,browserName,viewport){
   const page=await browser.newPage({viewport});
   const errors=[];
   page.on('pageerror',e=>errors.push('pageerror: '+e.message));
-  page.on('console',m=>{if(m.type()==='error')errors.push('console: '+m.text())});
   page.on('requestfailed',r=>errors.push('request: '+r.url()+' '+(r.failure()?.errorText||'')));
   await routeApi(page,fixture);
   await page.goto(BASE+'/breeder-inquiries.html',{waitUntil:'domcontentloaded'});
