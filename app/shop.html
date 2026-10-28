@@ -9,6 +9,11 @@
 .notice{border-left:4px solid var(--pink);border-radius:9px;background:white;padding:13px 17px;margin:24px 0;color:#625566;font-size:13px}.notice b{color:#98466e}.filterbox{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;background:white;border:1px solid var(--line);border-radius:16px;padding:16px}.field label{display:block;font-weight:800;font-size:12px;margin-bottom:5px}.field input,.field select{width:100%;height:44px;padding:0 11px;border:1px solid #dcd4dc;border-radius:9px;background:#fff}.field input:focus,.field select:focus{outline:2px solid #f5bbd2}.tabs{display:flex;flex-wrap:wrap;gap:9px;margin:20px 0}.tabs button{border:1px solid #edd7e2;border-radius:24px;padding:8px 15px;background:#fff;color:#805c70;font-weight:850;cursor:pointer}.tabs button[aria-pressed=true]{background:var(--pink);color:#fff;border-color:var(--pink)}.listhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 15px}.listhead h2{font-size:23px;margin:0}.listhead small{color:var(--muted)}.catalog{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px}.prod{background:#fff;border:1px solid var(--line);border-radius:17px;overflow:hidden;display:block;transition:.17s;box-shadow:0 5px 15px #41334408}.prod:hover{transform:translateY(-3px);box-shadow:0 10px 27px #41334415}.photo{aspect-ratio:1/1;position:relative;background:linear-gradient(140deg,#fff1f7,#f9fafd);padding:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}.photo img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}.fallback{display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;justify-content:center;color:#965578;font-size:14px;padding:18px}.fallback strong{font-size:23px;letter-spacing:.06em}.kind{position:absolute;top:10px;left:10px;background:#fff;z-index:2;font-size:10px;font-weight:850;color:#a35d7c;border:1px solid #f5dce5;border-radius:7px;padding:5px 8px}.body{padding:14px}.smallbrand{font-size:11px;font-weight:850;letter-spacing:.035em;color:#aa5c81}.productname{font-size:14px;font-weight:850;line-height:1.5;margin:6px 0;min-height:42px}.sizerow{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:800;gap:8px}.sizerow .go{font-size:12px;color:#b3517e}.short{font-size:11px;line-height:1.5;color:var(--muted);margin:9px 0 0;min-height:34px}.soon{display:inline-block;margin-top:11px;color:#796875;background:#f6f2f5;padding:5px 8px;border-radius:5px;font-size:11px;font-weight:750}.none{padding:40px 0;text-align:center;color:var(--muted)}
 .crumb{font-size:12px;color:#806c7b;margin:28px 0 15px}.crumb a{text-decoration:underline}.detail{display:grid;grid-template-columns:1fr 1fr;align-items:start;gap:33px}.bigphoto{border:1px solid var(--line);border-radius:21px;background:linear-gradient(135deg,#fff3f8,#fff);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;padding:22px}.bigphoto img{width:100%;height:100%;object-fit:contain}.bigphoto .fallback strong{font-size:33px}.detailsbrand{font-size:13px;font-weight:900;color:#ae5b81}.detail h1{font-size:clamp(24px,3.6vw,37px);line-height:1.3;margin:10px 0}.desc{font-size:16px;color:#645d68}.chips{display:flex;gap:7px;flex-wrap:wrap;margin:22px 0}.chips span{background:#fff;border:1px solid #efdee6;border-radius:22px;padding:7px 11px;font-size:12px;font-weight:800}.specs{margin:20px 0;border-top:1px solid var(--line)}.specs>div{display:grid;grid-template-columns:105px 1fr;border-bottom:1px solid var(--line);padding:13px 0;gap:13px;font-size:14px}.specs b{font-weight:750}.specs span{color:var(--muted)}.disabled{border:0;background:#e9d9e1;color:#805d6e;padding:13px 21px;border-radius:11px;cursor:not-allowed;font-weight:850}.footnote{font-size:12px;color:var(--muted);margin-top:15px}.back{display:inline-block;color:#aa507b;font-weight:850;margin-top:24px}footer{background:#fff;margin-top:70px;border-top:1px solid var(--line);padding:30px 0;font-size:12px;color:#7e7481}
 @media(max-width:920px){.catalog{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:680px){.wrap{padding:0 13px}.sitehead .wrap{min-height:60px}.links{gap:12px;font-size:11px}.links a:nth-child(2){display:none}.hero{padding:35px 0}.filterbox{grid-template-columns:1fr}.catalog{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.photo{padding:6px}.body{padding:11px}.productname{font-size:13px}.short{min-height:50px}.detail{grid-template-columns:1fr;gap:20px}.bigphoto{aspect-ratio:1.15}.listhead h2{font-size:20px}}
+
+/* Shopper-first brand navigation: grouped catalog, separate from breeder/buyer pages */
+.brand-chooser{margin:20px 0 28px}.choosehead{display:flex;gap:14px;justify-content:space-between;align-items:end;margin-bottom:14px}.choosehead .kicker{font-size:11px;letter-spacing:.1em;color:#aa5b7d;font-weight:900}.choosehead h2{font-size:25px;line-height:1.35;margin:5px 0}.choosehead p{font-size:13px;color:var(--muted);margin:5px 0}.clear-all{border:1px solid #ead4e0;background:#fff;color:#95456e;padding:10px 13px;border-radius:11px;font-size:12px;font-weight:850;cursor:pointer}.brand-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.brand-card{padding:16px;background:#fff;text-align:left;border:2px solid #eee5ec;border-radius:17px;display:flex;flex-direction:column;align-items:stretch;gap:8px;cursor:pointer;min-height:178px;box-shadow:0 5px 18px #41334408;transition:.16s}.brand-card:hover{transform:translateY(-2px);border-color:#dea2bd}.brand-card[aria-pressed="true"]{border-color:var(--pink);box-shadow:0 0 0 2px #fbd3e5}.brand-top{display:flex;justify-content:space-between;align-items:center;gap:8px}.brand-mark{display:inline-flex;min-width:63px;min-height:40px;align-items:center;justify-content:center;border-radius:10px;background:#f2f4f6;color:#554a5f;font-size:11px;font-weight:950;letter-spacing:.035em;padding:8px}.brand-card[data-brand-card="ACANA"] .brand-mark{background:#e6f2ed;color:#226454}.brand-card[data-brand-card="ORIJEN"] .brand-mark{background:#f5ead8;color:#8b602d}.brand-card[data-brand-card="ZIWI"] .brand-mark{background:#e6edfb;color:#315b9d}.brand-card[data-brand-card="CHARM"] .brand-mark{background:#eae5f6;color:#62508d}.brand-total{font-size:11px;color:#857785;font-weight:850}.brand-card strong{font-size:19px;line-height:1.24}.brand-card .brand-text{font-size:12px;color:#6d6672;line-height:1.45;flex:1}.brand-card .brand-action{font-size:12px;color:#b24f7d;font-weight:850}.search-caption{font-size:15px;font-weight:850;margin:12px 0 10px}.brand-section{margin:15px 0 42px;scroll-margin-top:30px}.brand-section-header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding-bottom:10px;border-bottom:2px solid #f0dfe8;margin-bottom:10px}.brand-section-header h3{margin:0;font-size:27px;line-height:1.25}.brand-section-header h3 span{font-size:14px;color:#a05f7c;font-weight:750}.brand-section-header small{color:var(--muted);font-weight:800}.series-block{margin:16px 0 23px}.series-head{font-size:15px;font-weight:900;margin:13px 0 14px;display:flex;align-items:center;gap:8px}.series-head::before{content:"";width:4px;height:18px;border-radius:3px;background:#e298b8}.brand-pick-help{font-size:12px;color:#766a77;margin:0 0 12px}#catalogStart{scroll-margin-top:18px}.tabs{margin:10px 0 18px}.tabs button{white-space:nowrap}.tabs button[aria-pressed="true"]{box-shadow:0 0 0 2px #f6cadf}.tabs button:focus-visible,.brand-card:focus-visible,.clear-all:focus-visible{outline:3px solid #b74c83;outline-offset:2px}
+@media(max-width:900px){.brand-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:680px){.choosehead{display:block}.choosehead h2{font-size:21px}.clear-all{margin-top:10px}.brand-grid{gap:10px}.brand-card{min-height:165px;padding:12px}.brand-card strong{font-size:17px}.brand-section-header h3{font-size:22px}.brand-mark{min-width:54px}.brand-total{font-size:10px}.brand-card .brand-text{font-size:11px}.tabs{gap:6px}.tabs button{font-size:12px;padding:7px 11px}.brand-chooser{margin-top:18px}}
+
 </style>
 </head>
 <body>
@@ -16,8 +21,8 @@
 <header class="sitehead"><div class="wrap"><a class="brandlogo" href="index.html">BIG <em>PAW</em> 🐾</a><nav class="links"><a href="index.html">サイトトップ</a><a href="search.html">子犬を探す</a><a href="shop.html">ドッグフード</a></nav></div></header>
 <section id="hero" class="hero"><div class="wrap"><div class="eyebrow">BIG PAW DOG FOOD</div><h1>大型犬の毎日に、<br>ぴったりのごはんを。</h1><p>大型犬の子犬から成犬・シニアまで。ACANA・ORIJEN・ZIWI・CHARMのフードをブランドや目的から探せる、BIG PAWの商品カタログです。</p><div class="points"><span>🐕 大型犬の子犬向け</span><span>💪 活発な犬向け</span><span>🌱 体重管理に配慮</span><span>🐾 厳選4ブランド</span></div></div></section>
 <main class="wrap"><div class="notice" role="status"><b>ただいま販売準備中です。</b> 価格・送料・在庫・決済方法などの確認が完了するまで、ご注文は受け付けておりません。商品情報は最終確認のため変更する場合があります。</div>
-<section id="listing"><div class="filterbox" role="search"><div class="field"><label for="keyword">商品名・特徴で探す</label><input id="keyword" type="search" placeholder="例：パピー、大型犬、ラム"></div><div class="field"><label for="life">ライフステージ</label><select id="life"><option value="">すべて</option><option>子犬</option><option>成犬</option><option>シニア</option><option>全年齢</option></select></div><div class="field"><label for="focus">目的・特徴</label><select id="focus"><option value="">すべて</option><option>大型犬</option><option>成長期</option><option>活動的</option><option>体重管理</option><option>シニア</option><option>高タンパク</option><option>魚系</option><option>トッピング</option></select></div></div>
-<div id="tabs" class="tabs" role="group" aria-label="ブランド"></div><div class="listhead"><h2>ドッグフード一覧 <small id="count" aria-live="polite"></small></h2><small>価格準備中</small></div><div class="catalog" id="products"></div><div id="empty" class="none" hidden>条件に合う商品がありません。条件を変えて検索してください。</div></section>
+<section id="listing"><section class="brand-chooser" aria-labelledby="brandChooserTitle"><div class="choosehead"><div><div class="kicker">STEP 1｜お好きなブランドから</div><h2 id="brandChooserTitle">まずはブランドを選ぶ</h2><p>4ブランドをまとめずに、メーカーごとに商品を探せます。</p></div><button type="button" class="clear-all" id="clearFilters">選択をクリアして全商品を見る</button></div><div class="brand-grid" id="brandCards" role="group" aria-label="フードブランドを選ぶ"></div></section><h3 class="search-caption">年齢・目的・商品名からも探せます</h3><div class="filterbox" role="search"><div class="field"><label for="keyword">商品名・特徴で探す</label><input id="keyword" type="search" placeholder="例：パピー、大型犬、ラム"></div><div class="field"><label for="life">ライフステージ</label><select id="life"><option value="">すべて</option><option>子犬</option><option>成犬</option><option>シニア</option><option>全年齢</option></select></div><div class="field"><label for="focus">目的・特徴</label><select id="focus"><option value="">すべて</option><option>大型犬</option><option>成長期</option><option>活動的</option><option>体重管理</option><option>シニア</option><option>高タンパク</option><option>魚系</option><option>トッピング</option></select></div></div>
+<div id="tabs" class="tabs" role="group" aria-label="ブランドで絞り込む"></div><div id="catalogStart"><div class="listhead"><h2 id="resultHeading">ブランド別の商品一覧</h2><small id="count" aria-live="polite"></small></div><p class="brand-pick-help">商品写真を選ぶと、内容量や商品の特徴を確認できます。現在は販売準備中です。</p><div id="products"></div><div id="empty" class="none" hidden></div>条件に合う商品がありません。条件を変えて検索してください。</div></section>
 <section id="single" hidden><div class="crumb"><a href="shop.html">ドッグフード一覧</a> › 商品詳細</div><div id="detail"></div><a href="shop.html" class="back">← 商品一覧に戻る</a></section></main>
 <footer><div class="wrap">© BIG PAW｜大型犬専門の子犬紹介サイト　・　フードショップは準備中です。</div></footer>
 <script>
@@ -73,15 +78,70 @@ if(chosen){
  document.getElementById('detail').innerHTML='<div class="detail">'+photo(p,true)+'<div><div class="detailsbrand">'+esc(p.brand)+' / '+esc(p.series)+'</div><h1>'+esc(p.name)+'</h1><p class="desc">'+esc(p.description)+'</p><div class="chips"><span>'+esc(p.weight)+'</span><span>'+esc(p.life)+'</span><span>'+esc(p.focus)+'</span></div><div class="specs"><div><span>ブランド</span><b>'+esc(p.brand)+'</b></div><div><span>内容量</span><b>'+esc(p.weight)+'</b></div><div><span>対象</span><b>'+esc(p.life)+'</b></div><div><span>販売価格</span><b>準備中</b></div><div><span>販売状況</span><b>注文受付前</b></div></div><button type="button" class="disabled" disabled>販売開始までお待ちください</button><p class="footnote">詳しい原材料・成分・給与量はメーカー資料との最終照合後に掲載します。アレルギーがある場合は原材料をご確認ください。</p></div></div>';
  }
 } else {
- let brand='';
- const tabs=document.getElementById('tabs'),box=document.getElementById('products'),q=document.getElementById('keyword'),life=document.getElementById('life'),focus=document.getElementById('focus');
- tabs.innerHTML=['','ACANA','ORIJEN','ZIWI','CHARM'].map(b=>'<button type="button" data-brand="'+b+'" aria-pressed="'+(b===''?'true':'false')+'">'+(b||'すべて')+'</button>').join('');
- function render(){const s=q.value.trim().toLocaleLowerCase('ja');const filtered=catalog.filter(p=>(!brand||p.brand===brand)&&(!life.value||p.life===life.value)&&(!focus.value||p.focus===focus.value)&&(!s||[p.name,p.brand,p.description,p.series,p.weight,p.focus].join(' ').toLocaleLowerCase('ja').includes(s)));
- document.getElementById('count').textContent='（'+filtered.length+'商品）';
- box.innerHTML=filtered.map(p=>'<a class="prod" href="shop.html?item='+encodeURIComponent(p.id)+'">'+photo(p,false)+'<div class="body"><div class="smallbrand">'+esc(p.brand)+' / '+esc(p.series)+'</div><div class="productname">'+esc(p.name)+'</div><div class="sizerow"><span>'+esc(p.weight)+'</span><span class="go">詳細を見る ›</span></div><div class="short">'+esc(p.description)+'</div><span class="soon">価格準備中</span></div></a>').join('');
- document.getElementById('empty').hidden=filtered.length!==0;}
- tabs.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{brand=btn.dataset.brand;tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===btn)));render()}));
- [q,life,focus].forEach(el=>el.addEventListener(el===q?'input':'change',render));render();
+ const BRANDS=['ACANA','ORIJEN','ZIWI','CHARM'];
+ const info={
+  ACANA:{jp:'アカナ',caption:'子犬用・成犬用・高タンパク・シングル',mark:'ACANA'},
+  ORIJEN:{jp:'オリジン',caption:'子犬用・成犬用・シニア・体重管理',mark:'ORIJEN'},
+  ZIWI:{jp:'ジウィ',caption:'エアドライとスチームドライ',mark:'ZIWI'},
+  CHARM:{jp:'チャーム',caption:'チキン・ダック・ラム・フィッシュ',mark:'CHARM'}
+ };
+ const fromURL=new URLSearchParams(location.search).get('brand');
+ let brand=BRANDS.includes(fromURL)?fromURL:'';
+ const tabs=document.getElementById('tabs');
+ const cards=document.getElementById('brandCards');
+ const box=document.getElementById('products');
+ const q=document.getElementById('keyword');
+ const life=document.getElementById('life');
+ const focus=document.getElementById('focus');
+ const qty=b=>catalog.filter(p=>p.brand===b).length;
+ cards.innerHTML=BRANDS.map(b=>'<button type="button" class="brand-card" data-brand-card="'+b+'" aria-pressed="false"><span class="brand-top"><span class="brand-mark">'+esc(info[b].mark)+'</span><span class="brand-total">'+qty(b)+'商品</span></span><strong>'+esc(info[b].jp)+'</strong><span class="brand-text">'+esc(info[b].caption)+'</span><span class="brand-action">このブランドの商品を見る ›</span></button>').join('');
+ tabs.innerHTML=['',...BRANDS].map(b=>'<button type="button" data-brand="'+b+'" aria-pressed="false">'+(b?esc(b+'（'+info[b].jp+'）'):'すべてのブランド')+'</button>').join('');
+ const seriesOrder={
+  ACANA:['アカナドッグ','ハイプロテイン','シングル'],
+  ORIJEN:['子犬向け','成犬向け','シニア向け'],
+  ZIWI:['エアドライ','スチームドライ'],
+  CHARM:['フード一覧']
+ };
+ function groupKey(p){
+  if(p.brand==='ORIJEN')return p.life+'向け';
+  if(p.brand==='CHARM')return 'フード一覧';
+  return p.series;
+ }
+ function makeProduct(p){
+  return '<a class="prod" href="shop.html?item='+encodeURIComponent(p.id)+'">'+photo(p,false)+'<div class="body"><div class="smallbrand">'+esc(p.brand)+' / '+esc(p.series)+'</div><div class="productname">'+esc(p.name)+'</div><div class="sizerow"><span>'+esc(p.weight)+'</span><span class="go">詳細を見る ›</span></div><div class="short">'+esc(p.description)+'</div><span class="soon">価格準備中</span></div></a>';
+ }
+ function syncBrand(){
+  tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.brand===brand)));
+  cards.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.brandCard===brand)));
+ }
+ function render(){
+  const s=q.value.trim().toLocaleLowerCase('ja');
+  const filtered=catalog.filter(p=>(!brand||p.brand===brand)&&(!life.value||p.life===life.value)&&(!focus.value||p.focus===focus.value)&&(!s||[p.name,p.brand,p.description,p.series,p.weight,p.focus].join(' ').toLocaleLowerCase('ja').includes(s)));
+  document.getElementById('count').textContent=filtered.length+'商品';
+  document.getElementById('resultHeading').textContent=brand?info[brand].jp+'の商品一覧':'ブランド別の商品一覧';
+  box.innerHTML=(brand?[brand]:BRANDS).map(b=>{
+   const list=filtered.filter(p=>p.brand===b);if(!list.length)return '';
+   const sections=seriesOrder[b].map(k=>{
+    const items=list.filter(p=>groupKey(p)===k);if(!items.length)return '';
+    return '<section class="series-block"><h4 class="series-head">'+esc(k)+'（'+items.length+'商品）</h4><div class="catalog">'+items.map(makeProduct).join('')+'</div></section>';
+   }).join('');
+   return '<section class="brand-section" id="brand-'+b+'"><div class="brand-section-header"><h3>'+esc(b)+' <span>｜ '+esc(info[b].jp)+'</span></h3><small>'+list.length+'商品</small></div>'+sections+'</section>';
+  }).join('');
+  document.getElementById('empty').hidden=filtered.length!==0;
+  syncBrand();
+ }
+ function selectBrand(next,scroll){
+  brand=next;
+  render();
+  if(scroll){const target=document.getElementById('catalogStart');if(target)target.scrollIntoView({behavior:'smooth',block:'start'});}
+ }
+ cards.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>selectBrand(btn.dataset.brandCard,true)));
+ tabs.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>selectBrand(btn.dataset.brand,false)));
+ document.getElementById('clearFilters').addEventListener('click',()=>{
+  q.value='';life.value='';focus.value='';selectBrand('',false);
+ });
+ [q,life,focus].forEach(el=>el.addEventListener(el===q?'input':'change',render));
+ render();
 }
 </script>
 </body></html>
