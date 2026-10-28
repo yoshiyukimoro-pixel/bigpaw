@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>大型犬のドッグフード｜BIG PAW（公開準備中）</title>
+<meta name="description" content="ACANA・ORIJEN・ZIWI・CHARMの大型犬向けドッグフード。商品カタログを準備しています。">
+<link rel="icon" href="assets/bigpaw-logo-header.webp">
+<link rel="stylesheet" href="assets/dog-food.css">
+<script src="assets/dog-food-products.js" defer></script>
+<script src="assets/dog-food.js" defer></script>
+</head>
+<body>
+<div class="prelaunch" role="status">商品販売ページ準備中｜現在、注文・決済はできません</div>
+<header class="header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html" aria-label="BIG PAW ホーム"><img src="assets/bigpaw-logo-header.webp" alt="" width="40" height="40"><span>BIG PAW</span></a>
+    <nav aria-label="主なページ"><a href="index.html">ホーム</a><a href="search.html">子犬を探す</a><a href="breed-guide.html">大型犬ガイド</a></nav>
+  </div>
+</header>
+<main>
+  <section class="hero">
+    <div class="container">
+      <p class="eyebrow">BIG PAW DOG FOOD SELECTION</p>
+      <h1>大きな家族に、<br><span>毎日のごはんを。</span></h1>
+      <p class="lead">大型犬との暮らしに合わせて選べるプレミアムドッグフード。ACANA・ORIJEN・ZIWI・CHARMのラインナップをご紹介します。</p>
+      <div class="notice"><strong>公開準備中</strong><span>商品・写真・価格を確認中のため、販売開始まではカタログのみご覧いただけます。購入申込や決済は発生しません。</span></div>
+      <div class="brand-pills" aria-label="取り扱い予定ブランド"><span>ACANA</span><span>ORIJEN</span><span>ZIWI</span><span>CHARM</span></div>
+    </div>
+  </section>
+  <section class="catalog container" id="catalog">
+    <div class="section-head"><div><p class="eyebrow">OUR PRODUCTS</p><h2>商品を探す</h2><p>ブランド・ライフステージ・目的から絞り込めます。</p></div><span id="resultCount" class="count" aria-live="polite">35商品</span></div>
+    <div class="toolbar">
+      <label class="field"><span>商品名で検索</span><input id="keyword" type="search" placeholder="例：パピーラージ、ラム" autocomplete="off"></label>
+      <label class="field"><span>ブランド</span><select id="brandFilter"><option value="">すべてのブランド</option><option>ACANA</option><option>ORIJEN</option><option>ZIWI</option><option>CHARM</option></select></label>
+      <label class="field"><span>種類・目的</span><select id="purposeFilter"><option value="">すべて</option><option value="大型犬の子犬用">大型犬の子犬用</option><option value="大型犬の成犬用">大型犬の成犬用</option><option value="子犬用">子犬用</option><option value="成犬用">成犬用</option><option value="シニア用">シニア用</option><option value="体重管理">体重管理</option><option value="活動的な犬向け">活動的な犬向け</option><option value="単一動物性たんぱく源">単一動物性たんぱく源</option><option value="エアドライ">エアドライ</option><option value="スチームドライ">スチームドライ</option></select></label>
+      <button id="clearFilters" class="clear-btn" type="button">絞り込み解除</button>
+    </div>
+    <div class="quick-filters" aria-label="おすすめカテゴリ">
+      <button type="button" data-quick="大型犬の子犬用">🐾 大型犬の子犬</button>
+      <button type="button" data-quick="大型犬の成犬用">🐕 大型犬の成犬</button>
+      <button type="button" data-quick="体重管理">⚖️ 体重管理</button>
+      <button type="button" data-quick="シニア用">🌿 シニア</button>
+    </div>
+    <div id="productGrid" class="product-grid" aria-live="polite"></div>
+    <div id="emptyState" class="empty" hidden>条件に合う商品がありません。絞り込みを変更してください。</div>
+  </section>
+  <section class="help"><div class="container">
+    <h2>大型犬のフード選びについて</h2>
+    <p>年齢・体格・活動量・食事制限などによって適したフードは異なります。粒サイズはメーカー提供の目安です。気になる原材料やアレルギーについては、必ず最新の商品ラベルをご確認ください。</p>
+    <p class="muted">商品説明は仕入先提供の資料を基に準備しています。栄養成分・原材料・給与量・在庫・送料は販売開始までに確認・掲載予定です。</p>
+  </div></section>
+</main>
+<div id="productDialog" class="modal" hidden>
+  <div class="backdrop" data-close="true"></div>
+  <section class="detail" role="dialog" aria-modal="true" aria-labelledby="detailName" tabindex="-1">
+    <button id="closeDialog" class="close" type="button" aria-label="閉じる">×</button>
+    <div id="detailBody"></div>
+  </section>
+</div>
+<footer><div class="container foot"><a href="index.html">🐾 BIG PAW</a><span>大型犬専門の子犬紹介サイト</span><a href="contact.html">お問い合わせ</a></div></footer>
+</body>
+</html>
