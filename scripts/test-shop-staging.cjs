@@ -10,6 +10,18 @@ const {chromium, webkit} = require('playwright');
     const url='file://'+path.resolve('app/shop.html');
     await page.goto(url);
     assert.equal(await page.locator('a.prod').count(),35,name+' full catalog');
+    assert.equal(await page.locator('.brand-card').count(),4,name+' four brand choices');
+    assert.equal(await page.locator('.brand-section').count(),4,name+' brands separated on initial view');
+    assert.equal(await page.locator('#brand-ACANA .series-block').count(),3,name+' ACANA organized by recipe series');
+    assert.equal(await page.locator('#brand-ZIWI .series-block').count(),2,name+' ZIWI organized into air- and steam-dried');
+    await page.locator('button[data-brand-card="ACANA"]').click();
+    assert.equal(await page.locator('a.prod').count(),14,name+' choosing ACANA from large brand card');
+    assert.equal(await page.locator('.brand-section').count(),1,name+' selecting brand hides others');
+    assert.equal(await page.locator('button[data-brand-card="ACANA"]').getAttribute('aria-pressed'),'true',name+' brand state');
+    await page.locator('#clearFilters').click();
+    assert.equal(await page.locator('.brand-section').count(),4,name+' reset restores all grouped sections');
+    assert.equal(await page.locator('a.prod').count(),35,name+' reset restores all products');
+
     assert.match(await page.locator('#count').innerText(),/35/);
     await page.locator('button[data-brand="ACANA"]').click();
     assert.equal(await page.locator('a.prod').count(),14);
