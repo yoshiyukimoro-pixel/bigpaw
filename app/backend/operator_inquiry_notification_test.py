@@ -144,10 +144,10 @@ send_mail = _capture_operator_mail
         qid = result["id"]
         check(len(sql("SELECT id FROM inquiries WHERE id=?", (qid,), True)) == 1,
               "inquiry saved once")
-        check(len(sql("SELECT id FROM notifications WHERE user_id='u_dog44' AND type='inquiry'", read=True)) == 1,
+        check(len(sql("SELECT id FROM notifications WHERE user_id='u_dog44' AND kind='inquiry'", read=True)) == 1,
               "existing breeder in-app alert preserved")
-        check(len(sql("SELECT id FROM notifications WHERE user_id='u_admin' AND type='inquiry'", read=True)) == 1
-              and len(sql("SELECT id FROM notifications WHERE user_id='u_second_operator' AND type='inquiry'", read=True)) == 1,
+        check(len(sql("SELECT id FROM notifications WHERE user_id='u_admin' AND kind='inquiry'", read=True)) == 1
+              and len(sql("SELECT id FROM notifications WHERE user_id='u_second_operator' AND kind='inquiry'", read=True)) == 1,
               "both operator accounts get in-app notifications")
 
         email_list = mails()
@@ -179,7 +179,7 @@ send_mail = _capture_operator_mail
               "inquiry persists even if operator mail fails")
         check(len([m for m in mails() if m["to"] == "info@bigpaw.site"]) == 2,
               "one operator mail attempt per accepted inquiry including rejected transport")
-        check(len(sql("SELECT id FROM notifications WHERE user_id='u_admin' AND type='inquiry'", read=True)) == 2,
+        check(len(sql("SELECT id FROM notifications WHERE user_id='u_admin' AND kind='inquiry'", read=True)) == 2,
               "in-app operator notification remains on mail failure")
 
         reject_operator.unlink()
