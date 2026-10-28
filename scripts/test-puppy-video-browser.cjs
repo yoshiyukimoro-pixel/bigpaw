@@ -183,7 +183,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(page.url().includes('breeder-puppy-new.html?id=p1'),name+': editor navigated before upload receipt');
     check(!uploadCount&&!attachCount,name+': mock must still be uploading before receipt');
     try{
-      await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:20000});
+      await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('✅ 動画の登録・保存が完了しました。'),null,{timeout:20000});
     }catch(e){
       const status=await page.locator('#puppyVideoStatus').innerText().catch(()=>'-');
       throw new Error(name+': tus upload did not finish: status='+status+
@@ -198,12 +198,24 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': lost POST response must recover by exact-UID readback with no duplicate upload');
     check(!((await page.locator('#puppyVideoStatus').innerText()).includes('動画を保存できませんでした')),
       name+': red false failure shown for already persisted video after Safari Load failed');
-    await page.waitForFunction(()=>document.querySelector('#puppyVideoPlayback')?.textContent.includes('再生できるようになるまで準備中'),null,{timeout:10000});
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoPlayback')?.textContent.includes('🎬 動画の再生準備中です'),null,{timeout:10000});
     check(await page.locator('#puppyVideoExisting iframe').count()===0,name+': editor iframe appeared before Stream readyToStream');
+    const processingText=await page.locator('#puppyVideoPlayback').innerText();
+    check(processingText.includes('動画は正常に保存されています'),name+': processing must say video is safely saved');
+    check(processingText.includes('変更内容の保存やほかの画面への移動ができます'),name+': processing must permit ordinary editing');
+    check(processingText.includes('この画面での確認開始から：')&&processingText.includes('次の自動確認まで：'),
+      name+': elapsed and countdown not displayed');
+    check(await page.locator('#retryPuppyVideoPreviewBtn').count()===1,name+': manual retry must be available');
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
     check(previewPolls>=2,name+': editor did not verify Stream readiness before player');
     check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
+    const readyText=await page.locator('#puppyVideoPlayback').innerText();
+    check(readyText.includes('✅ 動画を再生できます。')&&!readyText.includes('再生準備中です'),
+      name+': ready video must clear processing banner');
+    check(!((await page.locator('#puppyVideoStatus').innerText()).includes('動画を保存できませんでした')),
+      name+': video status incorrectly displays failure after playback is ready');
     await page.reload({waitUntil:'domcontentloaded'});
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoPlayback')?.textContent.includes('✅ 動画を再生できます。'),null,{timeout:15000});
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
     check(await page.locator('#puppyVideoExisting iframe').getAttribute('src')==='https://videodelivery.net/'+uid+'/iframe',
       name+': video missing after reopening editor');
