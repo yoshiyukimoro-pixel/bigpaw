@@ -170,6 +170,8 @@ def main():
                         time.sleep(.25)
                 else:
                     raise AssertionError('server health timeout')
+                check(call(base,'GET','/api/health').get('videoConfigured') is True,
+                      'videoConfigured health flag must reflect Stream account and token presence without revealing values')
 
                 buyer=call(base,'POST','/api/login',{'email':'demo@bigpaw.jp','password':'demo1234'})['token']
                 breeder=call(base,'POST','/api/login',{'email':'dog44@bigpaw.jp','password':'demo1234'})['token']
