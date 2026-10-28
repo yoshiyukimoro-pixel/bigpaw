@@ -319,7 +319,18 @@ async function run(engine,name,contextOptions,launchOptions={}){
 
     // The mock deliberately responds 409 while the native multipart form is
     // still starting. It is an expected, retried "pending upload" state.
-    const serious=errors.filter(x=>!x.includes('cloudflarestream.com')&&!x.includes('ERR_NAME_NOT_RESOLVED')&&!x.includes('409 (Conflict)'));
+    // The single deliberately aborted attach acknowledgement generates one
+    // expected browser console network error, even though DB read-back succeeds.
+    // Do not ignore other console failures or mask real page JS exceptions.
+    const expectedAbortErrors=errors.filter(x=>
+      x==='console:Failed to load resource: net::ERR_FAILED'||
+      x==='console:Failed to load resource: Load failed');
+    check(expectedAbortErrors.length<=1,name+': unexpected extra network errors after simulated lost response: '+expectedAbortErrors.length);
+    const serious=errors.filter(x=>
+      !x.includes('cloudflarestream.com')&&
+      !x.includes('ERR_NAME_NOT_RESOLVED')&&
+      !x.includes('409 (Conflict)')&&
+      !expectedAbortErrors.includes(x));
     check(serious.length===0,name+': browser errors: '+serious.join(' | '));
     console.log('PUPPY_VIDEO_BROWSER_OK',name);
   }finally{
