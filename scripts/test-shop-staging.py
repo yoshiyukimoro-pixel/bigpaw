@@ -24,7 +24,7 @@ assert "ziwi-venison" in shop and "ziwi-tripe-lamb" in shop
 assert 'id="brandCards"' in shop and 'id="catalogStart"' in shop
 assert 'brand-section' in shop and 'seriesOrder' in shop
 assert '"brand-card"' in shop and 'id="clearFilters"' in shop
-assert 'ACANA:[\'アカナドッグ\',\'ハイプロテイン\',\'シングル\']' in shop
+assert 'ACANA:[\'アカナドッグ\',\'ハイエストプロテイン\',\'シングル\']' in shop
 assert 'ZIWI:[\'エアドライ\',\'スチームドライ\']' in shop
 
 assert shop.count("<script>") == 1 and shop.count("</script>") == 1
