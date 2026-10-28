@@ -21,6 +21,7 @@
   let previewState='processing';
   let previewChecking=false;
   let previewRequestIndex=0;
+  let previewAbortController=null;
   const objectUrls=new Set();
   const $=id=>document.getElementById(id);
 
@@ -130,6 +131,8 @@
     previewNextCheckAt=0;
   }
   function stopPreviewCheck(){
+    if(previewAbortController)previewAbortController.abort();
+    previewAbortController=null;
     previewEpoch+=1;
     previewRequestIndex+=1;
     previewChecking=false;
@@ -204,10 +207,16 @@
     previewState='checking';
     paintPreviewStatus();
     let response=null;
+    const controller=new AbortController();
+    previewAbortController=controller;
+    const timeout=setTimeout(()=>controller.abort(),12000);
     try{
-      response=await BigPawAPI.puppyVideoStatus(currentPuppyId);
+      response=await BigPawAPI.puppyVideoStatus(currentPuppyId,controller.signal);
     }catch(e){
-      // Failure to read status does not undo a confirmed saved attachment.
+      // A failed or stalled check does not undo a confirmed saved attachment.
+    }finally{
+      clearTimeout(timeout);
+      if(previewAbortController===controller)previewAbortController=null;
     }
     if(epoch!==previewEpoch||uid!==previewCurrentUid||requestIndex!==previewRequestIndex)return;
     previewChecking=false;
