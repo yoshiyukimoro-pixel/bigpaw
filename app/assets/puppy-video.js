@@ -14,6 +14,13 @@
   let currentPuppyId='';
   let previewEpoch=0;
   let previewTimer=0;
+  let previewClockTimer=0;
+  let previewStartedAt=0;
+  let previewNextCheckAt=0;
+  let previewCurrentUid='';
+  let previewState='processing';
+  let previewChecking=false;
+  let previewRequestIndex=0;
   const objectUrls=new Set();
   const $=id=>document.getElementById(id);
 
@@ -115,54 +122,116 @@
     setStatus('60秒以内です。保存すると動画を1本登録します。');
     return true;
   }
+  function clearPreviewTimers(){
+    if(previewTimer)clearTimeout(previewTimer);
+    if(previewClockTimer)clearInterval(previewClockTimer);
+    previewTimer=0;
+    previewClockTimer=0;
+    previewNextCheckAt=0;
+  }
   function stopPreviewCheck(){
     previewEpoch+=1;
-    if(previewTimer)clearTimeout(previewTimer);
-    previewTimer=0;
+    previewRequestIndex+=1;
+    previewChecking=false;
+    previewCurrentUid='';
+    clearPreviewTimers();
   }
-  async function checkExistingPreview(uid,epoch,attempt=0){
-    if(epoch!==previewEpoch)return;
+  function previewElapsed(){
+    const seconds=Math.max(0,Math.floor((Date.now()-previewStartedAt)/1000));
+    return Math.floor(seconds/60)+'分'+String(seconds%60).padStart(2,'0')+'秒';
+  }
+  function paintPreviewStatus(){
     const area=$('puppyVideoPlayback');
-    if(!area)return;
-    let response;
+    if(!area||!previewCurrentUid||previewState==='ready')return;
+    const waiting=previewState==='processing'||previewState==='unavailable'||previewState==='checking';
+    const title=previewState==='error'?'動画の再生準備を確認してください':
+      previewState==='changed'?'動画の状態が変更されました':
+      '🎬 動画の再生準備中です';
+    const note=previewState==='error'?
+      '動画は保存されていますが、Cloudflareの処理状況に問題がある可能性があります。時間をおいて再確認してください。':
+      previewState==='changed'?
+      '別の動画が登録されたか、動画が削除されています。画面を開き直して確認してください。':
+      '動画は正常に保存されています。再生できる状態になったら自動的に表示されます。';
+    const warning=previewState==='unavailable'?
+      '<div style="margin-top:7px">一時的に再生準備の確認ができませんでした。自動的に再確認します。</div>':
+      waiting&&Date.now()-previewStartedAt>=120000?
+      '<div style="margin-top:7px">準備に時間がかかっていますが、自動確認は継続しています。</div>':'';
+    const next=previewNextCheckAt?
+      '次の自動確認まで：約'+Math.max(0,Math.ceil((previewNextCheckAt-Date.now())/1000))+'秒':
+      previewChecking?'現在、Cloudflareに確認中です':
+      waiting?'まもなく自動確認します':'自動確認は停止しています';
+    area.innerHTML='<strong>'+title+'</strong>'+
+      '<div style="margin-top:7px">✅ 動画の登録・保存が完了しました。</div>'+
+      '<div style="margin-top:7px">'+note+'</div>'+
+      '<div style="margin-top:7px">この間も、変更内容の保存やほかの画面への移動ができます。</div>'+
+      '<div style="margin-top:9px;font-size:13px">この画面での確認開始から：'+previewElapsed()+
+      ' ／ '+next+'</div>'+warning+
+      '<button type="button" id="retryPuppyVideoPreviewBtn" class="btn btn-sub" style="margin-top:10px">今すぐ再生状況を確認する</button>';
+    const button=$('retryPuppyVideoPreviewBtn');
+    if(button){
+      button.disabled=previewChecking;
+      button.onclick=()=>{
+        if(previewChecking)return;
+        if(previewTimer)clearTimeout(previewTimer);
+        previewTimer=0;
+        previewNextCheckAt=0;
+        checkExistingPreview(previewCurrentUid,previewEpoch);
+      };
+    }
+  }
+  function schedulePreviewCheck(uid,epoch){
+    if(epoch!==previewEpoch||uid!==previewCurrentUid)return;
+    // Keep checking even after two minutes. Reduce background API traffic
+    // rather than stranding a saved video on a permanent "processing" notice.
+    const elapsed=Date.now()-previewStartedAt;
+    const delay=document.hidden?30000:elapsed>=600000?30000:elapsed>=120000?15000:5000;
+    if(previewTimer)clearTimeout(previewTimer);
+    previewNextCheckAt=Date.now()+delay;
+    previewTimer=setTimeout(()=>checkExistingPreview(uid,epoch),delay);
+    paintPreviewStatus();
+  }
+  async function checkExistingPreview(uid,epoch){
+    if(epoch!==previewEpoch||uid!==previewCurrentUid||previewChecking)return;
+    if(!$('puppyVideoPlayback'))return;
+    previewChecking=true;
+    previewNextCheckAt=0;
+    const requestIndex=++previewRequestIndex;
+    previewState='checking';
+    paintPreviewStatus();
+    let response=null;
     try{
       response=await BigPawAPI.puppyVideoStatus(currentPuppyId);
     }catch(e){
-      // Do not present a Cloudflare check failure as an upload failure.
-      // A publicly playable video is left intact on the server.
-      if(epoch!==previewEpoch)return;
-      area.textContent='動画は登録済みです。再生の準備状況を確認しています…';
+      // Failure to read status does not undo a confirmed saved attachment.
     }
-    if(epoch!==previewEpoch)return;
-    if(response){
-      if(response.videoUid!==uid || !response.hasVideo){
-        area.textContent='動画の状態が変わりました。編集画面を開き直して確認してください。';
-        return;
-      }
-      if(response.readyToStream && response.videoEmbedUrl){
-        const embed=String(response.videoEmbedUrl);
-        area.innerHTML='<div style="aspect-ratio:16/9"><iframe src="'+escapeHtml(embed)+'" title="子犬の動画" loading="lazy" style="width:100%;height:100%;border:0;border-radius:14px" allow="accelerometer; gyroscope; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';
-        return;
-      }
-      if(response.state==='error'){
-        area.textContent='動画の再生準備状況を確認してください。動画は削除されていません。';
-        return;
-      }
-      area.textContent='動画は登録済みです。再生できるようになるまで準備中です…';
-    }
-    // Bounded automatic checks, plus a manual retry that can be used later.
-    if(attempt<23){
-      previewTimer=setTimeout(()=>checkExistingPreview(uid,epoch,attempt+1),5000);
+    if(epoch!==previewEpoch||uid!==previewCurrentUid||requestIndex!==previewRequestIndex)return;
+    previewChecking=false;
+    const area=$('puppyVideoPlayback');
+    if(!area)return;
+    if(!response){
+      previewState='unavailable';
+    }else if(response.videoUid!==uid||!response.hasVideo){
+      previewState='changed';
+      clearPreviewTimers();
+      paintPreviewStatus();
+      return;
+    }else if(response.readyToStream&&response.videoEmbedUrl){
+      previewState='ready';
+      clearPreviewTimers();
+      area.innerHTML='<strong>✅ 動画を再生できます。</strong>'+
+        '<div style="margin-top:7px">動画は保存済みです。ほかの項目も通常どおり編集・保存できます。</div>'+
+        '<div style="aspect-ratio:16/9;margin-top:10px"><iframe src="'+escapeHtml(String(response.videoEmbedUrl))+
+        '" title="子犬の動画" loading="lazy" style="width:100%;height:100%;border:0;border-radius:14px" allow="accelerometer; gyroscope; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';
+      return;
+    }else if(response.state==='error'){
+      previewState='error';
+      clearPreviewTimers();
+      paintPreviewStatus();
+      return;
     }else{
-      area.innerHTML='<div>動画は保存済みです。再生準備の確認が続いています。</div><button type="button" id="retryPuppyVideoPreviewBtn" class="btn btn-sub" style="margin-top:10px">再生できるか確認する</button>';
-      const b=$('retryPuppyVideoPreviewBtn');
-      if(b)b.onclick=()=>{
-        stopPreviewCheck();
-        const nextEpoch=previewEpoch;
-        area.textContent='再生準備を確認しています…';
-        checkExistingPreview(uid,nextEpoch,0);
-      };
+      previewState='processing';
     }
+    schedulePreviewCheck(uid,epoch);
   }
   function renderExisting(p){
     currentPuppyId=String((p&&p.id)||currentPuppyId||'');
@@ -171,11 +240,19 @@
     if(!box)return;
     const uid=String((p&&p.videoUid)||'');
     if(!uid){box.innerHTML='';return}
-    // Even when the DB has a video UID, Stream may still be transcoding.
-    // Never auto-load its iframe before Cloudflare says readyToStream=true.
-    box.innerHTML='<div style="margin-bottom:10px;font-weight:800">現在の動画</div><div id="puppyVideoPlayback" role="status" aria-live="polite" class="notice">動画は登録済みです。再生の準備状況を確認しています…</div><button type="button" id="deletePuppyVideoBtn" class="btn btn-sub" style="margin-top:10px">この動画を削除</button>';
-    const b=$('deletePuppyVideoBtn');if(b)b.onclick=deleteExisting;
-    checkExistingPreview(uid,previewEpoch,0);
+    // A stored UID means the upload is saved, not necessarily playable yet.
+    // Poll Cloudflare readiness only for this UID; never mutate saved media.
+    previewCurrentUid=uid;
+    previewStartedAt=Date.now();
+    previewState='processing';
+    box.innerHTML='<div style="margin-bottom:10px;font-weight:800">現在の動画</div>'+
+      '<div id="puppyVideoPlayback" role="status" aria-live="polite" class="notice"></div>'+
+      '<button type="button" id="deletePuppyVideoBtn" class="btn btn-sub" style="margin-top:10px">この動画を削除</button>';
+    const button=$('deletePuppyVideoBtn');
+    if(button)button.onclick=deleteExisting;
+    previewClockTimer=setInterval(paintPreviewStatus,1000);
+    paintPreviewStatus();
+    checkExistingPreview(uid,previewEpoch);
   }
   async function deleteExisting(){
     if(!currentPuppyId||!confirm('登録中の動画を削除しますか？'))return;
@@ -324,7 +401,7 @@
     if(input)input.value='';
     setPreview('');
     renderExisting(puppy);
-    setStatus('動画を登録しました。');
+    setStatus('✅ 動画の登録・保存が完了しました。');
     return puppy;
   }
   function init(){
@@ -404,5 +481,19 @@
     init
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden&&previewCurrentUid&&previewState!=='ready'&&!previewChecking){
+      if(previewTimer)clearTimeout(previewTimer);
+      previewTimer=0;
+      checkExistingPreview(previewCurrentUid,previewEpoch);
+    }
+  });
+  window.addEventListener('focus',()=>{
+    if(previewCurrentUid&&previewState!=='ready'&&!previewChecking){
+      if(previewTimer)clearTimeout(previewTimer);
+      previewTimer=0;
+      checkExistingPreview(previewCurrentUid,previewEpoch);
+    }
+  });
   window.addEventListener('pagehide',cleanupObjectUrls);
 })();
