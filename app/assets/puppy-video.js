@@ -26,9 +26,29 @@
   function setStatus(message,isError=false){
     const el=$('puppyVideoStatus');
     if(!el)return;
+    el.className='muted';
     el.textContent=message||'';
     el.style.color=isError?'#b42318':'';
     el.style.fontWeight=isError?'700':'';
+    el.style.background='';
+    el.style.border='';
+    el.style.borderRadius='';
+    el.style.padding='';
+    el.style.textAlign='';
+  }
+  function setUploadProgress(percent,stage='sending'){
+    const el=$('puppyVideoStatus');
+    if(!el)return;
+    const value=Math.max(0,Math.min(100,Math.floor(Number(percent)||0)));
+    const confirming=stage==='confirming';
+    el.className='';
+    el.style.cssText='margin-top:12px;padding:14px;border:2px solid '+(confirming?'#147a3d':'#0759b5')+';border-radius:12px;background:'+(confirming?'#e9f8ef':'#eaf3ff')+';color:#102a43;text-align:left;font-size:16px;line-height:1.5';
+    el.innerHTML='<div style="display:flex;align-items:center;gap:8px;color:'+(confirming?'#126333':'#064b96')+';font-size:19px;font-weight:900">'+
+      (confirming?'✅ 動画の送信は完了しました':'📤 動画を送信しています')+'</div>'+
+      '<div style="margin-top:5px;font-weight:900;font-size:21px">'+(confirming?'100':value)+'% <span style="font-size:15px;font-weight:700">/ 100%</span></div>'+
+      '<progress max="100" value="'+(confirming?100:value)+'" aria-label="動画の送信進捗 '+(confirming?100:value)+'%" style="display:block;width:100%;height:18px;margin:7px 0 9px;accent-color:'+(confirming?'#16803c':'#0866c6')+'"></progress>'+
+      '<div style="font-weight:800">'+(confirming?'BIG PAWへの保存を確認しています。完了表示に切り替わるまでお待ちください。':'100%になるまで、このままお待ちください。送信後は自動で保存確認に進みます。')+'</div>'+
+      '<div style="margin-top:3px;font-size:14px">'+(confirming?'このまま画面を開いておいてください。':'送信中は保存ボタンを押さず、画面を閉じないでください。')+'</div>';
   }
   function showCancelButton(show){
     let b=$('cancelPuppyVideoUploadBtn');
@@ -227,7 +247,7 @@
        target.username||target.password){
       throw new Error('動画の送信先を確認できませんでした。');
     }
-    setStatus('動画をCloudflareへ送信中… 0%');
+    setUploadProgress(0);
     // Cloudflare's resumable tus protocol gives a real HTTP status and offset.
     // Unlike the old hidden-iframe POST, failures cannot silently appear saved.
     // File bytes go from Safari straight to Cloudflare (never Railway).
@@ -281,9 +301,9 @@
           );
         }
       }
-      setStatus('動画をCloudflareへ送信中… '+Math.min(100,Math.floor(offset*100/file.size))+'%');
+      setUploadProgress(Math.min(100,Math.floor(offset*100/file.size)));
     }
-    setStatus('送信完了。Cloudflareで動画の登録を確認しています…');
+    setUploadProgress(100,'confirming');
     // A mobile Safari "Load failed" can mean that the *response* to an
     // already-committed attachment was lost (Railway logs HTTP 499). Verify
     // the exact just-uploaded UID from the database before reporting failure
