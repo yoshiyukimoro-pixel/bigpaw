@@ -127,8 +127,20 @@ BIG PAWではビデオ通話ルームや参加PINコードを発行しません�
 BIG PAW
 {PUBLIC_BASE_URL}/messages.html?inquiry={inquiry_id}'''
 """
-assert s.count(old_email)==1, ('online_visit_email_block_count',s.count(old_email))
-s=s.replace(old_email,new_email,1)
+if s.count(old_email)==1:
+    s=s.replace(old_email,new_email,1)
+else:
+    # Backward-compatible source matching. Keep the exact method boundaries,
+    # because whitespace in the legacy server may differ from this template.
+    start_marker='            subject="【BIG PAW】オンライン見学のお申し込みが入りました"'
+    end_marker="            return send_mail(user['email'],subject,body)"
+    assert s.count(start_marker)==1, ('online_visit_email_subject_count',s.count(start_marker))
+    assert s.count(end_marker)==1, ('online_visit_email_return_count',s.count(end_marker))
+    start=s.index(start_marker)
+    stop=s.index(end_marker,start)
+    assert "Jitsi Meet" in s[start:stop], 'unexpected_online_visit_email_block'
+    s=s[:start]+new_email+s[stop:]
+
 
 old_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(SMTP_HOST),'paymentMode':PAYMENT_MODE})"
 new_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(os.environ.get('RESEND_API_KEY') or SMTP_HOST),'paymentMode':PAYMENT_MODE})"
