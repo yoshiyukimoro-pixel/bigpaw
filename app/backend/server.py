@@ -1402,7 +1402,9 @@ https://www.bigpaw.site/'''
                 con.execute('UPDATE visits SET visit_date=?,visit_time=?,party_size=?,transport=?,status=?,face_to_face_confirmed=?,updated_at=? WHERE inquiry_id=?',vals+(m.group(1),)); vid=existing['id']
             else:
                 con.execute('INSERT INTO visits VALUES(?,?,?,?,?,?,?,?,?)',(vid,m.group(1),*vals))
-            con.execute("UPDATE inquiries SET status='見学確定',needs_reply=0 WHERE id=?",(m.group(1),))
+            if body.get('status','proposed')=='confirmed':
+                con.execute("UPDATE inquiries SET needs_reply=0 WHERE id=?",(m.group(1),))
+            con.execute("UPDATE inquiries SET status='見学確定' WHERE id=?",(m.group(1),))
             con.commit(); r=con.execute('SELECT * FROM visits WHERE id=?',(vid,)).fetchone(); con.close(); self.online_visit_email(m.group(1), body.get('status','proposed'), body.get('date',''), body.get('time','')); return self.send_json(dict(r),201)
         m=re.fullmatch(r'/api/inquiries/([^/]+)/deal',path)
         if m:
