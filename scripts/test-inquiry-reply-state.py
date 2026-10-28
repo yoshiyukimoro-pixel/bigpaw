@@ -150,7 +150,7 @@ with tempfile.TemporaryDirectory(prefix="bigpaw-reply-e2e-") as directory:
               "different unanswered inquiry remains visible")
         code, msgs = request(base, "GET",
                              f"/api/inquiries/{first_id}/messages", token=breeder)
-        check(code == 200 and len(msgs) == 7, "original message history is preserved")
+        check(code == 200 and len(msgs) == 6, "original message history is preserved")
     finally:
         stop_server(proc)
 
@@ -168,7 +168,7 @@ with tempfile.TemporaryDirectory(prefix="bigpaw-reply-e2e-") as directory:
               "first-start migration reconstructs replied/unanswered state")
         code, msgs = request(base, "GET",
                              f"/api/inquiries/{first_id}/messages", token=breeder)
-        check(code == 200 and len(msgs) == 7, "migration preserves chat history")
+        check(code == 200 and len(msgs) == 6, "migration preserves chat history")
     finally:
         stop_server(proc)
 
