@@ -123,8 +123,8 @@ BIG PAW
 assert s.count(old_email)==1, ('online_visit_email_block_count',s.count(old_email))
 s=s.replace(old_email,new_email,1)
 
-old_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(SMTP_HOST),'paymentMode':PAYMENT_MODE})"
-new_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(os.environ.get('RESEND_API_KEY') or SMTP_HOST),'paymentMode':PAYMENT_MODE})"
+old_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(SMTP_HOST),'paymentMode':PAYMENT_MODE,'videoConfigured':bool(CLOUDFLARE_STREAM_ACCOUNT_ID and CLOUDFLARE_STREAM_API_TOKEN)})"
+new_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(os.environ.get('RESEND_API_KEY') or SMTP_HOST),'paymentMode':PAYMENT_MODE,'videoConfigured':bool(CLOUDFLARE_STREAM_ACCOUNT_ID and CLOUDFLARE_STREAM_API_TOKEN)})"
 assert s.count(old_health)==1, ('health_mail_check_count',s.count(old_health))
 s=s.replace(old_health,new_health,1)
 
