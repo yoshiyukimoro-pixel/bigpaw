@@ -44,6 +44,16 @@ class InquiryShortcutTest(unittest.TestCase):
         self.assertIn("qp.get('id')||qp.get('puppy')", FORM)
         self.assertIn("BigPawBridge.addInquiry", FORM)
 
+    def test_inquiry_role_denial_has_actionable_message(self):
+        self.assertIn("x.status===403&&errorCode==='forbidden'", FORM)
+        self.assertIn("一般会員（購入希望者）専用", FORM)
+        self.assertIn("運営・ブリーダー用アカウントではなく", FORM)
+        self.assertIn("x.status===401", FORM)
+        self.assertIn("x.status===403&&errorCode==='invalid_origin'", FORM)
+        self.assertIn("x.status===404&&errorCode==='puppy_not_found'", FORM)
+        self.assertIn("BigPawBridge.addInquiry", FORM)
+        self.assertIn("created&&created.id", FORM)
+
     def test_phone_placement_without_obscuring_content(self):
         css = re.search(r'<style id="bigpawPuppyContactShortcutStyle">(.*?)</style>', PAGE, re.S)
         self.assertIsNotNone(css)
