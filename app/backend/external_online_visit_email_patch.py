@@ -16,7 +16,7 @@ assert source.count(end) == 1, ("online_visit_email_end", source.count(end))
 start = source.index(begin)
 stop = source.index(end, start)
 old = source[start:stop]
-assert "Jitsi Meet" in old or "ONLINE_VISIT_EXTERNAL_EMAIL_V1" in old, "Unexpected online mail implementation"
+assert "subject=" in old and "send_mail(" in old and "inquiry_id" in old, "Unexpected online mail implementation"
 replacement = '''    def online_visit_email(self, inquiry_id, status, visit_date, visit_time):
         # ONLINE_VISIT_EXTERNAL_EMAIL_V1: BIG PAW manages dates, not calls.
         try:
