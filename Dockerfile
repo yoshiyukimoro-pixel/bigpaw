@@ -14,7 +14,6 @@ RUN ["python3", "backend/contract_patch.py"]
 RUN ["python3", "backend/video_provider_patch.py"]
 RUN ["python3", "backend/visit_contact_patch.py"]
 # Keep visit confirmations in BIG PAW, but perform calls via external links.
-RUN ["python3", "backend/external_online_visit_email_patch.py"]
 RUN ["python3", "backend/sales_policy_patch.py"]
 RUN ["python3", "backend/parent_photo_layout_patch.py"]
 RUN ["python3", "backend/puppy_image_delivery_patch.py"]
