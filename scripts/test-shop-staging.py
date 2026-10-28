@@ -12,7 +12,9 @@ assert len(rows) == 35, f"Expected 35 products, got {len(rows)}"
 assert Counter(r[1] for r in rows) == {"ACANA": 14, "ORIJEN": 8, "ZIWI": 9, "CHARM": 4}
 assert len(set(r[0] for r in rows)) == 35, "Duplicate product IDs"
 assert len(set(r[7] for r in rows)) == 35, "Duplicate image slugs"
-assert all(r[3] in ("11.4kg", "10kg", "4kg", "3.2kg") for r in rows)
+assert all(r[3] in ("11.4kg", "10kg", "4kg", "3.2kg", "2.5kg") for r in rows)
+assert {r[0]:r[3] for r in rows}["Z01"] == "2.5kg", "Venison is only stocked as 2.5kg"
+assert {r[0]:r[3] for r in rows}["Z04"] == "2.5kg", "Tripe & Lamb is only stocked as 2.5kg"
 assert "noindex,nofollow" in shop
 assert "販売準備中" in shop and "価格準備中" in shop
 assert 'disabled>販売開始までお待ちください' in shop
