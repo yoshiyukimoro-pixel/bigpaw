@@ -1,0 +1,61 @@
+name: Inquiry reply attention and history safety
+on:
+  pull_request:
+    paths:
+      - "app/backend/server.py"
+      - "app/admin.html"
+      - "app/breeder-inquiries.html"
+      - "app/messages.html"
+      - "scripts/test-breeder-dashboard-inquiry-count.cjs"
+      - "scripts/test-inquiry-reply-state.py"
+      - ".github/workflows/inquiry-reply-state.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/backend/server.py"
+      - "app/admin.html"
+      - "app/breeder-inquiries.html"
+      - "app/messages.html"
+      - "scripts/test-breeder-dashboard-inquiry-count.cjs"
+      - "scripts/test-inquiry-reply-state.py"
+      - ".github/workflows/inquiry-reply-state.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reply-state:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and admin dashboard regression
+        run: |
+          python3 -m py_compile app/backend/server.py scripts/test-inquiry-reply-state.py
+          node --check scripts/test-breeder-dashboard-inquiry-count.cjs
+          node scripts/test-breeder-dashboard-inquiry-count.cjs
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess
+          class ScriptParser(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.collect=False; self.scripts=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=='script' and 'src' not in dict(attrs):
+                      self.collect=True; self.scripts.append('')
+              def handle_endtag(self,tag):
+                  if tag=='script': self.collect=False
+              def handle_data(self,data):
+                  if self.collect: self.scripts[-1]+=data
+          for filename in ['admin.html','breeder-inquiries.html','messages.html']:
+              p=ScriptParser(); p.feed(Path('app',filename).read_text())
+              for snippet in p.scripts:
+                  if not snippet.strip(): continue
+                  result=subprocess.run(['node','--check'],input=snippet,text=True,capture_output=True)
+                  assert result.returncode==0,(filename,result.stderr)
+          print('INQUIRY_INLINE_JS_SYNTAX_OK')
+          PY
+      - name: Live HTTP reply, visit, permissions and schema migration regression
+        run: python3 scripts/test-inquiry-reply-state.py
