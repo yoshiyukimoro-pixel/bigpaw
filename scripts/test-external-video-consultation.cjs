@@ -139,7 +139,8 @@ async function breeder(browser,name){
  assert.ok(!msg.includes('id="onlineVisit"'),'remove old booking CTA from shared message page');
  assert.ok(!msg.includes('onlineVisitRequestNotice'),'remove old booking alert script');
  assert.ok(!msg.includes("onlineVisit.href='online-visit.html"),'do not navigate to managed booking');
- assert.ok(msg.includes('LINE・FaceTimeなどでのオンライン相談'),'keep direct-call guidance');
+ assert.ok(msg.includes('BIG PAWは通話ルームを提供しません'),'keep direct-call guidance');
+ assert.ok(msg.includes('日時を確定します'),'dates remain managed by BIG PAW');
  const docker=fs.readFileSync(path.resolve(__dirname,'../Dockerfile'),'utf8');
  const externalMail=fs.readFileSync(path.resolve(__dirname,'../app/backend/external_online_visit_email_patch.py'),'utf8');
  assert.ok(docker.includes('RUN ["python3", "backend/external_online_visit_email_patch.py"]'),'final production build must run external call email replacement');
