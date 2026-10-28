@@ -60,7 +60,7 @@ assert s.count(old_room)==1, ('video_room_post_final_count',s.count(old_room))
 s=s.replace(old_room,new_room,1)
 
 old_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(os.environ.get('RESEND_API_KEY') or SMTP_HOST),'paymentMode':PAYMENT_MODE})"
-new_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(os.environ.get('RESEND_API_KEY') or SMTP_HOST),'videoConfigured':bool(VIDEO_BASE_URL),'paymentMode':PAYMENT_MODE})"
+new_health="if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(os.environ.get('RESEND_API_KEY') or SMTP_HOST),'videoConfigured':bool(VIDEO_BASE_URL),'puppyVideoConfigured':bool(CLOUDFLARE_STREAM_ACCOUNT_ID and CLOUDFLARE_STREAM_API_TOKEN),'paymentMode':PAYMENT_MODE})"
 assert s.count(old_health)==1, ('video_health_count',s.count(old_health))
 s=s.replace(old_health,new_health,1)
 
