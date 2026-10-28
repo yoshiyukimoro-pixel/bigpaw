@@ -1679,6 +1679,12 @@ https://www.bigpaw.site/'''
             if u['role']=='breeder':
                 b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
                 if not b or puppy['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
+            # A caller may retry if Safari lost the successful POST response.
+            # If this exact UID is already attached, return success without
+            # another Cloudflare request, DB write or audit entry.
+            if str(puppy['video_uid'] or '')==uid:
+                out=puppy_json(puppy);con.close()
+                return self.send_json(out,200)
             try:
                 details=stream_video_details(uid)
             except Exception as exc:

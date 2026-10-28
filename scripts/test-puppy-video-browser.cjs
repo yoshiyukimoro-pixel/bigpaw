@@ -136,8 +136,13 @@ async function run(engine,name,contextOptions,launchOptions={}){
         return;
       }
       attachCount+=1;
+      // Reproduce the actual iPhone incident: the server has committed the
+      // video, but Safari loses the POST acknowledgement ("Load failed"/499).
+      // The next authenticated GET must find this exact UID and show success,
+      // without a second upload or false red "保存できませんでした".
       attachedUid=uid;
-      await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
+      if(attachCount===1){await route.abort('failed');return;}
+      await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
         id:'p1',videoUid:uid,videoStatus:'ready',
         videoEmbedUrl:'https://videodelivery.net/'+uid+'/iframe'
       })});
@@ -190,7 +195,9 @@ async function run(engine,name,contextOptions,launchOptions={}){
       JSON.stringify(byteProbe.prefix)===JSON.stringify([...shortVideo.buffer.slice(0,16)]),
       name+': iPhone Blob handed to tus fetch does not contain the source video bytes');
     check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': Save must be enabled after video is really attached');
-    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': resumable tus upload must reach Stream and attach once');
+    check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': lost POST response must recover by exact-UID readback with no duplicate upload');
+    check(!((await page.locator('#puppyVideoStatus').innerText()).includes('動画を保存できませんでした')),
+      name+': red false failure shown for already persisted video after Safari Load failed');
     await page.waitForFunction(()=>document.querySelector('#puppyVideoPlayback')?.textContent.includes('再生できるようになるまで準備中'),null,{timeout:10000});
     check(await page.locator('#puppyVideoExisting iframe').count()===0,name+': editor iframe appeared before Stream readyToStream');
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
@@ -312,7 +319,18 @@ async function run(engine,name,contextOptions,launchOptions={}){
 
     // The mock deliberately responds 409 while the native multipart form is
     // still starting. It is an expected, retried "pending upload" state.
-    const serious=errors.filter(x=>!x.includes('cloudflarestream.com')&&!x.includes('ERR_NAME_NOT_RESOLVED')&&!x.includes('409 (Conflict)'));
+    // The single deliberately aborted attach acknowledgement generates one
+    // expected browser console network error, even though DB read-back succeeds.
+    // Do not ignore other console failures or mask real page JS exceptions.
+    const expectedAbortErrors=errors.filter(x=>
+      x==='console:Failed to load resource: net::ERR_FAILED'||
+      x==='console:Failed to load resource: Load failed');
+    check(expectedAbortErrors.length<=1,name+': unexpected extra network errors after simulated lost response: '+expectedAbortErrors.length);
+    const serious=errors.filter(x=>
+      !x.includes('cloudflarestream.com')&&
+      !x.includes('ERR_NAME_NOT_RESOLVED')&&
+      !x.includes('409 (Conflict)')&&
+      !expectedAbortErrors.includes(x));
     check(serious.length===0,name+': browser errors: '+serious.join(' | '));
     console.log('PUPPY_VIDEO_BROWSER_OK',name);
   }finally{

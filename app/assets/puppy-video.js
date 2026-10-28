@@ -265,6 +265,27 @@
       setStatus('動画をCloudflareへ送信中… '+Math.min(100,Math.floor(offset*100/file.size))+'%');
     }
     setStatus('送信完了。Cloudflareで動画の登録を確認しています…');
+    // A mobile Safari "Load failed" can mean that the *response* to an
+    // already-committed attachment was lost (Railway logs HTTP 499). Verify
+    // the exact just-uploaded UID from the database before reporting failure
+    // or retrying. A playable older video is NOT proof that this UID saved.
+    async function readBack(attempts){
+      for(let i=0;i<attempts;i++){
+        if(cancelRequested)throw new Error('video_upload_cancelled');
+        if(i)await pause(1200);
+        try{
+          const puppies=await BigPawAPI.breederPuppies();
+          const matching=Array.isArray(puppies)?
+            puppies.find(p=>String(p.id)===currentPuppyId):null;
+          if(matching&&String(matching.videoUid||'')===String(ticket.uid))return matching;
+        }catch(e){
+          // A temporary GET failure must not erase an already saved video.
+        }
+      }
+      return null;
+    }
+    let confirmedPuppy=null;
+    let networkRetries=0;
     for(let attempt=0;attempt<50;attempt++){
       if(cancelRequested)throw new Error('video_upload_cancelled');
       if(attempt)await pause(2000);
@@ -273,17 +294,29 @@
         await BigPawAPI.attachPuppyVideo(currentPuppyId,ticket.uid);
         break;
       }catch(e){
-        if(!e.data||e.data.error!=='video_upload_not_received')throw e;
-        if(attempt===49){
-          throw new Error('Cloudflareへの送信完了後、動画の登録確認ができませんでした。');
+        if(e.data?.error==='video_upload_not_received'){
+          if(attempt===49)
+            throw new Error('Cloudflareへの送信完了後、動画の登録確認ができませんでした。');
+          continue;
         }
+        // Only an indeterminate network error is eligible for an idempotent
+        // retry. Explicit HTTP 400/403/422 must retain their original error.
+        if(e.status)throw e;
+        setStatus('通信が途切れました。動画が保存済みか確認しています…');
+        confirmedPuppy=await readBack(4);
+        if(confirmedPuppy)break;
+        networkRetries+=1;
+        if(networkRetries>=3){
+          throw new Error('通信が途切れたため、保存結果を確認できませんでした。再登録する前に編集画面を開き直して確認してください。');
+        }
+        setStatus('保存状況を確認できませんでした。同じ動画の登録を再確認しています…');
       }
     }
-    // Do not claim success until the video UID is read back from the database.
-    const puppies=await BigPawAPI.breederPuppies();
-    const puppy=Array.isArray(puppies)?puppies.find(p=>String(p.id)===currentPuppyId):null;
-    if(!puppy||String(puppy.videoUid||'')!==String(ticket.uid)){
-      throw new Error('動画の保存を確認できませんでした。再度お試しください。');
+    // A successful POST response alone is not sufficient; confirm the exact
+    // UID is persisted. Keep the previously attached video if an old one plays.
+    const puppy=confirmedPuppy||await readBack(4);
+    if(!puppy){
+      throw new Error('動画の保存結果を確認できませんでした。編集画面を開き直して確認してください。');
     }
     selected=null;
     cleanupObjectUrls();

@@ -202,6 +202,10 @@ def main():
                 attached=call(base,'POST','/api/puppies/p1/video',{'uid':ticket['uid']},breeder,201)
                 check(attached['videoUid']==ticket['uid'],'video attached to owner puppy')
                 check(attached['reviewStatus']=='approved','approved breeder video edit stays public')
+                # Safari sometimes loses the POST response after server commit.
+                # Repeating the same attachment must be harmless and return 200.
+                repeated=call(base,'POST','/api/puppies/p1/video',{'uid':ticket['uid']},breeder,200)
+                check(repeated['videoUid']==ticket['uid'],'lost-response attach retry is idempotent')
                 public=call(base,'GET','/api/puppies/p1')
                 check(public['videoUid']==ticket['uid'],'approved video public')
                 check(public['videoEmbedUrl']==f'https://customer-testcustomer.cloudflarestream.com/{ticket["uid"]}/iframe','public embed URL')
