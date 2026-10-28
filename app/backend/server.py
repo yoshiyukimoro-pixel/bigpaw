@@ -693,6 +693,16 @@ def delete_stream_video(uid):
 def init_db():
     con = db(); con.executescript(SCHEMA)
     bp_planned_litters.init_schema(con)
+    # Preserve existing inquiry histories; migrate each existing database once.
+    if 'needs_reply' not in {row['name'] for row in con.execute('PRAGMA table_info(inquiries)')}:
+        ensure_column(con,'inquiries','needs_reply','INTEGER NOT NULL DEFAULT 1')
+        con.execute('''UPDATE inquiries SET needs_reply = CASE
+            WHEN status IN ('取引終了','成約済み') THEN 0
+            WHEN (SELECT u.role FROM messages m JOIN users u ON u.id=m.sender_user_id
+                  WHERE m.inquiry_id=inquiries.id ORDER BY m.created_at DESC,m.rowid DESC LIMIT 1)='buyer' THEN 1
+            WHEN EXISTS (SELECT 1 FROM messages m WHERE m.inquiry_id=inquiries.id) THEN 0
+            WHEN status IN ('返信済み','見学確定','成約申請中') THEN 0
+            ELSE 1 END''')
     ensure_column(con,'users','email_verified','INTEGER NOT NULL DEFAULT 0')
     ensure_column(con,'users','terms_accepted_at','INTEGER')
     ensure_column(con,'users','privacy_accepted_at','INTEGER')
@@ -705,16 +715,6 @@ def init_db():
     ensure_column(con,'breeders','billing_suspended','INTEGER NOT NULL DEFAULT 0')
     ensure_column(con,'breeders','billing_suspended_at','INTEGER')
     ensure_column(con,'breeders','billing_suspension_reason',"TEXT DEFAULT ''")
-    # Preserve existing inquiry histories; migrate each existing database once.
-    if 'needs_reply' not in {row['name'] for row in con.execute('PRAGMA table_info(inquiries)')}:
-        ensure_column(con,'inquiries','needs_reply','INTEGER NOT NULL DEFAULT 1')
-        con.execute('''UPDATE inquiries SET needs_reply = CASE
-            WHEN status IN ('取引終了','成約済み') THEN 0
-            WHEN (SELECT u.role FROM messages m JOIN users u ON u.id=m.sender_user_id
-                  WHERE m.inquiry_id=inquiries.id ORDER BY m.created_at DESC,m.rowid DESC LIMIT 1)='buyer' THEN 1
-            WHEN EXISTS (SELECT 1 FROM messages m WHERE m.inquiry_id=inquiries.id) THEN 0
-            WHEN status IN ('返信済み','見学確定','成約申請中') THEN 0
-            ELSE 1 END''')
     def seed_user(uid, role, email, pw, last='', first='', display=''):
         existing_email=con.execute('SELECT id,role FROM users WHERE email=?',(email,)).fetchone()
         if existing_email:
