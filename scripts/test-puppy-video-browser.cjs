@@ -180,6 +180,15 @@ async function run(engine,name,contextOptions,launchOptions={}){
     // race invariant is that Save is disabled immediately on file selection.
     await page.waitForFunction(()=>document.querySelector('.btn-main.btn-wide')?.disabled===true,null,{timeout:15000});
     check(await page.locator('.btn-main.btn-wide').isDisabled(),name+': Save must be disabled while iPhone video is still uploading');
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('100%になるまで'),null,{timeout:15000});
+    const uploadGuidance=await page.locator('#puppyVideoStatus').innerText();
+    const progressStyle=await page.locator('#puppyVideoStatus').evaluate(el=>({background:getComputedStyle(el).backgroundColor,border:getComputedStyle(el).borderTopColor}));
+    check(uploadGuidance.includes('動画を送信しています')&&uploadGuidance.includes('100%')&&uploadGuidance.includes('このままお待ちください'),
+      name+': upload panel must clearly say video is sending and to wait through 100%');
+    check(uploadGuidance.includes('保存ボタンを押さず')&&uploadGuidance.includes('画面を閉じないで'),
+      name+': upload panel must explain not to save or leave during upload');
+    check(progressStyle.background==='rgb(234, 243, 255)'&&progressStyle.border==='rgb(7, 89, 181)',
+      name+': upload progress must use a high-contrast blue panel');
     await page.waitForTimeout(400);
     check(page.url().includes('breeder-puppy-new.html?id=p1'),name+': editor navigated before upload receipt');
     check(!uploadCount&&!attachCount,name+': mock must still be uploading before receipt');
