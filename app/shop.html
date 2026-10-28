@@ -36,10 +36,10 @@ const rows=[
 'A05|ACANA|スポーツ＆アジリティレシピ|11.4kg|成犬|活動的|運動量が多い犬向けの高タンパク・高脂肪タイプ。|acana-sport|アカナドッグ',
 'A06|ACANA|ライト＆フィットレシピ|11.4kg|成犬|体重管理|脂肪・カロリーに配慮した体重管理向け。|acana-light|アカナドッグ',
 'A07|ACANA|シニアドッグレシピ|11.4kg|シニア|シニア|シニア犬の筋肉量維持と体重管理に配慮。|acana-senior|アカナドッグ',
-'A08|ACANA|ワイルドプレイリードッグレシピ|11.4kg|成犬|高タンパク|鶏肉・七面鳥・魚ベース。|acana-wild-prairie|ハイプロテイン',
-'A09|ACANA|パシフィカドッグレシピ|11.4kg|成犬|魚系|魚を主な原材料に使用。|acana-pacifica|ハイプロテイン',
-'A10|ACANA|グラスランドドッグレシピ|11.4kg|成犬|高タンパク|ラム肉・鴨肉・魚・七面鳥ベース。|acana-grasslands|ハイプロテイン',
-'A11|ACANA|ランチランドドッグレシピ|11.4kg|成犬|高タンパク|牛肉・ラム肉・豚肉・魚ベース。|acana-ranchlands|ハイプロテイン',
+'A08|ACANA|ワイルドプレイリードッグレシピ|11.4kg|成犬|高タンパク|鶏肉・七面鳥・魚ベース。|acana-wild-prairie|ハイエストプロテイン',
+'A09|ACANA|パシフィカドッグレシピ|11.4kg|成犬|魚系|魚を主な原材料に使用。|acana-pacifica|ハイエストプロテイン',
+'A10|ACANA|グラスランドドッグレシピ|11.4kg|成犬|高タンパク|ラム肉・鴨肉・魚・七面鳥ベース。|acana-grasslands|ハイエストプロテイン',
+'A11|ACANA|ランチランドドッグレシピ|11.4kg|成犬|高タンパク|牛肉・ラム肉・豚肉・魚ベース。|acana-ranchlands|ハイエストプロテイン',
 'A12|ACANA|グラスフェッドラムレシピ|11.4kg|成犬|ラム系|ラムを中心としたレシピ。|acana-lamb|シングル',
 'A13|ACANA|フリーランダックレシピ|11.4kg|成犬|ダック系|ダックを中心としたレシピ。|acana-duck|シングル',
 'A14|ACANA|ヨークシャーポークレシピ|11.4kg|成犬|ポーク系|豚肉を中心としたレシピ。|acana-pork|シングル',
@@ -97,7 +97,7 @@ if(chosen){
  cards.innerHTML=BRANDS.map(b=>'<button type="button" class="brand-card" data-brand-card="'+b+'" aria-pressed="false"><span class="brand-top"><span class="brand-mark">'+esc(info[b].mark)+'</span><span class="brand-total">'+qty(b)+'商品</span></span><strong>'+esc(info[b].jp)+'</strong><span class="brand-text">'+esc(info[b].caption)+'</span><span class="brand-action">このブランドの商品を見る ›</span></button>').join('');
  tabs.innerHTML=['',...BRANDS].map(b=>'<button type="button" data-brand="'+b+'" aria-pressed="false">'+(b?esc(b+'（'+info[b].jp+'）'):'すべてのブランド')+'</button>').join('');
  const seriesOrder={
-  ACANA:['アカナドッグ','ハイプロテイン','シングル'],
+  ACANA:['アカナドッグ','ハイエストプロテイン','シングル'],
   ORIJEN:['子犬向け','成犬向け','シニア向け'],
   ZIWI:['エアドライ','スチームドライ'],
   CHARM:['フード一覧']
