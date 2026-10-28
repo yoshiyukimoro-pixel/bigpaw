@@ -17,6 +17,9 @@
     #bp-global-mobile-menu-button .bp-attention-dot{position:absolute;top:-6px;right:-7px;width:16px;height:16px;border-radius:50%;background:#d92d20;box-shadow:0 0 0 3px #fff}
     #bp-attention-summary{display:none;margin:6px 0 10px;padding:10px 12px;border-radius:12px;background:#fff1f1;border:1px solid #efb3b3;color:#a51d1d;font-size:14px;font-weight:900}
     #bp-attention-summary.bp-show{display:block}
+    #bp-attention-summary{text-decoration:none;line-height:1.55}
+    html[data-bp-mobile-tone="breeder"] #bp-attention-summary{background:#e9f3ff;border-color:#b8d7f0;color:#235b88}
+    html[data-bp-mobile-tone="operator"] #bp-attention-summary{background:#fff6cd;border-color:#e5d47b;color:#6b5709}
   `;
   document.head.appendChild(style);
 
@@ -76,15 +79,29 @@
     if(pub) drawer.insertBefore(a,pub); else drawer.appendChild(a);
   }
 
-  function showSummary(hasAny){
+  function showSummary(m){
     const drawer=document.getElementById('bp-global-mobile-menu-drawer');
     const btn=document.getElementById('bp-global-mobile-menu-button');
+    const count=sum(m),hasAny=count>0;
     if(drawer){
       let s=document.getElementById('bp-attention-summary');
-      if(!s){s=document.createElement('div');s.id='bp-attention-summary';s.textContent='🔴 要確認があります';const head=drawer.querySelector('.bp-head');if(head) head.insertAdjacentElement('afterend',s)}
-      s.classList.toggle('bp-show',!!hasAny);
+      if(!s){s=document.createElement('a');s.id='bp-attention-summary';const head=drawer.querySelector('.bp-head');if(head)head.insertAdjacentElement('afterend',s)}
+      if(s){
+        let target='/notifications.html',message='🔔 '+count+'件の確認事項があります。内容を確認する';
+        if(role==='breeder'){
+          const inquiries=n(m['/breeder-inquiries.html']);
+          const billing=n(m['/breeder-billing.html']);
+          if(inquiries){target='/breeder-inquiries.html';message='💬 未返信の問い合わせ・メッセージが '+inquiries+'件あります。タップして返信と見学希望日時を確認する'}
+          else if(billing){target='/breeder-billing.html';message='💴 お支払いの確認が '+billing+'件あります。タップして確認する'}
+          else {message='🔔 ブリーダーへのお知らせが '+count+'件あります。タップして確認する'}
+        }else if(role==='operator'){
+          target=n(m['/messages.html?mode=operator'])?'/messages.html?mode=operator':'/operator-admin.html';
+          message='🔔 運営で対応が必要な項目が '+count+'件あります。タップして確認する';
+        }
+        s.href=target;s.textContent=message;s.classList.toggle('bp-show',hasAny);
+      }
     }
-    if(btn&&hasAny&&!btn.querySelector('.bp-attention-dot')){const d=document.createElement('span');d.className='bp-attention-dot';d.setAttribute('aria-label','要確認あり');btn.appendChild(d)}
+    if(btn&&hasAny&&!btn.querySelector('.bp-attention-dot')){const d=document.createElement('span');d.className='bp-attention-dot';d.setAttribute('aria-label',count+'件の要確認あり');btn.appendChild(d)}
   }
 
   async function operatorMap(){
@@ -163,7 +180,7 @@
       lastMap=m;
       clearBadges();
       Object.entries(m).forEach(([href,count])=>applyOne(href,count));
-      showSummary(Object.values(m).some(v=>n(v)>0));
+      showSummary(m);
     }catch(e){}
   }
 
