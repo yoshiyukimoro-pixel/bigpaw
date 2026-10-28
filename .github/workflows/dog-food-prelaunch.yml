@@ -1,0 +1,28 @@
+name: Dog food catalog prelaunch safety
+on:
+  pull_request:
+    paths:
+      - 'app/dog-food.html'
+      - 'app/assets/dog-food.css'
+      - 'app/assets/dog-food.js'
+      - 'app/assets/dog-food-products.js'
+      - 'scripts/test-dog-food-catalog.cjs'
+      - '.github/workflows/dog-food-prelaunch.yml'
+  workflow_dispatch:
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate JavaScript syntax
+        run: |
+          node --check app/assets/dog-food-products.js
+          node --check app/assets/dog-food.js
+          node --check scripts/test-dog-food-catalog.cjs
+      - name: Validate catalog counts and block payment
+        run: node scripts/test-dog-food-catalog.cjs
