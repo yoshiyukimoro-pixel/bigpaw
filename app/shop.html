@@ -91,6 +91,9 @@ if(chosen){
  if(!p){document.getElementById('detail').innerHTML='<div class="none">商品が見つかりませんでした。</div>';}
  else{
  document.title=p.brand+' '+p.name+'｜BIG PAW（販売準備中）';
+ const brandReturn='shop.html?brand='+encodeURIComponent(p.brand);
+ document.querySelector('.crumb a').href=brandReturn;
+ document.querySelector('.back').href=brandReturn;
  document.getElementById('detail').innerHTML='<div class="detail">'+photo(p,true)+'<div><div class="detailsbrand">'+esc(p.brand)+' / '+esc(p.series)+'</div><h1>'+esc(p.name)+'</h1><p class="desc">'+esc(p.description)+'</p><div class="chips"><span>'+esc(p.weight)+'</span><span>'+esc(p.life)+'</span><span>'+esc(p.focus)+'</span></div><div class="specs"><div><span>ブランド</span><b>'+esc(p.brand)+'</b></div><div><span>内容量</span><b>'+esc(p.weight)+'</b></div><div><span>対象</span><b>'+esc(p.life)+'</b></div><div><span>参考希望小売価格（税込）</span><b>'+taxInclYen(p)+'</b></div><div><span>BIG PAW販売価格</span><b>準備中</b></div><div><span>販売状況</span><b>注文受付前</b></div></div><button type="button" class="disabled" disabled>販売開始までお待ちください</button><p class="footnote">詳しい原材料・成分・給与量はメーカー資料との最終照合後に掲載します。アレルギーがある場合は原材料をご確認ください。</p></div></div>';
  }
 } else {
