@@ -15,6 +15,16 @@ assert len(set(r[7] for r in rows)) == 35, "Duplicate image slugs"
 assert all(r[3] in ("11.4kg", "10kg", "4kg", "3.2kg", "2.5kg") for r in rows)
 assert {r[0]:r[3] for r in rows}["Z01"] == "2.5kg", "Venison is only stocked as 2.5kg"
 assert {r[0]:r[3] for r in rows}["Z04"] == "2.5kg", "Tripe & Lamb is only stocked as 2.5kg"
+assert "referenceMsrpExTax" in shop, "35 public reference MSRP entries required"
+prices = re.search(r"const referenceMsrpExTax=(\{[^;]+\});",shop)
+assert prices, "Reference MSRP catalog missing"
+import json
+retail = json.loads(prices.group(1))
+assert len(retail) == 35, "All 35 products must have a retailer MSRP"
+assert set(retail) == {r[0] for r in rows}
+assert retail["Z01"] == 39000 and retail["Z04"] == 21800, "ZIWI 2.5kg MSRP mismatch"
+assert retail["A02"] == 19500 and retail["O03"] == 23800
+assert "小売店卸価格" not in shop, "Wholesale data must not appear in public frontend"
 assert "noindex,nofollow" in shop
 assert "販売準備中" in shop and "価格準備中" in shop
 assert 'disabled>販売開始までお待ちください' in shop
