@@ -23,6 +23,11 @@ const {chromium, webkit} = require('playwright');
     assert.equal(await page.locator('a.prod').count(),35,name+' reset restores all products');
 
     assert.match(await page.locator('#count').innerText(),/35/);
+    assert.equal(await page.locator('.reference-price').count(),35,name+' all retail reference labels');
+    assert.match(await page.locator('a.prod[href="shop.html?item=Z01"] .reference-price').innerText(),/42,900円/,name+' ZIWI venison 2.5kg reference MSRP');
+    assert.match(await page.locator('a.prod[href="shop.html?item=Z04"] .reference-price').innerText(),/23,980円/,name+' ZIWI tripe & lamb 2.5kg reference MSRP');
+    assert.equal(await page.locator('a.prod[href="shop.html?item=Z01"] .sizerow span').first().innerText(),'2.5kg');
+
     await page.locator('button[data-brand="ACANA"]').click();
     assert.equal(await page.locator('a.prod').count(),14);
     await page.locator('button[data-brand="ORIJEN"]').click();
