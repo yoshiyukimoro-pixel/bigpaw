@@ -15,6 +15,7 @@
   let previewEpoch=0;
   let previewTimer=0;
   let previewClock=0;
+  let previewNextCheckAt=0;
   const objectUrls=new Set();
   const $=id=>document.getElementById(id);
 
@@ -122,6 +123,7 @@
     if(previewClock)clearInterval(previewClock);
     previewTimer=0;
     previewClock=0;
+    previewNextCheckAt=0;
   }
   function formatElapsed(ms){
     const total=Math.max(0,Math.floor(ms/1000));
@@ -171,11 +173,12 @@
     const elapsed=Date.now()-startedAt;
     const interval=elapsed<120000?5000:30000;
     const nextCheckAt=Date.now()+interval;
+    previewNextCheckAt=nextCheckAt;
     waitingMarkup(uid,epoch,startedAt,nextCheckAt,checkError);
     if(!previewClock)previewClock=setInterval(()=>{
       if(epoch!==previewEpoch)return;
       const clock=$('puppyVideoReadinessClock');
-      if(clock)clock.textContent='この画面で確認を始めてから '+formatElapsed(Date.now()-startedAt)+'・次の確認まで '+Math.max(0,Math.ceil((nextCheckAt-Date.now())/1000))+'秒';
+      if(clock)clock.textContent='この画面で確認を始めてから '+formatElapsed(Date.now()-startedAt)+'・次の確認まで '+Math.max(0,Math.ceil((previewNextCheckAt-Date.now())/1000))+'秒';
     },1000);
     previewTimer=setTimeout(()=>checkExistingPreview(uid,epoch,startedAt),interval);
   }
