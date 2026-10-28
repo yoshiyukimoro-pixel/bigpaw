@@ -39,7 +39,7 @@ async function buyer(browser,name){
  await page.locator('#date2').fill('2026-11-02');
  await page.locator('#preferredTime2').fill('11:30');
  assert.equal(await page.locator('#externalVideoHelp').isVisible(),true);
- assert.match(await page.locator('#externalVideoHelp').innerText(),/LINEやFaceTime/);
+ assert.match(await page.locator('#externalVideoHelp').innerText(),/LINE・FaceTime/);
  await page.locator('#name').fill('テスト購入者');
  await page.locator('#phone').fill('09000000000');
  await page.locator('#email').fill('buyer@example.test');
