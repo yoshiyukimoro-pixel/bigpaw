@@ -286,7 +286,7 @@ try:
     links=(app/'assets/inquiry-cancellation-links.js').read_text();patch=(app/'backend/inquiry_cancellation_patch.py').read_text()
     check('breeder-cancellation.html?ui=20261006b1&inquiry=' in links and 'inquiry-cancellation-links.js?v=20261006b1' in patch,'breeder cancellation entry points are versioned against stale Safari restores')
     admin_page=(app/'admin.html').read_text();api_page=(app/'assets/api.js').read_text();operator_detail=(app/'operator-breeder-detail.html').read_text()
-    check("function activeInquiries(q){return q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み')}" in admin_page and 'sInquiry.textContent=activeInquiries(q).length' in admin_page,'dashboard inquiry count uses the same active-only filter as inquiry management')
+    check("function activeInquiries(q){return q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み')}" in admin_page and 'sInquiry.textContent=activeInquiries(q).filter(inquiryNeedsReply).length' in admin_page,'dashboard counts only active inquiries needing breeder attention')
     check("BigPawAPI.breederPuppies({breederId:operatorScopeId})" in admin_page and ".filter(x=>String(x.breederId||'')===operatorScopeId)" in admin_page,'operator breeder dashboard is scoped defensively to one breeder')
     profile_page=(app/'breeder-profile-edit.html').read_text()
     check('a[href="breeder-profile-edit.html"]' in admin_page and "'breeder-profile-edit.html?breederId='+encodeURIComponent(operatorScopeId)" in admin_page,'operator dashboard carries the selected breeder to the profile screen')

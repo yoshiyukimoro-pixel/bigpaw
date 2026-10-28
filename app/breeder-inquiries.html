@@ -11,7 +11,7 @@ html[data-bp-page-theme="breeder"] body.bp-account-page .btn-main{background:lin
 .bp-inquiry-actions .btn{min-height:44px;white-space:normal;text-align:center}
 .bp-inquiry-actions .bp-visit-action{background:#e6f1ff;border-color:#b9d5f1;color:#245d91}
 @media(max-width:680px){.bp-inquiry-actions{display:grid;grid-template-columns:1fr}.bp-inquiry-actions .btn{width:100%}}
-</style></head><body class="bp-account-page"><div class="topbar">🐾 BIG PAW ブリーダー管理</div><header class="site-header"><div class="wrap nav"><a class="logo" href="admin.html"><span class="logo-mark">🐾</span>BIG PAW 管理</a><nav class="navlinks"><a href="admin.html">子犬管理</a><a href="parent-dogs.html">親犬</a><a href="index.html">公開サイト ↗</a></nav></div></header><div class="hero-mini"><div class="wrap"><h1>見学・問い合わせ管理</h1><p>購入希望者から届いた内容を確認できます。</p></div></div><main class="wrap"><section class="section"><div id="actionNotice" class="card pad" style="display:none;margin-bottom:18px"></div><div class="grid three"><div class="card pad"><span class="muted">未返信</span><div class="price" id="unread">0件</div></div><div class="card pad"><span class="muted">日程希望あり</span><div class="price" id="visits">0件</div></div><div class="card pad"><span class="muted">対応中</span><div class="price" id="total">0件</div></div></div><div class="card pad" style="margin-top:18px"><div style="display:flex;justify-content:space-between;align-items:center"><h2>問い合わせ一覧</h2><button class="btn btn-sub" onclick="render()">更新</button></div><div class="tablelike" id="inquiryList"></div><div id="closedToggleWrap" style="margin-top:14px;display:none"><button id="closedToggle" class="btn btn-sub" type="button" onclick="toggleClosed()">取引終了履歴を見る</button></div><div id="closedHistory" hidden style="margin-top:16px"><h3 style="margin-bottom:4px">取引終了履歴</h3><p class="muted" style="margin-top:0">完了した取引中止は通常一覧から外し、履歴として保存しています。</p><div class="tablelike" id="closedInquiryList"></div></div></div></section></main><script src="assets/app.js"></script><script src="assets/api.js"></script><script src="assets/breeder-deal-policy-consent.js?v=20261020v4"></script><script src="assets/bridge.js"></script><script>
+</style></head><body class="bp-account-page"><div class="topbar">🐾 BIG PAW ブリーダー管理</div><header class="site-header"><div class="wrap nav"><a class="logo" href="admin.html"><span class="logo-mark">🐾</span>BIG PAW 管理</a><nav class="navlinks"><a href="admin.html">子犬管理</a><a href="parent-dogs.html">親犬</a><a href="index.html">公開サイト ↗</a></nav></div></header><div class="hero-mini"><div class="wrap"><h1>見学・問い合わせ管理</h1><p>購入希望者から届いた内容を確認できます。</p></div></div><main class="wrap"><section class="section"><div id="actionNotice" class="card pad" style="display:none;margin-bottom:18px"></div><div class="grid three"><div class="card pad"><span class="muted">要対応</span><div class="price" id="unread">0件</div></div><div class="card pad"><span class="muted">日程希望あり</span><div class="price" id="visits">0件</div></div><div class="card pad"><span class="muted">対応中</span><div class="price" id="total">0件</div></div></div><div class="card pad" style="margin-top:18px"><div style="display:flex;justify-content:space-between;align-items:center"><h2>問い合わせ一覧</h2><button class="btn btn-sub" onclick="render()">更新</button></div><div class="tablelike" id="inquiryList"></div><div id="closedToggleWrap" style="margin-top:14px;display:none"><button id="closedToggle" class="btn btn-sub" type="button" onclick="toggleClosed()">取引終了履歴を見る</button></div><div id="closedHistory" hidden style="margin-top:16px"><h3 style="margin-bottom:4px">取引終了履歴</h3><p class="muted" style="margin-top:0">完了した取引中止は通常一覧から外し、履歴として保存しています。</p><div class="tablelike" id="closedInquiryList"></div></div></div></section></main><script src="assets/app.js"></script><script src="assets/api.js"></script><script src="assets/breeder-deal-policy-consent.js?v=20261020v4"></script><script src="assets/bridge.js"></script><script>
 let closedRows=[];
 (function(){const v=new URLSearchParams(location.search).get('cancellation');if(v==='submitted'){actionNotice.textContent='取引中止申請を受け付けました。購入希望者への確認メールを送信処理に登録しました。';actionNotice.style.display='block'}else if(v==='already'){actionNotice.textContent='この取引はすでに取引中止申請済みです。確認メールは重複送信していません。';actionNotice.style.display='block'}})();
 function inquirySchedule(x){
@@ -26,9 +26,10 @@ function inquirySchedule(x){
  const visit=/見学/.test(kind)||choices.length>0;
  return {kind,choices,body,visit,online};
 }
+function inquiryNeedsReply(x){const flag=x.needs_reply??x.needsReply;return flag===undefined?(x.status==='未返信'||x.status==='見学調整中'):flag===true||Number(flag)===1}
 function rowHtml(x,archived=false){
  const puppy=x.puppy_name||x.puppyName||'子犬',info=inquirySchedule(x),url=encodeURIComponent(x.id);
- const markBtn=!archived&&x.status==='未返信'?'<button class="btn btn-sub" onclick="mark('+JSON.stringify(x.id).replace(/"/g,'&quot;')+',&quot;返信済み&quot;)">対応済みにする</button> ':'';
+ const markBtn=!archived&&inquiryNeedsReply(x)?'<button class="btn btn-sub" onclick="mark('+JSON.stringify(x.id).replace(/"/g,'&quot;')+','+JSON.stringify(x.status).replace(/"/g,'&quot;')+')">対応済みにする</button> ':'';
  const actions=archived
   ?'<a class="btn btn-sub" href="messages.html?inquiry='+url+'">過去のやり取り</a> <a class="btn btn-sub" href="breeder-cancellation.html?inquiry='+url+'">取引中止内容</a>'
   :'<a class="btn btn-main" href="messages.html?inquiry='+url+'">💬 '+(info.online?'希望日時・通話方法を相談する':'購入希望者へ返信する')+'</a> <a class="btn btn-sub bp-visit-action" href="visit-confirm.html?inquiry='+url+'">📅 '+(info.online?'オンライン見学の日程を確定':(info.choices.length?'希望日時を確認・調整':'見学日程を調整'))+'</a> '+markBtn+'<a class="btn btn-sub" href="breeder-deal-report.html?inquiry='+url+'">成約申請</a>';
@@ -43,7 +44,7 @@ async function render(){try{
  const q=await BigPawBridge.inquiries();
  const active=q.filter(x=>x.status!=='取引終了'&&x.status!=='成約済み');
  closedRows=q.filter(x=>x.status==='取引終了');
- unread.textContent=active.filter(x=>x.status==='未返信').length+'件';
+ unread.textContent=active.filter(inquiryNeedsReply).length+'件';
  visits.textContent=active.filter(x=>inquirySchedule(x).visit||x.status==='見学調整中'||x.status==='見学確定').length+'件';
  total.textContent=active.length+'件';
  inquiryList.innerHTML=active.length?active.map(x=>rowHtml(x,false)).join(''):`<div class="empty"><div class="big">💬</div><h2>対応中の問い合わせはありません</h2></div>`;
@@ -55,6 +56,6 @@ async function render(){try{
  if(e.status===401||e.status===403){inquiryList.innerHTML='<div class="empty"><h2>ブリーダーログインが必要です</h2><p class="muted">ブリーダーアカウントでログインしてください。</p><a class="btn btn-main" href="login.html">ログイン</a></div>'}
  else inquiryList.innerHTML='<div class="empty">読み込めませんでした。</div>'
 }}
-async function mark(id,s){try{await BigPawBridge.updateInquiry(id,{status:s});render()}catch(e){alert('更新できませんでした')}}
+async function mark(id,s){try{const changes={needsReply:false};if(s==='未返信')changes.status='返信済み';await BigPawBridge.updateInquiry(id,changes);await render()}catch(e){alert('更新できませんでした')}}
 render();
 </script><script src="/auth-return-fix.js"></script><style id="bigpaw-role-theme">body{background:#fff7fb!important}body.bigpaw-breeder-theme{background:#f3f8ff!important}body.bigpaw-operator-theme{background:#fffbea!important}</style><script>(function(){var p=location.pathname;if(p.indexOf('/operator-')>=0)document.body.classList.add('bigpaw-operator-theme');else if(p.indexOf('/breeder-')>=0||p.endsWith('/admin.html'))document.body.classList.add('bigpaw-breeder-theme');})();</script></body></html>
