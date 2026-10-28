@@ -175,7 +175,8 @@ CREATE TABLE IF NOT EXISTS favorites(
 CREATE TABLE IF NOT EXISTS inquiries(
  id TEXT PRIMARY KEY, puppy_id TEXT NOT NULL REFERENCES puppies(id), buyer_id TEXT REFERENCES users(id),
  breeder_id TEXT REFERENCES breeders(id), name TEXT DEFAULT '', email TEXT DEFAULT '', phone TEXT DEFAULT '',
- preferred_date TEXT DEFAULT '', message TEXT DEFAULT '', status TEXT NOT NULL DEFAULT '未返信', created_at INTEGER NOT NULL
+ preferred_date TEXT DEFAULT '', message TEXT DEFAULT '', status TEXT NOT NULL DEFAULT '未返信',
+ needs_reply INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS notifications(
  id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), kind TEXT NOT NULL, title TEXT NOT NULL,
@@ -704,6 +705,16 @@ def init_db():
     ensure_column(con,'breeders','billing_suspended','INTEGER NOT NULL DEFAULT 0')
     ensure_column(con,'breeders','billing_suspended_at','INTEGER')
     ensure_column(con,'breeders','billing_suspension_reason',"TEXT DEFAULT ''")
+    # Preserve existing inquiry histories; migrate each existing database once.
+    if 'needs_reply' not in {row['name'] for row in con.execute('PRAGMA table_info(inquiries)')}:
+        ensure_column(con,'inquiries','needs_reply','INTEGER NOT NULL DEFAULT 1')
+        con.execute('''UPDATE inquiries SET needs_reply = CASE
+            WHEN status IN ('取引終了','成約済み') THEN 0
+            WHEN (SELECT u.role FROM messages m JOIN users u ON u.id=m.sender_user_id
+                  WHERE m.inquiry_id=inquiries.id ORDER BY m.created_at DESC,m.rowid DESC LIMIT 1)='buyer' THEN 1
+            WHEN EXISTS (SELECT 1 FROM messages m WHERE m.inquiry_id=inquiries.id) THEN 0
+            WHEN status IN ('返信済み','見学確定','成約申請中') THEN 0
+            ELSE 1 END''')
     def seed_user(uid, role, email, pw, last='', first='', display=''):
         existing_email=con.execute('SELECT id,role FROM users WHERE email=?',(email,)).fetchone()
         if existing_email:
@@ -1361,6 +1372,11 @@ https://www.bigpaw.site/'''
             con=db(); qrow=self.inquiry_for_user(con,m.group(1),u)
             if not qrow: con.close(); return self.send_json({'error':'forbidden_or_not_found'},404)
             mid=make_id('m_'); con.execute('INSERT INTO messages VALUES(?,?,?,?,?)',(mid,m.group(1),u['id'],text,now()))
+            # Only a fresh buyer message needs a reply. Do not overwrite visit/deal statuses.
+            if u['role']=='buyer':
+                con.execute("UPDATE inquiries SET needs_reply=1,status=CASE WHEN status='返信済み' THEN '未返信' ELSE status END WHERE id=?",(m.group(1),))
+            else:
+                con.execute("UPDATE inquiries SET needs_reply=0,status=CASE WHEN status='未返信' THEN '返信済み' ELSE status END WHERE id=?",(m.group(1),))
             other=None
             if u['role']=='buyer' and qrow['breeder_id']:
                 r=con.execute('SELECT user_id FROM breeders WHERE id=?',(qrow['breeder_id'],)).fetchone(); other=r['user_id'] if r else None
@@ -1386,7 +1402,7 @@ https://www.bigpaw.site/'''
                 con.execute('UPDATE visits SET visit_date=?,visit_time=?,party_size=?,transport=?,status=?,face_to_face_confirmed=?,updated_at=? WHERE inquiry_id=?',vals+(m.group(1),)); vid=existing['id']
             else:
                 con.execute('INSERT INTO visits VALUES(?,?,?,?,?,?,?,?,?)',(vid,m.group(1),*vals))
-            con.execute("UPDATE inquiries SET status='見学確定' WHERE id=?",(m.group(1),))
+            con.execute("UPDATE inquiries SET status='見学確定',needs_reply=0 WHERE id=?",(m.group(1),))
             con.commit(); r=con.execute('SELECT * FROM visits WHERE id=?',(vid,)).fetchone(); con.close(); self.online_visit_email(m.group(1), body.get('status','proposed'), body.get('date',''), body.get('time','')); return self.send_json(dict(r),201)
         m=re.fullmatch(r'/api/inquiries/([^/]+)/deal',path)
         if m:
@@ -1509,7 +1525,7 @@ https://www.bigpaw.site/'''
                 con.execute('''UPDATE deal_completion_reports SET final_sale_amount=?,pickup_date=?,buyer_name=?,note=?,status='pending',reviewed_by_user_id=NULL,review_note='',updated_at=? WHERE id=?''',(amount,pickup_date,buyer_name,note,t,existing['id'])); rid=existing['id']
             else:
                 rid=make_id('cr_'); con.execute('''INSERT INTO deal_completion_reports(id,deal_id,breeder_id,reported_by_user_id,final_sale_amount,pickup_date,buyer_name,note,status,reviewed_by_user_id,review_note,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',(rid,d['id'],b['id'],u['id'],amount,pickup_date,buyer_name,note,'pending',None,'',t,t))
-            con.execute("UPDATE deals SET status='completion_reported' WHERE id=?",(d['id'],)); con.execute("UPDATE inquiries SET status='成約申請中' WHERE id=?",(d['inquiry_id'],)); audit(con,u['id'],'deal_completion_reported','deal',d['id'],f'{amount}:{pickup_date}')
+            con.execute("UPDATE deals SET status='completion_reported' WHERE id=?",(d['id'],)); con.execute("UPDATE inquiries SET status='成約申請中',needs_reply=0 WHERE id=?",(d['inquiry_id'],)); audit(con,u['id'],'deal_completion_reported','deal',d['id'],f'{amount}:{pickup_date}')
             ops=con.execute("SELECT id,email FROM users WHERE role='operator'").fetchall()
             puppy=con.execute('SELECT name FROM puppies WHERE id=?',(d['puppy_id'],)).fetchone()
             title='ブリーダーから成約申請が届きました'; detail=f"{puppy['name'] if puppy else '子犬'} / {amount:,}円 / お迎え {pickup_date}"
@@ -2003,7 +2019,7 @@ https://www.bigpaw.site/'''
             # approve: lock in final price, complete pickup/deal, mark puppy sold and issue 5% invoice
             t=now(); con.execute("UPDATE deal_completion_reports SET status='approved',reviewed_by_user_id=?,review_note=?,updated_at=? WHERE id=?",(u['id'],note,t,r['id']))
             con.execute("UPDATE deals SET total_price=?,status='completed' WHERE id=?",(int(r['final_sale_amount']),d['id']))
-            con.execute("UPDATE puppies SET status='成約済み' WHERE id=?",(d['puppy_id'],)); con.execute("UPDATE inquiries SET status='成約済み' WHERE id=?",(d['inquiry_id'],))
+            con.execute("UPDATE puppies SET status='成約済み' WHERE id=?",(d['puppy_id'],)); con.execute("UPDATE inquiries SET status='成約済み',needs_reply=0 WHERE id=?",(d['inquiry_id'],))
             pk=con.execute('SELECT * FROM pickups WHERE deal_id=?',(d['id'],)).fetchone()
             if pk: con.execute("UPDATE pickups SET pickup_date=?,status='completed',completed_at=?,updated_at=? WHERE id=?",(r['pickup_date'],t,t,pk['id']))
             else: con.execute('INSERT INTO pickups(id,deal_id,pickup_date,pickup_time,status,completed_at,updated_at) VALUES(?,?,?,?,?,?,?)',(make_id('pk_'),d['id'],r['pickup_date'],'','completed',t,t))
@@ -2052,7 +2068,19 @@ https://www.bigpaw.site/'''
             if u['role']=='breeder':
                 b=con.execute('SELECT id FROM breeders WHERE user_id=?',(u['id'],)).fetchone()
                 if not b or item['breeder_id']!=b['id']: con.close(); return self.send_json({'error':'forbidden'},403)
-            if 'status' in body: con.execute('UPDATE inquiries SET status=? WHERE id=?',(body['status'],iq.group(1)))
+            if 'status' in body:
+                new_status=str(body['status'])
+                con.execute('UPDATE inquiries SET status=? WHERE id=?',(new_status,iq.group(1)))
+                if new_status in ('返信済み','見学確定','取引終了','成約済み'):
+                    con.execute('UPDATE inquiries SET needs_reply=0 WHERE id=?',(iq.group(1),))
+                elif new_status=='未返信':
+                    con.execute('UPDATE inquiries SET needs_reply=1 WHERE id=?',(iq.group(1),))
+            if 'needsReply' in body:
+                if u['role'] not in ('breeder','operator'):
+                    con.close(); return self.send_json({'error':'breeder_only_reply_state'},403)
+                if not isinstance(body['needsReply'],bool):
+                    con.close(); return self.send_json({'error':'invalid_reply_state'},400)
+                con.execute('UPDATE inquiries SET needs_reply=? WHERE id=?',(int(body['needsReply']),iq.group(1)))
             con.commit(); out=con.execute('SELECT * FROM inquiries WHERE id=?',(iq.group(1),)).fetchone(); con.close(); return self.send_json(dict(out))
         m=re.fullmatch(r'/api/puppies/([^/]+)',path)
         if m:
