@@ -120,6 +120,15 @@
     if(previewTimer)clearTimeout(previewTimer);
     previewTimer=0;
   }
+  // This is a countdown for how long this PAGE will auto-check, not an ETA
+  // for Cloudflare transcoding (which has no reliable fixed duration).
+  function previewCheckText(attempt,unavailable=false){
+    const remaining=Math.max(0,120-attempt*5);
+    const status=unavailable?
+      '再生状況を一時的に確認できません。動画は保存済みです。':
+      '動画は登録済みです。再生できるようになるまで準備中です…';
+    return status+' 5秒ごとに自動確認中（この画面の確認終了まで残り約'+remaining+'秒）。再生開始までの時間ではありません。';
+  }
   async function checkExistingPreview(uid,epoch,attempt=0){
     if(epoch!==previewEpoch)return;
     const area=$('puppyVideoPlayback');
@@ -131,7 +140,7 @@
       // Do not present a Cloudflare check failure as an upload failure.
       // A publicly playable video is left intact on the server.
       if(epoch!==previewEpoch)return;
-      area.textContent='動画は登録済みです。再生の準備状況を確認しています…';
+      area.textContent=previewCheckText(attempt,true);
     }
     if(epoch!==previewEpoch)return;
     if(response){
@@ -148,13 +157,13 @@
         area.textContent='動画の再生準備状況を確認してください。動画は削除されていません。';
         return;
       }
-      area.textContent='動画は登録済みです。再生できるようになるまで準備中です…';
+      area.textContent=previewCheckText(attempt);
     }
     // Bounded automatic checks, plus a manual retry that can be used later.
     if(attempt<23){
       previewTimer=setTimeout(()=>checkExistingPreview(uid,epoch,attempt+1),5000);
     }else{
-      area.innerHTML='<div>動画は保存済みです。再生準備の確認が続いています。</div><button type="button" id="retryPuppyVideoPreviewBtn" class="btn btn-sub" style="margin-top:10px">再生できるか確認する</button>';
+      area.innerHTML='<div><b>約2分間の自動確認が終了しました。</b></div><div style="margin-top:6px">動画は保存済みです。再生準備が終わるまでの時間は分かりません。<b>このページを閉じても大丈夫です。</b>公開ページでも確認できます。</div><button type="button" id="retryPuppyVideoPreviewBtn" class="btn btn-sub" style="margin-top:10px">もう一度、再生状況を確認する</button>';
       const b=$('retryPuppyVideoPreviewBtn');
       if(b)b.onclick=()=>{
         stopPreviewCheck();
@@ -173,7 +182,15 @@
     if(!uid){box.innerHTML='';return}
     // Even when the DB has a video UID, Stream may still be transcoding.
     // Never auto-load its iframe before Cloudflare says readyToStream=true.
-    box.innerHTML='<div style="margin-bottom:10px;font-weight:800">現在の動画</div><div id="puppyVideoPlayback" role="status" aria-live="polite" class="notice">動画は登録済みです。再生の準備状況を確認しています…</div><button type="button" id="deletePuppyVideoBtn" class="btn btn-sub" style="margin-top:10px">この動画を削除</button>';
+    const isPublic=p&&p.reviewStatus==='approved';
+    const publicLink=isPublic?'<div style="margin-top:8px"><a href="/puppy-detail.html?id='+encodeURIComponent(currentPuppyId)+'" target="_blank" rel="noopener noreferrer">一般公開ページで動画を確認する</a></div>':'';
+    box.innerHTML='<div style="margin-bottom:10px;font-weight:800">現在の動画</div>'+
+      '<div id="puppyVideoSaveGuide" class="notice" style="text-align:left;margin-bottom:10px;line-height:1.7">'+
+      '<b>動画は登録済みです。</b> 動画だけの登録なら、下の「変更内容を保存する」を押す必要はありません。'+
+      '<div style="margin-top:6px">紹介文などを変更した場合は、<b>通常どおり保存ボタンを押して大丈夫です。</b>動画の再生準備は画面を閉じても続きます。</div>'+
+      publicLink+'</div>'+
+      '<div id="puppyVideoPlayback" role="status" aria-live="polite" class="notice">'+previewCheckText(0)+'</div>'+
+      '<button type="button" id="deletePuppyVideoBtn" class="btn btn-sub" style="margin-top:10px">この動画を削除</button>';
     const b=$('deletePuppyVideoBtn');if(b)b.onclick=deleteExisting;
     checkExistingPreview(uid,previewEpoch,0);
   }
@@ -324,7 +341,7 @@
     if(input)input.value='';
     setPreview('');
     renderExisting(puppy);
-    setStatus('動画を登録しました。');
+    setStatus('動画を登録しました。動画だけなら、下の保存ボタンを押す必要はありません。');
     return puppy;
   }
   function init(){
