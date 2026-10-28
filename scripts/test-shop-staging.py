@@ -21,6 +21,12 @@ assert 'disabled>販売開始までお待ちください' in shop
 assert "localStorage" not in shop and "fetch(" not in shop, "No checkout/data mutation permitted"
 assert "app/backend" not in shop, "Shop must remain independent from backend"
 assert "ziwi-venison" in shop and "ziwi-tripe-lamb" in shop
+assert 'id="brandCards"' in shop and 'id="catalogStart"' in shop
+assert 'brand-section' in shop and 'seriesOrder' in shop
+assert '"brand-card"' in shop and 'id="clearFilters"' in shop
+assert 'ACANA:[\'アカナドッグ\',\'ハイプロテイン\',\'シングル\']' in shop
+assert 'ZIWI:[\'エアドライ\',\'スチームドライ\']' in shop
+
 assert shop.count("<script>") == 1 and shop.count("</script>") == 1
 script = shop.split("<script>", 1)[1].split("</script>", 1)[0]
 with tempfile.TemporaryDirectory() as tmp:
