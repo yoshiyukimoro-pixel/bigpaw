@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""Non-production static safety gate for the independent BIG PAW food catalog."""
+from collections import Counter
+from pathlib import Path
+import re
+import subprocess
+import tempfile
+
+shop = Path("app/shop.html").read_text(encoding="utf-8")
+rows = re.findall(r"^'([A-Z]\d{2})\|([A-Z]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([^|']+)'[,]?$", shop, re.M)
+assert len(rows) == 35, f"Expected 35 products, got {len(rows)}"
+assert Counter(r[1] for r in rows) == {"ACANA": 14, "ORIJEN": 8, "ZIWI": 9, "CHARM": 4}
+assert len(set(r[0] for r in rows)) == 35, "Duplicate product IDs"
+assert len(set(r[7] for r in rows)) == 35, "Duplicate image slugs"
+assert all(r[3] in ("11.4kg", "10kg", "4kg", "3.2kg") for r in rows)
+assert "noindex,nofollow" in shop
+assert "販売準備中" in shop and "価格準備中" in shop
+assert 'disabled>販売開始までお待ちください' in shop
+assert "localStorage" not in shop and "fetch(" not in shop, "No checkout/data mutation permitted"
+assert "app/backend" not in shop, "Shop must remain independent from backend"
+assert "ziwi-venison" in shop and "ziwi-tripe-lamb" in shop
+assert shop.count("<script>") == 1 and shop.count("</script>") == 1
+script = shop.split("<script>", 1)[1].split("</script>", 1)[0]
+with tempfile.TemporaryDirectory() as tmp:
+    p = Path(tmp) / "shop.js"
+    p.write_text(script, encoding="utf-8")
+    subprocess.run(["node", "--check", str(p)], check=True)
+print("SHOP_CATALOG_STATIC_OK|products=35|ACANA=14|ORIJEN=8|ZIWI=9|CHARM=4|checkout=disabled")
