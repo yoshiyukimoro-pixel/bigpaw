@@ -24,6 +24,14 @@ function routeApi(page,fixture,role='breeder'){
   await route.fulfill({status:code,contentType:'application/json',body:JSON.stringify(obj)});
  });
 }
+
+async function enhance(page,alerts=false){
+ // The production start command injects the shared mobile menu into HTML.
+ // Mirror that injection on this disposable static HTTP test server.
+ await page.addScriptTag({url:BASE+'/mobile-global-nav.js'});
+ if(alerts)await page.addScriptTag({url:BASE+'/attention-alerts.js'});
+}
+
 async function check(browser,browserName,viewport){
  for(const fixture of cases){
   const page=await browser.newPage({viewport});
@@ -31,6 +39,7 @@ async function check(browser,browserName,viewport){
   page.on('pageerror',e=>errors.push(e.message));
   await routeApi(page,fixture);
   await page.goto(BASE+'/breeder-inquiries.html',{waitUntil:'domcontentloaded'});
+  await enhance(page,true);
   await page.waitForFunction(()=>document.querySelector('#inquiryList')?.textContent.includes('見学希望者'));
   assert.match(await page.locator('#inquiryList').innerText(),/テストの子犬/);
   assert.match(await page.locator('#inquiryList').innerText(),/現地で見学を希望/);
@@ -73,6 +82,7 @@ async function check(browser,browserName,viewport){
  const messages=await browser.newPage({viewport});
  await routeApi(messages,cases[0]);
  await messages.goto(BASE+'/messages.html?inquiry=q_test',{waitUntil:'domcontentloaded'});
+ await enhance(messages);
  await messages.waitForFunction(()=>document.body.classList.contains('breeder-view'));
  assert.equal(await messages.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(243, 248, 255)');
  await messages.waitForFunction(()=>document.querySelector('#who')?.textContent.includes('見学希望者'));
@@ -83,6 +93,7 @@ async function check(browser,browserName,viewport){
  const notification=await browser.newPage({viewport});
  await routeApi(notification,cases[0]);
  await notification.goto(BASE+'/notifications.html',{waitUntil:'domcontentloaded'});
+ await enhance(notification);
  await notification.locator('.bp-notice-action').waitFor({state:'attached'});
  assert.equal(await notification.locator('html').getAttribute('data-bp-page-theme'),'breeder');
  assert.equal(await notification.locator('html').getAttribute('data-bp-mobile-tone'),'breeder');
