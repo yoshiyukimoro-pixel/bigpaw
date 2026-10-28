@@ -39,6 +39,25 @@ const { chromium } = require('playwright');
     assert.equal(await noIdPage.locator('#bigpawPuppyContactShortcut').isVisible(), false);
     await noIdPage.close();
     console.log('PUPPY_INQUIRY_BROWSER_OK|missing_id_hidden');
+    // Browser-level regression: operator/breeder 403 must explain the correct account.
+    // Intercept the API method locally: never submit a real inquiry or send mail.
+    const inquiryPage = await browser.newPage({viewport:{width:390,height:844}});
+    const messages = [];
+    inquiryPage.on('dialog', async dialog => { messages.push(dialog.message()); await dialog.accept(); });
+    await inquiryPage.goto('file://' + path.resolve(__dirname, '../app/inquiry.html') + '?id=p_inquiry_test');
+    await inquiryPage.evaluate(() => {
+      p = {id:'p_inquiry_test'};
+      puppyReady = true;
+      BigPawBridge.addInquiry = async () => { throw Object.assign(new Error('forbidden'), {status:403,data:{error:'forbidden'}}); };
+      document.querySelector('#message').value = 'テスト';
+    });
+    await inquiryPage.evaluate(() => sendInquiry({preventDefault(){}}));
+    assert.equal(messages.length, 1);
+    assert.match(messages[0], /一般会員（購入希望者）専用/);
+    assert.match(messages[0], /運営・ブリーダー用アカウント/);
+    assert.doesNotMatch(messages[0], /時間をおいて/);
+    await inquiryPage.close();
+    console.log('PUPPY_INQUIRY_BROWSER_OK|buyer_only_error_clear');
   } finally {
     await browser.close();
   }
