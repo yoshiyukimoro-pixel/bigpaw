@@ -345,7 +345,10 @@ async function run(engine,name,contextOptions,launchOptions={}){
     // Do not ignore other console failures or mask real page JS exceptions.
     const expectedAbortErrors=errors.filter(x=>
       x==='console:Failed to load resource: net::ERR_FAILED'||
-      x==='console:Failed to load resource: Load failed');
+      x==='console:Failed to load resource: Load failed'||
+      // WebKit omits the underlying network error for the deliberately
+      // aborted attach acknowledgement used by this regression.
+      (name==='webkit-iphone'&&x==='console:Failed to load resource'));
     check(expectedAbortErrors.length<=1,name+': unexpected extra network errors after simulated lost response: '+expectedAbortErrors.length);
     const serious=errors.filter(x=>
       !x.includes('cloudflarestream.com')&&
