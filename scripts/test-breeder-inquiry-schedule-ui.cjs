@@ -86,7 +86,7 @@ async function check(browser,browserName,viewport){
  await enhance(messages);
  await messages.waitForFunction(()=>document.body.classList.contains('breeder-view'));
  assert.equal(await messages.locator('body').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(243, 248, 255)');
- await messages.waitForFunction(()=>document.querySelector('#who')?.textContent.includes('見学希望者'));
+ try{await messages.waitForFunction(()=>document.querySelector('#who')?.textContent.includes('見学希望者'),{},{timeout:6000})}catch(e){throw new Error('MESSAGES_BUYER_MISSING|'+JSON.stringify(await messages.evaluate(()=>({url:location.href,role:document.body.className,who:document.querySelector('#who')?.textContent,threads:document.querySelector('#threads')?.innerHTML,roleNotice:document.querySelector('#roleNotice')?.textContent}))))}
  assert.match(await messages.locator('#roleNotice').innerText(),/返信または見学日程を調整/);
  assert.match(await messages.locator('#who').innerText(),/見学希望者さん/);
  assert.equal(await messages.locator('html').getAttribute('data-bp-mobile-tone'),'breeder');
