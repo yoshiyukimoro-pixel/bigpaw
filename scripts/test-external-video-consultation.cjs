@@ -39,7 +39,7 @@ async function buyer(browser,name){
  await page.locator('#date2').fill('2026-11-02');
  await page.locator('#preferredTime2').fill('11:30');
  assert.equal(await page.locator('#externalVideoHelp').isVisible(),true);
- assert.match(await page.locator('#externalVideoHelp').innerText(),/LINE・FaceTime/);
+ assert.match(await page.locator('#externalVideoHelp').innerText(),/LINE(?:・|や)FaceTime/);
  await page.locator('#name').fill('テスト購入者');
  await page.locator('#phone').fill('09000000000');
  await page.locator('#email').fill('buyer@example.test');
@@ -82,7 +82,7 @@ async function breeder(browser,name){
  const onlinePosts=await stub(page,fixture(oldRequest,'online'),'breeder');
  await page.goto(BASE+'/breeder-inquiries.html');
  await page.waitForFunction(()=>document.querySelector('#inquiryList')?.textContent.includes('テスト購入者'));
- assert.match(await page.locator('#inquiryList').innerText(),/LINE・FaceTime/);
+ assert.match(await page.locator('#inquiryList').innerText(),/LINE(?:・|や)FaceTime/);
  assert.equal(await page.locator('.bp-visit-action').count(),1,'online visit also requires breeder date confirmation');
  assert.equal(await page.locator('a[href*="online-visit.html"]').count(),0);
  assert.equal(await page.locator('#visits').innerText(),'1件');
@@ -126,7 +126,7 @@ async function breeder(browser,name){
  await direct.goto(BASE+'/online-visit.html?inquiry=q_test');
  assert.match(await direct.locator('#onlineGuide').innerText(),/第1・第2希望日時をBIG PAWで送信/);
  assert.equal(await direct.locator('input[type=date],input[type=time],button#requestVideoBtn,button#joinBtn').count(),0);
- assert.match(await direct.locator('#onlineGuide').innerText(),/LINE・FaceTime/);
+ assert.match(await direct.locator('#onlineGuide').innerText(),/LINE(?:・|や)FaceTime/);
  assert.equal(await direct.locator('#conversationLink').getAttribute('href'),'messages.html?inquiry=q_test');
  assert.equal(posts.length,0);
  await direct.close();
