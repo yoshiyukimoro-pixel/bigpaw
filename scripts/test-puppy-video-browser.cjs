@@ -199,12 +199,22 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(!((await page.locator('#puppyVideoStatus').innerText()).includes('動画を保存できませんでした')),
       name+': red false failure shown for already persisted video after Safari Load failed');
     await page.waitForFunction(()=>document.querySelector('#puppyVideoPlayback')?.textContent.includes('再生できるようになるまで準備中'),null,{timeout:10000});
+    const videoGuidance=await page.locator('#puppyVideoSaveGuide').innerText();
+    check(videoGuidance.includes('動画だけの登録なら')&&videoGuidance.includes('保存ボタンを押して大丈夫')&&
+      videoGuidance.includes('画面を閉じても続きます'),
+      name+': breeder guidance must explain saved video vs ordinary form save');
+    check((await page.locator('#puppyVideoPlayback').innerText()).includes('残り約120秒'),
+      name+': processing preview must show 2-minute auto-check countdown, not a made-up transcoding ETA');
+    check(!(await page.locator('.btn-main.btn-wide').isDisabled()),
+      name+': ordinary Save must be enabled while saved video is still processing');
     check(await page.locator('#puppyVideoExisting iframe').count()===0,name+': editor iframe appeared before Stream readyToStream');
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
     check(previewPolls>=2,name+': editor did not verify Stream readiness before player');
     check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
     await page.reload({waitUntil:'domcontentloaded'});
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
+    check((await page.locator('#puppyVideoSaveGuide').innerText()).includes('通常どおり保存ボタンを押して大丈夫'),
+      name+': instructions must persist when breeder reopens saved video');
     check(await page.locator('#puppyVideoExisting iframe').getAttribute('src')==='https://videodelivery.net/'+uid+'/iframe',
       name+': video missing after reopening editor');
     // The seeded puppy predates required sales-policy fields injected by the
