@@ -28,7 +28,7 @@ async function buyer(browser,name){
  const page=await browser.newPage({viewport:{width:390,height:844}});
  const posts=await stub(page);
  await page.goto(BASE+'/inquiry.html?id=p_test');
- await page.waitForFunction(()=>!!window.puppyReady);
+ await page.waitForFunction(()=>document.querySelector('#puppyLabel')?.textContent.includes('犬舎'));
  const online=page.locator('#kind');
  await online.selectOption({label:'オンラインでの相談を希望（LINE・FaceTimeなど）'});
  assert.equal(await page.locator('#visitDateField1').isVisible(),false);
@@ -54,7 +54,7 @@ async function buyer(browser,name){
  const local=await browser.newPage({viewport:{width:390,height:844}});
  const localPosts=await stub(local);
  await local.goto(BASE+'/inquiry.html?id=p_test');
- await local.waitForFunction(()=>!!window.puppyReady);
+ await local.waitForFunction(()=>document.querySelector('#puppyLabel')?.textContent.includes('犬舎'));
  assert.equal(await local.locator('#visitDateField1').isVisible(),true);
  await local.locator('#date1').fill('2026-11-01');
  await local.locator('#preferredTime1').fill('14:00');
