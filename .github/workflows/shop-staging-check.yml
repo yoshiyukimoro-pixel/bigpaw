@@ -6,6 +6,7 @@ on:
       - feature/dogfood-shop-staging-20261028
     paths:
       - 'app/shop.html'
+      - 'app/shop-cart-preview.js'
       - 'scripts/test-shop-staging.py'
       - 'scripts/test-shop-staging.cjs'
       - '.github/workflows/shop-staging-check.yml'
