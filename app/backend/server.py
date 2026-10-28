@@ -1020,7 +1020,7 @@ class Handler(SimpleHTTPRequestHandler):
                 safe=label.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
                 svg=(f'''<svg xmlns="http://www.w3.org/2000/svg" width="700" height="700" viewBox="0 0 700 700"><rect width="700" height="700" fill="#fff1f6"/><text x="350" y="320" text-anchor="middle" font-size="170">🐕</text><text x="350" y="500" text-anchor="middle" font-family="sans-serif" font-size="34" fill="#664d58">{safe}</text></svg>''').encode('utf-8')
                 self.send_response(200); self.send_header('Content-Type','image/svg+xml; charset=utf-8'); self.send_header('Content-Length',str(len(svg))); self.send_header('Cache-Control','no-store'); self.end_headers(); self.wfile.write(svg); return
-        if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(SMTP_HOST),'paymentMode':PAYMENT_MODE,'videoConfigured':bool(CLOUDFLARE_STREAM_ACCOUNT_ID and CLOUDFLARE_STREAM_API_TOKEN)})
+        if path=='/api/health': return self.send_json({'ok':True,'service':'BIG PAW API','version':'1.0','environment':APP_ENV,'database':'sqlite','mailConfigured':bool(SMTP_HOST),'paymentMode':PAYMENT_MODE})
         if path=='/api/operator/readiness':
             u=self.require(['operator'])
             if not u:return
