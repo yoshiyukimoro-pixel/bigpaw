@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 APP = Path(__file__).resolve().parents[1]
 SERVER = APP / "backend" / "server.py"
 ORIGINAL = SERVER.read_text(encoding="utf-8")
-MARKER = "from first_sale_workflow import install as _install_first_sale_workflow"
+MARKER = "def valid_image_bytes(raw: bytes, mime: str) -> bool:"
 assert ORIGINAL.count(MARKER) == 1, "mail-capture injection marker changed"
 
 def check(condition, name):
