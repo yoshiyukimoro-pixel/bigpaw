@@ -148,11 +148,12 @@ async function run(engine,name,contextOptions,launchOptions={}){
       })});
     });
     let previewPolls=0;
+    let readyAtPoll=2;
     await page.route('**/api/puppies/p1/video-status',async route=>{
       previewPolls+=1;
       // The upload is stored but still processing on the first status check.
       // The editor must not show Cloudflare's premature black error iframe.
-      const ready=previewPolls>1;
+      const ready=previewPolls>=readyAtPoll;
       await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
         hasVideo:true,videoUid:uid,readyToStream:ready,
         state:ready?'ready':'processing',
@@ -183,7 +184,7 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(page.url().includes('breeder-puppy-new.html?id=p1'),name+': editor navigated before upload receipt');
     check(!uploadCount&&!attachCount,name+': mock must still be uploading before receipt');
     try{
-      await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画を登録しました。'),null,{timeout:20000});
+      await page.waitForFunction(()=>document.querySelector('#puppyVideoStatus')?.textContent.includes('動画の登録・保存が完了しました。'),null,{timeout:20000});
     }catch(e){
       const status=await page.locator('#puppyVideoStatus').innerText().catch(()=>'-');
       throw new Error(name+': tus upload did not finish: status='+status+
@@ -198,15 +199,35 @@ async function run(engine,name,contextOptions,launchOptions={}){
     check(ticketCount===1&&uploadCount===1&&attachCount===1,name+': lost POST response must recover by exact-UID readback with no duplicate upload');
     check(!((await page.locator('#puppyVideoStatus').innerText()).includes('動画を保存できませんでした')),
       name+': red false failure shown for already persisted video after Safari Load failed');
-    await page.waitForFunction(()=>document.querySelector('#puppyVideoPlayback')?.textContent.includes('再生できるようになるまで準備中'),null,{timeout:10000});
+    await page.waitForFunction(()=>document.querySelector('#puppyVideoPlayback')?.textContent.includes('動画は正常に保存されています。'),null,{timeout:10000});
+    const waitingCopy=await page.locator('#puppyVideoPlayback').innerText();
+    check(waitingCopy.includes('変更内容の保存やほかの画面への移動ができます'),name+': saving or navigating during playback preparation was not explained');
+    check(waitingCopy.includes('次の確認まで'),name+': next readiness check countdown missing');
+    check(!(await page.locator('.btn-main.btn-wide').isDisabled()),name+': ordinary Save must remain available while playback is preparing');
+    await page.waitForTimeout(1100);
+    const elapsedCopy=await page.locator('#puppyVideoReadinessClock').innerText();
+    check(!elapsedCopy.includes('0分00秒'),name+': readiness elapsed time did not advance');
     check(await page.locator('#puppyVideoExisting iframe').count()===0,name+': editor iframe appeared before Stream readyToStream');
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
     check(previewPolls>=2,name+': editor did not verify Stream readiness before player');
     check(await page.locator('#puppyVideoExisting iframe').count()===1,name+': saved video not displayed');
+    check((await page.locator('#puppyVideoPlayback').innerText()).includes('動画を再生できます'),name+': ready state label did not replace preparation status');
     await page.reload({waitUntil:'domcontentloaded'});
     await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
     check(await page.locator('#puppyVideoExisting iframe').getAttribute('src')==='https://videodelivery.net/'+uid+'/iframe',
       name+': video missing after reopening editor');
+    check((await page.locator('#puppyVideoPlayback').innerText()).includes('動画を再生できます'),name+': already-playable stored video remained in preparation state after editor reload');
+    // Keep a saved video in processing beyond the old 24-check/2-minute cap.
+    // Accelerate only the editor's 5-second poll timers so this regression is fast.
+    readyAtPoll=previewPolls+26;
+    await page.addInitScript(()=>{
+      const nativeSetTimeout=window.setTimeout.bind(window);
+      window.setTimeout=(callback,delay,...args)=>nativeSetTimeout(callback,Number(delay)===5000?1:delay,...args);
+    });
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.waitForSelector('#puppyVideoExisting iframe',{timeout:15000});
+    check(previewPolls>=readyAtPoll,name+': readiness polling stopped before Cloudflare became ready after 24+ checks');
+    check((await page.locator('#puppyVideoPlayback').innerText()).includes('動画を再生できます'),name+': prolonged processing did not transition automatically to ready');
     // The seeded puppy predates required sales-policy fields injected by the
     // production Docker build. Fill these to exercise a valid ordinary form save.
     await page.locator('#breedingAllowed').selectOption({index:1});
