@@ -61,9 +61,11 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium webkit
-      - name: Start disposable static site
+      - name: Start disposable static site with existing login-prompt runtime integration
         run: |
-          python3 -m http.server 18087 --bind 127.0.0.1 --directory app >/tmp/bigpaw-ui-only.log 2>&1 &
+          cp -a app /tmp/bigpaw-ui-frontend
+          python3 /tmp/bigpaw-ui-frontend/backend/login_prompt_runtime_patch.py
+          python3 -m http.server 18087 --bind 127.0.0.1 --directory /tmp/bigpaw-ui-frontend >/tmp/bigpaw-ui-only.log 2>&1 &
           echo $! >/tmp/bigpaw-ui-only.pid
           for i in $(seq 1 40); do curl -fsS http://127.0.0.1:18087/breeder-inquiries.html >/dev/null 2>&1 && break || sleep 1; done
       - name: Verify mock inquiries, date choices, alerts, menus and role colors
