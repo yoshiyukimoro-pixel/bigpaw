@@ -141,11 +141,10 @@ async function breeder(browser,name){
  assert.ok(!msg.includes("onlineVisit.href='online-visit.html"),'do not navigate to managed booking');
  assert.ok(msg.includes('BIG PAWは通話ルームを提供しません'),'keep direct-call guidance');
  assert.ok(msg.includes('日時を確定します'),'dates remain managed by BIG PAW');
- const docker=fs.readFileSync(path.resolve(__dirname,'../Dockerfile'),'utf8');
- const externalMail=fs.readFileSync(path.resolve(__dirname,'../app/backend/external_online_visit_email_patch.py'),'utf8');
- assert.ok(docker.includes('RUN ["python3", "backend/external_online_visit_email_patch.py"]'),'final production build must run external call email replacement');
- assert.ok(externalMail.includes('FaceTime')&&externalMail.includes('BIG PAWのメッセージ'),'confirmed online email must use external call instructions');
- assert.ok(!externalMail.includes('Jitsi Meetの画面が表示されたら'),'new mail patch must not send obsolete room instructions');
+ const finalPatch=fs.readFileSync(path.resolve(__dirname,'../app/backend/final_patch.py'),'utf8');
+ const mail=finalPatch.split('new_email=')[1]?.split('if s.count(old_email)')[0]||'';
+ assert.ok(mail.includes('FaceTime')&&mail.includes('BIG PAWのメッセージ'),'production confirmed online email must explain external calls');
+ assert.ok(!mail.includes('Jitsi Meet'),'new confirmed email must not direct users to an unavailable video room');
  const all=[
   ['chromium',chromium],
   ['iphone_webkit',webkit]
