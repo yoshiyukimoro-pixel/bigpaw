@@ -91,15 +91,22 @@ old_email="""            subject=\"【BIG PAW】オンライン見学のお申�
 BIG PAW
 https://www.bigpaw.site/'''
 """
-new_email="""            subject=\"【BIG PAW】オンライン見学のお申し込みが入りました\" if status=='proposed' else \"【BIG PAW】オンライン見学の日時が確定しました\"
+new_email="""            subject="【BIG PAW】オンライン見学の希望日時が届きました" if status=='proposed' else "【BIG PAW】オンライン見学の日時が確定しました"
             if status=='proposed':
-                body=f'''オンライン見学のお申し込みが入りました。
+                body=f'''オンライン見学の希望日時が届きました。
 
 【希望日時】
 {visit_date} {visit_time}
 
-BIG PAWの問い合わせ管理画面から希望日時を確認し、見学日時を確定してください。
+ブリーダー管理の見学・問い合わせ画面で第1・第2希望を確認し、日時を確定してください。
+実際の通話方法は購入希望者とBIG PAWのメッセージで相談して決めてください。
 
+【オンライン見学の実施方法】
+LINE・FaceTimeなどのビデオ通話は当事者同士で行います。
+電話番号を交換せずに、FaceTimeの参加リンクをBIG PAWのメッセージで共有する方法もあります。
+BIG PAWでは通話ルームや参加PINコードを発行しません。
+
+BIG PAW
 {PUBLIC_BASE_URL}/breeder-inquiries.html'''
             else:
                 body=f'''オンライン見学の日時が確定しました。
@@ -107,18 +114,18 @@ BIG PAWの問い合わせ管理画面から希望日時を確認し、見学日�
 【確定日時】
 {visit_date} {visit_time}
 
-【当日の参加方法】
-1. 開始30分前以降にBIG PAWへログインしてください。
-2. 確定したオンライン見学画面を開き、「オンライン見学に参加」を押してください。
-3. Jitsi Meetへ移動したら、ブラウザで参加してください。
-4. カメラとマイクの使用を許可すると入室できます。
-5. 相手がまだ入室していない場合は、そのままお待ちください。
+【当日のビデオ通話】
+LINE・FaceTimeなどで、ブリーダーさんと直接ビデオ通話を行ってください。
+通話方法・参加リンクは、事前にBIG PAWのメッセージで相談してください。
+電話番号やLINEを交換せずに、FaceTimeの参加リンクで参加する方法もあります。
 
-※購入希望者様・ブリーダー双方が同じ専用ルームへ入室します。
-※PINコードの入力は必要ありません。
+BIG PAWではビデオ通話ルームや参加PINコードを発行しません。
+日時の変更・価格交渉・成約報告など、取引に関する大切な連絡はBIG PAWのメッセージに残してください。
+
+※オンライン見学は販売契約に必要な現物確認・対面説明の代わりにはなりません。
 
 BIG PAW
-{PUBLIC_BASE_URL}/'''
+{PUBLIC_BASE_URL}/messages.html?inquiry={inquiry_id}'''
 """
 assert s.count(old_email)==1, ('online_visit_email_block_count',s.count(old_email))
 s=s.replace(old_email,new_email,1)
