@@ -29,6 +29,7 @@
   function save() {
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(cart)); }
     catch (_) { /* A file:// preview may disable sessionStorage; stay in memory. */ }
+    window.dispatchEvent(new Event('bigpaw:shop-cart-updated'));
   }
   function yen(value) { return Math.round(value).toLocaleString('ja-JP') + '円'; }
   function price(p) { return Math.round(p.referenceMsrpExTax * 1.1); }
