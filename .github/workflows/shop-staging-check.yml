@@ -20,6 +20,8 @@ on:
       - 'scripts/test-shop-local-preview.py'
       - 'scripts/test-shop-square-reconcile.py'
       - 'scripts/test-shop-sandbox-fulfillment.py'
+      - 'scripts/shop-sandbox-operator.py'
+      - 'scripts/test-shop-sandbox-operator.py'
       - 'scripts/import-shop-images.py'
       - 'scripts/test-shop-image-import.py'
       - 'scripts/smoke-shop-square-sandbox.py'
@@ -65,6 +67,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-local-preview.py
           PYTHONPATH=. python3 scripts/test-shop-square-reconcile.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-fulfillment.py
+          PYTHONPATH=. python3 scripts/test-shop-sandbox-operator.py
           PYTHONPATH=. python3 scripts/test-shop-image-import.py
           python3 -m py_compile scripts/import-shop-detail-assets.py
           PYTHONPATH=. python3 scripts/test-shop-detail-importer.py
