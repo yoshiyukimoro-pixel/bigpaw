@@ -69,3 +69,11 @@ selected and a default test Location visible. No real secrets were collected.
 Official documentation:
 https://developer.squareup.com/reference/square/checkout/create-payment-link
 https://developer.squareup.com/docs/webhooks/step3validate
+
+## 2026-10-29 送料込み・希望小売価格で販売する方針をユーザーが承認
+
+- 35商品の**メーカー希望小売価格**を、そのままBIG PAWの**税込・送料込み販売価格**として採用する。画面の一覧・商品詳細・カートも同じ税込価格で表示する。
+- お客様に追加で請求する送料は**0円**。サーバーで計算するSquare注文には送料行を追加しない。
+- 仕入れ価格は公開画面・API・JavaScript・決済リンクのいずれにも出さない。
+- 静的販売価格一覧 `shop_payments/retail_pricebook.json` は35商品をサーバー側の価格原本として扱う。`shop_payments/retail_catalog.py` は閲覧者が送った金額を一切受け付けずに、この価格原本からSquareの注文金額を計算する。
+- **本番サイトへの公開、Square本番決済、決済用エンドポイントはまだ有効化していない。** 在庫・返品方針とSandbox接続テスト、運営承認が終わるまで本番反映しない。
