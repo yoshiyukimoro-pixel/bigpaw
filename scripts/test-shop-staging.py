@@ -51,8 +51,20 @@ assert '"brand-card"' in shop and 'id="clearFilters"' in shop
 assert 'ACANA:[\'アカナドッグ\',\'ハイエストプロテイン\',\'シングル\']' in shop
 assert 'ZIWI:[\'エアドライ\',\'スチームドライ\']' in shop
 
-assert shop.count("<script>") == 1 and shop.count("</script>") == 4, "Catalog script plus cart and two detail image scripts"
+assert shop.count("<script>") == 1 and shop.count("</script>") == 5, "Catalog script plus cart, image and order review scripts"
 assert 'shop-detail-images.js' in shop and 'shop-detail-gallery.js' in shop and 'shop-detail-gallery.css' in shop
+assert 'shop-order-review.js' in shop and 'shop-order-review.css' in shop
+assert 'id="orderReview" hidden' in shop and 'shop.html?order=review' in shop
+assert 'id="previewCheckout" disabled' in shop
+order_script = Path("app/shop-order-review.js").read_text(encoding="utf-8")
+assert 'sessionStorage.getItem' in order_script and 'Math.round(p.referenceMsrpExTax * 1.1)' in order_script
+assert 'shop-payments' not in order_script and 'fetch(' not in order_script and 'XMLHttpRequest' not in order_script
+assert 'localStorage' not in order_script and 'sessionStorage.setItem' not in order_script
+with tempfile.TemporaryDirectory() as tmp:
+    path = Path(tmp) / "order.js"
+    path.write_text(order_script, encoding="utf-8")
+    subprocess.run(["node", "--check", str(path)], check=True)
+
 script = shop.split("<script>", 1)[1].split("</script>", 1)[0]
 with tempfile.TemporaryDirectory() as tmp:
     p = Path(tmp) / "shop.js"
