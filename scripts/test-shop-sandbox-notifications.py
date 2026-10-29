@@ -96,10 +96,11 @@ class DraftTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.command(["supplier-ordered",ORDER],change=True)
         self.order(paid=True)
+        self.assertEqual(len(self.drafts.pending()),3,
+                         "paid event creates drafts in same transaction")
         self.assertEqual(self.command(["notification-sync",ORDER],change=True)
-                         ["drafts_created"],3)
-        self.assertEqual(self.command(["notification-sync",ORDER],change=True)
-                         ["drafts_created"],0)
+                         ["drafts_created"],0,
+                         "manual retry never duplicates automatically queued drafts")
         preview=self.command(["notifications"])["notifications"]
         self.assertEqual(len(preview),3)
         self.assertEqual({d["audience"] for d in preview},
