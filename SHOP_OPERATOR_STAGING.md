@@ -95,3 +95,11 @@ PYTHONPATH=. python3 scripts/render-shop-sandbox-orders.py --db /tmp/bigpaw-sand
 - 不確実な試行を再送すると二重メールになる可能性があるため、元ワークフローから**メール送信ジョブを削除**して、読み取り専用Resend照合ジョブだけに更新済み。
 - Resendの`GET /emails`と`GET /logs`から該当時間帯（2026-10-29 22:55–23:10 UTC）、送信先`info@bigpaw.site`、件名が正確に一致する送信記録・APIステータスだけを照合。受信の確認に失敗した場合は未検証と記録し、**自動再送しない**。
 - メールの送信やプロダクションデプロイは行わず、診断結果をもとに本番公開前のメール設定調整を行う。
+
+## 2026-10-30：ユーザー許可のシンプルな実テストメール（1回）
+
+- 先行の仮注文付き通知はResend APIで受付が確認できず、送信済み/配達済みとは判定できなかった。
+- ユーザーが`info@bigpaw.site`への**実テストメール送信を明示的に許可**したため、よりシンプルな本文の実送信を別の一度限りのトリガーで検証。送信先`info@bigpaw.site`、件名は「【BIG PAW】メール送信テスト（2026年10月30日・実注文ではありません）」。
+- 顧客名・注文ID・決済情報なし。「トランペッツに発注不要」と明記。
+- 開発ブランチのGitHub Actionsのみで実行し、送信は1回だけ。ResendがAPI受信したかと受信サーバーへ配達したかを区別。失敗/接続不明なら再送しない。
+- `scripts/smoke-shop-info-mail-simple.py`、`scripts/test-shop-info-mail-simple.py`、`.github/workflows/shop-info-mail-one-shot.yml`。実送信完了後、トリガーを削除して再発防止する。
