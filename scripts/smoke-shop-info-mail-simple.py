@@ -69,6 +69,9 @@ def once(*, env=None, opener=urlopen, delay=time.sleep):
     if not key:
         print("BIGPAW_REAL_MAIL_TEST=NOT_CONFIGURED")
         return 2
+    if not key.startswith("re_") or any(ch.isspace() for ch in key):
+        print("BIGPAW_REAL_MAIL_TEST=INVALID_KEY_FORMAT")
+        return 2
     body=json.dumps({"from":FROM,"to":[TO],"subject":SUBJECT,"text":BODY},
                     ensure_ascii=False).encode("utf-8")
     request=Request(HOST+"/emails",data=body,method="POST",headers={
