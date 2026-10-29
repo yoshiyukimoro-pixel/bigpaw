@@ -30,20 +30,28 @@ async function clickNamed(page,label){
 }
 
 (async()=>{
+  let stage='browser-launch';
   const browser=await chromium.launch({headless:true});
   try{
     const page=await browser.newPage({viewport:{width:1280,height:900}});
+    stage='navigate';
     await page.goto(link.href,{waitUntil:'domcontentloaded',timeout:45000});
     await page.waitForLoadState('networkidle',{timeout:10000}).catch(()=>{});
+    stage='verify-host';
     const host=new URL(page.url()).hostname;
     assert(['sandbox.square.link','connect.squareupsandbox.com'].includes(host),
       'Unexpected Square panel host');
+    stage='overview';
     const bodyText=await page.locator('body').innerText();
     assert(/Sandbox Testing Panel/i.test(bodyText),'Not the official Sandbox testing panel');
     assert(/Overview/i.test(bodyText),'Sandbox overview unavailable');
+    stage='click-next';
     await clickNamed(page,'Next');
+    stage='test-payment-visible';
     await page.getByText('Test Payment',{exact:true}).first().waitFor({timeout:15000});
+    stage='click-test-payment';
     await clickNamed(page,'Test Payment');
+    stage='wait-for-success';
     await page.getByText(/Your test payment was successful/i).waitFor({timeout:20000});
     const finalText=await page.locator('body').innerText();
     assert(/Checkout Complete/i.test(finalText),'Checkout complete message missing');
@@ -52,7 +60,7 @@ async function clickNamed(page,label){
   }catch(err){
     // Error messages from URLs may contain checkout identifiers; never print
     // error objects. Print only a fixed error code.
-    console.error('SQUARE_SANDBOX_HOSTED_PANEL_FAILED: Expected controls or completion not verified');
+    console.error('SQUARE_SANDBOX_HOSTED_PANEL_FAILED stage='+stage+'; no identifiers printed');
     process.exitCode=1;
   }finally{await browser.close();}
 })();
