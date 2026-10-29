@@ -19,6 +19,7 @@ on:
       - 'scripts/test-shop-staging.cjs'
       - 'scripts/test-shop-square-browser.cjs'
       - '.github/workflows/shop-staging-check.yml'
+      - '.github/workflows/square-sandbox-smoke.yml'
   workflow_dispatch:
 
 permissions:
