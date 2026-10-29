@@ -24,6 +24,8 @@ on:
       - 'scripts/test-shop-sandbox-operator.py'
       - 'shop_payments/sandbox_procurement.py'
       - 'scripts/test-shop-sandbox-procurement.py'
+      - 'shop_payments/sandbox_notifications.py'
+      - 'scripts/test-shop-sandbox-notifications.py'
       - 'scripts/test-shop-delivery-terms.py'
       - 'scripts/render-shop-sandbox-orders.py'
       - 'scripts/test-shop-sandbox-operator-report.py'
@@ -74,6 +76,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-sandbox-fulfillment.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-procurement.py
+          PYTHONPATH=. python3 scripts/test-shop-sandbox-notifications.py
           PYTHONPATH=. python3 scripts/test-shop-delivery-terms.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-report.py
           PYTHONPATH=. python3 scripts/test-shop-image-import.py
