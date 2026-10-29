@@ -57,7 +57,11 @@ async function clickNamed(page,label){
     stage='click-next';
     await clickNamed(page,'Next');
     stage='test-payment-visible';
-    await page.getByText('Test Payment',{exact:true}).first().waitFor({timeout:15000});
+    // The progress stepper is always titled "Test Payment": it is NOT the
+    // action button. Wait for the real enabled action, otherwise fail closed.
+    await page.getByRole('button',{name:'Test Payment',exact:true}).waitFor({
+      state:'visible',timeout:25000
+    });
     stage='click-test-payment';
     const controlKinds=await page.evaluate(()=>{
       return Array.from(document.querySelectorAll('button,a,input,[role="button"]'))
