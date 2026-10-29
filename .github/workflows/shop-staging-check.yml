@@ -15,6 +15,7 @@ on:
       - 'scripts/test-shop-square-reconcile.py'
       - 'scripts/test-shop-staging.py'
       - 'scripts/test-shop-staging.cjs'
+      - 'scripts/test-shop-square-browser.cjs'
       - '.github/workflows/shop-staging-check.yml'
   workflow_dispatch:
 
@@ -39,4 +40,4 @@ jobs:
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
-            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs'
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs'
