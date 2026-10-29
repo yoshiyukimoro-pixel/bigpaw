@@ -17,6 +17,7 @@ from contextlib import closing
 from urllib.request import urlopen
 
 from .sandbox_connector import SandboxOrderStore
+from .sandbox_notifications import (install_notification_tables, enqueue_notification_group, STAGE_DRAFTS)
 from .sandbox_reconcile import (
     retrieve_sandbox_shipment_status,
     retrieve_verified_sandbox_payment,
@@ -57,6 +58,7 @@ class SandboxProcurementOps:
                     recorded_at INTEGER NOT NULL
                 );
             """)
+            install_notification_tables(db)
 
     def _open(self):
         connection=sqlite3.connect(self.order_store.db_file, timeout=10, isolation_level=None)
@@ -133,6 +135,7 @@ class SandboxProcurementOps:
                     "INSERT INTO food_procurement_events(order_id,stage,recorded_at) "
                     "VALUES (?,?,?)",(order_id,next_stage,now),
                 )
+                enqueue_notification_group(db,order_id,STAGE_DRAFTS.get(next_stage,()))
                 db.execute("COMMIT")
                 return next_stage
             except Exception:
@@ -183,6 +186,7 @@ class SandboxProcurementOps:
                     "INSERT INTO food_procurement_events(order_id,stage,recorded_at) "
                     "VALUES (?,'refunded',?)",(order_id,now),
                 )
+                enqueue_notification_group(db,order_id,STAGE_DRAFTS["refunded"])
                 db.execute("COMMIT")
                 return "refunded"
             except Exception:
