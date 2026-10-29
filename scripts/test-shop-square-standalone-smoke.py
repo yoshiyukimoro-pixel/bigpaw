@@ -23,6 +23,7 @@ class TestStandalone(unittest.TestCase):
         calls=[]
         def create(**kwargs):
             self.assertIsNone(kwargs["order_id"])
+            self.assertLessEqual(len(kwargs["idempotency_key"]),45)
             self.assertEqual(kwargs["location_id"],ENV["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"])
             calls.append("create")
             return {"id":"SQUARETESTPAYMENT123456"}
