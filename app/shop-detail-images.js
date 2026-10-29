@@ -23,7 +23,7 @@
     const id='A'+String(i).padStart(2,'0');
     add(id,'specific','ingredients','原材料に関するメーカー紹介画像');
     if (i===1 || i===2) add(id,'specific','puppy-range','パピーフードのラインナップ');
-    if (i===9 || i===12) add(id,'specific','special-1',i===9?'パシフィカの紹介画像':'グラスフェッドラムの紹介画像');
+    if (i===9 || i===12) add(id,'specific','special-1',i===9?'パシフィカの紹介':'グラスフェッドラムの紹介');
     if (i>=12) add(id,'specific','single-range','シングルシリーズの紹介');
     common(id,acanaCommon);
   }
@@ -45,14 +45,14 @@
     ['air-other-9314','エアドライの素材紹介 3']
   ];
   const airChicken=[
-    ['air-chicken-9312','エアドライ チキンの素材紹介 1'],
-    ['air-chicken-9313','エアドライ チキンの素材紹介 2'],
-    ['air-chicken-9314','エアドライ チキンの素材紹介 3']
+    ['air-chicken-9312','エアドライの素材紹介 1'],
+    ['air-chicken-9313','エアドライの素材紹介 2'],
+    ['air-chicken-9314','エアドライの素材紹介 3']
   ];
   const steamCommon=[
-    ['steam-ingredients','スチームドライの原材料紹介'],
-    ['steam-process','スチームドライの製法紹介'],
-    ['steam-vs-air','スチームドライとエアドライの比較'],
+    ['steam-ingredients','スチームドライ3種類の原材料紹介'],
+    ['steam-process','スチームドライ製法の紹介'],
+    ['steam-vs-air','エアドライとの違い'],
     ['steam-lineup','スチームドライのラインナップ']
   ];
   for (let i=1;i<=9;i++) {
@@ -61,7 +61,7 @@
       add(id,'specific','ingredients','原材料のメーカー紹介画像');
       common(id,[airIntro,...(i===6?airChicken:airOther)]);
     } else {
-      if(i===7) add(id,'specific','food','ビーフ＆パンプキンのフード写真');
+      if(i===7) add(id,'specific','food','ビーフ製品のフード画像');
       common(id,steamCommon);
     }
   }
