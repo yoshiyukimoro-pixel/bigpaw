@@ -208,10 +208,18 @@ class TestSquareSandboxIntegration(unittest.TestCase):
         self.assertEqual(self.db.accept_webhook(**signed, payment_lookup=self.confirmed_payment), "paid")
 
     def test_no_duplicate_orders_or_multiple_square_link_changes(self):
-        self.prepare()
-        with self.assertRaises(Exception):
-            self.prepare()
+        first, total = self.prepare()
+        retry, same_total = self.prepare()
+        self.assertEqual(first, retry)
+        self.assertEqual(total, same_total)
+        with self.assertRaises(ValueError):
+            self.db.add_pending_order(
+                order_id=self.order_id, cart={"A02": 1},
+                verified_prices=self.catalog, shipping_yen=900,
+                location_id=self.location_id,
+            )
         self.db.save_link(self.order_id, self.link())
+        self.assertEqual(self.db.checkout_link_if_exists(self.order_id)["url"], self.link()["url"])
         with self.assertRaises(ValueError):
             self.db.save_link(self.order_id, {
                 **self.link(), "square_link_id": "another-link"
