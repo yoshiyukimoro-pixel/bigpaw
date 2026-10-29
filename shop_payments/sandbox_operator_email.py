@@ -71,6 +71,40 @@ def send_resend(*, api_key: str, to: str, subject: str, body: str,
     return identifier
 
 
+EVENTS = frozenset((
+    "sent", "delivered", "bounced", "complained", "failed",
+    "delivery_delayed", "canceled", "queued", "scheduled",
+    "opened", "clicked",
+))
+
+
+def read_resend_delivery(*, api_key: str, provider_id: str, opener=urlopen) -> str:
+    """Read-only provider event lookup; recipient and ID must match."""
+    if not api_key or not EMAIL_ID.fullmatch(provider_id):
+        raise SafeMailError("Missing email status credentials or ID")
+    req=Request(API_URL+"/"+provider_id,headers={
+        "Authorization": "Bearer "+api_key,
+        "Accept": "application/json",
+        "User-Agent": "BIGPAW-Staging-Food-Mail-ReadOnly/1.0",
+    },method="GET")
+    try:
+        with opener(req,timeout=10) as result:
+            if result.status != 200:
+                raise SafeMailError("Provider lookup status unavailable")
+            value=json.loads(result.read(8192))
+    except (HTTPError,URLError,TimeoutError,OSError,ValueError):
+        raise SafeMailError("Provider delivery state unavailable") from None
+    if not isinstance(value,dict) or value.get("id")!=provider_id:
+        raise SafeMailError("Provider returned another email")
+    recipients=value.get("to")
+    if not isinstance(recipients,list) or recipients!=[OPERATOR_TO]:
+        raise SafeMailError("Provider recipient mismatch")
+    event=str(value.get("last_event") or "").lower()
+    if event not in EVENTS:
+        raise SafeMailError("Unknown provider delivery state")
+    return event
+
+
 class SandboxOperatorEmail:
     def __init__(self, store: SandboxOrderStore):
         self.store = store
@@ -83,11 +117,19 @@ class SandboxOperatorEmail:
                   recipient TEXT NOT NULL,
                   status TEXT NOT NULL CHECK (status IN ('reserved','accepted','unknown')),
                   provider_id TEXT,
+                  last_event TEXT,
                   created_at INTEGER NOT NULL,
                   updated_at INTEGER NOT NULL,
                   PRIMARY KEY (order_id,kind)
                 )
             """)
+            columns={c["name"] for c in db.execute(
+                "PRAGMA table_info(food_operator_email_dispatch)"
+            )}
+            if "last_event" not in columns:
+                db.execute(
+                    "ALTER TABLE food_operator_email_dispatch ADD COLUMN last_event TEXT"
+                )
 
     def _open(self):
         db=sqlite3.connect(self.store.db_file, timeout=10, isolation_level=None)
@@ -98,7 +140,7 @@ class SandboxOperatorEmail:
     def history(self) -> list[dict]:
         with closing(self._open()) as db:
             rows=db.execute(
-                "SELECT order_id,kind,recipient,status,provider_id,created_at,updated_at "
+                "SELECT order_id,kind,recipient,status,provider_id,last_event,created_at,updated_at "
                 "FROM food_operator_email_dispatch ORDER BY created_at DESC,order_id DESC"
             ).fetchall()
         return [dict(row) for row in rows]
@@ -163,3 +205,29 @@ class SandboxOperatorEmail:
             )
         return {"order_id":order_id,"recipient":OPERATOR_TO,
                 "status":status,"new_send":True}
+
+    def refresh_delivery(self, order_id: str, *, api_key: str,
+                         reader=read_resend_delivery) -> dict:
+        """Read provider status; 'delivered' is mail-server acceptance, not opened inbox."""
+        with closing(self._open()) as db:
+            row=db.execute(
+                "SELECT provider_id,status,last_event FROM food_operator_email_dispatch "
+                "WHERE order_id=? AND kind=?",(order_id,KIND)
+            ).fetchone()
+        if not row or row["status"]!="accepted" or not row["provider_id"]:
+            raise SafeMailError("No accepted operator email to check")
+        event=reader(api_key=api_key,provider_id=row["provider_id"])
+        if event not in EVENTS:
+            raise SafeMailError("Unknown email delivery event")
+        with closing(self._open()) as db:
+            db.execute(
+                "UPDATE food_operator_email_dispatch SET last_event=?,updated_at=? "
+                "WHERE order_id=? AND kind=? AND status='accepted' AND provider_id=?",
+                (event,int(time.time()),order_id,KIND,row["provider_id"]),
+            )
+        return {
+            "order_id":order_id,"recipient":OPERATOR_TO,
+            "provider_event":event,"delivered_to_mail_server":event in (
+                "delivered","opened","clicked",
+            ),"opened_in_mailbox_confirmed":False,
+        }
