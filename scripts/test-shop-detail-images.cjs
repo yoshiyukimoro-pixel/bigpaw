@@ -62,3 +62,14 @@ assert(!gallery.includes('fetch(') && !gallery.includes('XMLHttpRequest') &&
   !gallery.includes('Square') && !gallery.includes('localStorage'),
   'gallery cannot communicate with payments or store customer data');
 console.log('SHOP_DETAIL_IMAGES_OK|products=35|sources=63|references=163|scope=validated');
+
+// Fingerprints from the four manufacturer ZIPs: exact image order,
+// filename, shared/specific scope AND Japanese caption for every SKU.
+const crypto=require('node:crypto');
+const fromManufacturer={"A01":"905d699642cdbbe3","A02":"1b4b33b1eb9b0d0e","A03":"cb031344a43d9e53","A04":"b89a315831cd03dc","A05":"e969c3fd576d86a3","A06":"9bb0e5f647d84845","A07":"0ebc2cac326b36c7","A08":"626b0264d9f43eea","A09":"b5af4751ecc2cc40","A10":"8ab039adc0f9ea2e","A11":"816d83cab42f4546","A12":"fbe5c7890a542b90","A13":"4fda0ecdacba6a6d","A14":"a5cd32728e078e84","C01":"9a169565f61b9e88","C02":"8ed5fa8101ad2a4f","C03":"731a742b66312cd7","C04":"4b6b76957339be04","O01":"fa1ef0b1e5cd8fb1","O02":"0f6c16f111fcf75b","O03":"ffa3ad17ff7b750c","O04":"f36730f3ab04738c","O05":"f47e029a5b6e3030","O06":"3efc1d2037ce2ac7","O07":"fb81e9c8f518d778","O08":"6fe7f93019071a80","Z01":"44142bbbc57fea36","Z02":"45557fc6217f7c12","Z03":"9a8c1abd5212cb4a","Z04":"eb7c4c93231b6249","Z05":"cc9ee76a06960a3c","Z06":"ed1f480969677999","Z07":"4f7f0e68e6c43e3b","Z08":"ec65bad87e6097f4","Z09":"ec65bad87e6097f4"};
+for(const [id,fingerprint] of Object.entries(fromManufacturer)){
+  const serialized=mapping[id].map(im=>
+    [im.scope,im.src,im.caption].join('|')).join('\n');
+  const actual=crypto.createHash('sha256').update(serialized).digest('hex').slice(0,16);
+  assert.equal(actual,fingerprint,id+' source manifest differed; do not reassign brand or SKU photos');
+}
