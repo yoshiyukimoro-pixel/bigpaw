@@ -15,7 +15,7 @@ assert len(set(r[7] for r in rows)) == 35, "Duplicate image slugs"
 assert all(r[3] in ("11.4kg", "10kg", "4kg", "3.2kg", "2.5kg") for r in rows)
 assert {r[0]:r[3] for r in rows}["Z01"] == "2.5kg", "Venison is only stocked as 2.5kg"
 assert {r[0]:r[3] for r in rows}["Z04"] == "2.5kg", "Tripe & Lamb is only stocked as 2.5kg"
-assert "referenceMsrpExTax" in shop, "35 public reference MSRP entries required"
+assert "referenceMsrpExTax" in shop, "35 manufacturer MSRP entries required"
 prices = re.search(r"const referenceMsrpExTax=(\{[^;]+\});",shop)
 assert prices, "Reference MSRP catalog missing"
 import json
@@ -26,7 +26,7 @@ assert retail["Z01"] == 39000 and retail["Z04"] == 21800, "ZIWI 2.5kg MSRP misma
 assert retail["A02"] == 19500 and retail["O03"] == 23800
 assert "小売店卸価格" not in shop, "Wholesale data must not appear in public frontend"
 assert "noindex,nofollow" in shop
-assert "販売準備中" in shop and "価格準備中" in shop
+assert "販売準備中" in shop and "販売価格（税込・送料込み）" in shop and "全商品送料込み" in shop
 assert 'disabled>販売開始までお待ちください' in shop
 assert "localStorage" not in shop and "fetch(" not in shop, "No checkout/data mutation permitted"
 cart = Path("app/shop-cart-preview.js").read_text(encoding="utf-8")
@@ -36,7 +36,7 @@ assert "checkout" not in cart.lower() or "checkout disabled" in cart.lower(), "N
 assert "fetch(" not in cart and "XMLHttpRequest" not in cart and "sendBeacon" not in cart, "Cart must not contact a backend"
 assert "localStorage" not in cart and "window.open" not in cart, "No persistent or redirected checkout"
 assert 'sessionStorage' in cart, "Cart preview must only store session-level cart state"
-assert 'referenceMsrpExTax' in cart, "Cart uses reference MSRP only"
+assert 'referenceMsrpExTax' in cart, "Cart uses manufacturer MSRP as approved sale price"
 assert '仕入' not in cart and '卸値' not in cart and 'wholesalePrice' not in cart
 with tempfile.TemporaryDirectory() as tmp:
     node_path = Path(tmp) / "cart.js"
@@ -58,3 +58,8 @@ with tempfile.TemporaryDirectory() as tmp:
     p.write_text(script, encoding="utf-8")
     subprocess.run(["node", "--check", str(p)], check=True)
 print("SHOP_CATALOG_STATIC_OK|products=35|ACANA=14|ORIJEN=8|ZIWI=9|CHARM=4|checkout=disabled")
+
+assert '参考・希望小売価格（税込）' not in shop
+assert '※BIG PAWの販売価格ではありません' not in shop
+assert '販売価格（税込・送料込み）' in cart
+assert '送料・割引・在庫・注文条件は未確定' not in shop
