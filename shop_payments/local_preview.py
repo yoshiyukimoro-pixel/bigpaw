@@ -18,6 +18,7 @@ import secrets
 from urllib.parse import urlsplit
 
 from .retail_catalog import load_sale_catalog
+from .sandbox_reconcile import retrieve_verified_sandbox_payment
 from .sandbox_connector import (
     SandboxOrderStore, SquareSandboxError, create_square_sandbox_payment_link,
 )
@@ -177,12 +178,18 @@ class PreviewHandler(BaseHTTPRequestHandler):
                     signature_header=self.headers.get("X-Square-Hmacsha256-Signature", ""),
                     signature_key=os.environ["BIGPAW_SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY"],
                     notification_url=os.environ["BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL"],
+                    payment_lookup=lambda pid: retrieve_verified_sandbox_payment(
+                        pid, token=os.environ["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"]
+                    ),
                 )
             except ValueError:
                 return self._respond(HTTPStatus.FORBIDDEN, {"error": "invalid_signature_or_event"})
-            # Ask Square to retry events arriving before their link is saved.
-            if status == "unmatched":
-                return self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "awaiting_order"})
+            except SquareSandboxError:
+                return self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "square_verification_unavailable"})
+            # Ask Square to retry when order-link creation is racing or the
+            # independent Square Payments API cannot yet confirm completion.
+            if status in ("unmatched", "unverified"):
+                return self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "awaiting_square_confirmation"})
             return self._respond(HTTPStatus.OK, {"ok": True})
         if path != "/api/shop/sandbox/checkout":
             return self._respond(HTTPStatus.NOT_FOUND, {"error": "not_found"})
