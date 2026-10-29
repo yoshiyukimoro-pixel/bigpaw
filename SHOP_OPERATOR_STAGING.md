@@ -103,3 +103,11 @@ PYTHONPATH=. python3 scripts/render-shop-sandbox-orders.py --db /tmp/bigpaw-sand
 - 顧客名・注文ID・決済情報なし。「トランペッツに発注不要」と明記。
 - 開発ブランチのGitHub Actionsのみで実行し、送信は1回だけ。ResendがAPI受信したかと受信サーバーへ配達したかを区別。失敗/接続不明なら再送しない。
 - `scripts/smoke-shop-info-mail-simple.py`、`scripts/test-shop-info-mail-simple.py`、`.github/workflows/shop-info-mail-one-shot.yml`。実送信完了後、トリガーを削除して再発防止する。
+
+## 2026-10-30: 実際のメール送信テスト結果（送信方法を区別）
+
+- ユーザーが`info@bigpaw.site`への実テストメール送信を明示許可。
+- GitHub ActionsのResendキーを使用した**シンプルな1通の送信はHTTP 400 `validation_error`（分類`api_key_or_scope`）で拒否**。別のResend読み取り専用APIでもHTTP 400 `validation_error`（分類`api_key_invalid`）を確認。**GitHub Actionsに現在渡されているResendキーが無効で、メールは送信成功していない。** 有効なGitHub Secretへ更新するまで自動通知実送信は再開しない。
+- Railwayの環境変数名だけを読み取り、運用サービスには`RESEND_API_KEY`が存在することを確認。ただし値は伏せられており、有効性は未検証。**本番Railwayの設定やサービスは変更していない。**
+- 別途、接続済みGmailから`info@bigpaw.site`へ、件名「【BIG PAW】メール受信テスト（2026年10月30日・実注文ではありません）」を**実際に1通送信**（Gmail送信済みID `1a189f558585e398`）。これは**ショップのResend自動通知ではない**。送信済みの記録は確認できたが、受信ボックスへの到達/開封は未確認。現時点でバウンス通知は見つからず、これをもって配達成功とは判定しない。
+- Resend本番メール送信処理のコード自体はテストを通過している。実送信の課題は**GitHub Actions用の正しいResend APIキー設定・送信許可の確認**。既存の本番Resend設定を不用意に上書き・再作成しない。
