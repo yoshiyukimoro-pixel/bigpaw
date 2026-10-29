@@ -137,6 +137,7 @@ class TestIsolatedLocalPreview(unittest.TestCase):
                 event = {
                     "event_id":"sandbox-test-event-123", "type":"payment.updated",
                     "data":{"object":{"payment":{
+                        "id":"PAYMENTTEST001",
                         "order_id":fake_link["square_order_id"],
                         "location_id":FAKE_CREDS["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
                         "status":"COMPLETED",
@@ -150,12 +151,29 @@ class TestIsolatedLocalPreview(unittest.TestCase):
                     hashlib.sha256).digest()).decode()
                 sig_headers = {"Content-Type":"application/json",
                                "X-Square-Hmacsha256-Signature":signature}
-                self.assertEqual(self._request(opener, base+"/api/shop/sandbox/webhook",
-                    method="POST",body=raw,headers=sig_headers)[0], 200)
-                self.assertEqual(server.store.status(order_id),"paid")
-                self.assertEqual(self._request(opener, base+"/api/shop/sandbox/webhook",
-                    method="POST",body=raw,headers=sig_headers)[0], 200)
-                self.assertEqual(server.store.status(order_id),"paid")
+                # A signed webhook alone must NOT mark paid. Only a fresh
+                # independent Square Payments API read can confirm.
+                payment_from_square = {
+                    "id":"PAYMENTTEST001",
+                    "status":"COMPLETED",
+                    "order_id":fake_link["square_order_id"],
+                    "location_id":FAKE_CREDS["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
+                    "amount_money":{"amount":85800,"currency":"JPY"}
+                }
+                with patch.object(local_preview, "retrieve_verified_sandbox_payment",
+                                  return_value={**payment_from_square, "status":"PENDING"}):
+                    self.assertEqual(self._request(opener, base+"/api/shop/sandbox/webhook",
+                        method="POST",body=raw,headers=sig_headers)[0], 503)
+                    self.assertEqual(server.store.status(order_id), "payment_pending")
+                with patch.object(local_preview, "retrieve_verified_sandbox_payment",
+                                  return_value=payment_from_square) as lookup:
+                    self.assertEqual(self._request(opener, base+"/api/shop/sandbox/webhook",
+                        method="POST",body=raw,headers=sig_headers)[0], 200)
+                    self.assertEqual(lookup.call_count, 1)
+                    self.assertEqual(server.store.status(order_id), "paid")
+                    self.assertEqual(self._request(opener, base+"/api/shop/sandbox/webhook",
+                        method="POST",body=raw,headers=sig_headers)[0], 200)
+                    self.assertEqual(server.store.status(order_id), "paid")
 
     def test_bad_signature_rejected_and_no_fake_mark_paid(self):
         with patch.dict(os.environ, FAKE_CREDS):
