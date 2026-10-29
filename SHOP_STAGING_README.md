@@ -78,3 +78,15 @@ ZIWI エアドライ ベニソン 2.5kg と エアドライ トライプ＆ラ�
 - 前節までにある「画像実体は未登録」という記録は作業当時の履歴であり、**この節の完了状況が最新**。
 - 実画像を含むCI・Chromium/WebKitの結果はコミットのGitHub Actionsランを参照。iPhone物理端末での操作試験とは別。
 - 本番公開禁止は継続（PR Draft・mainマージなし・Railway本番デプロイなし）。
+
+## 2026-10-29 夜：注文確認画面の開発（実決済は未開始）
+
+- `shop.html?order=review` を追加。既存のお試しカートの「注文内容を確認する（お試し）」から遷移する。
+- `app/shop-order-review.js`, `app/shop-order-review.css` を追加。35商品からセッション内の購入商品を検証し、各商品の商品名・容量・点数・税込単価・小計・追加送料0円・合計額を表示。
+- 商品金額は既存 `catalog` の `referenceMsrpExTax` を利用し、商品定義や価格表の改変/二重管理なし。最大10個/品、総額2,000,000円のSandbox上限を画面上でも確認。商品変更時は確認チェックを自動解除。
+- 配送先氏名・住所・電話番号・クレジットカード番号はこの画面では**入力・保存・送信しない**。将来のSquare側の安全な決済画面で入力させる方針。画面の確認ボタンはUI試験用で、注文・課金は行わない。
+- 静的公開ショップの既存購入ボタンは引き続きdisabled。注文確認で押せるボタンは「確認のみ」。本番注文API・本番Square Checkoutは未接続。
+- `shop_payments/local_preview.py` の静的配信許可リストにレビュー用のJS/CSSと詳細WebPを追加し、隔離されたlocalhost Sandboxで表示可能にした。Checkout自体は従来の独立したSandboxプレビューに限定。
+- `scripts/test-shop-order-review.cjs` でChromiumとWebKit（iPhone Safari相当）の画面遷移、カート更新、送料0円、2百万円超制限、空カート表示、無課金を検証。
+- GitHub Actions Run `40873987120` 成功。既存35商品・98画像の表示・Square Sandbox mock checkout・回帰テストにも合格。物理iPhoneの実機チェックと実際のSandboxカード決済エンドツーエンド試験は別途必要。
+- Draft PR #175を維持。mainマージ・Railway本番反映・Square本番決済開始は明示承認まで禁止。
