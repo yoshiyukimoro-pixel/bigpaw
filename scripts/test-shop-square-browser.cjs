@@ -14,6 +14,7 @@ const CHECKOUT = fs.readFileSync('shop_payments/preview_checkout.js', 'utf8');
 
 async function run() {
   let ready = false;
+  let orderState = 'payment_pending';
   const submitted = [];
   const server = http.createServer(async (req, res) => {
     const route = req.url.split('?')[0];
@@ -29,6 +30,9 @@ async function run() {
     }
     if (req.method === 'GET' && route === '/api/shop/sandbox/config') {
       json({sandbox:true,ready,csrf_token:'mock-browser-csrf',real_payments:false,shipping_included:true});return;
+    }
+    if (req.method === 'GET' && route === '/api/shop/sandbox/order/FOOD12345678901234567890123456789012') {
+      json({order_status:orderState});return;
     }
     if (req.method === 'POST' && route === '/api/shop/sandbox/checkout') {
       let body = '';for await (const chunk of req) body += chunk;
@@ -73,6 +77,18 @@ async function run() {
         assert.deepEqual(submitted.at(-1).cart, {A02:1});
         assert.match(submitted.at(-1).attempt_id,
           /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+        // Returning from Square alone must not imply a successful payment.
+        orderState = 'payment_pending';
+        await page.goto(root + '/shop.html?item=A02');
+        await page.locator('#previewCartOpen').click();
+        await page.waitForSelector('#squareSandboxStatusButton:visible');
+        await page.locator('#squareSandboxStatusButton').click();
+        assert.match(await page.locator('#squareSandboxStatusResult').innerText(),
+          /確認待ち/,name + ' returning from checkout never assumes a payment');
+        orderState = 'paid';
+        await page.locator('#squareSandboxStatusButton').click();
+        assert.match(await page.locator('#squareSandboxStatusResult').innerText(),
+          /テスト決済完了を確認済み/,name + ' verified sandbox payment state');
         assert.deepEqual(errors, [], 'no JavaScript errors');
         console.log('SHOP_SQUARE_UI_OK|' + name + '|sandbox_checkout_only|no_real_payment');
       } finally {
