@@ -24,6 +24,7 @@ FAKE_CREDS = {
     "BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL": "https://sandbox.example.invalid/api/shop/sandbox/webhook",
 }
 NO_CREDS = {k: "" for k in FAKE_CREDS}
+ATTEMPT_ID = "12345678-1234-4234-8234-123456789abc"
 
 
 @contextmanager
@@ -77,7 +78,7 @@ class TestIsolatedLocalPreview(unittest.TestCase):
             self.assertEqual(config["ready"], False)
             self.assertTrue(config["sandbox"])
             code, error = self._request(opener, base + "/api/shop/sandbox/checkout", method="POST",
-                body=json.dumps({"cart": {"A02": 1}}).encode(), headers={
+                body=json.dumps({"cart": {"A02": 1}, "attempt_id": ATTEMPT_ID}).encode(), headers={
                     "Origin": base, "Content-Type": "application/json",
                     "X-Shop-CSRF": config["csrf_token"]
                 })
@@ -96,10 +97,10 @@ class TestIsolatedLocalPreview(unittest.TestCase):
                     method="POST", body=b'{"cart":{"A02":1}}',headers=no_csrf)[0], 403)
                 req_headers = {"Origin": base, "Content-Type": "application/json",
                                "X-Shop-CSRF": config["csrf_token"]}
-                malicious = json.dumps({"cart":{"A02":1},"price_yen":1}).encode()
+                malicious = json.dumps({"cart":{"A02":1},"attempt_id":ATTEMPT_ID,"price_yen":1}).encode()
                 self.assertEqual(self._request(opener, base + "/api/shop/sandbox/checkout",
                     method="POST", body=malicious,headers=req_headers)[0], 400)
-                fake_quantity = json.dumps({"cart":{"A02":"1"}}).encode()
+                fake_quantity = json.dumps({"cart":{"A02":"1"},"attempt_id":ATTEMPT_ID}).encode()
                 self.assertEqual(self._request(opener, base + "/api/shop/sandbox/checkout",
                     method="POST", body=fake_quantity,headers=req_headers)[0], 400)
 
@@ -118,12 +119,26 @@ class TestIsolatedLocalPreview(unittest.TestCase):
                            "X-Shop-CSRF":config["csrf_token"]}
                 with patch.object(local_preview, "create_square_sandbox_payment_link", return_value=fake_link) as mock:
                     code, order = self._request(opener, base + "/api/shop/sandbox/checkout",
-                        method="POST",body=json.dumps({"cart":{"A02":2,"Z01":1}}).encode(),
+                        method="POST",body=json.dumps({"cart":{"A02":2,"Z01":1},"attempt_id":ATTEMPT_ID}).encode(),
                         headers=headers)
                 self.assertEqual(code, 200)
                 self.assertEqual(order["amount_yen"], 85800)
                 self.assertEqual(order["shipping_yen"], 0)
                 self.assertEqual(order["checkout_url"], fake_link["url"])
+                # Retry the same attempt. It MUST reuse the exact same link,
+                # without contacting Square or creating another order.
+                code2, again = self._request(opener, base + "/api/shop/sandbox/checkout",
+                    method="POST",
+                    body=json.dumps({"cart":{"A02":2,"Z01":1},"attempt_id":ATTEMPT_ID}).encode(),
+                    headers=headers)
+                self.assertEqual(code2, 200)
+                self.assertEqual(again["order_id"], order["order_id"])
+                self.assertEqual(again["checkout_url"], order["checkout_url"])
+                self.assertEqual(mock.call_count, 1)
+                self.assertEqual(self._request(opener, base + "/api/shop/sandbox/checkout",
+                    method="POST",
+                    body=json.dumps({"cart":{"A02":1},"attempt_id":ATTEMPT_ID}).encode(),
+                    headers=headers)[0], 400)
                 self.assertEqual(mock.call_count, 1)
                 args, kwargs = mock.call_args
                 self.assertEqual(args[0]["order"]["line_items"][0]["base_price_money"]["amount"],21450)
