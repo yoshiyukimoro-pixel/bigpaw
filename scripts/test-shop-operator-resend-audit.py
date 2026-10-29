@@ -39,7 +39,7 @@ class AuditTests(unittest.TestCase):
             return FakeResponse({"data":[]})
         got=audit.search_provider_records("FAKE",opener=opener)
         self.assertEqual(got,{"result":"provider_message_found","event":"delivered"})
-        self.assertEqual(requests,[("https://api.resend.com/emails?limit=100","GET")])
+        self.assertEqual(requests,[("https://api.resend.com/emails","GET")])
 
     def test_missing_mail_does_not_claim_delivery(self):
         def opener(req,timeout):
