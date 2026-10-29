@@ -7,6 +7,10 @@ on:
     paths:
       - 'app/shop.html'
       - 'app/shop-cart-preview.js'
+      - 'app/shop-detail-images.js'
+      - 'app/shop-detail-gallery.js'
+      - 'app/shop-detail-gallery.css'
+      - 'app/assets/shop-details/**'
       - 'shop_payments/**'
       - 'scripts/test-shop-square.py'
       - 'scripts/test-shop-square-sandbox.py'
@@ -20,6 +24,8 @@ on:
       - 'scripts/test-shop-square-smoke.py'
       - 'scripts/test-shop-staging.py'
       - 'scripts/test-shop-staging.cjs'
+      - 'scripts/test-shop-detail-images.cjs'
+      - 'scripts/test-shop-detail-gallery.cjs'
       - 'scripts/test-shop-square-browser.cjs'
       - '.github/workflows/shop-staging-check.yml'
       - '.github/workflows/square-sandbox-smoke.yml'
@@ -45,8 +51,9 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-square-reconcile.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-fulfillment.py
           PYTHONPATH=. python3 scripts/test-shop-image-import.py
+          node scripts/test-shop-detail-images.cjs
           PYTHONPATH=. python3 scripts/test-shop-square-smoke.py
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
-            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs'
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs && node scripts/test-shop-detail-gallery.cjs'
