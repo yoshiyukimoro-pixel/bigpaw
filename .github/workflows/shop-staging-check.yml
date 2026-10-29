@@ -29,6 +29,8 @@ on:
       - 'scripts/test-shop-sandbox-operator-email.py'
       - 'scripts/smoke-shop-operator-resend-once.py'
       - 'scripts/test-shop-operator-resend-once.py'
+      - 'scripts/audit-shop-operator-resend-attempt.py'
+      - 'scripts/test-shop-operator-resend-audit.py'
       - 'scripts/test-shop-sandbox-notifications.py'
       - 'scripts/test-shop-delivery-terms.py'
       - 'scripts/render-shop-sandbox-orders.py'
@@ -83,6 +85,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-sandbox-notifications.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-email.py
           PYTHONPATH=. python3 scripts/test-shop-operator-resend-once.py
+          PYTHONPATH=. python3 scripts/test-shop-operator-resend-audit.py
           PYTHONPATH=. python3 scripts/test-shop-delivery-terms.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-report.py
           PYTHONPATH=. python3 scripts/test-shop-image-import.py
