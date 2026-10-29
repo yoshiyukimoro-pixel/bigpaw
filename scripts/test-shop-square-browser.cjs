@@ -83,10 +83,14 @@ async function run() {
         await page.locator('#previewCartOpen').click();
         await page.waitForSelector('#squareSandboxStatusButton:visible');
         await page.locator('#squareSandboxStatusButton').click();
+        await page.waitForFunction(() =>
+          document.querySelector('#squareSandboxStatusResult')?.textContent.includes('確認待ち'));
         assert.match(await page.locator('#squareSandboxStatusResult').innerText(),
           /確認待ち/,name + ' returning from checkout never assumes a payment');
         orderState = 'paid';
         await page.locator('#squareSandboxStatusButton').click();
+        await page.waitForFunction(() =>
+          document.querySelector('#squareSandboxStatusResult')?.textContent.includes('テスト決済完了を確認済み'));
         assert.match(await page.locator('#squareSandboxStatusResult').innerText(),
           /テスト決済完了を確認済み/,name + ' verified sandbox payment state');
         assert.deepEqual(errors, [], 'no JavaScript errors');
