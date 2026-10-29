@@ -34,6 +34,25 @@
       return valid;
     } catch (_) { return {}; }
   }
+  function checkoutAttemptFor(cart) {
+    // Stable attempt for this cart, even if the Square response is lost.
+    // New cart/quantities generate a new checkout attempt, not a new charge
+    // after a transient network error on the same cart.
+    if (!crypto?.randomUUID) throw new Error('Secure checkout ID unavailable');
+    const fingerprint = Object.entries(cart).sort((a,b) => a[0].localeCompare(b[0]))
+      .map(([id,qty]) => id + ':' + qty).join('|');
+    const key = 'bigpaw_shop_sandbox_attempt_v1';
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(key) || '{}');
+      if (stored.fingerprint === fingerprint &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(stored.id)) {
+        return stored.id;
+      }
+    } catch (_) { /* use a new random attempt */ }
+    const attempt = crypto.randomUUID();
+    sessionStorage.setItem(key, JSON.stringify({fingerprint, id: attempt}));
+    return attempt;
+  }
   function refresh() {
     const hasItems = Object.keys(currentCart()).length > 0;
     button.disabled = !config?.ready || pending || !hasItems;
@@ -70,7 +89,7 @@
         method: 'POST',
         credentials: 'same-origin',
         headers: {'Content-Type': 'application/json', 'X-Shop-CSRF': config.csrf_token},
-        body: JSON.stringify({cart}),
+        body: JSON.stringify({cart, attempt_id: checkoutAttemptFor(cart)}),
       });
       const result = await res.json();
       if (!res.ok || !result.sandbox || !result.checkout_url) throw new Error('no checkout URL');
