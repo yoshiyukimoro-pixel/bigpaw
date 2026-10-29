@@ -30,6 +30,13 @@
           '<button type="button" class="order-edit" id="orderEditCart">数量を変更・商品を削除</button>' +
           '<p class="order-edits-notice">数量変更後、合計金額は自動的に更新されます。</p>' +
         '</section>' +
+        '<section class="order-panel" aria-labelledby="orderDeliveryTitle">' +
+          '<h2 id="orderDeliveryTitle">📦 お届け方法・予定</h2>' +
+          '<div class="order-status"><strong>お取り寄せ販売｜通常4〜7日程度でお届け</strong>' +
+          '<p>ご注文・決済完了後、九州の仕入先へ発注し、埼玉の当店に入荷・検品後、当店からお客様へ発送します。</p>' +
+          '<p>追加送料は0円（全国送料無料）です。お届けまでの日数は注文・決済完了からの目安で、土日祝日・仕入先の休業日・配送地域・交通事情で前後する場合があります。</p>' +
+          '<p>仕入先の欠品時は速やかにご連絡し、入荷予定のご案内または全額返金にて対応いたします。</p></div>' +
+        '</section>' +
         '<section class="order-panel" aria-labelledby="orderAddressTitle">' +
           '<h2 id="orderAddressTitle">お届け先</h2>' +
           '<div class="order-status"><strong>日本国内への配送</strong>' +
@@ -50,7 +57,7 @@
         '<p class="order-data-note">メーカー希望小売価格を税込・送料込みの販売価格として表示しています。</p>' +
         '<p id="orderReviewLimit" class="order-preview-warning" hidden role="alert"></p>' +
         '<label class="order-checked"><input id="orderConfirmChecked" type="checkbox">' +
-          '<span>選んだ商品・数量・合計金額・追加送料0円を確認しました。</span></label>' +
+          '<span>商品・数量・合計金額・追加送料0円と、お取り寄せによる通常4〜7日程度のお届け目安、欠品時のご案内・返金対応を確認しました。</span></label>' +
         '<button type="button" class="order-submit-test" id="orderConfirmPreview" disabled>' +
           '注文内容を確認する（テスト）</button>' +
         '<p class="order-data-note">このボタンを押しても注文や決済は行われません。' +
