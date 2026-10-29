@@ -106,6 +106,7 @@ def main(*, env=None, link_creator=create_square_sandbox_payment_link,
             "connect.squareup.com" in _PAYMENT_ENDPOINT):
         print("SQUARE_CARD_SANDBOX_SAFETY_BLOCK")
         return 3
+    stage = "prepare"
     try:
         order_id = "FOOD" + secrets.token_hex(16)
         with tempfile.TemporaryDirectory() as directory:
@@ -119,18 +120,21 @@ def main(*, env=None, link_creator=create_square_sandbox_payment_link,
             )
             if total != _EXPECTED_YEN:
                 raise ValueError("Sale price changed")
+            stage = "create_link"
             link = link_creator(payload, token=token)
             if not link["url"].startswith("https://sandbox.square.link/"):
                 raise ValueError("Unsafe Square checkout link")
             store.save_link(order_id, link)
             if store.status(order_id) != "payment_pending":
                 raise ValueError("Did not persist pending order")
+            stage = "create_payment"
             payment = payment_creator(
                 order_id=link["square_order_id"], location_id=location, token=token,
                 idempotency_key="bigpaw-test-card-" + hashlib.sha256(order_id.encode()).hexdigest()[:40],
             )
             if not isinstance(payment, dict) or not payment.get("id"):
                 raise ValueError("Square card payment was not created")
+            stage = "verify_payment"
             fresh = payment_reader(payment["id"], token=token)
             if (fresh.get("id") != payment["id"] or
                     not _match(fresh, square_order=link["square_order_id"], location=location)):
@@ -150,6 +154,7 @@ def main(*, env=None, link_creator=create_square_sandbox_payment_link,
                 signature_key.encode(),
                 notification_url.encode() + raw, hashlib.sha256
             ).digest()).decode()
+            stage = "reconcile_local"
             result = store.accept_webhook(
                 raw_body=raw, signature_header=signature,
                 signature_key=signature_key, notification_url=notification_url,
@@ -167,7 +172,8 @@ def main(*, env=None, link_creator=create_square_sandbox_payment_link,
             ) != "duplicate":
                 raise ValueError("Duplicate event was not rejected")
     except (SquareSandboxError, ValueError, KeyError, TypeError):
-        print("SQUARE_CARD_SANDBOX_FAILED: Check linked Square order and Sandbox Payments permissions.")
+        # Only reveal the phase, never a token, response body, link or payment ID.
+        print("SQUARE_CARD_SANDBOX_FAILED stage=" + stage)
         return 1
 
     print("SQUARE_CARD_SANDBOX_OK: Actual Square Sandbox fake-card payment verified via API; "
