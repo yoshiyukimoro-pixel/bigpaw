@@ -87,7 +87,8 @@ def render(db:Path) -> str:
     notification_rows="".join(
         "<tr><td><code>"+safe(n["order_id"])+"</code></td><td>"+
         safe(group_names[n["audience"]])+"</td><td>"+safe(n["subject"])+
-        "</td><td>未送信・確認待ち</td></tr>" for n in drafts)
+        "<details><summary>送信前に本文を確認する</summary><pre>"+
+        safe(n["body"])+"</pre></details></td><td>未送信・確認待ち</td></tr>" for n in drafts)
     if not notification_rows:
         notification_rows='<tr><td colspan="4">送信待ちの下書きはありません。</td></tr>'
     brands={"A":"ACANA","O":"ORIJEN","Z":"ZIWI","C":"CHARM"}
@@ -114,6 +115,7 @@ table{border-collapse:collapse;width:100%;min-width:760px}th,td{padding:12px;bor
 th{font-size:12px;color:#526177;background:#f3f6fa}
 .number{text-align:right;white-space:nowrap}code{font-size:11px;word-break:break-all}
 details summary{cursor:pointer;color:#174a79;font-weight:700;margin:6px 0 15px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 inherit;background:#f6f8fb;border:1px solid #e2e7ed;padding:12px;border-radius:8px;margin:0 0 12px}
 footer{color:#647085;font-size:12px;margin-top:12px}
 </style></head><body>
 <header><small>BIG PAW / PRIVATE SANDBOX ONLY</small>
