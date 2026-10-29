@@ -23,7 +23,7 @@ from .square_checkout import (
 
 SANDBOX_ENDPOINT = "https://connect.squareupsandbox.com/v2/online-checkout/payment-links"
 SQUARE_VERSION = "2026-09-16"
-_ALLOWED_LINK_HOSTS = frozenset(("square.link", "checkout.square.site", "squareupsandbox.com"))
+_ALLOWED_LINK_HOSTS = frozenset(("sandbox.square.link",))
 _ORDER_ID = re.compile(r"^[A-Za-z0-9_-]{8,80}$")
 
 
@@ -72,7 +72,7 @@ def create_square_sandbox_payment_link(payload: dict, *, token: str, opener=urlo
     if not isinstance(data, dict) or not isinstance(data.get("payment_link"), dict):
         raise SquareSandboxError("Square Sandbox response has no payment link")
     link = data["payment_link"]
-    url = link.get("long_url") or link.get("url")
+    url = link.get("url") or link.get("long_url")
     if not _safe_checkout_url(url) or not isinstance(link.get("order_id"), str) or not link["order_id"]:
         raise SquareSandboxError("Square Sandbox returned an invalid checkout link")
     if not isinstance(link.get("id"), str) or not link["id"]:
