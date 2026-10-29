@@ -1,13 +1,35 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const {chromium, webkit} = require('playwright');
+const http = require('node:http');
+const fs = require('node:fs');
+const APP_ROOT = path.resolve('app');
+const server = http.createServer((req,res) => {
+  let target;
+  try { target = new URL(req.url,'http://localhost').pathname; }
+  catch(_) { res.writeHead(400).end(); return; }
+  const filename=path.resolve(APP_ROOT,'.'+target);
+  if(!filename.startsWith(APP_ROOT+path.sep)) {res.writeHead(403).end();return;}
+  try {
+    const contents=fs.readFileSync(filename);
+    const type=filename.endsWith('.html')?'text/html':
+      filename.endsWith('.js')?'application/javascript':
+      filename.endsWith('.css')?'text/css':
+      filename.endsWith('.webp')?'image/webp':'application/octet-stream';
+    res.writeHead(200,{'Content-Type':type,'Cache-Control':'no-store'});
+    res.end(contents);
+  } catch(_) {res.writeHead(404).end();}
+});
+
 
 (async () => {
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const base='http://127.0.0.1:'+server.address().port;
   for (const [name,browserType] of [['Chromium',chromium],['iPhone Safari (WebKit)',webkit]]) {
     const browser=await browserType.launch({headless:true});
     const page=await browser.newPage({viewport:name==='Chromium'?{width:1280,height:900}:{width:390,height:844}});
     const errs=[];page.on('pageerror',e=>errs.push(e.message));
-    const url='file://'+path.resolve('app/shop.html');
+    const url=base+'/shop.html';
     await page.goto(url);
     assert.equal(await page.locator('a.prod').count(),35,name+' full catalog');
     assert.equal(await page.locator('#previewCartCount').innerText(),'0',name+' initially empty cart');
@@ -89,4 +111,5 @@ const {chromium, webkit} = require('playwright');
     console.log('SHOP_BROWSER_OK|'+name+'|catalog=35|filters=4|details=ok|purchase=disabled');
     await browser.close();
   }
-})().catch(e=>{console.error(e);process.exit(1)});
+  await new Promise(resolve=>server.close(resolve));
+})().catch(e=>{console.error(e);server.close();process.exit(1)});
