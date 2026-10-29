@@ -129,3 +129,19 @@ Sandboxの秘密鍵がなければ決済ボタンは無効。iPhoneからこのU
 Square公式資料:
 - https://developer.squareup.com/docs/international-development/japan-order-calculation
 - https://developer.squareup.com/docs/checkout-api/optional-checkout-configurations
+
+## GitHub ActionsでSquare Sandboxの実API接続を確認する準備
+
+Railwayの新規staging環境を作る前に、GitHub ActionsからSquare **Sandbox API**に接続し、テスト注文の**決済リンクの生成だけ**を確認できる。カード決済や実際の請求は一切しない。
+
+1. Square Developer Consoleで「BIG PAW Shop」→ **Sandbox** を選択し、Sandbox Access TokenとSandbox Location IDを表示・確認する。
+2. GitHubの bigpaw リポジトリ → Settings → Secrets and variables → Actions → New repository secret で下記を**各々1個ずつ**安全に登録する。秘密鍵の本文をチャット・メール・スクリーンショット・GitHubコードに貼らない。
+   - `BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN`
+   - `BIGPAW_SQUARE_SANDBOX_LOCATION_ID`
+3. 開発用featureブランチで、**明示的に `[square-smoke]` を含むコミット**を作った場合にのみ `.github/workflows/square-sandbox-smoke.yml` がSquare Sandbox APIへアクセスする。通常のpushではスキップされる。
+4. 内部的にテスト用の商品A02（アカナ パピーラージ、税込送料込み21,450円）1点のSquare **Sandbox決済リンク**を発行し、Sandbox専用URLとSquare注文IDを検証する。
+5. 成功ログに表示するのは成功・テスト商品の金額のみ。SandboxのAccess Tokenも、決済URLも、注文IDも出力しない。実カード払い、注文発送、顧客メール、本番Square APIには触れない。
+
+上記手順でSquareの接続だけ確認しても、BIG PAWに決済機能が一般公開されたことにはならない。実際の購入・配送・Webhookを含むEnd-to-Endテストには別のHTTPS staging環境と、本番公開前の確認が必要。
+
+Square sandbox checkout: https://developer.squareup.com/reference/square/checkout/create-payment-link
