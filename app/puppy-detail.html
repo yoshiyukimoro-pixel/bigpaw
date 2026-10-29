@@ -9,7 +9,29 @@ body{padding-bottom:calc(85px + env(safe-area-inset-bottom,0px))}
 #bigpawPuppyContactShortcut{position:fixed;bottom:0;left:0;right:0;z-index:45;margin:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid #f0dbe5;background:#fff;box-shadow:0 -5px 24px rgba(143,93,121,.12)}
 #bigpawPuppyContactShortcut .btn{max-width:none}
 }
-</style></head><body><div class="topbar">🐾 大型犬専門｜BIG PAW</div><header class="site-header"><div class="wrap nav"><a class="logo" href="index.html"><span class="logo-mark">🐾</span>BIG PAW</a><nav class="navlinks"><a href="search.html">子犬を探す</a><a href="breeders.html">ブリーダー</a><a href="favorites.html">♡ お気に入り</a><a class="nav-cta" href="mypage.html">マイページ</a></nav></div></header><main><div class="wrap"><div class="breadcrumb"><a href="index.html">TOP</a> ＞ <span id="crumb">子犬詳細</span></div><div class="gallery"><div class="ph main" id="mainPhoto">🐩</div><div class="ph">🐾</div><div class="ph">🐶</div><div class="ph">📷</div><div class="ph">🎥</div></div><div id="bigpawPuppyVideoSlot" aria-live="polite"></div><div id="bigpawPuppyContactShortcut" hidden><a id="bigpawPuppyContactShortcutLink" class="btn btn-main btn-wide" href="inquiry.html">🐾 この子の見学・問い合わせ</a></div>
+</style><style id="bigpaw-detail-first-photo-style">#bigpawDetailInitialGallery{display:block;max-width:680px;margin:0 auto 16px}#bigpawDetailInitialGallery #mainPhoto{display:block;width:100%;height:auto;min-height:0;aspect-ratio:1/1;overflow:hidden;border-radius:4px;background:#f7edf2;font-size:0}#bigpawDetailInitialGallery #mainPhoto img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}</style></head><body><div class="topbar">🐾 大型犬専門｜BIG PAW</div><header class="site-header"><div class="wrap nav"><a class="logo" href="index.html"><span class="logo-mark">🐾</span>BIG PAW</a><nav class="navlinks"><a href="search.html">子犬を探す</a><a href="breeders.html">ブリーダー</a><a href="favorites.html">♡ お気に入り</a><a class="nav-cta" href="mypage.html">マイページ</a></nav></div></header><main><div class="wrap"><div class="breadcrumb"><a href="index.html">TOP</a> ＞ <span id="crumb">子犬詳細</span></div><div class="gallery" id="bigpawDetailInitialGallery"><div class="ph main" id="mainPhoto"></div></div>
+<script id="bigpaw-detail-first-photo-init">
+(function(){
+  'use strict';
+  const id=new URLSearchParams(location.search).get('id');
+  if(!id)return;
+  try{
+    const saved=JSON.parse(sessionStorage.getItem('bigpaw_puppy_first_photo_v1')||'null');
+    if(!saved||String(saved.id)!==id||!Number.isFinite(saved.at)||Date.now()-saved.at>300000||saved.at>Date.now())return;
+    const url=new URL(saved.src,location.origin);
+    if(!['http:','https:'].includes(url.protocol))return;
+    const host=document.getElementById('mainPhoto');
+    if(!host)return;
+    const img=document.createElement('img');
+    img.src=url.href;
+    img.alt='子犬の写真';
+    img.loading='eager';
+    img.decoding='async';
+    img.fetchPriority='high';
+    host.appendChild(img);
+  }catch(_e){/* No emoji fallback; the gallery will fetch the current photo. */}
+})();
+</script><div id="bigpawPuppyVideoSlot" aria-live="polite"></div><div id="bigpawPuppyContactShortcut" hidden><a id="bigpawPuppyContactShortcutLink" class="btn btn-main btn-wide" href="inquiry.html">🐾 この子の見学・問い合わせ</a></div>
 <script id="bigpawPuppyContactShortcutInit">
 (function(){
   var id=new URLSearchParams(location.search).get('id');
