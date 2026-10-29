@@ -144,7 +144,7 @@ def main(*, env=None, link_creator=create_square_sandbox_payment_link,
             stage = "create_payment"
             payment = payment_creator(
                 order_id=link["square_order_id"], location_id=location, token=token,
-                idempotency_key="bigpaw-test-card-" + hashlib.sha256(order_id.encode()).hexdigest()[:40],
+                idempotency_key="bp-link-" + hashlib.sha256(order_id.encode()).hexdigest()[:32],
             )
             if not isinstance(payment, dict) or not payment.get("id"):
                 raise ValueError("Square card payment was not created")
