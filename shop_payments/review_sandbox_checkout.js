@@ -34,8 +34,8 @@
   notice.id = 'squareReviewSandboxNotice';
   notice.setAttribute('role','status');
   notice.className = 'order-data-note';
-  button.insertAdjacentElement('afterend', notice);
   confirmButton.insertAdjacentElement('afterend', button);
+  button.insertAdjacentElement('afterend', notice);
 
   const status = document.createElement('div');
   status.className = 'order-status';
