@@ -91,9 +91,13 @@ def verify() -> None:
     order=order_data.get("order")
     if not isinstance(order,dict) or order.get("id")!=sq_order:
         raise ValueError("Square order mismatch")
+    status = order.get("state")
+    safe_status = status if status in ("DRAFT","OPEN","COMPLETED","CANCELED") else "UNKNOWN"
+    print("SQUARE_CHECKOUT_PANEL_ORDER_STATE="+safe_status)
     if order.get("state")!="OPEN":
         raise ValueError("Square checkout order not OPEN")
     tenders=order.get("tenders")
+    print("SQUARE_CHECKOUT_PANEL_TENDERS="+str(len(tenders) if isinstance(tenders,list) else 0))
     if not isinstance(tenders,list) or len(tenders)!=1:
         raise ValueError("No unique payment tender recorded by Square")
     payment_id=tenders[0].get("id")
