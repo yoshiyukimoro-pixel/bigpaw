@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 from shop_payments.retail_catalog import load_sale_catalog
-from shop_payments.sandbox_connector import SandboxOrderStore
+from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxError
 from shop_payments.sandbox_notifications import SandboxNotificationDrafts
 from shop_payments.sandbox_procurement import SandboxProcurementOps
 
@@ -142,7 +142,7 @@ class DraftTests(unittest.TestCase):
         self.command(["supplier-received",ORDER],change=True)
         self.assertIn("operator_goods_received",{
             n["kind"] for n in self.drafts.pending()})
-        with self.assertRaises(ValueError):
+        with self.assertRaises(SquareSandboxError):
             self.command(["supplier-shipped",ORDER],change=True)
         self.command(["supplier-shipped",ORDER],change=True,opener=square_recipient)
         shipping=self.command(["notification-preview",ORDER,
@@ -161,7 +161,7 @@ class DraftTests(unittest.TestCase):
         kinds={n["kind"] for n in self.drafts.pending()}
         self.assertIn("operator_refund_action_needed",kinds)
         self.assertNotIn("customer_refund_completed",kinds)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(SquareSandboxError):
             self.command(["supplier-verify-refund",ORDER],change=True)
         self.command(["supplier-verify-refund",ORDER],change=True,
                      opener=refunded_payment)
