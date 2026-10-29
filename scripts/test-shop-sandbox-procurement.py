@@ -89,7 +89,7 @@ class ProcurementTests(unittest.TestCase):
     def command(self,action,*,confirm=False,opener=None):
         prefix=["--db",str(self.db)]
         if confirm:prefix.append("--confirm-sandbox")
-        args=console.parser().parse_args(prefix+[action,ORDER])
+        args=console.parser().parse_args(prefix+[action]+([] if action in ("list","events") else [ORDER]))
         return console.execute(args,env={
             "BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN":"fake-token",
         },opener=opener)
