@@ -1,0 +1,58 @@
+/* Square-hosted Sandbox testing panel automation.
+   Inputs from private runner temp file. Never log Square link or order ID.
+   Nothing is paid in production; testing panel simulates test card payment. */
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {chromium}=require('playwright');
+
+const input=process.env.SHOP_PANEL_JSON;
+if(!input)throw Error('Missing isolated test session');
+const state=JSON.parse(fs.readFileSync(input,'utf8'));
+const link=new URL(state.link_url);
+assert.equal(link.protocol,'https:');
+assert.equal(link.hostname,'sandbox.square.link');
+assert.equal(state.amount_yen,21450);
+assert.equal(state.shipping_yen,0);
+
+async function clickNamed(page,label){
+  const button=page.getByRole('button',{name:label,exact:true});
+  if(await button.count()){await button.first().click();return;}
+  const link=page.getByRole('link',{name:label,exact:true});
+  if(await link.count()){await link.first().click();return;}
+  const input=page.locator('input[type=submit]');
+  const matches=input.filter({hasText:label});
+  if(await matches.count()){await matches.first().click();return;}
+  // Square may use an accessible non-button control.
+  const candidate=page.getByText(label,{exact:true});
+  if(await candidate.count()){await candidate.last().click();return;}
+  throw Error('Expected Sandbox panel control unavailable: '+label);
+}
+
+(async()=>{
+  const browser=await chromium.launch({headless:true});
+  try{
+    const page=await browser.newPage({viewport:{width:1280,height:900}});
+    await page.goto(link.href,{waitUntil:'domcontentloaded',timeout:45000});
+    await page.waitForLoadState('networkidle',{timeout:10000}).catch(()=>{});
+    const host=new URL(page.url()).hostname;
+    assert(['sandbox.square.link','connect.squareupsandbox.com'].includes(host),
+      'Unexpected Square panel host');
+    const bodyText=await page.locator('body').innerText();
+    assert(/Sandbox Testing Panel/i.test(bodyText),'Not the official Sandbox testing panel');
+    assert(/Overview/i.test(bodyText),'Sandbox overview unavailable');
+    await clickNamed(page,'Next');
+    await page.getByText('Test Payment',{exact:true}).first().waitFor({timeout:15000});
+    await clickNamed(page,'Test Payment');
+    await page.getByText(/Your test payment was successful/i).waitFor({timeout:20000});
+    const finalText=await page.locator('body').innerText();
+    assert(/Checkout Complete/i.test(finalText),'Checkout complete message missing');
+    console.log('SQUARE_SANDBOX_HOSTED_PANEL_OK: Next > Test Payment > Checkout Complete; '
+      +'no real card or funds, no identifiers printed.');
+  }catch(err){
+    // Error messages from URLs may contain checkout identifiers; never print
+    // error objects. Print only a fixed error code.
+    console.error('SQUARE_SANDBOX_HOSTED_PANEL_FAILED: Expected controls or completion not verified');
+    process.exitCode=1;
+  }finally{await browser.close();}
+})();
