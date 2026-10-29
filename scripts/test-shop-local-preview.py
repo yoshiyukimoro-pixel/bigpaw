@@ -85,6 +85,28 @@ class TestIsolatedLocalPreview(unittest.TestCase):
             self.assertEqual(code, 503)
             self.assertEqual(error["error"], "sandbox_not_configured")
 
+    def test_sandbox_review_bridge_is_isolated_from_public_site(self):
+        with test_server() as (base, _server):
+            opener = build_opener(HTTPCookieProcessor(CookieJar()))
+            code, review = self._request(opener, base + "/shop.html?order=review")
+            self.assertEqual(code, 200)
+            self.assertIn('src="shop-sandbox-review.js"', review)
+            self.assertNotIn('src="shop-sandbox-checkout.js"', review)
+            code, listing = self._request(opener, base + "/shop.html")
+            self.assertEqual(code, 200)
+            self.assertIn('src="shop-sandbox-checkout.js"', listing)
+            self.assertNotIn('src="shop-sandbox-review.js"', listing)
+            live_html = Path("app/shop.html").read_text(encoding="utf-8")
+            self.assertNotIn('shop-sandbox-review.js', live_html)
+            code, source = self._request(opener, base + "/shop-sandbox-review.js")
+            self.assertEqual(code, 200)
+            self.assertIn("squareReviewSandboxCheckout", source)
+            self.assertNotIn("BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN", source)
+            # No path traversal, keys, or actual credit card fields served.
+            self.assertEqual(self._request(opener, base + "/.env")[0], 404)
+            self.assertEqual(self._request(opener, base + "/shop_payments/retail_pricebook.json")[0], 404)
+            self.assertEqual(self._request(opener, base + "/assets/shop-details/products/A02/ingredients.webp")[0], 200)
+
     def test_forged_origin_and_browser_price_manipulation(self):
         with patch.dict(os.environ, FAKE_CREDS):
             with test_server() as (base, _server):
