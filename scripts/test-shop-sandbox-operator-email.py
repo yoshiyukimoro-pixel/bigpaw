@@ -76,7 +76,7 @@ class OperatorMailTests(unittest.TestCase):
                           "body":body,"idempotency_key":idempotency_key})
         return "mock-resend-mail-123456"
 
-    def operator(self,cmd,*,confirm=False,enabled=False,credentials=True,sender=None):
+    def operator(self,cmd,*,confirm=False,enabled=False,credentials=True,sender=None,mail_reader=None):
         args=["--db",str(self.db)]
         if confirm:args.append("--confirm-sandbox")
         args.extend(cmd)
@@ -85,7 +85,8 @@ class OperatorMailTests(unittest.TestCase):
             "BIGPAW_SHOP_SANDBOX_OPERATOR_EMAIL_ENABLED":"1" if enabled else "0",
             "RESEND_API_KEY":"fake-staging-key" if credentials else "",
         }
-        return console.execute(parsed,env=env,mail_sender=sender or self.sender)
+        return console.execute(parsed,env=env,mail_sender=sender or self.sender,
+                               mail_reader=mail_reader)
 
     def test_payment_required_prevents_emails_and_reservations(self):
         self.paid_order(paid=False)
