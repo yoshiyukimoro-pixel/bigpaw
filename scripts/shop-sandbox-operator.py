@@ -17,6 +17,7 @@ from shop_payments.retail_catalog import load_sale_catalog
 from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxError
 from shop_payments.sandbox_fulfillment import SandboxFulfillmentOps
 from shop_payments.sandbox_procurement import SandboxProcurementOps
+from shop_payments.sandbox_notifications import SandboxNotificationDrafts
 
 ORDER_ID = re.compile(r"^FOOD[0-9a-f]{32}$")
 
@@ -92,6 +93,7 @@ def execute(args,*,env=None,opener=None):
     store=SandboxOrderStore(db)
     ops=SandboxFulfillmentOps(store)
     procurement=SandboxProcurementOps(store)
+    drafts=SandboxNotificationDrafts(store)
     if args.action=="list":
         return {"sandbox":True,"orders":_rows(db)}
     if args.action=="events":
@@ -99,6 +101,11 @@ def execute(args,*,env=None,opener=None):
                 "procurement_events":procurement.events()}
     if args.action=="stock":
         return {"sandbox":True,"sku":args.sku,"available":ops.stock(args.sku)}
+    if args.action=="notifications":
+        return {"sandbox":True,"notifications":drafts.pending()}
+    if args.action=="notification-preview":
+        if not ORDER_ID.fullmatch(args.order_id): raise ValueError("Invalid order ID")
+        return {"sandbox":True,"notification":drafts.preview(args.order_id,args.kind)}
 
     if args.action in ("check-paid","supplier-status"):
         if not ORDER_ID.fullmatch(args.order_id):
@@ -108,6 +115,11 @@ def execute(args,*,env=None,opener=None):
                          else procurement.state(args.order_id))}
     if args.confirm_sandbox is not True:
         raise ValueError("Explicit --confirm-sandbox required for any changes")
+    if args.action=="notification-sync":
+        if not ORDER_ID.fullmatch(args.order_id): raise ValueError("Invalid order ID")
+        created=drafts.sync_paid(args.order_id)
+        return {"sandbox":True,"order_id":args.order_id,
+                "drafts_created":created,"sent":False}
     if args.action=="stock-set":
         ops.set_stock(args.sku,args.qty)
         return {"sandbox":True,"action":"stock-set",
@@ -166,6 +178,12 @@ def parser():
     cmds=p.add_subparsers(dest="action",required=True)
     cmds.add_parser("list")
     cmds.add_parser("events")
+    cmds.add_parser("notifications")
+    preview=cmds.add_parser("notification-preview")
+    preview.add_argument("order_id")
+    preview.add_argument("kind")
+    sync=cmds.add_parser("notification-sync")
+    sync.add_argument("order_id")
     stock=cmds.add_parser("stock");stock.add_argument("sku")
     stock_set=cmds.add_parser("stock-set");stock_set.add_argument("sku")
     stock_set.add_argument("qty",type=int)
