@@ -91,6 +91,11 @@ def execute(args,*,env=None,opener=None):
     if args.action=="stock":
         return {"sandbox":True,"sku":args.sku,"available":ops.stock(args.sku)}
 
+    if args.action=="check-paid":
+        if not ORDER_ID.fullmatch(args.order_id):
+            raise ValueError("Invalid internal Sandbox order ID")
+        return {"sandbox":True,"order_id":args.order_id,
+                "state":ops.state(args.order_id)}
     if args.confirm_sandbox is not True:
         raise ValueError("Explicit --confirm-sandbox required for any changes")
     if args.action=="stock-set":
@@ -99,10 +104,6 @@ def execute(args,*,env=None,opener=None):
                 "sku":args.sku,"available":ops.stock(args.sku)}
     if not ORDER_ID.fullmatch(args.order_id):
         raise ValueError("Invalid internal Sandbox order ID")
-    if args.action=="check-paid":
-        # Re-read only local verified journal. Does not trust redirect parameters.
-        return {"sandbox":True,"order_id":args.order_id,
-                "state":ops.state(args.order_id)}
     if args.action in ("assess","verify-refund"):
         token=str(env.get("BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN","")).strip()
         if not token:
