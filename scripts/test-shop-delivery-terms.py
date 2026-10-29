@@ -38,7 +38,7 @@ class DeliveryTermsTests(unittest.TestCase):
         self.assertIn("document.getElementById('detail').innerHTML",SHOP)
         self.assertIn("detail-delivery",SHOP)
         self.assertIn("const chosen=",SHOP)
-        rows=re.findall(r"^'[A-Z]\\d{2}\\|",SHOP,re.MULTILINE)
+        rows=[line for line in SHOP.splitlines() if re.match(r"^'[AOZC][0-9]{2}\|",line)]
         # Shop has exactly 35 static product record strings.
         self.assertEqual(len(rows),35)
         self.assertIn("referenceMsrpExTax",SHOP)
