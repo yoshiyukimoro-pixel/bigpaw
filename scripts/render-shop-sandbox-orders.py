@@ -69,9 +69,10 @@ def render(db:Path) -> str:
         )
     if not order_rows:
         order_rows='<tr><td colspan="6">Sandboxの注文記録はありません。</td></tr>'
+    brands={"A":"ACANA","O":"ORIJEN","Z":"ZIWI","C":"CHARM"}
     stock_rows="".join(
         "<tr><td>"+safe(sku)+"</td><td>"+
-        safe(product.name)+" "+safe(product.size)+"</td><td class='number'>"+
+        safe(brands[sku[0]])+" "+safe(product.name)+" "+safe(product.size)+"</td><td class='number'>"+
         str(ops.stock(sku))+"</td></tr>"
         for sku,product in catalog.items())
     return """<!doctype html><html lang="ja"><head>
