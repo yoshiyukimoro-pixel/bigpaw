@@ -61,6 +61,10 @@ def read_archives(paths: list[Path]) -> dict[str, bytes]:
                 if not info.filename.endswith(".webp"):
                     continue
                 key = info.filename.removeprefix("app/")
+                # A verified 98-image combined pack may include the 35 front
+                # photos. Their completeness is checked separately.
+                if re.fullmatch(r"assets/shop-products/[a-z0-9-]+\.webp", key):
+                    continue
                 if (not key.startswith("assets/shop-details/")
                         or not re.fullmatch(
                             r"assets/shop-details/(products/[AOZC]\d{2}|shared/(acana|orijen|ziwi|charm))/[a-z0-9-]+\.webp",
