@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import datetime,timezone
 import json
 import os
+import re
 import sys
 from urllib.error import HTTPError,URLError
 from urllib.request import Request,urlopen
@@ -30,7 +31,17 @@ def get_json(uri,key,opener=urlopen):
             if response.status!=200: return {"_http":str(response.status)}
             return json.loads(response.read(262144))
     except HTTPError as exc:
-        return {"_http":str(exc.code)}
+        # Only print provider-defined symbolic error names, NEVER free-text
+        # messages, API key, addresses, request content, or response headers.
+        name="UNKNOWN"
+        try:
+            body=json.loads(exc.read(4096))
+            raw=body.get("name",body.get("code",""))
+            if isinstance(raw,str) and re.fullmatch(r"[A-Za-z_]{3,50}",raw):
+                name=raw
+        except (ValueError,TypeError,IndexError,KeyError):
+            pass
+        return {"_http":str(exc.code),"_error":name}
     except (URLError,TimeoutError,ValueError,TypeError,OSError):
         return {"_http":"network_or_format_error"}
 
