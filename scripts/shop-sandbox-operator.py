@@ -18,6 +18,7 @@ from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxErro
 from shop_payments.sandbox_fulfillment import SandboxFulfillmentOps
 from shop_payments.sandbox_procurement import SandboxProcurementOps
 from shop_payments.sandbox_notifications import SandboxNotificationDrafts
+from shop_payments.sandbox_operator_email import SandboxOperatorEmail, send_resend, SafeMailError
 
 ORDER_ID = re.compile(r"^FOOD[0-9a-f]{32}$")
 
@@ -87,13 +88,14 @@ def _queue(db:Path) -> list[dict]:
         connection.close()
 
 
-def execute(args,*,env=None,opener=None):
+def execute(args,*,env=None,opener=None,mail_sender=None):
     env=os.environ if env is None else env
     db=_validated_db(args.db)
     store=SandboxOrderStore(db)
     ops=SandboxFulfillmentOps(store)
     procurement=SandboxProcurementOps(store)
     drafts=SandboxNotificationDrafts(store)
+    mail=SandboxOperatorEmail(store)
     if args.action=="list":
         return {"sandbox":True,"orders":_rows(db)}
     if args.action=="events":
@@ -103,6 +105,8 @@ def execute(args,*,env=None,opener=None):
         return {"sandbox":True,"sku":args.sku,"available":ops.stock(args.sku)}
     if args.action=="notifications":
         return {"sandbox":True,"notifications":drafts.pending()}
+    if args.action=="notification-email-history":
+        return {"sandbox":True,"email_attempts":mail.history()}
     if args.action=="notification-preview":
         if not ORDER_ID.fullmatch(args.order_id): raise ValueError("Invalid order ID")
         return {"sandbox":True,"notification":drafts.preview(args.order_id,args.kind)}
@@ -120,6 +124,17 @@ def execute(args,*,env=None,opener=None):
         created=drafts.sync_paid(args.order_id)
         return {"sandbox":True,"order_id":args.order_id,
                 "drafts_created":created,"sent":False}
+    if args.action=="notification-send-operator":
+        if not ORDER_ID.fullmatch(args.order_id): raise ValueError("Invalid order ID")
+        result=mail.send_once(
+            args.order_id,
+            api_key=str(env.get("RESEND_API_KEY","")).strip(),
+            enabled=env.get("BIGPAW_SHOP_SANDBOX_OPERATOR_EMAIL_ENABLED")=="1",
+            confirmed=args.confirm_sandbox,
+            sender=mail_sender if mail_sender is not None else send_resend,
+        )
+        return {"sandbox":True,**result,"delivered_to_inbox":False,
+                "delivery_status_verified":False}
     if args.action=="stock-set":
         ops.set_stock(args.sku,args.qty)
         return {"sandbox":True,"action":"stock-set",
@@ -179,6 +194,9 @@ def parser():
     cmds.add_parser("list")
     cmds.add_parser("events")
     cmds.add_parser("notifications")
+    cmds.add_parser("notification-email-history")
+    send=cmds.add_parser("notification-send-operator")
+    send.add_argument("order_id")
     preview=cmds.add_parser("notification-preview")
     preview.add_argument("order_id")
     preview.add_argument("kind")
@@ -201,7 +219,7 @@ def main(argv=None):
     args=parser().parse_args(argv)
     try:
         value=execute(args)
-    except (ValueError,sqlite3.Error,SquareSandboxError,OSError) as e:
+    except (ValueError,SafeMailError,sqlite3.Error,SquareSandboxError,OSError) as e:
         # Never print raw API/PII details or authorization secrets.
         print("SANDBOX_OPERATOR_ERROR: invalid state, credentials or test data",file=sys.stderr)
         return 1
