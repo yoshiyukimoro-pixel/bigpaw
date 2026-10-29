@@ -51,12 +51,16 @@ async function clickNamed(page,label){
     await page.getByText('Test Payment',{exact:true}).first().waitFor({timeout:15000});
     stage='click-test-payment';
     await clickNamed(page,'Test Payment');
-    stage='wait-for-success';
-    await page.getByText(/Your test payment was successful/i).waitFor({timeout:20000});
-    const finalText=await page.locator('body').innerText();
-    assert(/Checkout Complete/i.test(finalText),'Checkout complete message missing');
-    console.log('SQUARE_SANDBOX_HOSTED_PANEL_OK: Next > Test Payment > Checkout Complete; '
-      +'no real card or funds, no identifiers printed.');
+    stage='wait-for-panel-update';
+    // Hosted testing panel may vary text/DOM by rollout. Only the fresh
+    // Square Orders + Payments API checks in the NEXT step may claim paid.
+    await page.waitForTimeout(3500);
+    const finalText=await page.locator('body').innerText({timeout:15000});
+    const uiSuccess=/Your test payment was successful/i.test(finalText);
+    const uiComplete=/Checkout Complete/i.test(finalText);
+    console.log('SQUARE_SANDBOX_HOSTED_PANEL_ATTEMPTED: Next and Test Payment '
+      +'controls clicked; success_text='+uiSuccess+'; completion_step='+uiComplete
+      +'; awaiting independent Square Orders/Payments API verification.');
   }catch(err){
     // Error messages from URLs may contain checkout identifiers; never print
     // error objects. Print only a fixed error code.
