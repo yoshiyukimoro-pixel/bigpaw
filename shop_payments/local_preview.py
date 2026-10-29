@@ -26,9 +26,14 @@ from .sandbox_connector import (
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_FILES = {
     "/shop-cart-preview.js": ROOT / "app" / "shop-cart-preview.js",
+    "/shop-detail-images.js": ROOT / "app" / "shop-detail-images.js",
+    "/shop-detail-gallery.js": ROOT / "app" / "shop-detail-gallery.js",
+    "/shop-detail-gallery.css": ROOT / "app" / "shop-detail-gallery.css",
+    "/shop-order-review.js": ROOT / "app" / "shop-order-review.js",
+    "/shop-order-review.css": ROOT / "app" / "shop-order-review.css",
     "/shop-sandbox-checkout.js": ROOT / "shop_payments" / "preview_checkout.js",
 }
-ASSET_PATH = re.compile(r"^/assets/shop-products/[a-z0-9-]+\.webp$")
+ASSET_PATH = re.compile(r"^/assets/(?:shop-products/[a-z0-9-]+|shop-details/(?:products/[AOZC][0-9]{2}|shared/(?:acana|orijen|ziwi|charm))/[a-z0-9-]+)\.webp$")
 ORDER_PATH = re.compile(r"^/api/shop/sandbox/order/(FOOD[A-Za-z0-9_-]{20,60})$")
 CSRF_PATTERN = re.compile(r"^[A-Za-z0-9_-]{32,128}$")
 MAX_BODY = 4096
@@ -142,7 +147,7 @@ class PreviewHandler(BaseHTTPRequestHandler):
             return self._serve_bytes(html.encode("utf-8"), "text/html; charset=utf-8")
         if path in PUBLIC_FILES:
             file_path = PUBLIC_FILES[path]
-            mime = "text/javascript; charset=utf-8"
+            mime = "text/css; charset=utf-8" if path.endswith(".css") else "text/javascript; charset=utf-8"
         elif ASSET_PATH.fullmatch(path):
             file_path = ROOT / "app" / path.lstrip("/")
             mime = "image/webp"
