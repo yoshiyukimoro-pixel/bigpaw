@@ -1,3 +1,4 @@
+.order-columns[hidden],.order-empty[hidden]{display:none!important}
 /* BIG PAW preview-only order review, no real order, payment or personal data. */
 .order-preview{max-width:1040px;margin:20px auto 55px}
 .order-preview-badge{display:inline-block;background:#fce4ee;color:#934868;font-weight:850;font-size:12px;padding:6px 12px;border-radius:20px}
