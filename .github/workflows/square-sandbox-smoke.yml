@@ -21,6 +21,11 @@ on:
         required: true
         type: boolean
         default: false
+      run_sandbox_panel_smoke:
+        description: "Simulate hosted Checkout via Square official Sandbox Testing Panel"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -78,3 +83,32 @@ jobs:
           BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
           BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
         run: PYTHONPATH=. python3 scripts/smoke-shop-square-standalone-payment.py
+
+  square-sandbox-hosted-panel:
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[square-panel-smoke]')) || (github.event_name == 'workflow_dispatch' && inputs.run_sandbox_panel_smoke == true))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static safety checks before Square network access
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-square-hosted-panel.py
+          node --check scripts/smoke-shop-square-hosted-panel.cjs
+          PYTHONPATH=. python3 scripts/test-shop-retail-pricebook.py
+      - name: Create original Square Sandbox hosted checkout link
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-hosted-panel.py setup
+      - name: Complete Square Sandbox Testing Panel (fake payment only)
+        run: |
+          timeout 180s docker run --rm \
+            -v "$PWD:/work" -v "$RUNNER_TEMP:/sandbox-tmp" \
+            -e SHOP_PANEL_JSON=/sandbox-tmp/bigpaw-panel.json \
+            -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/smoke-shop-square-hosted-panel.cjs'
+      - name: Verify same Square order and actual Sandbox payment via APIs
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-hosted-panel.py verify
