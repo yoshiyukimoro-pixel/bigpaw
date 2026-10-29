@@ -34,14 +34,30 @@ def get_json(uri,key,opener=urlopen):
         # Only print provider-defined symbolic error names, NEVER free-text
         # messages, API key, addresses, request content, or response headers.
         name="UNKNOWN"
+        diagnosis="unknown"
         try:
             body=json.loads(exc.read(4096))
             raw=body.get("name",body.get("code",""))
             if isinstance(raw,str) and re.fullmatch(r"[A-Za-z_]{3,50}",raw):
                 name=raw
+            message=str(body.get("message","")).lower()
+            if "api key" in message or "api_key" in message:
+                if any(x in message for x in ("permission","scope","restricted")):
+                    diagnosis="api_key_permissions"
+                elif any(x in message for x in ("invalid","not valid","incorrect")):
+                    diagnosis="api_key_invalid"
+                elif any(x in message for x in ("missing","required","provide")):
+                    diagnosis="api_key_missing"
+                else:
+                    diagnosis="api_key_other"
+            elif "limit" in message: diagnosis="invalid_limit"
+            elif "email" in message: diagnosis="email_field"
+            elif "domain" in message: diagnosis="domain"
+            elif "pagination" in message: diagnosis="pagination"
+            elif "authentication" in message: diagnosis="authentication"
         except (ValueError,TypeError,IndexError,KeyError):
             pass
-        return {"_http":str(exc.code),"_error":name}
+        return {"_http":str(exc.code),"_error":name,"_diagnosis":diagnosis}
     except (URLError,TimeoutError,ValueError,TypeError,OSError):
         return {"_http":"network_or_format_error"}
 
@@ -58,7 +74,7 @@ def _ts(value):
 def search_provider_records(key,opener=urlopen):
     response=get_json(BASE+"/emails",key,opener=opener)
     if "_http" in response:
-        return {"result":"unavailable","http":response["_http"],"error":response.get("_error","UNKNOWN")}
+        return {"result":"unavailable","http":response["_http"],"error":response.get("_error","UNKNOWN"),"diagnosis":response.get("_diagnosis","unknown")}
     rows=response.get("data",[])
     if not isinstance(rows,list):return {"result":"invalid_response"}
     matched=[]
@@ -80,7 +96,7 @@ def search_provider_records(key,opener=urlopen):
 
 def search_api_log_status(key,opener=urlopen):
     resp=get_json(BASE+"/logs",key,opener=opener)
-    if "_http" in resp:return {"result":"unavailable","http":resp["_http"],"error":resp.get("_error","UNKNOWN")}
+    if "_http" in resp:return {"result":"unavailable","http":resp["_http"],"error":resp.get("_error","UNKNOWN"),"diagnosis":resp.get("_diagnosis","unknown")}
     rows=resp.get("data",[])
     if not isinstance(rows,list):return {"result":"invalid_response"}
     safe=[]
