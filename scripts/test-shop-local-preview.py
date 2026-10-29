@@ -67,7 +67,6 @@ class TestIsolatedLocalPreview(unittest.TestCase):
             code, html = self._request(opener, base + "/shop.html")
             self.assertEqual(code, 200)
             self.assertIn('src="shop-sandbox-checkout.js"', html)
-            self.assertIn("参考", html) if False else None
             self.assertIn("販売価格（税込・送料込み）", html)
             self.assertIn("shop-cart-preview.js", html)
             self.assertNotIn("shop-sandbox-checkout.js", (Path("app/shop.html").read_text()))
@@ -127,8 +126,8 @@ class TestIsolatedLocalPreview(unittest.TestCase):
                 self.assertEqual(order["checkout_url"], fake_link["url"])
                 self.assertEqual(mock.call_count, 1)
                 args, kwargs = mock.call_args
-                self.assertEqual(kwargs["order"]["order"]["line_items"][0]["base_price_money"]["amount"],21450)
-                self.assertEqual(len(kwargs["order"]["order"]["line_items"]), 2)
+                self.assertEqual(args[0]["order"]["line_items"][0]["base_price_money"]["amount"],21450)
+                self.assertEqual(len(args[0]["order"]["line_items"]), 2)
                 order_id = order["order_id"]
                 self.assertEqual(server.store.status(order_id),"payment_pending")
                 code, state = self._request(opener, base + "/api/shop/sandbox/order/" + order_id)
