@@ -291,6 +291,11 @@ class SandboxOrderStore:
         refund = current.get("refunded_money", {})
         if isinstance(refund, dict) and isinstance(refund.get("amount"), int) and refund["amount"] > 0:
             return "unverified"
+        # Import only after independent Square API verification, to avoid
+        # circular module initialization and any pre-payment notice.
+        from .sandbox_notifications import (
+            install_notification_tables, enqueue_notification_group, PAID_DRAFTS,
+        )
         with closing(self._open()) as conn:
             try:
                 conn.execute("BEGIN IMMEDIATE")
@@ -327,6 +332,10 @@ class SandboxOrderStore:
                         "WHERE order_id=? AND state='payment_pending'",
                         (int(time.time()), payment_id, latest["order_id"]),
                     )
+                # Transactional draft creation, *not* sending. A crash cannot
+                # mark an order paid while losing its operator action reminder.
+                install_notification_tables(conn)
+                enqueue_notification_group(conn,latest["order_id"],PAID_DRAFTS)
                 conn.execute("COMMIT")
                 return "paid" if latest["state"] == "payment_pending" else "duplicate"
             except Exception:
