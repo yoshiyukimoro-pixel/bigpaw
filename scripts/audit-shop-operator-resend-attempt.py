@@ -58,7 +58,7 @@ def _ts(value):
 def search_provider_records(key,opener=urlopen):
     response=get_json(BASE+"/emails?limit=100",key,opener=opener)
     if "_http" in response:
-        return {"result":"unavailable","http":response["_http"]}
+        return {"result":"unavailable","http":response["_http"],"error":response.get("_error","UNKNOWN")}
     rows=response.get("data",[])
     if not isinstance(rows,list):return {"result":"invalid_response"}
     matched=[]
@@ -80,7 +80,7 @@ def search_provider_records(key,opener=urlopen):
 
 def search_api_log_status(key,opener=urlopen):
     resp=get_json(BASE+"/logs?limit=100",key,opener=opener)
-    if "_http" in resp:return {"result":"unavailable","http":resp["_http"]}
+    if "_http" in resp:return {"result":"unavailable","http":resp["_http"],"error":resp.get("_error","UNKNOWN")}
     rows=resp.get("data",[])
     if not isinstance(rows,list):return {"result":"invalid_response"}
     safe=[]
