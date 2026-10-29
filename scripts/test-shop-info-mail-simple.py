@@ -9,7 +9,7 @@ import unittest
 spec=importlib.util.spec_from_file_location("probe",Path("scripts/smoke-shop-info-mail-simple.py"))
 test=importlib.util.module_from_spec(spec);spec.loader.exec_module(test)
 ENV={"GITHUB_ACTIONS":"true","GITHUB_REF":"refs/heads/feature/dogfood-shop-staging-20261028",
-     "BIGPAW_SINGLE_INFO_EMAIL_TEST":"1","RESEND_API_KEY":"FAKE_AND_NOT_A_SECRET"}
+     "BIGPAW_SINGLE_INFO_EMAIL_TEST":"1","RESEND_API_KEY":"re_FAKE_ONLY_NEVER_SECRET"}
 class FakeResponse:
     status=200
     def __init__(self,obj):self.obj=obj
@@ -28,6 +28,12 @@ class Tests(unittest.TestCase):
         calls=[]
         for env in ({},{**ENV,"GITHUB_REF":"refs/heads/main"},{**ENV,"BIGPAW_SINGLE_INFO_EMAIL_TEST":"0"}):
             self.assertEqual(self.capture(env=env,opener=lambda *a,**k:calls.append(a))[0],3)
+        self.assertFalse(calls)
+    def test_missing_or_malformed_key_never_contacts_provider(self):
+        calls=[]
+        for value in ("", "\\", "\\re_FAKE_ONLY_NEVER_SECRET", "NOT_A_RESEND_KEY", "re_has spaces"):
+            status,_=self.capture(env={**ENV,"RESEND_API_KEY":value},opener=lambda *a,**k:calls.append(a))
+            self.assertEqual(status,2)
         self.assertFalse(calls)
     def test_sends_only_one_real_mail_to_fixed_owner_not_customer(self):
         calls=[]
