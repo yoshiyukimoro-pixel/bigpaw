@@ -27,13 +27,14 @@ async function clickNamed(page,label){
   }
   const link=page.getByRole('link',{name:label,exact:true});
   if(await link.count()){await link.first().click();return;}
-  const input=page.locator('input[type=submit]');
-  const matches=input.filter({hasText:label});
-  if(await matches.count()){await matches.first().click();return;}
-  // Square may use an accessible non-button control.
-  const candidate=page.getByText(label,{exact:true});
-  if(await candidate.count()){await candidate.last().click();return;}
-  throw Error('Expected Sandbox panel control unavailable: '+label);
+  const inputMatch=page.locator('input[type="submit"][value="'+label+'"],input[type="button"][value="'+label+'"]');
+  if(await inputMatch.count()){
+    console.log('SQUARE_SANDBOX_PANEL_INPUT_'+label.replace(/ /g,'_')+'_COUNT='+await inputMatch.count());
+    await inputMatch.last().click();return;
+  }
+  // Do NOT click arbitrary text: the numbered stepper also says "Test Payment",
+  // but selecting that step does not create a payment.
+  throw Error('Expected active Square Sandbox payment control unavailable');
 }
 
 (async()=>{
@@ -58,6 +59,19 @@ async function clickNamed(page,label){
     stage='test-payment-visible';
     await page.getByText('Test Payment',{exact:true}).first().waitFor({timeout:15000});
     stage='click-test-payment';
+    const controlKinds=await page.evaluate(()=>{
+      return Array.from(document.querySelectorAll('button,a,input,[role="button"]'))
+        .map(e=>({
+          tag:e.tagName.toLowerCase(),
+          role:e.getAttribute('role')||'',
+          value:(e.getAttribute('value')||'').trim(),
+          label:(e.getAttribute('aria-label')||'').trim(),
+          text:(e.textContent||'').trim().replace(/\\s+/g,' ').slice(0,40)
+        }))
+        .filter(e=>[e.value,e.label,e.text].some(v=>/^(test payment|next|preview link)$/i.test(v)))
+        .map(e=>e.tag+':'+(/^(test payment|next|preview link)$/i.test(e.value)?e.value:/^(test payment|next|preview link)$/i.test(e.label)?e.label:e.text));
+    });
+    console.log('SQUARE_SANDBOX_PANEL_VISIBLE_ACTIONS='+JSON.stringify(controlKinds));
     await clickNamed(page,'Test Payment');
     stage='wait-for-panel-update';
     // Hosted testing panel may vary text/DOM by rollout. Only the fresh
