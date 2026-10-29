@@ -13,6 +13,8 @@ on:
       - 'scripts/test-shop-retail-pricebook.py'
       - 'scripts/test-shop-local-preview.py'
       - 'scripts/test-shop-square-reconcile.py'
+      - 'scripts/smoke-shop-square-sandbox.py'
+      - 'scripts/test-shop-square-smoke.py'
       - 'scripts/test-shop-staging.py'
       - 'scripts/test-shop-staging.cjs'
       - 'scripts/test-shop-square-browser.cjs'
@@ -37,6 +39,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-retail-pricebook.py
           PYTHONPATH=. python3 scripts/test-shop-local-preview.py
           PYTHONPATH=. python3 scripts/test-shop-square-reconcile.py
+          PYTHONPATH=. python3 scripts/test-shop-square-smoke.py
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
