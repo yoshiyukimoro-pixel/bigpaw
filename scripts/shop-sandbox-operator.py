@@ -16,6 +16,7 @@ import sys
 from shop_payments.retail_catalog import load_sale_catalog
 from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxError
 from shop_payments.sandbox_fulfillment import SandboxFulfillmentOps
+from shop_payments.sandbox_procurement import SandboxProcurementOps
 
 ORDER_ID = re.compile(r"^FOOD[0-9a-f]{32}$")
 
@@ -44,8 +45,13 @@ def _rows(db:Path) -> list[dict]:
             SELECT o.order_id,o.amount_yen,o.state AS payment_state,
                    o.created_at,o.paid_at,
                    COALESCE(f.state,'not_assessed') AS fulfillment_state,
-                   COALESCE(f.stock_reserved,0) AS inventory_assigned
-            FROM orders o LEFT JOIN food_fulfillment f ON f.order_id=o.order_id
+                   COALESCE(f.stock_reserved,0) AS inventory_assigned,
+                   CASE WHEN o.state='paid'
+                     THEN COALESCE(p.stage,'awaiting_supplier_order')
+                     ELSE 'payment_not_verified' END AS procurement_state
+            FROM orders o
+            LEFT JOIN food_fulfillment f ON f.order_id=o.order_id
+            LEFT JOIN food_procurement p ON p.order_id=o.order_id
             ORDER BY o.created_at DESC,o.order_id DESC
         """).fetchall()
         out=[]
@@ -83,19 +89,23 @@ def _queue(db:Path) -> list[dict]:
 def execute(args,*,env=None,opener=None):
     env=os.environ if env is None else env
     db=_validated_db(args.db)
-    ops=SandboxFulfillmentOps(SandboxOrderStore(db))
+    store=SandboxOrderStore(db)
+    ops=SandboxFulfillmentOps(store)
+    procurement=SandboxProcurementOps(store)
     if args.action=="list":
         return {"sandbox":True,"orders":_rows(db)}
     if args.action=="events":
-        return {"sandbox":True,"events":_queue(db)}
+        return {"sandbox":True,"events":_queue(db),
+                "procurement_events":procurement.events()}
     if args.action=="stock":
         return {"sandbox":True,"sku":args.sku,"available":ops.stock(args.sku)}
 
-    if args.action=="check-paid":
+    if args.action in ("check-paid","supplier-status"):
         if not ORDER_ID.fullmatch(args.order_id):
             raise ValueError("Invalid internal Sandbox order ID")
         return {"sandbox":True,"order_id":args.order_id,
-                "state":ops.state(args.order_id)}
+                "state":(ops.state(args.order_id) if args.action=="check-paid"
+                         else procurement.state(args.order_id))}
     if args.confirm_sandbox is not True:
         raise ValueError("Explicit --confirm-sandbox required for any changes")
     if args.action=="stock-set":
@@ -104,6 +114,29 @@ def execute(args,*,env=None,opener=None):
                 "sku":args.sku,"available":ops.stock(args.sku)}
     if not ORDER_ID.fullmatch(args.order_id):
         raise ValueError("Invalid internal Sandbox order ID")
+    if args.action in (
+        "supplier-ordered","supplier-shortage","supplier-received",
+        "supplier-shipped","supplier-refund-review","supplier-verify-refund"
+    ):
+        stages={
+            "supplier-ordered":"supplier_ordered",
+            "supplier-shortage":"supplier_backorder",
+            "supplier-received":"received_at_shop",
+            "supplier-shipped":"shipped",
+            "supplier-refund-review":"refund_review",
+        }
+        kwargs={}
+        if args.action in ("supplier-shipped","supplier-verify-refund"):
+            token=str(env.get("BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN","")).strip()
+            if not token: raise ValueError("Sandbox Square verification token missing")
+            kwargs["token"]=token
+            if opener is not None: kwargs["opener"]=opener
+        stage=(procurement.confirm_full_refund(args.order_id,**kwargs)
+               if args.action=="supplier-verify-refund"
+               else procurement.transition(args.order_id,stages[args.action],**kwargs))
+        return {"sandbox":True,"order_id":args.order_id,"action":args.action,
+                "procurement_state":stage,"supplier_order_executed":False,
+                "shipping_executed":False,"refund_initiated":False}
     if args.action in ("assess","verify-refund"):
         token=str(env.get("BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN","")).strip()
         if not token:
@@ -136,7 +169,12 @@ def parser():
     stock=cmds.add_parser("stock");stock.add_argument("sku")
     stock_set=cmds.add_parser("stock-set");stock_set.add_argument("sku")
     stock_set.add_argument("qty",type=int)
-    for action in ("check-paid","assess","record-shipped","refund-review","verify-refund"):
+    for action in (
+        "check-paid","assess","record-shipped","refund-review","verify-refund",
+        "supplier-status","supplier-ordered","supplier-shortage",
+        "supplier-received","supplier-shipped",
+        "supplier-refund-review","supplier-verify-refund",
+    ):
         sub=cmds.add_parser(action);sub.add_argument("order_id")
     return p
 
