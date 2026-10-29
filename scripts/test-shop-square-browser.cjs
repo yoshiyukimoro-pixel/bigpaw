@@ -43,6 +43,7 @@ async function run() {
   const root = 'http://127.0.0.1:' + server.address().port;
   try {
     for (const [name, browserType] of [['Chrome', chromium], ['iPhone Safari', webkit]]) {
+      const submissionsBefore = submitted.length;
       const browser = await browserType.launch({headless:true});
       try {
         const page = await browser.newPage({viewport:name==='Chrome'?{width:1250,height:850}:{width:390,height:844}});
@@ -54,7 +55,7 @@ async function run() {
         assert.equal(await page.locator('#squareSandboxCheckout').isDisabled(),true,
           name + ' checkout disabled while Square Sandbox credentials are absent');
         assert.match(await page.locator('#squareSandboxNotice').innerText(), /設定/);
-        assert.equal(submitted.length, 0, 'must never submit when not configured');
+        assert.equal(submitted.length, submissionsBefore, 'must never submit when not configured');
 
         ready = true;
         await page.reload();
