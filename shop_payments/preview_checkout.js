@@ -20,6 +20,57 @@
   button.textContent = 'Squareテスト決済（設定確認中）';
   checkoutDisabled.insertAdjacentElement('afterend', button);
   button.insertAdjacentElement('afterend', notice);
+  const statusButton = document.createElement('button');
+  statusButton.id = 'squareSandboxStatusButton';
+  statusButton.type = 'button';
+  statusButton.className = 'cart-continue';
+  statusButton.textContent = '直近のSquareテスト注文の状態を確認';
+  statusButton.hidden = true;
+  const statusResult = document.createElement('p');
+  statusResult.id = 'squareSandboxStatusResult';
+  statusResult.setAttribute('role', 'status');
+  statusResult.style.cssText = 'font-size:12px;color:#5b4a62;margin:8px 0;';
+  notice.insertAdjacentElement('afterend', statusButton);
+  statusButton.insertAdjacentElement('afterend', statusResult);
+  const lastOrderKey = 'bigpaw_shop_sandbox_last_order_v1';
+  const validOrderId = /^FOOD[0-9a-f]{32}$/;
+  function getLastOrderId() {
+    try {
+      const value = sessionStorage.getItem(lastOrderKey);
+      return value && validOrderId.test(value) ? value : null;
+    } catch (_) { return null; }
+  }
+  function storeLastOrderId(value) {
+    if (!validOrderId.test(value)) return;
+    try { sessionStorage.setItem(lastOrderKey, value); } catch (_) {}
+    statusButton.hidden = false;
+  }
+  statusButton.hidden = !getLastOrderId();
+  statusButton.addEventListener('click', async () => {
+    const id = getLastOrderId();
+    if (!id) return;
+    statusButton.disabled = true;
+    statusResult.textContent = 'Squareのテスト注文状態を確認しています…';
+    try {
+      const res = await fetch('/api/shop/sandbox/order/' + encodeURIComponent(id), {
+        cache: 'no-store', credentials: 'same-origin',
+      });
+      if (!res.ok) throw new Error('status unavailable');
+      const data = await res.json();
+      const labels = {
+        created: 'テスト注文は作成されていますが、決済ページの準備中です。',
+        payment_pending: 'Squareテスト決済は確認待ちです。完了済みとは判定していません。',
+        paid: 'Square Sandboxでテスト決済完了を確認済みです。実際の入金ではありません。',
+      };
+      statusResult.textContent = labels[data.order_status] ||
+        '注文状態を確認できません。';
+    } catch (_) {
+      statusResult.textContent = 'テスト注文状態を取得できませんでした。後で再確認してください。';
+    } finally {
+      statusButton.disabled = false;
+    }
+  });
+
 
   let config = null;
   let pending = false;
@@ -97,6 +148,10 @@
       if (destination.protocol !== 'https:' || destination.hostname !== 'sandbox.square.link') {
         throw new Error('unsafe Square URL');
       }
+      if (typeof result.order_id !== 'string' || !validOrderId.test(result.order_id)) {
+        throw new Error('invalid sandbox order id');
+      }
+      storeLastOrderId(result.order_id);
       notice.textContent = 'Square Sandboxのテストページを開きます。';
       window.location.assign(destination.href);
     } catch (_) {
