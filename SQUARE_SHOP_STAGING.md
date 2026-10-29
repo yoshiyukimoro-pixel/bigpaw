@@ -77,3 +77,30 @@ https://developer.squareup.com/docs/webhooks/step3validate
 - 仕入れ価格は公開画面・API・JavaScript・決済リンクのいずれにも出さない。
 - 静的販売価格一覧 `shop_payments/retail_pricebook.json` は35商品をサーバー側の価格原本として扱う。`shop_payments/retail_catalog.py` は閲覧者が送った金額を一切受け付けずに、この価格原本からSquareの注文金額を計算する。
 - **本番サイトへの公開、Square本番決済、決済用エンドポイントはまだ有効化していない。** 在庫・返品方針とSandbox接続テスト、運営承認が終わるまで本番反映しない。
+
+
+## 2026-10-29: 独立テスト用カートからSquare Sandboxへ
+
+- shop_payments/local_preview.py: 127.0.0.1 にのみバインドする独立HTTPテストサーバー。既存のapp/shop.htmlにテスト専用スクリプトを配信時のみ挿入し、本番HTMLは変更しない。
+- shop_payments/preview_checkout.js: カートのID・数量のみ送信。希望小売価格（税込・送料込み）はサーバー側で再計算し、Square Sandbox専用決済URLへ遷移。
+- GET /api/shop/sandbox/config: Sandboxの準備状況・CSRFトークンのみ返す（秘密鍵は返さない）。
+- POST /api/shop/sandbox/checkout: 独立SQLite注文記録の保存、Square Sandbox専用CreatePaymentLink呼び出し。未設定では拒否。
+- POST /api/shop/sandbox/webhook: Square署名と注文番号・金額・通貨JPY・店舗IDを照合してから入金済みにする。重複イベントを排除する。
+- scripts/test-shop-local-preview.py: テスト用Square応答を使ったHTTP全体テスト。注文→決済リンク→署名付き入金通知→入金済みまで確認し、不正Origin・商品金額書き換え・偽署名の拒否を検証。
+- 既存BIG PAWのサーバー、Dockerfile、本番決済、子犬販売用DBは**一切変更していない**。
+
+ローカル起動: PYTHONPATH=. python3 -m shop_payments.local_preview --port 8765
+閲覧: http://127.0.0.1:8765/shop.html
+Sandboxの秘密鍵がなければ決済ボタンは無効。iPhoneからこのURLは直接開けない。
+
+秘密のテスト環境変数（非本番シークレット管理に設定、GitHubやチャットに送信禁止）:
+- BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN
+- BIGPAW_SQUARE_SANDBOX_LOCATION_ID
+- BIGPAW_SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY
+- BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL（Squareが到達可能なHTTPS URL）
+
+### 未完了の作業
+- 実際のSquare Sandbox API通信と実カードSandbox決済。秘密鍵はまだ接続していない。
+- 公開HTTPSの非本番Webhook受信環境、SquareへのWebhook URL登録と実通知テスト。
+- 返金・注文復旧、配送先取得・発送処理、注文通知メール・在庫管理の実装。
+- 最終回帰試験を完了し、利用者の明示的な許可を得るまで本番公開・マージ・本番課金は禁止。
