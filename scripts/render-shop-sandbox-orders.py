@@ -15,6 +15,7 @@ from shop_payments.sandbox_connector import SandboxOrderStore
 from shop_payments.sandbox_fulfillment import SandboxFulfillmentOps
 from shop_payments.sandbox_procurement import SandboxProcurementOps
 from shop_payments.sandbox_notifications import SandboxNotificationDrafts
+from shop_payments.sandbox_operator_email import SandboxOperatorEmail
 from shop_payments.retail_catalog import load_sale_catalog
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -48,6 +49,7 @@ def render(db:Path) -> str:
     SandboxProcurementOps(order_store)
     orders=operator._rows(db)
     drafts=SandboxNotificationDrafts(order_store).pending()
+    email_events=SandboxOperatorEmail(order_store).history()
     catalog=load_sale_catalog()
     statuses={
         "pending":sum(o["payment_state"]!="paid" for o in orders),
@@ -65,6 +67,7 @@ def render(db:Path) -> str:
             ("仕入先へ発注済み",statuses["ordered"]),
             ("埼玉へ入荷済み",statuses["arrived"]),("仕入先欠品",statuses["shortage"]),
             ("通知の未送信下書き",len(drafts)),
+            ("運営メール送信試行",len(email_events)),
         )
     )
     order_rows=""
@@ -91,6 +94,13 @@ def render(db:Path) -> str:
         safe(n["body"])+"</pre></details></td><td>未送信・確認待ち</td></tr>" for n in drafts)
     if not notification_rows:
         notification_rows='<tr><td colspan="4">送信待ちの下書きはありません。</td></tr>'
+    email_rows="".join(
+        "<tr><td><code>"+safe(e["order_id"])+"</code></td><td>"+
+        safe(e["recipient"])+"</td><td>"+safe(e["status"])+
+        "</td><td>"+safe(e["last_event"] or "配達未確認")+"</td></tr>"
+        for e in email_events)
+    if not email_rows:
+        email_rows='<tr><td colspan="4">運営通知の送信実績はありません。</td></tr>'
     brands={"A":"ACANA","O":"ORIJEN","Z":"ZIWI","C":"CHARM"}
     stock_rows="".join(
         "<tr><td>"+safe(sku)+"</td><td>"+
@@ -133,6 +143,11 @@ footer{color:#647085;font-size:12px;margin-top:12px}
 メール・LINEの自動送信や仕入先への発注は行いません。宛先と内容を確認してください。</p>
 <table><thead><tr><th>注文番号</th><th>対象</th><th>件名</th><th>状態</th></tr></thead>
 <tbody>"""+notification_rows+"""</tbody></table></section>
+<section><h2>info@bigpaw.site 運営メール配信状況（Sandbox試験記録）</h2>
+<p>acceptedは配信サービスが受け付けた状態で、受信完了ではありません。
+配達状態は別途Resendから取得します。通常の受注メールはまだ本番未稼働です。</p>
+<table><thead><tr><th>注文番号</th><th>送信先</th><th>サービス受付状況</th><th>最終配達イベント</th></tr></thead>
+<tbody>"""+email_rows+"""</tbody></table></section>
 <section><details><summary>35商品の手元在庫（参考・受注発注の判定には使用しません）</summary>
 <p>未登録は0点と表示されますが、仕入先の欠品を意味しません。受注発注ではお支払い確認後、仕入先へ発注します。</p>
 <table><thead><tr><th>SKU</th><th>商品名・容量</th><th class="number">登録在庫</th></tr></thead>
