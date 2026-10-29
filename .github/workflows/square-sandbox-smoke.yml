@@ -16,6 +16,11 @@ on:
         required: true
         type: boolean
         default: false
+      run_sandbox_api_smoke:
+        description: "Check standalone Square Sandbox Payments API with fake card; no Checkout order"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -56,3 +61,20 @@ jobs:
           BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
           BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
         run: PYTHONPATH=. python3 scripts/smoke-shop-square-card-payment.py
+
+  square-sandbox-standalone-card-api:
+    # Explicit opt-in, fake Sandbox card source only, not a hosted Checkout order.
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[square-api-smoke]')) || (github.event_name == 'workflow_dispatch' && inputs.run_sandbox_api_smoke == true))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate standalone API fake-card test without real network
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-square-standalone-smoke.py
+          PYTHONPATH=. python3 scripts/test-shop-square-card-smoke.py
+      - name: Verify standalone Square Sandbox fake-card payment (no hosted checkout)
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-standalone-payment.py
