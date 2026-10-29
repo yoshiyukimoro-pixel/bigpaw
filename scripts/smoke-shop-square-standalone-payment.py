@@ -31,7 +31,7 @@ def main(*, env=None, payment_creator=linked.create_fake_card_payment,
         result=payment_creator(
             order_id=None,
             location_id=location,token=token,
-            idempotency_key="bigpaw-sandbox-api-only-"+secrets.token_hex(20),
+            idempotency_key="bpapi-"+secrets.token_hex(16),
         )
         if not isinstance(result,dict) or not isinstance(result.get("id"),str):
             raise ValueError("No sandbox payment")
