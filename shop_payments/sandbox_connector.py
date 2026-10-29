@@ -110,13 +110,25 @@ class SandboxOrderStore:
                   checkout_url TEXT,
                   state TEXT NOT NULL CHECK(state IN ('created','payment_pending','paid')),
                   created_at INTEGER NOT NULL,
-                  paid_at INTEGER
+                  paid_at INTEGER,
+                  square_payment_id TEXT
+                );
+                CREATE TABLE IF NOT EXISTS order_items (
+                  order_id TEXT NOT NULL,
+                  sku TEXT NOT NULL,
+                  quantity INTEGER NOT NULL CHECK(quantity > 0),
+                  PRIMARY KEY (order_id, sku)
                 );
                 CREATE TABLE IF NOT EXISTS square_events (
                   event_id TEXT PRIMARY KEY,
                   received_at INTEGER NOT NULL
                 );
             """)
+            # Older Sandbox journals predate the payment-reference column.
+            # Keep them readable, but never assume a historical payment ID.
+            names = {row["name"] for row in conn.execute("PRAGMA table_info(orders)")}
+            if "square_payment_id" not in names:
+                conn.execute("ALTER TABLE orders ADD COLUMN square_payment_id TEXT")
 
     def add_pending_order(
         self, *, order_id: str, cart: dict[str, int],
@@ -146,6 +158,21 @@ class SandboxOrderStore:
                         INSERT INTO orders(order_id,cart_json,amount_yen,square_location_id,state,created_at)
                         VALUES (?,?,?,?,?,?)
                     """, (order_id, line_snapshot, total, location_id, "created", int(time.time())))
+                # Capture immutable SKU/quantity data for the fulfillment ledger.
+                # Square line-item names alone are not unique inventory keys.
+                old_items = {
+                    row["sku"]: row["quantity"]
+                    for row in conn.execute(
+                        "SELECT sku, quantity FROM order_items WHERE order_id=?", (order_id,)
+                    )
+                }
+                if old_items and old_items != dict(cart):
+                    raise ValueError("cannot change saved SKU quantities")
+                if not old_items:
+                    conn.executemany(
+                        "INSERT INTO order_items(order_id,sku,quantity) VALUES (?,?,?)",
+                        [(order_id, sku, qty) for sku, qty in sorted(cart.items())],
+                    )
                 conn.execute("COMMIT")
             except Exception:
                 conn.execute("ROLLBACK")
@@ -285,15 +312,20 @@ class SandboxOrderStore:
                 if latest["state"] not in ("payment_pending", "paid"):
                     conn.execute("COMMIT")
                     return "unverified"
+                if latest["state"] == "paid" and latest["square_payment_id"] != payment_id:
+                    # A different payment against the same Square order needs
+                    # manual review; never silently overwrite the original.
+                    conn.execute("COMMIT")
+                    return "unverified"
                 conn.execute(
                     "INSERT INTO square_events(event_id,received_at) VALUES (?,?)",
                     (event_id, int(time.time())),
                 )
                 if latest["state"] == "payment_pending":
                     conn.execute(
-                        "UPDATE orders SET state='paid',paid_at=? "
+                        "UPDATE orders SET state='paid',paid_at=?,square_payment_id=? "
                         "WHERE order_id=? AND state='payment_pending'",
-                        (int(time.time()), latest["order_id"]),
+                        (int(time.time()), payment_id, latest["order_id"]),
                     )
                 conn.execute("COMMIT")
                 return "paid" if latest["state"] == "payment_pending" else "duplicate"
@@ -306,3 +338,23 @@ class SandboxOrderStore:
         with closing(self._open()) as conn:
             row = conn.execute("SELECT state FROM orders WHERE order_id=?", (order_id,)).fetchone()
         return row["state"] if row else "not_found"
+
+    def paid_order_snapshot(self, order_id: str) -> dict | None:
+        """Operator-only non-PII snapshot; never expose via a public endpoint."""
+        if not isinstance(order_id, str) or not _ORDER_ID.fullmatch(order_id):
+            raise ValueError("Invalid order ID")
+        with closing(self._open()) as conn:
+            row = conn.execute(
+                "SELECT order_id,amount_yen,square_order_id,square_location_id,"
+                "square_payment_id FROM orders WHERE order_id=? AND state='paid'",
+                (order_id,),
+            ).fetchone()
+            if not row:
+                return None
+            items = conn.execute(
+                "SELECT sku,quantity FROM order_items WHERE order_id=? ORDER BY sku",
+                (order_id,),
+            ).fetchall()
+            if not items or not row["square_payment_id"]:
+                return None  # Old incomplete journal requires manual recovery.
+            return {**dict(row), "cart": {r["sku"]: r["quantity"] for r in items}}
