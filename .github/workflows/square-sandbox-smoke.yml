@@ -1,0 +1,29 @@
+name: BIG PAW Square Sandbox connection smoke (opt-in only)
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  square-sandbox-smoke:
+    # No Square network calls on normal pushes. Opt-in only with [square-smoke]
+    # in the explicit triggering commit message, on the isolated feature branch.
+    if: contains(github.event.head_commit.message, '[square-smoke]') && github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test 35-product retail pricebook before touching Square
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-retail-pricebook.py
+          PYTHONPATH=. python3 scripts/test-shop-square.py
+      - name: Square Sandbox link-creation smoke test (no charge)
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-sandbox.py
