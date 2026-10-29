@@ -67,10 +67,10 @@ if rescue_old in html:
     html=html.replace(rescue_old,rescue_new,1)
 
 # The stable gallery is the only code allowed to load the hero image. The base
-# renderer keeps an emoji placeholder, eliminating duplicate image decode work.
+# renderer preserves the immediately visible list photo while the stable gallery loads.
 legacy="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
 legacy_eager="mainPhoto.innerHTML=p.imageUrl?`<img src=\"${BigPaw.esc(p.imageUrl)}\" fetchpriority=\"high\" loading=\"eager\" decoding=\"async\" alt=\"${BigPaw.esc(p.breed)}\">`:dogEmoji(p);"
-legacy_safe="mainPhoto.innerHTML=dogEmoji(p);"
+legacy_safe="if(!mainPhoto.querySelector('img'))mainPhoto.textContent='';"
 if legacy in html:
     html=html.replace(legacy,legacy_safe,1)
 elif legacy_eager in html:
