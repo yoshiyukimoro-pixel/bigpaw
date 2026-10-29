@@ -7,6 +7,8 @@ on:
     paths:
       - 'app/shop.html'
       - 'app/shop-cart-preview.js'
+      - 'app/shop-order-review.js'
+      - 'app/shop-order-review.css'
       - 'app/shop-detail-images.js'
       - 'app/shop-detail-gallery.js'
       - 'app/shop-detail-gallery.css'
@@ -26,6 +28,7 @@ on:
       - 'scripts/test-shop-staging.cjs'
       - 'scripts/test-shop-detail-images.cjs'
       - 'scripts/test-shop-detail-gallery.cjs'
+      - 'scripts/test-shop-order-review.cjs'
       - 'scripts/import-shop-detail-assets.py'
       - 'scripts/test-shop-detail-importer.py'
       - 'scripts/install-shop-98-assets.py'
@@ -63,4 +66,4 @@ jobs:
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
-            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs && node scripts/test-shop-detail-gallery.cjs'
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs && node scripts/test-shop-detail-gallery.cjs && node scripts/test-shop-order-review.cjs'
