@@ -25,3 +25,47 @@
 - scripts/test-shop-square.py
 - https://developer.squareup.com/reference/square/checkout/create-payment-link
 - https://developer.squareup.com/docs/webhooks/step3validate
+
+
+## 2026-10-29: Square Sandbox test app created by seller
+
+The seller has created "BIG PAW Shop" in Square Developer Console, with Sandbox
+selected and a default test Location visible. No real secrets were collected.
+
+### Staging connector progress (this branch only)
+- \`shop_payments/sandbox_connector.py\`: isolated, server-side Square
+  Sandbox CreatePaymentLink API transport, hard-coded to the **sandbox API
+  hostname only**. No production URL override.
+- Durable **separate SQLite journal** for pending orders, saved Square links,
+  signature-verified completion events and replay deduplication. No name,
+  address, card number, or token persisted in its order table.
+- \`scripts/test-shop-square-sandbox.py\`: offline tests with fake API responses;
+  verifies sandbox hostname, JPY amount and shipping, tampered URLs and
+  signatures, duplicate events, wrong order/amount/currency/location, retry
+  behavior, and duplicate order protection.
+- GitHub Actions runs these tests plus Chromium/Safari checks.
+- This code is **not imported by app/backend/server.py**, not included by the
+  production Dockerfile, and **not connected to the cart**. The production
+  site and existing payment workflows remain untouched.
+
+### Remaining dependencies before anyone can use a Square sandbox checkout
+1. Approve final **BIG PAW tax-inclusive selling price** for each of the 35
+   products. Current prices in public catalog are only reference MSRP, never
+   to be used for charging. Keep all procurement costs private.
+2. Approve shipping fee rules, dispatch locations, refund and return rules.
+   A stable known shipping charge must be computed server-side before creating
+   a checkout link. Asking for a shipping address *after* calculating shipping
+   does not determine a correct region-based rate.
+3. Configure Sandbox-only credential/Location ID in secret storage on a
+   **separate, nonproduction** deployment (not in chat or GitHub).
+4. Expose a staging-only checkout API with CSRF/rate limiting, approved price
+   book and fixed shipping calculation, auth for order status, and webhook
+   handler with a stable HTTPS URL and signature key. Build integration tests.
+5. Reconcile against Square API on uncertain or out-of-order webhooks; verify
+   order/payment existence, refund/cancel/idempotent state transitions.
+6. Enable storefront checkout only after all of the above pass acceptance
+   tests, then separately review production activation.
+
+Official documentation:
+https://developer.squareup.com/reference/square/checkout/create-payment-link
+https://developer.squareup.com/docs/webhooks/step3validate
