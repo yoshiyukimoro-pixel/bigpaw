@@ -145,3 +145,21 @@ Railwayの新規staging環境を作る前に、GitHub ActionsからSquare **Sand
 上記手順でSquareの接続だけ確認しても、BIG PAWに決済機能が一般公開されたことにはならない。実際の購入・配送・Webhookを含むEnd-to-Endテストには別のHTTPS staging環境と、本番公開前の確認が必要。
 
 Square sandbox checkout: https://developer.squareup.com/reference/square/checkout/create-payment-link
+
+
+## 2026-10-29: Sandbox接続成功後の注文・在庫・返金の下地（PR #175のみ）
+
+- Square Sandboxへの実通信はGitHub Actions run #40821207327で、決済リンクの作成成功まで確認。Square本番通信・本番デプロイは一切行っていない。
+- \`shop_payments/sandbox_connector.py\` の隔離SQLite注文帳簿に、商品ID/数量の不変スナップショットと、Square Payments APIで検証したpayment IDを記録。過去帳簿には個人情報を追加せず、欠落した古い注文は手動確認とする。
+- \`shop_payments/sandbox_fulfillment.py\` に運営専用の非公開在庫台帳・発送準備・キャンセル/返金確認待ち・非個人情報の通知キューを追加。**既存公開サイト/APIには接続しない**。
+- 配送先はSquare Checkoutの\`ask_for_shipping_address: true\`で取得させる。Paid確認後、Square Sandbox Orders APIのSHIPMENT配送先情報を読み直し、国内住所・宛名・郵便番号等の有無を検査。住所・名前・電話番号は独立SQLiteにもGitHubログにも保存しない。運営への実際の住所表示は**将来の認証済み管理画面がSquareから読み出す必要があり未実装**。
+- 商品在庫は35SKUを個別管理でき、**決済検証・発送先確認が済んだ注文に対してのみ**トランザクション内で引き当てる。欠品なら発送準備に進めない。多重引き当てを防止し、発送済み注文への返金確認待ち操作を拒否。
+- キャンセル申請は\`refund_review\`として発送を凍結。**これは返金を実行・確約する操作ではない**。Square Sandbox Payments APIで金額・JPY・店舗・注文・payment ID・全額返金を再確認した場合だけ\`refunded\`にして未発送の在庫を一度だけ戻す。部分返金は要個別確認。
+- 通知は\`food_operator_outbox\`に非PIIイベントを一度だけ積む段階。**メール送信・管理画面への通知配信は未実装**。
+- \`scripts/test-shop-sandbox-fulfillment.py\` で35全SKUの入金済み注文・配送先確認・在庫引当、欠品/住所不足、二重処理、発送・返金確認の無通信テストを追加。
+- 旧BIG PAWサイトの子犬データベース・認証・デプロイ・本番Squareの取引とは完全に分離。
+- **重要：公開販売に必要な「決済リンク発行時点での在庫確保」はまだ未実装。** 現在のSandboxテストでは決済後に在庫が足りない注文が発生し得るため、一般公開してはいけない。
+- 商品画像：旧会話の \`bigpaw_dogfood_staging_assets_updated.zip\` を確認。35 WebPの存在とファイルシグネチャを検査したが、GitHub上の実ファイル登録は未完。画像読み込みの実機確認は登録後に行う。
+- 独立した公開HTTPS staging/Webhookの本物の受信・Sandboxカード決済、受注管理UI、通知送信、返品規約と特商法表示、在庫確保、発送完了連携、実機iPhone確認は未完了。CIのWebKitテストは自動エミュレーションであり実機ではない。
+
+**必須ルール：PR #175はDraft維持。mainへのマージ、Railway本番デプロイ、Square本番決済開始は利用者の明示承認まで禁止。**
