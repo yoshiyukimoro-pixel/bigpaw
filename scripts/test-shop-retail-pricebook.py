@@ -36,6 +36,9 @@ class TestApprovedRetailPricebook(unittest.TestCase):
             local_order_id="FOOD202610290001",
         )
         self.assertEqual(total, 85800)
+        self.assertEqual(payload["order"]["taxes"][0]["type"], "INCLUSIVE")
+        self.assertEqual(payload["order"]["taxes"][0]["scope"], "ORDER")
+        self.assertEqual(payload["order"]["taxes"][0]["percentage"], "10")
         self.assertEqual(len(payload["order"]["line_items"]), 2)
         self.assertNotIn("送料", [x["name"] for x in payload["order"]["line_items"]])
         self.assertTrue(all(x["base_price_money"]["currency"] == "JPY" for x in payload["order"]["line_items"]))
