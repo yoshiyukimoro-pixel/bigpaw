@@ -21,6 +21,7 @@
 @media(max-width:680px){.sitehead .wrap{gap:8px}.sitehead .links{gap:7px;margin-left:auto}.sitehead .brandlogo{font-size:20px}.cart-open{font-size:11px;padding:8px}.cart-dialog{width:100%;padding:19px 16px}}
 </style>
 <link rel="stylesheet" href="shop-detail-gallery.css">
+<link rel="stylesheet" href="shop-order-review.css">
 </head>
 <body>
 <div class="topline">大型犬専門 BIG PAW｜ドッグフード販売準備中</div>
@@ -29,6 +30,7 @@
 <main class="wrap"><div class="notice" role="status"><b>ただいま販売準備中です。</b> メーカーの希望小売価格を税込・送料込みの販売価格として表示しています。在庫・決済機能の準備が整うまで、ご注文は受け付けておりません。商品情報は最終確認のため変更する場合があります。</div>
 <section id="listing"><section class="brand-chooser" aria-labelledby="brandChooserTitle"><div class="choosehead"><div><div class="kicker">STEP 1｜お好きなブランドから</div><h2 id="brandChooserTitle">まずはブランドを選ぶ</h2><p>4ブランドをまとめずに、メーカーごとに商品を探せます。</p></div><button type="button" class="clear-all" id="clearFilters">選択をクリアして全商品を見る</button></div><div class="brand-grid" id="brandCards" role="group" aria-label="フードブランドを選ぶ"></div></section><h3 class="search-caption">年齢・目的・商品名からも探せます</h3><div class="filterbox" role="search"><div class="field"><label for="keyword">商品名・特徴で探す</label><input id="keyword" type="search" placeholder="例：パピー、大型犬、ラム"></div><div class="field"><label for="life">ライフステージ</label><select id="life"><option value="">すべて</option><option>子犬</option><option>成犬</option><option>シニア</option><option>全年齢</option></select></div><div class="field"><label for="focus">目的・特徴</label><select id="focus"><option value="">すべて</option><option>大型犬</option><option>成長期</option><option>活動的</option><option>体重管理</option><option>シニア</option><option>高タンパク</option><option>魚系</option><option>トッピング</option></select></div></div>
 <div id="tabs" class="tabs" role="group" aria-label="ブランドで絞り込む"></div><div id="catalogStart"><div class="listhead"><h2 id="resultHeading">ブランド別の商品一覧</h2><small id="count" aria-live="polite"></small></div><p class="brand-pick-help">商品写真を選ぶと、内容量や商品の特徴を確認できます。現在は販売準備中です。</p><div id="products"></div><div id="empty" class="none" hidden>条件に合う商品がありません。条件を変えて検索してください。</div></div></section>
+<section id="orderReview" hidden aria-label="ご注文内容の確認"></section>
 <section id="single" hidden><div class="crumb"><a href="shop.html">ドッグフード一覧</a> › 商品詳細</div><div id="detail"></div><a href="shop.html" class="back">← 商品一覧に戻る</a></section></main>
 <dialog id="previewCartDialog" aria-labelledby="previewCartTitle" class="cart-dialog">
  <div class="cart-heading"><div><span class="cart-kicker">SHOPPING CART PREVIEW</span><h2 id="previewCartTitle">お試しカート</h2></div><form method="dialog"><button class="cart-close" aria-label="カートを閉じる">✕</button></form></div>
@@ -37,6 +39,7 @@
  <div class="cart-summary"><span>商品代金合計（税込・送料込み）</span><strong id="previewCartSubtotal">0円</strong></div>
  <p class="cart-shipping">※全商品送料込みの価格です。テスト用の表示であり、実際の注文・支払いは発生しません。</p>
  <button type="button" id="previewCheckout" disabled class="checkout-disabled">現在はご注文いただけません</button>
+ <a id="previewReviewOrder" class="cart-continue" href="shop.html?order=review" style="text-align:center;text-decoration:none">注文内容を確認する（お試し）</a>
  <button type="button" id="previewCartContinue" class="cart-continue">商品選びを続ける</button>
 </dialog>
 <footer><div class="wrap">© BIG PAW｜大型犬専門の子犬紹介サイト　・　フードショップは準備中です。</div></footer>
@@ -85,6 +88,7 @@ const taxInclYen=p=>Math.round(p.referenceMsrpExTax*1.1).toLocaleString('ja-JP')
 const catalog=rows.map(x=>{const a=x.split('|');return {id:a[0],brand:a[1],name:a[2],weight:a[3],life:a[4],focus:a[5],description:a[6],slug:a[7],series:a[8],referenceMsrpExTax:referenceMsrpExTax[a[0]]}});
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function photo(p,large){return '<div class="'+(large?'bigphoto':'photo')+'"><div class="fallback"><strong>'+esc(p.brand)+'</strong><span>'+esc(p.name)+'</span></div><img src="assets/shop-products/'+encodeURIComponent(p.slug)+'.webp" alt="'+esc(p.brand+' '+p.name)+'" loading="'+(large?'eager':'lazy')+'" onload="this.previousElementSibling.hidden=true" onerror="this.hidden=true">'+(!large?'<span class="kind">'+esc(p.life)+'</span>':'')+'</div>';}
+const orderReviewMode=new URLSearchParams(location.search).get('order')==='review';
 const chosen=new URLSearchParams(location.search).get('item');
 if(chosen){
  const p=catalog.find(x=>x.id===chosen);
@@ -97,6 +101,12 @@ if(chosen){
  document.querySelector('.back').href=brandReturn;
  document.getElementById('detail').innerHTML='<div class="detail">'+photo(p,true)+'<div><div class="detailsbrand">'+esc(p.brand)+' / '+esc(p.series)+'</div><h1>'+esc(p.name)+'</h1><p class="desc">'+esc(p.description)+'</p><div class="chips"><span>'+esc(p.weight)+'</span><span>'+esc(p.life)+'</span><span>'+esc(p.focus)+'</span></div><div class="specs"><div><span>ブランド</span><b>'+esc(p.brand)+'</b></div><div><span>内容量</span><b>'+esc(p.weight)+'</b></div><div><span>対象</span><b>'+esc(p.life)+'</b></div><div><span>販売価格（税込・送料込み）</span><b>'+taxInclYen(p)+'</b></div><div><span>送料</span><b>無料（商品価格に含む）</b></div><div><span>販売状況</span><b>注文受付前</b></div></div><button type="button" class="disabled" disabled>販売開始までお待ちください</button><p class="footnote">詳しい原材料・成分・給与量はメーカー資料との最終照合後に掲載します。アレルギーがある場合は原材料をご確認ください。</p></div></div>';
  }
+} else if(orderReviewMode){
+ document.getElementById('hero').hidden=true;
+ document.getElementById('listing').hidden=true;
+ document.getElementById('single').hidden=true;
+ document.getElementById('orderReview').hidden=false;
+ document.title='ご注文内容の確認｜BIG PAW（販売準備中）';
 } else {
  const BRANDS=['ACANA','ORIJEN','ZIWI','CHARM'];
  const info={
@@ -167,4 +177,5 @@ if(chosen){
 <script src="shop-detail-images.js" defer></script>
 <script src="shop-detail-gallery.js" defer></script>
 <script src="shop-cart-preview.js" defer></script>
+<script src="shop-order-review.js" defer></script>
 </body></html>
