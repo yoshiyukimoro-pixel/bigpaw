@@ -202,25 +202,35 @@ class PreviewHandler(BaseHTTPRequestHandler):
             return self._respond(HTTPStatus.BAD_REQUEST, {"error": "invalid_payload"})
         try:
             payload = json.loads(raw)
-            if not isinstance(payload, dict) or set(payload) != {"cart"}:
-                raise ValueError("Only product quantities are accepted")
+            if not isinstance(payload, dict) or set(payload) != {"cart", "attempt_id"}:
+                raise ValueError("Only product IDs, quantities and attempt ID are accepted")
             cart = payload["cart"]
             # Do not accept client-supplied prices, shipping, addresses, or totals.
             if not isinstance(cart, dict) or len(cart) > 35:
                 raise ValueError("Invalid cart")
-            order_id = "FOOD" + secrets.token_hex(16)
+            attempt_id = payload["attempt_id"]
+            if not isinstance(attempt_id, str) or not re.fullmatch(
+                r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
+                attempt_id,
+            ):
+                raise ValueError("Invalid random checkout attempt")
+            order_id = "FOOD" + attempt_id.replace("-", "")
             order, amount = self.server.store.add_pending_order(
                 order_id=order_id, cart=cart,
                 verified_prices=load_sale_catalog(), shipping_yen=0,
                 location_id=os.environ["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
             )
+            previous_link = self.server.store.checkout_link_if_exists(order_id)
         except (ValueError, TypeError, KeyError):
             return self._respond(HTTPStatus.BAD_REQUEST, {"error": "invalid_cart"})
         try:
-            link = create_square_sandbox_payment_link(
-                order, token=os.environ["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"]
-            )
-            self.server.store.save_link(order_id, link)
+            if previous_link:
+                link = previous_link
+            else:
+                link = create_square_sandbox_payment_link(
+                    order, token=os.environ["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"]
+                )
+                self.server.store.save_link(order_id, link)
         except (SquareSandboxError, ValueError, OSError):
             # Keep the pending record; never silently authorize a second charge.
             return self._respond(HTTPStatus.BAD_GATEWAY, {"error": "square_sandbox_unavailable"})
