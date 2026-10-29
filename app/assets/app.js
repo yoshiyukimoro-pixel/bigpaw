@@ -67,3 +67,34 @@
   }
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',applyBigPawBrand):applyBigPawBrand();
 })();
+
+/* Keep the clicked puppy's already-rendered listing photo visible during detail navigation. */
+(function(){
+  'use strict';
+  // BIGPAW_PUPPY_FIRST_PHOTO_HANDOFF_V1
+  function rememberPhoto(event){
+    const node=event.target;
+    if(!node||typeof node.closest!=='function')return;
+    const card=node.closest('a[href*="puppy-detail.html"],.fresh-card[data-puppy-id]');
+    if(!card)return;
+    let id='';
+    try{
+      if(card.matches('a[href*="puppy-detail.html"]')){
+        const target=new URL(card.getAttribute('href'),location.href);
+        if(target.origin!==location.origin||!target.pathname.endsWith('/puppy-detail.html'))return;
+        id=target.searchParams.get('id')||'';
+      }else id=card.getAttribute('data-puppy-id')||'';
+    }catch(_e){return}
+    if(!id)return;
+    const img=card.querySelector('img');
+    const src=img&&(img.currentSrc||img.getAttribute('src'));
+    if(!src)return;
+    try{
+      const url=new URL(src,location.href);
+      if(!['http:','https:'].includes(url.protocol))return;
+      sessionStorage.setItem('bigpaw_puppy_first_photo_v1',JSON.stringify({id,src:url.href,at:Date.now()}));
+    }catch(_e){/* Navigation must continue if storage is disabled. */}
+  }
+  document.addEventListener('pointerdown',rememberPhoto,true);
+  document.addEventListener('click',rememberPhoto,true);
+})();

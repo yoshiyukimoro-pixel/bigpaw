@@ -172,8 +172,18 @@ if MARKER not in g:
 
     old_src = "    img.src=mediaUrl(urls[index],mobile?'card':'hero',mobile);"
     new_src = "    img.src=mediaUrl(urls[index],mobile?'card':'hero');"
-    assert g.count(old_src) == 1, ('mobile_media_src_count', g.count(old_src))
-    g = g.replace(old_src, new_src, 1)
+    handoff_src = "    const targetSrc=mediaUrl(urls[index],mobile?'card':'hero',mobile);"
+    handoff_fixed_src = "    const targetSrc=mediaUrl(urls[index],mobile?'card':'hero');"
+    # Keep the just-clicked photo visible until the sharpened image has loaded.
+    # Both the old direct img.src and the newer preload-and-swap renderer are supported.
+    if g.count(old_src) == 1:
+        g = g.replace(old_src, new_src, 1)
+    elif g.count(handoff_src) == 1:
+        g = g.replace(handoff_src, handoff_fixed_src, 1)
+    elif g.count(new_src) == 1 or g.count(handoff_fixed_src) == 1:
+        pass
+    else:
+        raise AssertionError(('mobile_media_src_marker_missing', g.count(old_src), g.count(handoff_src)))
 
     old_tail = "  show(0);\n  setTimeout(loadAllThumbs,40);\n"
     new_tail = """  show(0);

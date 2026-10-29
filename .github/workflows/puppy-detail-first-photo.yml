@@ -1,0 +1,70 @@
+name: Puppy detail first-photo safety gate
+on:
+  pull_request:
+    paths:
+      - "app/assets/app.js"
+      - "app/search.html"
+      - "app/puppy-detail.html"
+      - "app/assets/puppy-detail-stable-gallery.js"
+      - "app/backend/puppy_detail_perf_patch.py"
+      - "scripts/test-detail-first-photo.cjs"
+      - ".github/workflows/puppy-detail-first-photo.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  photo-entry-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and static regressions
+        run: |
+          set -euo pipefail
+          node --check app/assets/app.js
+          node --check app/assets/puppy-detail-stable-gallery.js
+          node --check scripts/test-detail-first-photo.cjs
+          python3 -m py_compile app/backend/puppy_detail_perf_patch.py
+          python3 - <<'PY'
+          from pathlib import Path
+          d=Path('app/puppy-detail.html').read_text(encoding='utf-8')
+          p=Path('app/backend/puppy_detail_perf_patch.py').read_text(encoding='utf-8')
+          j=Path('app/assets/app.js').read_text(encoding='utf-8')
+          g=Path('app/assets/puppy-detail-stable-gallery.js').read_text(encoding='utf-8')
+          assert '<div class="ph main" id="mainPhoto">🐩' not in d
+          assert 'bigpaw-detail-first-photo-init' in d
+          assert 'if(!mainPhoto.querySelector' in p
+          assert 'BIGPAW_PUPPY_FIRST_PHOTO_HANDOFF_V1' in j
+          assert 'stage.innerHTML=\'<div class="bpsg-empty">写真は準備中です</div>\'' in g
+          assert 'incoming.onload' in g
+          print('PUPPY_FIRST_PHOTO_STATIC_OK')
+          PY
+      - name: Build production-equivalent Docker image and run build-time safety gates
+        run: docker build --no-cache -t bigpaw-first-photo .
+      - name: Run existing core regression against built image
+        run: docker run --rm bigpaw-first-photo python3 backend/final_core_regression_test.py
+      - name: Start disposable application
+        run: |
+          set -euo pipefail
+          docker run -d --name bigpaw-first-photo-browser -p 18107:8080 \
+            -e PORT=8080 -e BIGPAW_ENV=development -e BIGPAW_DEV_LINKS=1 \
+            -e BIGPAW_DATA_DIR=/tmp/bigpaw-photo-smoke \
+            -e BIGPAW_AUTOMATION_INTERVAL_SECONDS=86400 \
+            bigpaw-first-photo python3 backend/server.py
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18107/api/health >/dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          docker logs bigpaw-first-photo-browser --tail 120
+          exit 1
+      - name: Chromium + iPhone WebKit end-to-end first paint and gallery regression
+        run: |
+          docker run --rm --network host -v "$PWD:/work" -w /work \
+            mcr.microsoft.com/playwright:v1.55.0-noble \
+            bash -lc 'set -e; npm install --no-save playwright@1.55.0 >/dev/null 2>&1; node scripts/test-detail-first-photo.cjs http://127.0.0.1:18107'
+      - name: Cleanup and diagnostics
+        if: always()
+        run: |
+          curl -fsS http://127.0.0.1:18107/api/health || true
+          docker logs bigpaw-first-photo-browser --tail 60 || true
+          docker rm -f bigpaw-first-photo-browser >/dev/null 2>&1 || true
