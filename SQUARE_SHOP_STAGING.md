@@ -104,3 +104,15 @@ Sandboxの秘密鍵がなければ決済ボタンは無効。iPhoneからこのU
 - 公開HTTPSの非本番Webhook受信環境、SquareへのWebhook URL登録と実通知テスト。
 - 返金・注文復旧、配送先取得・発送処理、注文通知メール・在庫管理の実装。
 - 最終回帰試験を完了し、利用者の明示的な許可を得るまで本番公開・マージ・本番課金は禁止。
+
+
+## 2026-10-29: 入金の二重検証・再試行の安全策
+
+- Squareが送ったWebhook通知は、署名だけでは注文を入金済みにしない。サーバーがSquare **Sandbox Payments APIを読み直し**、Payment ID、Square注文番号、店舗ID、JPY金額、COMPLETED状態をすべて一致確認してから入金済みへ変更する。
+- SquareのPayments APIの読取失敗、未完了、返金済み、金額不一致の場合は入金済みに変更せず、Squareに通知を再送してもらう。イベントIDによる重複処理防止も維持。
+- shop_payments/sandbox_reconcile.py はSandbox専用の読取処理。発送先に必要な情報があるかをSquareの注文APIで確認するが、氏名や住所をテストログへ出したり、公開APIへ返さない。
+- テスト画面のカートからは推測困難なUUIDv4の決済試行IDを生成して保持する。同じ内容で再試行した場合は前の注文IDとSquare決済URLを再利用し、通信失敗のたびに別注文を作成しない。商品・数量・価格が変わった状態での同じ試行ID利用は拒否。
+- scripts/test-shop-square-reconcile.py, scripts/test-shop-square-sandbox.py, scripts/test-shop-local-preview.py で偽のAPI応答と署名付きイベントを組み合わせ、未決済/二重送信/同じ注文の再試行を検証。
+- scripts/test-shop-square-browser.cjs はChromeとiPhone Safari相当のWebKitで、Sandboxボタンの無効・有効状態からSandboxドメインへの遷移までを**モック環境のみ**でテスト。外部決済や本番サイトへの通信なし。
+- Railwayを調査したところ既存BIG PAWプロジェクトの環境はproductionのみ。**別のstaging環境の作成・課金・デプロイは行っていない**。本物のSquare Sandboxへの接続には隔離されたHTTPSテスト環境が先に必要。
+- 開発用の仕様・テストは実装済みだが、Squareの実通信、実Webhook、配送先の発送画面、注文メール、運用上の返金フローは未完成。テスト通過と利用者の公開承認まではPRをDraftに保持する。
