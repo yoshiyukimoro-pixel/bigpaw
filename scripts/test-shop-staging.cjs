@@ -96,6 +96,8 @@ const server = http.createServer((req,res) => {
     assert.equal(await page.locator('#previewCheckout').isDisabled(),true,name+' no real checkout after adding');
     await page.locator('#previewCartContinue').click();
     await page.locator('.back').click();
+    await page.waitForURL('**/shop.html?brand=ACANA');
+    await page.locator('a.prod').first().waitFor({state:'visible'});
     assert.equal(await page.locator('a.prod').count(),14,name+' returns to matching ACANA brand');
     assert.match(page.url(),/brand=ACANA/,name+' brand preserved in URL');
     assert.equal(await page.locator('#previewCartCount').innerText(),'1',name+' session cart persists across pages');
