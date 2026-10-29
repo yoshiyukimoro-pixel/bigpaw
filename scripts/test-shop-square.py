@@ -29,6 +29,10 @@ class SquareSafety(unittest.TestCase):
         self.assertEqual(len(request["order"]["line_items"]), 3)
         self.assertEqual(request["order"]["line_items"][-1]["name"], "送料")
         self.assertTrue(request["checkout_options"]["ask_for_shipping_address"])
+        self.assertFalse(request["checkout_options"]["allow_tipping"])
+        self.assertEqual(request["order"]["taxes"][0]["type"], "INCLUSIVE")
+        self.assertEqual(request["order"]["taxes"][0]["scope"], "ORDER")
+        self.assertEqual(request["order"]["taxes"][0]["percentage"], "10")
         self.assertNotIn("quick_pay", request)
 
     def test_idempotent_per_persisted_order(self):
