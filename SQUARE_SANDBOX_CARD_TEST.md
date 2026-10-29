@@ -18,3 +18,9 @@ Square test source: `cnon:card-nonce-ok` is an official Sandbox test token. Endp
 - If Square declines to accept a Payments API charge against an order created by the Payment Links API, the test must fail safely with a generic diagnostic; do not silently fall back to testing a different order or claim the purchase path is verified.
 
 Test source: `scripts/smoke-shop-square-card-payment.py`, offline unit tests: `scripts/test-shop-square-card-smoke.py`, workflow: `.github/workflows/square-sandbox-smoke.yml`.
+
+## 2026-10-29 diagnostic update
+
+- Genuine opt-in hosted-checkout-linked CreatePayment probe: Actions run `40878952556` and `40879107227` did **not** succeed. Square link creation passed, direct Payments API against its draft checkout order was rejected at `create_payment`. **Do not report any payment as verified**.
+- Split out a **standalone Payments API** probe with the same fake-card token and JPY 21,450 but **no checkout order ID**. This separately tests the Square Sandbox token, permissions, supported currency and API endpoint. Even a success is not proof of the hosted checkout purchase journey or webhook delivery.
+- Source `scripts/smoke-shop-square-standalone-payment.py`; offline safety tests `scripts/test-shop-square-standalone-smoke.py`; branch-only opt-in job `square-sandbox-standalone-card-api`.
