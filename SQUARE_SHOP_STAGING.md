@@ -116,3 +116,16 @@ Sandboxの秘密鍵がなければ決済ボタンは無効。iPhoneからこのU
 - scripts/test-shop-square-browser.cjs はChromeとiPhone Safari相当のWebKitで、Sandboxボタンの無効・有効状態からSandboxドメインへの遷移までを**モック環境のみ**でテスト。外部決済や本番サイトへの通信なし。
 - Railwayを調査したところ既存BIG PAWプロジェクトの環境はproductionのみ。**別のstaging環境の作成・課金・デプロイは行っていない**。本物のSquare Sandboxへの接続には隔離されたHTTPSテスト環境が先に必要。
 - 開発用の仕様・テストは実装済みだが、Squareの実通信、実Webhook、配送先の発送画面、注文メール、運用上の返金フローは未完成。テスト通過と利用者の公開承認まではPRをDraftに保持する。
+
+## 2026-10-29: 日本の消費税と購入者向け状態表示
+
+- Square CreatePaymentLinkの注文情報に**10%の内税（INCLUSIVE）、ORDERスコープ**の税ルールを追加。税込の販売単価から消費税分を計上する方法で、税込・送料込みの合計金額を増やさない。Squareの日本向け計算規則に従う。
+- Squareのチップ（追加請求）はfalseに明示設定。
+- shop_payments/preview_checkout.js（localhostテスト専用）に、直近のテスト注文の入金状態を再確認するボタンを追加。Square決済ページから戻っただけでは「入金済み」と表示しない。
+- Sandboxからの署名付きWebhookとSquare Payments APIの再照会が完了した場合のみ、テスト注文を「決済確認済み」と表示。未決済は「確認待ち」。いずれも現金は動かないテスト環境であることを明示。
+- scripts/test-shop-square-browser.cjs: ChromeとiPhone WebKitでSandboxサイトへの遷移、戻り後の確認待ち・決済確認済み表示をモックサーバーで検証。
+- 実Square Sandbox接続、公開HTTPS環境、Webhook登録、送料込みの発送条件および返金・特商法表示の最終確認は未完。本番環境にはデプロイしていない。
+
+Square公式資料:
+- https://developer.squareup.com/docs/international-development/japan-order-calculation
+- https://developer.squareup.com/docs/checkout-api/optional-checkout-configurations
