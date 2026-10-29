@@ -9,6 +9,7 @@ on:
       - 'app/shop-cart-preview.js'
       - 'shop_payments/**'
       - 'scripts/test-shop-square.py'
+      - 'scripts/test-shop-square-sandbox.py'
       - 'scripts/test-shop-staging.py'
       - 'scripts/test-shop-staging.cjs'
       - '.github/workflows/shop-staging-check.yml'
@@ -26,7 +27,9 @@ jobs:
       - name: Assert catalog size and prevent checkout
         run: python3 scripts/test-shop-staging.py
       - name: Square Sandbox integration safety unit tests (offline only)
-        run: PYTHONPATH=. python3 scripts/test-shop-square.py
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-square.py
+          PYTHONPATH=. python3 scripts/test-shop-square-sandbox.py
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
