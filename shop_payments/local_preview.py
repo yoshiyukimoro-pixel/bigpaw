@@ -32,6 +32,7 @@ PUBLIC_FILES = {
     "/shop-order-review.js": ROOT / "app" / "shop-order-review.js",
     "/shop-order-review.css": ROOT / "app" / "shop-order-review.css",
     "/shop-sandbox-checkout.js": ROOT / "shop_payments" / "preview_checkout.js",
+    "/shop-sandbox-review.js": ROOT / "shop_payments" / "review_sandbox_checkout.js",
 }
 ASSET_PATH = re.compile(r"^/assets/(?:shop-products/[a-z0-9-]+|shop-details/(?:products/[AOZC][0-9]{2}|shared/(?:acana|orijen|ziwi|charm))/[a-z0-9-]+)\.webp$")
 ORDER_PATH = re.compile(r"^/api/shop/sandbox/order/(FOOD[A-Za-z0-9_-]{20,60})$")
@@ -140,7 +141,9 @@ class PreviewHandler(BaseHTTPRequestHandler):
             html = (ROOT / "app" / "shop.html").read_text(encoding="utf-8")
             # This injection exists ONLY in this local preview handler. It does not
             # alter the public shop.html or production deployment.
-            script = '<script src="shop-sandbox-checkout.js" defer></script>'
+            review_mode = urlsplit(self.path).query == "order=review"
+            script = ('<script src="shop-sandbox-review.js" defer></script>' if review_mode
+                      else '<script src="shop-sandbox-checkout.js" defer></script>')
             if script in html or "</body>" not in html:
                 return self._respond(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "unexpected_template"})
             html = html.replace("</body>", script + "\n</body>", 1)
