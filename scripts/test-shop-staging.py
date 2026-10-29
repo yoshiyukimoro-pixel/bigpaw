@@ -51,7 +51,8 @@ assert '"brand-card"' in shop and 'id="clearFilters"' in shop
 assert 'ACANA:[\'アカナドッグ\',\'ハイエストプロテイン\',\'シングル\']' in shop
 assert 'ZIWI:[\'エアドライ\',\'スチームドライ\']' in shop
 
-assert shop.count("<script>") == 1 and shop.count("</script>") == 2, "One inline catalog script and one external cart script"
+assert shop.count("<script>") == 1 and shop.count("</script>") == 4, "Catalog script plus cart and two detail image scripts"
+assert 'shop-detail-images.js' in shop and 'shop-detail-gallery.js' in shop and 'shop-detail-gallery.css' in shop
 script = shop.split("<script>", 1)[1].split("</script>", 1)[0]
 with tempfile.TemporaryDirectory() as tmp:
     p = Path(tmp) / "shop.js"
