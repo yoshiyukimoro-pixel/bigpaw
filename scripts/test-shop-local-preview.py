@@ -105,7 +105,9 @@ class TestIsolatedLocalPreview(unittest.TestCase):
             # No path traversal, keys, or actual credit card fields served.
             self.assertEqual(self._request(opener, base + "/.env")[0], 404)
             self.assertEqual(self._request(opener, base + "/shop_payments/retail_pricebook.json")[0], 404)
-            self.assertEqual(self._request(opener, base + "/assets/shop-details/products/A02/ingredients.webp")[0], 200)
+            with opener.open(base + "/assets/shop-details/products/A02/ingredients.webp") as image_response:
+                self.assertEqual(image_response.status, 200)
+                self.assertEqual(image_response.headers.get("Content-Type"), "image/webp")
 
     def test_forged_origin_and_browser_price_manipulation(self):
         with patch.dict(os.environ, FAKE_CREDS):
