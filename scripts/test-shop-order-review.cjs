@@ -71,7 +71,7 @@ const server = http.createServer((req,res) => {
           document.documentElement.scrollWidth - document.documentElement.clientWidth);
         assert(horizontal<=2,name+' has unwanted horizontal scrolling: '+horizontal);
         await page.evaluate(()=>sessionStorage.setItem('bigpaw_shop_preview_cart_v1',
-          JSON.stringify({A02:10,Z01:10,C03:10,O07:10,Z06:10,O06:10})));
+          JSON.stringify({A02:10,Z01:10,C03:10,O07:10,Z06:10,O06:10,O03:10})));
         await page.reload();
         assert.equal(await page.locator('#orderReviewLimit').isVisible(),true,
           'order limit must be enforced in review UI');
