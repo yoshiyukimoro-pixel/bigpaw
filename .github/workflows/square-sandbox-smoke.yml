@@ -5,15 +5,21 @@ on:
     branches:
       - feature/dogfood-shop-staging-20261028
   workflow_dispatch:
+    inputs:
+      run_sandbox_smoke:
+        description: "Create a test checkout link in Square Sandbox (no payment)"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   square-sandbox-smoke:
-    # No Square network calls on normal pushes. Opt-in only with [square-smoke]
-    # in the explicit triggering commit message, on the isolated feature branch.
-    if: contains(github.event.head_commit.message, '[square-smoke]') && github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028'
+    # No Square network calls on normal pushes. Opt-in only on the isolated feature branch:
+    # push requires the marker; manual dispatch requires the explicit checkbox.
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[square-smoke]')) || (github.event_name == 'workflow_dispatch' && inputs.run_sandbox_smoke == true))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
