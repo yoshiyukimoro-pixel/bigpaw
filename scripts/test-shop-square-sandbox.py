@@ -55,7 +55,7 @@ class TestSquareSandboxIntegration(unittest.TestCase):
 
     def link(self):
         return {
-            "url": "https://checkout.square.site/test-payment-page",
+            "url": "https://sandbox.square.link/u/test-payment-page",
             "square_order_id": "sq-order-test001",
             "square_link_id": "sq-link-test001",
         }
@@ -87,7 +87,7 @@ class TestSquareSandboxIntegration(unittest.TestCase):
             calls.append((req, timeout))
             return FakeResponse(json.dumps({"payment_link": {
                 "id": "sq-link-test001", "order_id": "sq-order-test001",
-                "long_url": "https://checkout.square.site/test-payment-page",
+                "long_url": "https://sandbox.square.link/u/test-payment-page",
             }}).encode())
         result = create_square_sandbox_payment_link(payload, token="FAKE_SANDBOX_TOKEN", opener=fake_open)
         self.assertEqual(result, self.link())
@@ -117,6 +117,16 @@ class TestSquareSandboxIntegration(unittest.TestCase):
             }}).encode())
         with self.assertRaises(SquareSandboxError):
             create_square_sandbox_payment_link(payload, token="fake", opener=malicious)
+
+    def test_production_checkout_url_refused_by_sandbox_adapter(self):
+        payload, _ = self.prepare()
+        def fake_live(_req, timeout):
+            return FakeResponse(json.dumps({"payment_link": {
+                "id": "sq-link-test001", "order_id": "sq-order-test001",
+                "url": "https://square.link/u/production-link",
+            }}).encode())
+        with self.assertRaises(SquareSandboxError):
+            create_square_sandbox_payment_link(payload, token="fake", opener=fake_live)
 
     def test_network_errors_cannot_mark_paid(self):
         payload, _ = self.prepare()
