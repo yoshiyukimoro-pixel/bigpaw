@@ -41,6 +41,7 @@ class TestSquareCardSmoke(unittest.TestCase):
             self.assertEqual(order_id,square_order)
             self.assertEqual(location_id,ENV["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"])
             self.assertGreaterEqual(len(idempotency_key),20)
+            self.assertLessEqual(len(idempotency_key),45)
             calls["payment"]+=1
             return {"id":payment_id}
         def read(payment_id_arg,*,token):
