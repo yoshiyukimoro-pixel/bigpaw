@@ -18,7 +18,7 @@ from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxErro
 from shop_payments.sandbox_fulfillment import SandboxFulfillmentOps
 from shop_payments.sandbox_procurement import SandboxProcurementOps
 from shop_payments.sandbox_notifications import SandboxNotificationDrafts
-from shop_payments.sandbox_operator_email import SandboxOperatorEmail, send_resend, SafeMailError
+from shop_payments.sandbox_operator_email import SandboxOperatorEmail, send_resend, SafeMailError, read_resend_delivery
 
 ORDER_ID = re.compile(r"^FOOD[0-9a-f]{32}$")
 
@@ -88,7 +88,7 @@ def _queue(db:Path) -> list[dict]:
         connection.close()
 
 
-def execute(args,*,env=None,opener=None,mail_sender=None):
+def execute(args,*,env=None,opener=None,mail_sender=None,mail_reader=None):
     env=os.environ if env is None else env
     db=_validated_db(args.db)
     store=SandboxOrderStore(db)
@@ -107,6 +107,14 @@ def execute(args,*,env=None,opener=None,mail_sender=None):
         return {"sandbox":True,"notifications":drafts.pending()}
     if args.action=="notification-email-history":
         return {"sandbox":True,"email_attempts":mail.history()}
+    if args.action=="notification-email-check":
+        if not ORDER_ID.fullmatch(args.order_id):raise ValueError("Invalid order ID")
+        result=mail.refresh_delivery(
+            args.order_id,
+            api_key=str(env.get("RESEND_API_KEY","")).strip(),
+            reader=mail_reader if mail_reader is not None else read_resend_delivery,
+        )
+        return {"sandbox":True,**result}
     if args.action=="notification-preview":
         if not ORDER_ID.fullmatch(args.order_id): raise ValueError("Invalid order ID")
         return {"sandbox":True,"notification":drafts.preview(args.order_id,args.kind)}
@@ -197,6 +205,8 @@ def parser():
     cmds.add_parser("notification-email-history")
     send=cmds.add_parser("notification-send-operator")
     send.add_argument("order_id")
+    check=cmds.add_parser("notification-email-check")
+    check.add_argument("order_id")
     preview=cmds.add_parser("notification-preview")
     preview.add_argument("order_id")
     preview.add_argument("kind")
