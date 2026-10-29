@@ -13,6 +13,7 @@ on:
       - 'scripts/test-shop-retail-pricebook.py'
       - 'scripts/test-shop-local-preview.py'
       - 'scripts/test-shop-square-reconcile.py'
+      - 'scripts/test-shop-sandbox-fulfillment.py'
       - 'scripts/smoke-shop-square-sandbox.py'
       - 'scripts/test-shop-square-smoke.py'
       - 'scripts/test-shop-staging.py'
@@ -40,6 +41,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-retail-pricebook.py
           PYTHONPATH=. python3 scripts/test-shop-local-preview.py
           PYTHONPATH=. python3 scripts/test-shop-square-reconcile.py
+          PYTHONPATH=. python3 scripts/test-shop-sandbox-fulfillment.py
           PYTHONPATH=. python3 scripts/test-shop-square-smoke.py
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
