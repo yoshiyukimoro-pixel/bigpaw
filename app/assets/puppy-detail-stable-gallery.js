@@ -42,7 +42,7 @@ function installStyle(){
 #bigpawStableGallery .bpsg-prev{left:9px}#bigpawStableGallery .bpsg-next{right:9px}
 #bigpawStableGallery .bpsg-count{position:absolute;z-index:4;right:12px;bottom:12px;padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.9);color:#5d4854;font-size:13px;font-weight:800}
 #bigpawStableGallery .bpsg-status{position:absolute;z-index:3;left:50%;bottom:12px;transform:translateX(-50%);display:none;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.93);color:#7a6570;font-weight:800;font-size:12px;white-space:nowrap}
-#bigpawStableGallery .bpsg-empty{display:grid;place-items:center;width:100%;height:100%;font-size:74px}
+#bigpawStableGallery .bpsg-empty{display:grid;place-items:center;width:100%;height:100%;font-size:16px;color:#85727c;font-weight:700}
 #bigpawStableGallery .bpsg-thumbs{display:flex;gap:10px;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;padding:12px 2px 9px;margin:0 auto;width:min(100%,680px);scroll-snap-type:x proximity}
 #bigpawStableGallery .bpsg-thumb{position:relative;flex:0 0 76px;width:76px;height:76px;padding:0;border:3px solid transparent;border-radius:5px;overflow:hidden;background:#f3e8ed;-webkit-tap-highlight-color:transparent;scroll-snap-align:center}
 #bigpawStableGallery .bpsg-thumb.active{border-color:#ef7fa8;box-shadow:0 0 0 1px #ef7fa8}
@@ -71,9 +71,11 @@ async function init(){
   const urls=collectUrls(p||{});
   const root=document.createElement('section');root.id='bigpawStableGallery';root.setAttribute('aria-label','子犬の写真');
   const stage=document.createElement('div');stage.className='bpsg-stage';
-  if(!urls.length){stage.innerHTML='<div class="bpsg-empty">🐩</div>';root.appendChild(stage);old.replaceWith(root);return}
+  if(!urls.length){stage.innerHTML='<div class="bpsg-empty">写真は準備中です</div>';root.appendChild(stage);old.replaceWith(root);return}
 
-  const img=document.createElement('img');img.alt=(p&&p.breed?p.breed:'子犬')+'の写真';img.loading='eager';
+  const entryImage=old&&old.querySelector('#mainPhoto img');
+  const entrySrc=entryImage&&entryImage.src||'';
+  const img=document.createElement('img');img.alt=(p&&p.breed?p.breed:'子犬')+'の写真';img.loading='eager';if(entrySrc)img.src=entrySrc;
   const status=document.createElement('div');status.className='bpsg-status';status.textContent='写真を読み込めませんでした';
   const prev=document.createElement('button');prev.type='button';prev.className='bpsg-arrow bpsg-prev';prev.setAttribute('aria-label','前の写真');prev.textContent='‹';
   const next=document.createElement('button');next.type='button';next.className='bpsg-arrow bpsg-next';next.setAttribute('aria-label','次の写真');next.textContent='›';
@@ -120,7 +122,14 @@ async function init(){
       status.style.display='block'
     };
     const mobile=window.matchMedia&&window.matchMedia('(max-width:700px)').matches;
-    img.src=mediaUrl(urls[index],mobile?'card':'hero',mobile);
+    const targetSrc=mediaUrl(urls[index],mobile?'card':'hero',mobile);
+    if(index===0&&entrySrc&&img.src===entrySrc&&targetSrc!==entrySrc){
+      // Keep the same puppy visible until its sharper hero image has loaded.
+      const incoming=new Image();
+      incoming.onload=()=>{if(token===loadToken)img.src=targetSrc};
+      incoming.onerror=()=>{if(token===loadToken)status.style.display='none'};
+      incoming.src=targetSrc;
+    }else img.src=targetSrc;
     loadThumb(index,0);
   }
   prev.onclick=e=>{e.preventDefault();e.stopPropagation();show(index-1)};
