@@ -15,6 +15,11 @@ const server=http.createServer((req,res)=>{
   catch(_){res.writeHead(400).end();return;}
   if(pathname.startsWith('/assets/shop-details/')){
     requests++;
+    const installed=path.join(ROOT,pathname.slice(1));
+    if(fs.existsSync(installed)){
+      res.writeHead(200,{'Content-Type':'image/webp','Cache-Control':'max-age=3600'});
+      res.end(fs.readFileSync(installed));return;
+    }
     res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'max-age=3600'});
     res.end(png);return;
   }
