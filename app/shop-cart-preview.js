@@ -1,4 +1,4 @@
-/* BIG PAW preview-only cart: does NOT create orders, contact any backend, or process payments. */
+/* BIG PAW preview-only cart: retail prices include tax and shipping; does NOT create orders, contact any backend, or process payments. */
 'use strict';
 (function () {
   const STORAGE_KEY = 'bigpaw_shop_preview_cart_v1';
@@ -50,7 +50,7 @@
       return '<div class="cart-row" data-cart-id="' + esc(p.id) + '">' +
         '<img src="assets/shop-products/' + encodeURIComponent(p.slug) + '.webp" alt="" onerror="this.hidden=true">' +
         '<div><div class="cart-row-title">' + esc(p.brand + ' ' + p.name) + '</div>' +
-        '<div class="cart-row-info">' + esc(p.weight) + ' / 希望小売価格参考（税込）' + yen(price(p)) + '</div>' +
+        '<div class="cart-row-info">' + esc(p.weight) + ' / 販売価格（税込・送料込み）' + yen(price(p)) + '</div>' +
         '<div class="cart-row-tools"><button type="button" data-action="minus" aria-label="' + esc(p.name) + 'を1点減らす">−</button>' +
         '<span class="cart-quantity">' + qty + '</span>' +
         '<button type="button" data-action="plus" aria-label="' + esc(p.name) + 'を1点増やす" ' + (qty >= MAX_PER_ITEM ? 'disabled' : '') + '>＋</button>' +
