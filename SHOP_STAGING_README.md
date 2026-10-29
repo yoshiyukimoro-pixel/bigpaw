@@ -68,3 +68,13 @@ ZIWI エアドライ ベニソン 2.5kg と エアドライ トライプ＆ラ�
 - 画像確認プレビューの相対参照の誤りもローカルパック内で修正（`../app/assets/`）。
 - **現時点のGitHubブランチには98枚のバイナリ本体は未登録。** GitHubコネクタはテキスト更新・バイナリBlob APIはできるが、今のコンテナ内ZIPのバイト列を直接渡す機能がなく、自動登録できない。正しい画像ZIP自体はチャットで引き渡し可能。
 - **Draft PR #175を維持。本番mainとRailway、本番Square決済は変更しない。**
+
+## 2026-10-29 画像98枚のGitHub登録完了（最新状態）
+
+- **完了**：商品パッケージ画像35枚を `app/assets/shop-products/`、詳細画像63枚を `app/assets/shop-details/` に、ブランチ `feature/dogfood-shop-staging-20261028` で登録。
+- イメージ登録コミット：`1d866c915ef534403b9c35ef23635ae0ee4d0be9`。
+- GitHub git-tree APIで98ファイルの存在、35＋63分類、ZIPとのパス一致、余剰/欠落0を検証した。
+- 転送は非公開の一時Google Driveフォルダを経由してGitHubのBlob APIへ行った。Square Secrets・価格表・本番環境の変更なし。
+- 前節までにある「画像実体は未登録」という記録は作業当時の履歴であり、**この節の完了状況が最新**。
+- 実画像を含むCI・Chromium/WebKitの結果はコミットのGitHub Actionsランを参照。iPhone物理端末での操作試験とは別。
+- 本番公開禁止は継続（PR Draft・mainマージなし・Railway本番デプロイなし）。
