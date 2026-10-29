@@ -25,6 +25,8 @@ on:
       - 'scripts/smoke-shop-square-sandbox.py'
       - 'scripts/test-shop-square-smoke.py'
       - 'scripts/test-shop-square-card-smoke.py'
+      - 'scripts/smoke-shop-square-standalone-payment.py'
+      - 'scripts/test-shop-square-standalone-smoke.py'
       - 'scripts/smoke-shop-square-card-payment.py'
       - 'scripts/test-shop-staging.py'
       - 'scripts/test-shop-staging.cjs'
@@ -67,6 +69,7 @@ jobs:
           node scripts/test-shop-detail-images.cjs
           PYTHONPATH=. python3 scripts/test-shop-square-smoke.py
           PYTHONPATH=. python3 scripts/test-shop-square-card-smoke.py
+          PYTHONPATH=. python3 scripts/test-shop-square-standalone-smoke.py
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
