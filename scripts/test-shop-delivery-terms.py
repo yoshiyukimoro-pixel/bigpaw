@@ -9,8 +9,8 @@ REVIEW=Path("app/shop-order-review.js").read_text(encoding="utf-8")
 
 class DeliveryTermsTests(unittest.TestCase):
     def test_shop_catalog_product_detail_cart_are_informed(self):
-        self.assertEqual(SHOP.count("4〜7日程度"),3,
-                         "catalog listing, each product detail template and cart")
+        self.assertEqual(SHOP.count("4〜7日程度"),4,
+                         "catalog listing, detail specification and notice, and cart")
         self.assertIn("九州の仕入先",SHOP)
         self.assertIn("当店（埼玉）",SHOP)
         self.assertIn("当店へ入荷後、検品",SHOP)
