@@ -17,7 +17,14 @@ assert.equal(state.shipping_yen,0);
 
 async function clickNamed(page,label){
   const button=page.getByRole('button',{name:label,exact:true});
-  if(await button.count()){await button.first().click();return;}
+  if(await button.count()){
+    // The final "Test Payment" button can share its label with a stepper.
+    // Prefer the last visible action, not the earlier progress indicator.
+    const count=await button.count();
+    console.log('SQUARE_SANDBOX_PANEL_CONTROL_'+label.replace(/ /g,'_')+'_COUNT='+count);
+    await button.last().click();
+    return;
+  }
   const link=page.getByRole('link',{name:label,exact:true});
   if(await link.count()){await link.first().click();return;}
   const input=page.locator('input[type=submit]');
@@ -34,6 +41,7 @@ async function clickNamed(page,label){
   const browser=await chromium.launch({headless:true});
   try{
     const page=await browser.newPage({viewport:{width:1280,height:900}});
+    page.on('dialog',dialog=>dialog.accept().catch(()=>{}));
     stage='navigate';
     await page.goto(link.href,{waitUntil:'domcontentloaded',timeout:45000});
     await page.waitForLoadState('networkidle',{timeout:10000}).catch(()=>{});
