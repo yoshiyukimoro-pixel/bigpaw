@@ -46,6 +46,8 @@ def create_fake_card_payment(
         raise SquareSandboxError("Sandbox link endpoint is not pinned")
     if not location_id or not token or not idempotency_key or (order_id is not None and not order_id):
         raise SquareSandboxError("Missing sandbox payment parameters")
+    if not isinstance(idempotency_key,str) or len(idempotency_key) > 45:
+        raise SquareSandboxError("Square Payments API idempotency key length invalid")
     body = {
         "idempotency_key": idempotency_key,
         "source_id": _ALLOWED_SOURCE,
