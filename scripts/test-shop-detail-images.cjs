@@ -44,6 +44,17 @@ assert.deepEqual(Object.fromEntries(Object.entries(expected).map(([brand])=>
   [brand,rows.filter(row=>row[1]===brand).length])),expected);
 assert.equal(paths.size,63,'expect 63 unique manufacturer source images');
 assert.equal(refs,163,'expect exact approved gallery references per product');
+const installed=[...paths].filter(src=>fs.existsSync('app/'+src));
+assert([0,63].includes(installed.length),
+  'Partial detail image upload: all 63 files must be present together');
+if(installed.length===63){
+  for(const src of installed){
+    const file=fs.readFileSync('app/'+src);
+    assert.equal(file.subarray(0,4).toString(),'RIFF',src+' invalid WebP');
+    assert.equal(file.subarray(8,12).toString(),'WEBP',src+' invalid WebP');
+  }
+  console.log('SHOP_DETAIL_ASSETS_PRESENT|sources=63|format=WebP');
+}else console.log('SHOP_DETAIL_ASSETS_PENDING|sources=63|github=not_uploaded');
 assert(mapping.A09.some(im=>im.src.endsWith('/A09/special-1.webp')));
 assert(mapping.A12.some(im=>im.src.endsWith('/A12/special-1.webp')));
 assert(mapping.Z06.some(im=>im.src.includes('air-chicken-9312.webp')));
