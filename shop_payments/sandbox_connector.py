@@ -176,53 +176,95 @@ class SandboxOrderStore:
 
     def accept_webhook(
         self, *, raw_body: bytes, signature_header: str,
-        signature_key: str, notification_url: str
+        signature_key: str, notification_url: str, payment_lookup=None
     ) -> str:
-        """Verify signature and atomically mark only exact confirmed payments as paid.
+        """A signed event is only a hint; verify current Square payment via API.
 
-        Returns 'paid', 'duplicate', 'ignored' or 'unmatched'.
-        Upstream API should return HTTP 2xx for syntactically valid but irrelevant
-        events, and HTTP 403 for invalid signatures.
+        payment_lookup is a server-side callback to GET /v2/payments/{id}.
+        Without an API confirmation the order MUST remain unpaid. Never call
+        Square over the network while holding a SQLite transaction lock.
+
+        Results: 'paid', 'duplicate', 'ignored', 'unmatched', 'unverified'.
         """
         event = verify_square_webhook(
             raw_body=raw_body, signature_header=signature_header,
             signature_key=signature_key, notification_url=notification_url,
         )
         event_id = event["event_id"]
-        if len(event_id) > 200 or not event_id:
-            raise ValueError("invalid event ID")
+        if not event_id or len(event_id) > 200:
+            raise ValueError("Invalid Square event ID")
         pay = event.get("data", {}).get("object", {}).get("payment", {})
         if not isinstance(pay, dict) or not isinstance(pay.get("order_id"), str):
             return "ignored"
         with closing(self._open()) as conn:
+            if conn.execute(
+                "SELECT 1 FROM square_events WHERE event_id=?", (event_id,)
+            ).fetchone():
+                return "duplicate"
+            row = conn.execute(
+                "SELECT * FROM orders WHERE square_order_id=?", (pay["order_id"],)
+            ).fetchone()
+        if not row:
+            # Link persistence and the incoming event can race. Ask Square to retry.
+            return "unmatched"
+        if not completed_payment_matches(
+            event, square_order_id=row["square_order_id"],
+            amount_yen=row["amount_yen"], location_id=row["square_location_id"],
+        ):
+            return "ignored"
+        payment_id = pay.get("id")
+        if payment_lookup is None or not isinstance(payment_id, str):
+            return "unverified"
+        if not re.fullmatch(r"[A-Za-z0-9_-]{8,192}", payment_id):
+            return "unverified"
+        # Never trust a webhook alone; a fresh API read must confirm the same
+        # payment, amount, currency, location, order and COMPLETED status.
+        current = payment_lookup(payment_id)
+        if not isinstance(current, dict) or current.get("id") != payment_id:
+            return "unverified"
+        fresh = {"type": "payment.updated", "data": {"object": {"payment": current}}}
+        if not completed_payment_matches(
+            fresh, square_order_id=row["square_order_id"],
+            amount_yen=row["amount_yen"], location_id=row["square_location_id"],
+        ):
+            return "unverified"
+        # Do not mark paid when Square reports a fully/partially refunded payment.
+        refund = current.get("refunded_money", {})
+        if isinstance(refund, dict) and isinstance(refund.get("amount"), int) and refund["amount"] > 0:
+            return "unverified"
+        with closing(self._open()) as conn:
             try:
                 conn.execute("BEGIN IMMEDIATE")
-                if conn.execute("SELECT 1 FROM square_events WHERE event_id=?", (event_id,)).fetchone():
+                if conn.execute(
+                    "SELECT 1 FROM square_events WHERE event_id=?", (event_id,)
+                ).fetchone():
                     conn.execute("COMMIT")
                     return "duplicate"
-                row = conn.execute(
+                latest = conn.execute(
                     "SELECT * FROM orders WHERE square_order_id=?", (pay["order_id"],)
                 ).fetchone()
-                if not row:
-                    # Do not remember unknown events; Square can retry while the
-                    # initial Square link is still being attached.
-                    conn.execute("COMMIT")
-                    return "unmatched"
-                if not completed_payment_matches(
-                    event, square_order_id=row["square_order_id"],
-                    amount_yen=row["amount_yen"], location_id=row["square_location_id"],
+                if not latest or (
+                    latest["amount_yen"] != row["amount_yen"]
+                    or latest["square_location_id"] != row["square_location_id"]
+                    or latest["square_order_id"] != row["square_order_id"]
                 ):
                     conn.execute("COMMIT")
-                    return "ignored"
-                conn.execute("INSERT INTO square_events(event_id,received_at) VALUES (?,?)",
-                             (event_id, int(time.time())))
-                if row["state"] == "payment_pending":
-                    conn.execute("""
-                        UPDATE orders SET state='paid',paid_at=?
-                        WHERE order_id=? AND state='payment_pending'
-                    """, (int(time.time()), row["order_id"]))
+                    return "unverified"
+                if latest["state"] not in ("payment_pending", "paid"):
+                    conn.execute("COMMIT")
+                    return "unverified"
+                conn.execute(
+                    "INSERT INTO square_events(event_id,received_at) VALUES (?,?)",
+                    (event_id, int(time.time())),
+                )
+                if latest["state"] == "payment_pending":
+                    conn.execute(
+                        "UPDATE orders SET state='paid',paid_at=? "
+                        "WHERE order_id=? AND state='payment_pending'",
+                        (int(time.time()), latest["order_id"]),
+                    )
                 conn.execute("COMMIT")
-                return "paid" if row["state"] == "payment_pending" else "duplicate"
+                return "paid" if latest["state"] == "payment_pending" else "duplicate"
             except Exception:
                 conn.execute("ROLLBACK")
                 raise
