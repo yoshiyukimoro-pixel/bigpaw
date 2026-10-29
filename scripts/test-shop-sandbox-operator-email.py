@@ -12,7 +12,7 @@ from shop_payments.retail_catalog import load_sale_catalog
 from shop_payments.sandbox_connector import SandboxOrderStore
 from shop_payments.sandbox_notifications import SandboxNotificationDrafts
 from shop_payments.sandbox_operator_email import (
-    SandboxOperatorEmail,send_resend,SafeMailError,
+    SandboxOperatorEmail,send_resend,read_resend_delivery,SafeMailError,
 )
 
 spec=importlib.util.spec_from_file_location(
@@ -143,6 +143,49 @@ class OperatorMailTests(unittest.TestCase):
         self.assertFalse(result["new_send"])
         self.assertEqual(len(attempts),1)
         self.assertEqual(self.sent,[])
+
+    def test_provider_delivered_status_is_read_only_and_not_inbox_opened(self):
+        self.paid_order(paid=True)
+        self.operator(["notification-send-operator",ORDER],
+                      confirm=True,enabled=True)
+        calls=[]
+        def provider(*,api_key,provider_id):
+            calls.append(provider_id)
+            self.assertEqual(api_key,"fake-staging-key")
+            return "delivered"
+        result=self.mail.refresh_delivery(
+            ORDER,api_key="fake-staging-key",reader=provider)
+        self.assertTrue(result["delivered_to_mail_server"])
+        self.assertFalse(result["opened_in_mailbox_confirmed"])
+        self.assertEqual(result["recipient"],"info@bigpaw.site")
+        self.assertEqual(self.mail.history()[0]["last_event"],"delivered")
+        self.assertEqual(len(self.sent),1,"polling never resends an email")
+        read=self.operator(["notification-email-check",ORDER],
+                           mail_reader=provider)
+        self.assertEqual(read["provider_event"],"delivered")
+        self.assertEqual(len(calls),2)
+        self.assertEqual(len(self.sent),1)
+
+    def test_resend_delivery_lookup_rejects_wrong_recipient(self):
+        def opener(req,timeout):
+            self.assertEqual(req.get_method(),"GET")
+            self.assertEqual(req.full_url,
+                             "https://api.resend.com/emails/mock-resend-mail-123456")
+            class Wrong:
+                status=200
+                def __enter__(self):return self
+                def __exit__(self,*args):pass
+                def read(self,n):
+                    return json.dumps({
+                        "id":"mock-resend-mail-123456",
+                        "to":["other@example.com"],
+                        "last_event":"delivered"}).encode()
+            return Wrong()
+        with self.assertRaises(SafeMailError):
+            read_resend_delivery(
+                api_key="fake",provider_id="mock-resend-mail-123456",
+                opener=opener)
+        self.assertEqual(self.mail.history(),[])
 
     def test_resend_transport_sends_only_fixed_target_with_idempotency(self):
         requests=[]
