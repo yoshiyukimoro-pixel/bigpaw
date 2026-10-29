@@ -108,6 +108,8 @@ class TestSquareSandboxIntegration(unittest.TestCase):
         body = json.loads(request.data)
         self.assertEqual(body["order"]["line_items"][-1]["name"], "送料")
         self.assertEqual(body["order"]["line_items"][-1]["base_price_money"]["amount"], 900)
+        self.assertEqual(body["order"]["taxes"][0]["type"], "INCLUSIVE")
+        self.assertEqual(body["order"]["taxes"][0]["scope"], "ORDER")
 
     def test_no_token_no_request_and_no_url_injection(self):
         payload, _ = self.prepare()
