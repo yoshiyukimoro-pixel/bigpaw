@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from contextlib import closing
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -97,7 +98,7 @@ class SandboxOrderStore:
         return conn
 
     def _init_db(self):
-        with self._open() as conn:
+        with closing(self._open()) as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS orders (
                   order_id TEXT PRIMARY KEY,
@@ -128,7 +129,7 @@ class SandboxOrderStore:
             local_order_id=order_id, shipping_confirmed=True,
         )
         line_snapshot = json.dumps(payload["order"]["line_items"], ensure_ascii=False, sort_keys=True)
-        with self._open() as conn:
+        with closing(self._open()) as conn:
             try:
                 conn.execute("BEGIN IMMEDIATE")
                 conn.execute("""
@@ -148,7 +149,7 @@ class SandboxOrderStore:
             raise ValueError("unsafe checkout URL")
         if not all(isinstance(link.get(k), str) and link[k] for k in ("square_order_id", "square_link_id")):
             raise ValueError("invalid Square reference")
-        with self._open() as conn:
+        with closing(self._open()) as conn:
             try:
                 conn.execute("BEGIN IMMEDIATE")
                 row = conn.execute("SELECT * FROM orders WHERE order_id=?", (order_id,)).fetchone()
@@ -193,7 +194,7 @@ class SandboxOrderStore:
         pay = event.get("data", {}).get("object", {}).get("payment", {})
         if not isinstance(pay, dict) or not isinstance(pay.get("order_id"), str):
             return "ignored"
-        with self._open() as conn:
+        with closing(self._open()) as conn:
             try:
                 conn.execute("BEGIN IMMEDIATE")
                 if conn.execute("SELECT 1 FROM square_events WHERE event_id=?", (event_id,)).fetchone():
@@ -228,6 +229,6 @@ class SandboxOrderStore:
 
     def status(self, order_id: str) -> str:
         """Internal use only; do not expose public order status without authorization."""
-        with self._open() as conn:
+        with closing(self._open()) as conn:
             row = conn.execute("SELECT state FROM orders WHERE order_id=?", (order_id,)).fetchone()
         return row["state"] if row else "not_found"
