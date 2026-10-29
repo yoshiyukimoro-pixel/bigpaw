@@ -17,6 +17,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import sys
@@ -70,9 +71,21 @@ def create_fake_card_payment(
             if getattr(response, "status", 200) not in (200, 201):
                 raise SquareSandboxError("Sandbox payment API status unexpected")
             data = json.loads(response.read(262144))
-    except (HTTPError, URLError, OSError, ValueError, TimeoutError):
-        # HTTP error bodies can contain sensitive data. Never print them.
-        raise SquareSandboxError("Square Sandbox CreatePayment rejected this checkout order") from None
+    except HTTPError as exc:
+        # Only print a sanitized provider error CODE. Never print response
+        # messages, tokens, order IDs, request headers or any payload body.
+        code = "UNKNOWN"
+        try:
+            detail = json.loads(exc.read(4096))
+            candidate = detail.get("errors", [{}])[0].get("code", "")
+            if isinstance(candidate, str) and re.fullmatch(r"[A-Z_]{3,64}", candidate):
+                code = candidate
+        except (ValueError, TypeError, KeyError, IndexError):
+            pass
+        print("SQUARE_SANDBOX_PAYMENTS_HTTP_STATUS=%d CODE=%s" % (exc.code, code))
+        raise SquareSandboxError("Square Sandbox CreatePayment HTTP error") from None
+    except (URLError, OSError, ValueError, TimeoutError):
+        raise SquareSandboxError("Square Sandbox CreatePayment connection unavailable") from None
     payment = data.get("payment") if isinstance(data, dict) else None
     if not isinstance(payment, dict) or not isinstance(payment.get("id"), str):
         raise SquareSandboxError("Square Sandbox did not return payment ID")
