@@ -1,4 +1,4 @@
-name: BIG PAW food shop owner email once-only Sandbox test
+name: BIG PAW food shop owner mail READ-ONLY delivery audit
 
 on:
   push:
@@ -8,26 +8,21 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: bigpaw-food-info-owner-mail-once
-  cancel-in-progress: false
-
 jobs:
-  single-test-mail:
-    # Never sends on normal pushes or from main.
-    # Only one explicitly tagged commit may trigger this one-time test.
-    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && github.event_name == 'push' && contains(github.event.head_commit.message, '[shop-operator-mail-smoke]')
+  audit-only:
+    # The one permitted one-time send was attempted on 2026-10-29 UTC.
+    # Its result was ambiguous. This workflow is PERMANENTLY read-only:
+    # it never runs the original send script, even on rerun.
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && github.event_name == 'push' && contains(github.event.head_commit.message, '[shop-operator-mail-audit]')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Verify fixed destination and no-real-order safety gates (offline)
+      - name: Verify read-only mail audit makes no POST (offline)
         run: |
-          PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-email.py
+          PYTHONPATH=. python3 scripts/test-shop-operator-resend-audit.py
           PYTHONPATH=. python3 scripts/test-shop-operator-resend-once.py
-          PYTHONPATH=. python3 scripts/test-shop-sandbox-notifications.py
-      - name: Send ONE clearly labeled Sandbox test email only to info@bigpaw.site
+      - name: Read Resend sent-event and API log status (NEVER resend)
         env:
           RESEND_API_KEY: \${{ secrets.RESEND_API_KEY }}
-          BIGPAW_FOOD_MAIL_ONE_TIME: '1'
-        run: PYTHONPATH=. python3 scripts/smoke-shop-operator-resend-once.py --confirm-once
+        run: PYTHONPATH=. python3 scripts/audit-shop-operator-resend-attempt.py
