@@ -30,3 +30,11 @@ Test source: `scripts/smoke-shop-square-card-payment.py`, offline unit tests: `s
 - Direct Sandbox Payments API diagnostic exposed HTTP 400, sanitized code `VALUE_TOO_LONG`. The payment `idempotency_key` exceeded the **45 character** limit in Square's CreatePayment reference. This explains the earlier linked and standalone API rejections; it was our test request, not confirmed card availability.
 - Fixed both test-only payment paths to use random/hash-derived keys shorter than 45 characters and added regression assertions + fail-closed API validation.
 - Re-run BOTH opt-in checks independently (standalone fake card and attempted linked checkout order) before claiming a successful API payment. Real Square-hosted checkout page entry and public webhook delivery remain separate tests regardless.
+
+## 2026-10-29: hosted Checkout panel end-to-end validation
+
+- `40880609514`: Standalone Square Sandbox CreatePayment with Square's test nonce returned `COMPLETED` for JPY 21,450 and a fresh independent Payments API GET matched the amount and location. **Fake money, genuine Sandbox API.**
+- Linking the Payments API directly to a Payment Links-created `DRAFT` order returned `BAD_REQUEST`; this is **not** the supported hosted checkout simulation.
+- Therefore use the official Square Checkout Sandbox Testing Panel: create a real Sandbox link, click Next → Test Payment, then fetch the original Square order and corresponding payment from the Square APIs, and verify the exact local order snapshot.
+- A hosted panel success proves the simulated Square checkout path, not public HTTPS webhook delivery or iPhone physical-device checkout. The local order journal is exercised only using an *artificial signed event*, verified by a live fresh Square API lookup.
+- Scripts `scripts/smoke-shop-square-hosted-panel.py`, `scripts/smoke-shop-square-hosted-panel.cjs`; opt-in feature-branch-only action `square-sandbox-hosted-panel`.
