@@ -66,6 +66,7 @@ class TestSquareSandboxIntegration(unittest.TestCase):
             "event_id": event_id, "type": event_type,
             "data": {"object": {"payment": {
                 "status": status,
+                "id": "PAYMENTTEST001",
                 "order_id": square_order_id,
                 "location_id": location or self.location_id,
                 "amount_money": {"amount": amount, "currency": currency},
@@ -77,6 +78,12 @@ class TestSquareSandboxIntegration(unittest.TestCase):
             hmac.new(key.encode(), url.encode()+body, hashlib.sha256).digest()
         ).decode()
         return dict(raw_body=body, signature_header=signature, signature_key=key, notification_url=url)
+
+    def confirmed_payment(self, payment_id):
+        self.assertEqual(payment_id, "PAYMENTTEST001")
+        return {"id": payment_id, "status": "COMPLETED",
+                "order_id": "sq-order-test001", "location_id": self.location_id,
+                "amount_money": {"amount": 85900, "currency": "JPY"}}
 
     def test_sandbox_link_transport_never_uses_production(self):
         payload, amount = self.prepare()
@@ -144,9 +151,9 @@ class TestSquareSandboxIntegration(unittest.TestCase):
         self.db.save_link(self.order_id, self.link())
         self.db.save_link(self.order_id, self.link())
         self.assertEqual(self.db.status(self.order_id), "payment_pending")
-        self.assertEqual(self.db.accept_webhook(**self.sign()), "paid")
+        self.assertEqual(self.db.accept_webhook(**self.sign(), payment_lookup=self.confirmed_payment), "paid")
         self.assertEqual(self.db.status(self.order_id), "paid")
-        self.assertEqual(self.db.accept_webhook(**self.sign()), "duplicate")
+        self.assertEqual(self.db.accept_webhook(**self.sign(), payment_lookup=self.confirmed_payment), "duplicate")
         with self.assertRaises(ValueError):
             self.db.save_link(self.order_id, self.link())
 
@@ -163,9 +170,26 @@ class TestSquareSandboxIntegration(unittest.TestCase):
         ]
         for item in cases:
             with self.subTest(item=item):
-                status = self.db.accept_webhook(**self.sign(**item))
+                status = self.db.accept_webhook(**self.sign(**item), payment_lookup=self.confirmed_payment)
                 self.assertIn(status, ("ignored", "unmatched"))
                 self.assertEqual(self.db.status(self.order_id), "payment_pending")
+
+    def test_signed_event_is_not_enough_to_mark_paid(self):
+        self.prepare()
+        self.db.save_link(self.order_id, self.link())
+        self.assertEqual(self.db.accept_webhook(**self.sign()), "unverified")
+        self.assertEqual(self.db.status(self.order_id), "payment_pending")
+        def mismatched_payment(payment_id):
+            return {**self.confirmed_payment(payment_id), "status": "PENDING"}
+        self.assertEqual(self.db.accept_webhook(
+            **self.sign(), payment_lookup=mismatched_payment), "unverified")
+        self.assertEqual(self.db.status(self.order_id), "payment_pending")
+        def refunded_payment(payment_id):
+            return {**self.confirmed_payment(payment_id),
+                    "refunded_money": {"amount": 500, "currency": "JPY"}}
+        self.assertEqual(self.db.accept_webhook(
+            **self.sign(), payment_lookup=refunded_payment), "unverified")
+        self.assertEqual(self.db.status(self.order_id), "payment_pending")
 
     def test_invalid_signature_refused(self):
         self.prepare()
@@ -173,15 +197,15 @@ class TestSquareSandboxIntegration(unittest.TestCase):
         args = self.sign()
         args["signature_header"] = "altered-signature"
         with self.assertRaises(ValueError):
-            self.db.accept_webhook(**args)
+            self.db.accept_webhook(**args, payment_lookup=self.confirmed_payment)
         self.assertEqual(self.db.status(self.order_id), "payment_pending")
 
     def test_unknown_event_then_link_commit_recovers(self):
         self.prepare()
         signed = self.sign()
-        self.assertEqual(self.db.accept_webhook(**signed), "unmatched")
+        self.assertEqual(self.db.accept_webhook(**signed, payment_lookup=self.confirmed_payment), "unmatched")
         self.db.save_link(self.order_id, self.link())
-        self.assertEqual(self.db.accept_webhook(**signed), "paid")
+        self.assertEqual(self.db.accept_webhook(**signed, payment_lookup=self.confirmed_payment), "paid")
 
     def test_no_duplicate_orders_or_multiple_square_link_changes(self):
         self.prepare()
