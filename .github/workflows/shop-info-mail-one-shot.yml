@@ -25,6 +25,6 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-email.py
       - name: Authorized single test email to info@bigpaw.site ONLY
         env:
-          RESEND_API_KEY: \${{ secrets.RESEND_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           BIGPAW_SINGLE_INFO_EMAIL_TEST: '1'
         run: PYTHONPATH=. python3 scripts/smoke-shop-info-mail-simple.py
