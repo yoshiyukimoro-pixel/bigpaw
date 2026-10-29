@@ -68,3 +68,15 @@ PYTHONPATH=. python3 scripts/render-shop-sandbox-orders.py --db /tmp/bigpaw-sand
 - 自動テスト：`scripts/test-shop-sandbox-notifications.py`で未決済時に下書きが作られない、検証済み決済で3種類作られる、二重生成しない、欠品/発送/返金の段階と通知内容が一致、返金未確認の注文は完了通知が作られないことを確認。商品一覧・カート・Square Sandboxのモック接続・Chromium/WebKit回帰も成功。[GitHub Actions 40961186225](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/40961186225)
 - **残作業**：認証付きで閲覧・送信承認する運営画面、送信サービス・宛先取得の連携、実際のSquare Webhook配送試験、発送会社/追跡番号の入力、欠品/返金の実運用、特商法・返品条件の最終化、実機iPhone確認。メールが「送信された」と記録する機能はまだない。
 - 本番は変更していない。Square実課金なし、トランペッツへの実発注なし、注文者への実メール送信なし。PR #175はDraft維持。
+
+## 2026-10-30：info@bigpaw.site 運営メールの準備（Sandbox限定）
+
+- **送信先を固定**：`info@bigpaw.site`。送信者は既存BIG PAWのResend方式に合わせた `BIG PAW <noreply@bigpaw.site>`。過去のドキュメントに残る`bigpaw.jp`は今回使わない。
+- `shop_payments/sandbox_operator_email.py`を追加。Square Sandboxの**検証済み入金**かつ`operator_new_order`下書きが存在し、`RESEND_API_KEY`、`BIGPAW_SHOP_SANDBOX_OPERATOR_EMAIL_ENABLED=1`、明示した`--confirm-sandbox`がすべて揃う場合だけ、Resendの`https://api.resend.com/emails`へ運営宛て**Sandboxのテスト通知1通**を送信できる。デフォルトは無効、テストCIでは実送信しない。
+- メールの件名・本文に**「Square Sandboxテスト・実注文ではありません／トランペッツへ発注しないでください」**と明示。実際の発注指示・実顧客メールは送らない。既存の購入者・子犬掲載の通知機能にも触れない。
+- `food_operator_email_dispatch`へ注文ID・通知種類・受付状態・ResendメールID・最終イベントを記録。**送信予約を先にDBへ確定**し、ネットワークのタイムアウトなど不確実な結果は`unknown`で固定して自動リトライしない。さらにResendの`Idempotency-Key`を使用。同一注文の二重送信リスクを軽減（プロバイダの冪等期限は24時間であり、ローカルの長期記録が必須）。
+- `notification-email-check FOOD<32桁>`はResendの**読取専用**`GET /emails/:id`を使い、送信先が本当に`info@bigpaw.site`だったか、`last_event`が`delivered`（相手のメールサーバーが受信）か等を照合。`accepted`だけでは**受信完了と判定しない**。`delivered`でも受信トレイの表示・開封まで保証するものではない。
+- `scripts/shop-sandbox-operator.py`に`notification-email-history`、`notification-send-operator`（環境・承認ゲート付き）、`notification-email-check`（読み取り）を追加。非公開のローカル運営HTMLにも送信受付・配達イベントを別欄に表示。
+- `scripts/test-shop-sandbox-operator-email.py`で未入金禁止・環境変数/承認必須・宛先固定・Resend送信形式・同一注文の二重送信防止・ネットワーク障害の未知状態・相手サーバー配達ステータス照合・誤送信先排除をオフライン検証。他の35商品・画像98枚・Chrome/WebKit回帰も継続。
+- **未実施**：実際のResend送信および`info@bigpaw.site`受信トレイへの到達検証、公開HTTPSでのSquare Webhook、認証付き本番運営画面、実注文通知の自動送信開始。実テストには独立したSandbox実行環境と適切なResendキーが必要。テスト済みと未確認を混同しない。
+- mainマージ・Railway本番デプロイ・本番決済接続・実仕入発注なし。PR #175 Draft維持。
