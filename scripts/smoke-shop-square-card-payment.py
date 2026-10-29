@@ -37,22 +37,23 @@ _EXPECTED_YEN = 21450
 
 
 def create_fake_card_payment(
-    *, order_id: str, location_id: str, token: str,
+    *, order_id: str | None, location_id: str, token: str,
     idempotency_key: str, opener=urlopen
 ) -> dict:
     """Actual Square Sandbox API call; zero production operations."""
     if not SANDBOX_ENDPOINT.startswith("https://connect.squareupsandbox.com/"):
         raise SquareSandboxError("Sandbox link endpoint is not pinned")
-    if not location_id or not token or not order_id or not idempotency_key:
+    if not location_id or not token or not idempotency_key or (order_id is not None and not order_id):
         raise SquareSandboxError("Missing sandbox payment parameters")
     body = {
         "idempotency_key": idempotency_key,
         "source_id": _ALLOWED_SOURCE,
         "amount_money": {"amount": _EXPECTED_YEN, "currency": "JPY"},
         "location_id": location_id,
-        "order_id": order_id,
         "autocomplete": True,
     }
+    if order_id is not None:
+        body["order_id"] = order_id
     request = Request(
         _PAYMENT_ENDPOINT,
         data=json.dumps(body, separators=(",", ":")).encode("utf-8"),
