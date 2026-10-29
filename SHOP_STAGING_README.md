@@ -90,3 +90,14 @@ ZIWI エアドライ ベニソン 2.5kg と エアドライ トライプ＆ラ�
 - `scripts/test-shop-order-review.cjs` でChromiumとWebKit（iPhone Safari相当）の画面遷移、カート更新、送料0円、2百万円超制限、空カート表示、無課金を検証。
 - GitHub Actions Run `40873987120` 成功。既存35商品・98画像の表示・Square Sandbox mock checkout・回帰テストにも合格。物理iPhoneの実機チェックと実際のSandboxカード決済エンドツーエンド試験は別途必要。
 - Draft PR #175を維持。mainマージ・Railway本番反映・Square本番決済開始は明示承認まで禁止。
+
+## 2026-10-29 夜：注文確認→Square Sandbox決済の導線
+
+- **実装済み（Sandboxのみ）**：既存 `shop.html?order=review` で商品・数量・送料0円・税込総額を確認し、確認チェック→「注文内容を確認する（テスト）」を押すと、隔離されたlocalhostプレビューでのみ `Squareのテスト決済へ進む` が有効になる。
+- `shop_payments/review_sandbox_checkout.js` を新規追加し、`shop_payments/local_preview.py` が `?order=review` の時だけ `shop-sandbox-review.js` として注入。**公開用`app/shop.html`はSandboxスクリプトを一切読み込まない**。ユーザーの承認まで本番注文・本番Squareは使わない。
+- Square SandboxへのPOSTは商品ID/数量/UUID試行IDだけ。顧客氏名・配送先・カード情報・ブラウザ側の金額は送らない。サーバーが税込価格と送料0円を再計算して金額を返し、確認画面の金額と一致しない限りSquareへのリダイレクトを禁止。
+- テストリンクは `https://sandbox.square.link` のみ受け付け、注文ID・サーバー確認額・送料0円を照合。CSRF/Origin保護、同一試行IDのリトライは従来のSandbox注文DBの冪等性に依存。
+- 数量変更・確認チェック解除・ページ遷移後は再確認が必要。復帰しただけで入金済み表示にせず、ステータス確認ボタンからサーバー照会を行い、Square Payments API検証済みの`paid`だけをテスト入金済みとして表示。
+- `scripts/test-shop-review-square-browser.cjs` でChromium/WebKit両方の確認・Sandbox未設定・チェック無しで進めない・金額不一致の遮断・同一カートの再試行ID維持・ステータス待ち/完了をモックHTTPで検証。以前からあるカート/画像/35商品および既存Square Sandboxテストも回帰成功。
+- **CI 成功**：GitHub Actions `40877380432`、テストは疑似Square応答。実際のSandboxカード決済、公開HTTPSホストでのWebhook受信、実機iPhone、事前在庫確保、認証された注文運営画面、通知、発送、返金、法定表示は別途未完成。
+- Draft PR #175を保持。mainマージ・Railway本番デプロイ・Square本番決済は実施しない。
