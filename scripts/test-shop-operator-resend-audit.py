@@ -27,7 +27,7 @@ class AuditTests(unittest.TestCase):
             requests.append((req.full_url,req.get_method()))
             self.assertEqual(req.get_method(),"GET")
             self.assertTrue(req.full_url.startswith("https://api.resend.com/"))
-            if "/emails?" in req.full_url:
+            if req.full_url.endswith("/emails"):
                 return FakeResponse({"data":[
                     {"id":"a","to":["info@bigpaw.site"],
                      "from":audit.FROM,"subject":audit.SUBJECT,
