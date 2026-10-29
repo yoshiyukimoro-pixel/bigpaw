@@ -80,3 +80,11 @@ PYTHONPATH=. python3 scripts/render-shop-sandbox-orders.py --db /tmp/bigpaw-sand
 - `scripts/test-shop-sandbox-operator-email.py`で未入金禁止・環境変数/承認必須・宛先固定・Resend送信形式・同一注文の二重送信防止・ネットワーク障害の未知状態・相手サーバー配達ステータス照合・誤送信先排除をオフライン検証。他の35商品・画像98枚・Chrome/WebKit回帰も継続。
 - **未実施**：実際のResend送信および`info@bigpaw.site`受信トレイへの到達検証、公開HTTPSでのSquare Webhook、認証付き本番運営画面、実注文通知の自動送信開始。実テストには独立したSandbox実行環境と適切なResendキーが必要。テスト済みと未確認を混同しない。
 - mainマージ・Railway本番デプロイ・本番決済接続・実仕入発注なし。PR #175 Draft維持。
+
+## 2026-10-30：メール到達の独立した一回限りのテスト
+
+- 本番のRails/Railwayサービスから分離したGitHub Actions上で`info@bigpaw.site`へ、架空Sandbox注文のテストメール1通を送信する専用フローを追加。
+- 通常のpushは送信されない。明示的なタグ付きコミットだけで一回起動する。送信キー`RESEND_API_KEY`がGitHubのSecretsに無ければ**送信せずに未設定と報告**。
+- タイトル・本文は**実際の注文でないこと、トランペッツに発注しないこと**を明記。
+- レスポンス`accepted`と配達イベント`delivered`を別に照合し、配達未確認を成功と扱わない。配信後は再送を行わない。実行後は自動トリガーを無効化予定。
+- 事前安全性チェック/35商品の回帰は[Actions 40969719860](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/40969719860)で合格。次の専用ワークフロー結果で「実際の送信可否」を確認する。
