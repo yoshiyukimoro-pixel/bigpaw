@@ -44,3 +44,16 @@ ZIWI エアドライ ベニソン 2.5kg と エアドライ トライプ＆ラ�
 - 現段階の金額は「メーカー参考希望小売価格（税込）」であって、BIG PAWの販売価格ではない。送料・割引を含まない
 - 一覧の空検索メッセージが常時出るHTML不具合を修正
 - iPhone Safari/WebKit と Chromium でカート操作・金額・注文禁止・セッション保持を検証
+
+## 2026-10-29 メーカー提供の詳細画像の取り込み（35商品／63画像）
+
+- トランペッツ様の4ブランドのZIPを読み取り：ACANA 14商品/24画像、ORIJEN 8商品/12画像、ZIWI 9商品/18画像、CHARM 4商品/9画像。
+- 63個の実ファイルを計163回、35商品ページに使う商品別の対応表を`app/shop-detail-images.js`へ実装。原資料`detail-images.json`の**並び順、キャプション、scope=specific/brand**を全35商品についてSHA-256短縮指紋で照合し、別のSKU・ブランドを誤って表示しないようにした。
+- `app/shop-detail-gallery.js`：既存の商品詳細ページのパッケージ写真や商品名/容量/価格は保持し、その下に画像を順番に表示。iPhone向けに縦スクロール/タップ拡大/閉じる操作。画像は`loading=lazy`, `decoding=async`で遅延読み込み。
+- ZIWIのエアドライ（Z01-Z06）とスチームドライ（Z07-Z09）を分離。チキンZ06用の画像は他のエアドライ商品に使わず、Z08/Z09の固有画像は提供されていないので創作せずブランド共通画像のみ表示。
+- `scripts/import-shop-detail-assets.py`：受領した4 ZIP（または検証済みの統合ZIP）の35商品と63実ファイルをチェックして`--install`を指定したときに限り`app/assets/shop-details/`へ配置する。権限/価格/本番ファイルを変更しない。
+- `scripts/test-shop-detail-images.cjs`、`scripts/test-shop-detail-importer.py`：35商品/63実ファイル/163参照、商品・ブランドの誤紐づけ、部分アップロード/不正ZIPを拒否。画像をGitHubに配置後はWebPファイル実体の形式をCIで確認。
+- `scripts/test-shop-detail-gallery.cjs`：Chromium・iPhone Safari相当のWebKitで35商品ページの画像順序/表示と拡大・戻り操作を自動検証。**GitHubに画像がない間は無通信の代替画像でDOMを試験し、画像登録後は実WebPを読み込む**。
+- 現状：ZIP内の本物の画像は63枚ともPillowで検査・デコードできた。以前から用意していた35パッケージ画像も含め、98枚を同梱した統合プレビューZIPを会話内で生成した。
+- **画像バイナリ98枚のGitHub登録は未完了**。現在のGitHub接続はテキストコードの編集・テストができるが、ローカルZIPから画像を直接GitHubへ送る操作はできない。上記ZIPをファイル転送できる作業環境でブランチへ取り込んでから、実画像のHTTP/Safari最終確認が必要。
+- 発売/決済が承認されたわけではない。**PR #175はDraft維持。mainマージ・Railway本番デプロイ・本番決済は禁止**。
