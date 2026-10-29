@@ -27,7 +27,7 @@ class SaleItem:
     product_id: str
     name: str
     size: str
-    sale_price_yen: int  # Server-approved tax-inclusive sale price. NOT wholesale / MSRP.
+    sale_price_yen: int  # Approved MSRP as tax-inclusive selling price, NEVER wholesale.
 
 
 def _positive_yen(value: int, field: str, *, allow_zero: bool = False) -> int:
@@ -55,8 +55,9 @@ def build_square_link_payload(
     shipping snapshot atomically before using this payload in a future
     server-only Square integration. Client-submitted prices are NEVER accepted.
 
-    DO NOT pass manufacturer MSRP as a sale price. Actual BIG PAW selling prices
-    and shipping policy have not been approved yet.
+    The merchant approved manufacturer MSRP as the tax-inclusive sale price,
+    with shipping included and no extra delivery charge in BIG PAW checkout.
+    Do not ever include procurement/wholesale prices.
     """
     if not shipping_confirmed:
         raise ValueError("shipping must be confirmed before creating payment link")
@@ -96,8 +97,18 @@ def build_square_link_payload(
     idempotency = "bigpaw-food-" + hashlib.sha256(local_order_id.encode()).hexdigest()[:48]
     payload = {
         "idempotency_key": idempotency,
-        "order": {"location_id": square_location_id, "line_items": rows},
-        "checkout_options": {"ask_for_shipping_address": True},
+        "order": {
+            "location_id": square_location_id,
+            "line_items": rows,
+            "taxes": [{
+                "uid": "BIGPAW_JP_TAX10_INCLUSIVE",
+                "name": "消費税10%（内税）",
+                "type": "INCLUSIVE",
+                "percentage": "10",
+                "scope": "ORDER",
+            }],
+        },
+        "checkout_options": {"ask_for_shipping_address": True, "allow_tipping": False},
         "payment_note": "BIG PAW food order " + local_order_id,
     }
     return payload, total
