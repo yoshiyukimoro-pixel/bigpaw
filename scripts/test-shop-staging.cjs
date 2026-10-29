@@ -32,9 +32,11 @@ const {chromium, webkit} = require('playwright');
     assert.equal(await page.locator('a.prod').count(),35,name+' reset restores all products');
 
     assert.match(await page.locator('#count').innerText(),/35/);
-    assert.equal(await page.locator('.reference-price').count(),35,name+' all retail reference labels');
-    assert.match(await page.locator('a.prod[href="shop.html?item=Z01"] .reference-price').innerText(),/42,900円/,name+' ZIWI venison 2.5kg reference MSRP');
-    assert.match(await page.locator('a.prod[href="shop.html?item=Z04"] .reference-price').innerText(),/23,980円/,name+' ZIWI tripe & lamb 2.5kg reference MSRP');
+    assert.equal(await page.locator('.reference-price').count(),35,name+' all retail price labels');
+    assert.match(await page.locator('.reference-price').first().innerText(),/販売価格（税込・送料込み）/,name+' all prices include tax and delivery');
+    assert.match(await page.locator('.notice').innerText(),/送料込み/,name+' shipping included notice');
+    assert.match(await page.locator('a.prod[href="shop.html?item=Z01"] .reference-price').innerText(),/42,900円/,name+' ZIWI venison retail MSRP');
+    assert.match(await page.locator('a.prod[href="shop.html?item=Z04"] .reference-price').innerText(),/23,980円/,name+' ZIWI tripe & lamb retail MSRP');
     assert.equal(await page.locator('a.prod[href="shop.html?item=Z01"] .sizerow span').first().innerText(),'2.5kg');
 
     await page.locator('button[data-brand="ACANA"]').click();
@@ -62,7 +64,8 @@ const {chromium, webkit} = require('playwright');
     await page.locator('#previewAddToCart').click();
     assert.equal(await page.locator('#previewCartDialog').isVisible(),true,name+' adding item opens cart');
     assert.equal(await page.locator('#previewCartCount').innerText(),'1',name+' cart has one item');
-    assert.match(await page.locator('#previewCartSubtotal').innerText(),/21,450円/,name+' tax-included reference total');
+    assert.match(await page.locator('#previewCartSubtotal').innerText(),/21,450円/,name+' tax-included shipping-included retail total');
+    assert.match(await page.locator('.cart-shipping').innerText(),/全商品送料込み/,name+' no additional delivery charge');
     await page.locator('button[data-action="plus"]').click();
     assert.equal(await page.locator('.cart-quantity').innerText(),'2',name+' quantity increment');
     assert.match(await page.locator('#previewCartSubtotal').innerText(),/42,900円/,name+' subtotal updated');
