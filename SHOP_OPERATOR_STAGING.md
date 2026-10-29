@@ -32,7 +32,7 @@ PYTHONPATH=. python3 scripts/render-shop-sandbox-orders.py --db /tmp/bigpaw-sand
 
 ## 販売開始までに必要
 
-1. **公開前の在庫予約**：現時点では決済後に在庫を引き当てるため、在庫切れで決済済みになる可能性がある。公開前の必須改善項目。
+1. **受注発注に切替**：初期販売は在庫を持たず、注文時にSquareで決済 → 九州の仕入先（トランペッツ）に発注 → 埼玉の当店に入荷・検品 → 当店からお客様へ発送。仕入先在庫の欠品で決済済みとなる可能性があるため、欠品時の迅速な顧客連絡・入荷待ちの希望確認・全額返金の運用と通知機能を本番公開までに整備する。手元在庫0は受注不可を意味しない。
 2. Squareからの実Webhook署名検証を独立したHTTPS StagingでE2E検査（Sandbox Developer ConsoleのWebhook設定が必要）。
 3. 認証された運営画面と送り先住所・配達業者/追跡番号・通知・返品返金・キャンセル手順の整備。
 4. メーカー在庫連携や実在庫数の入力方法、リードタイム、在庫切れ時の運用方針。
@@ -40,3 +40,14 @@ PYTHONPATH=. python3 scripts/render-shop-sandbox-orders.py --db /tmp/bigpaw-sand
 6. ユーザーの明示承認を得て初めてmainへのマージ・Railway本番への反映・Square本番販売を行う。
 
 **本番のBIG PAW、mainブランチ、既存契約/一般サイト、Square本番決済は変更しない。PR #175はDraft維持。**
+
+## 2026-10-30 決定した受注発注方式（本番未反映）
+
+- 販売開始時は35商品とも**受注発注（注文時にSquareで決済）**。仕入先のトランペッツからお客様への直送はできず、九州 → 埼玉の当店へ入荷（目安約2日） → 検品後に当店からお客様へ発送（地域によって約1〜2日）。
+- お客様向けには**「ご注文・決済完了からお届けまで通常4〜7日程度」**を目安として記載。入荷・発送を保証する日付ではない。休日・仕入先の休業日・配送地域・交通事情・欠品で前後する場合がある。
+- 全35商品の商品詳細テンプレート、一覧ページ、カート、注文確認画面へ受注発注の流れ、目安日数、**全国送料無料（追加送料0円）**、仕入先欠品時の連絡・入荷予定案内・全額返金方針を表示。注文確認チェックでも了承を求める。
+- `shop_payments/sandbox_procurement.py` は別系統のSandbox限定受注発注ジャーナル。`awaiting_supplier_order → supplier_ordered → received_at_shop → shipped` の記録、欠品`supplier_backorder`、返金検証`refund_review → refunded`を安全に扱う。どの操作も仕入先への実発注・発送・返金を実行しない。
+- `scripts/shop-sandbox-operator.py` に`supplier-status`、`supplier-ordered`、`supplier-shortage`、`supplier-received`、`supplier-shipped`、`supplier-refund-review`、`supplier-verify-refund`を追加。変更に`--confirm-sandbox`必須。支払いがSquareで検証されない注文では仕入・発送状態を進められず、発送記録にはSquare配送先情報のAPI確認が必要。返金済みの記録にもSquare APIによる全額返金確認が必要。
+- 非公開のHTML管理画面にも仕入れ・入荷段階を表示。旧在庫表の0点表示は仕入先欠品と区別して説明する。
+- *未実装*：仕入先への自動発注、仕入先の実在庫同期、顧客への欠品連絡や発送通知の自動送信、実際の返金申請、配送業者連携、公開可能な認証付き運営画面。Squareの本物のWebhook配送も未検証。
+- GitHub Actionsによる静的テスト、受注発注管理の回帰テスト、PCおよびSafari相当のブラウザテストを行う。本番サイト、既存取引機能、Squareの本番決済は変更しない。PR #175はDraft維持。
