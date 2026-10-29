@@ -1,0 +1,254 @@
+{
+  "currency": "JPY",
+  "tax_included": true,
+  "shipping_included": true,
+  "shipping_yen": 0,
+  "pricing_policy": "Manufacturer suggested retail price, tax inclusive, zero additional shipping. Seller approved 2026-10-29.",
+  "products": [
+    {
+      "id": "A01",
+      "brand": "ACANA",
+      "name": "パピーレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 21450
+    },
+    {
+      "id": "A02",
+      "brand": "ACANA",
+      "name": "パピーラージブリードレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 21450
+    },
+    {
+      "id": "A03",
+      "brand": "ACANA",
+      "name": "アダルトドッグレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 21450
+    },
+    {
+      "id": "A04",
+      "brand": "ACANA",
+      "name": "アダルトラージブリードレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 21450
+    },
+    {
+      "id": "A05",
+      "brand": "ACANA",
+      "name": "スポーツ＆アジリティレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 21450
+    },
+    {
+      "id": "A06",
+      "brand": "ACANA",
+      "name": "ライト＆フィットレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 21450
+    },
+    {
+      "id": "A07",
+      "brand": "ACANA",
+      "name": "シニアドッグレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 21450
+    },
+    {
+      "id": "A08",
+      "brand": "ACANA",
+      "name": "ワイルドプレイリードッグレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 24200
+    },
+    {
+      "id": "A09",
+      "brand": "ACANA",
+      "name": "パシフィカドッグレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 25300
+    },
+    {
+      "id": "A10",
+      "brand": "ACANA",
+      "name": "グラスランドドッグレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 25300
+    },
+    {
+      "id": "A11",
+      "brand": "ACANA",
+      "name": "ランチランドドッグレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 25300
+    },
+    {
+      "id": "A12",
+      "brand": "ACANA",
+      "name": "グラスフェッドラムレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 25300
+    },
+    {
+      "id": "A13",
+      "brand": "ACANA",
+      "name": "フリーランダックレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 25300
+    },
+    {
+      "id": "A14",
+      "brand": "ACANA",
+      "name": "ヨークシャーポークレシピ",
+      "size": "11.4kg",
+      "sale_price_yen": 25300
+    },
+    {
+      "id": "O01",
+      "brand": "ORIJEN",
+      "name": "オリジナル",
+      "size": "11.4kg",
+      "sale_price_yen": 26180
+    },
+    {
+      "id": "O02",
+      "brand": "ORIJEN",
+      "name": "パピー",
+      "size": "11.4kg",
+      "sale_price_yen": 26180
+    },
+    {
+      "id": "O03",
+      "brand": "ORIJEN",
+      "name": "パピーラージ",
+      "size": "11.4kg",
+      "sale_price_yen": 26180
+    },
+    {
+      "id": "O04",
+      "brand": "ORIJEN",
+      "name": "ラージブリードアダルト",
+      "size": "11.4kg",
+      "sale_price_yen": 26180
+    },
+    {
+      "id": "O05",
+      "brand": "ORIJEN",
+      "name": "シニア",
+      "size": "11.4kg",
+      "sale_price_yen": 26180
+    },
+    {
+      "id": "O06",
+      "brand": "ORIJEN",
+      "name": "シックスフィッシュ",
+      "size": "11.4kg",
+      "sale_price_yen": 27500
+    },
+    {
+      "id": "O07",
+      "brand": "ORIJEN",
+      "name": "レジオナルレッド",
+      "size": "11.4kg",
+      "sale_price_yen": 28600
+    },
+    {
+      "id": "O08",
+      "brand": "ORIJEN",
+      "name": "フィット＆トリム",
+      "size": "11.4kg",
+      "sale_price_yen": 26180
+    },
+    {
+      "id": "Z01",
+      "brand": "ZIWI",
+      "name": "エアドライ ベニソン",
+      "size": "2.5kg",
+      "sale_price_yen": 42900
+    },
+    {
+      "id": "Z02",
+      "brand": "ZIWI",
+      "name": "エアドライ ラム",
+      "size": "4kg",
+      "sale_price_yen": 37180
+    },
+    {
+      "id": "Z03",
+      "brand": "ZIWI",
+      "name": "エアドライ ビーフ",
+      "size": "4kg",
+      "sale_price_yen": 37180
+    },
+    {
+      "id": "Z04",
+      "brand": "ZIWI",
+      "name": "エアドライ トライプ＆ラム",
+      "size": "2.5kg",
+      "sale_price_yen": 23980
+    },
+    {
+      "id": "Z05",
+      "brand": "ZIWI",
+      "name": "エアドライ マッカロー＆ラム",
+      "size": "4kg",
+      "sale_price_yen": 41360
+    },
+    {
+      "id": "Z06",
+      "brand": "ZIWI",
+      "name": "エアドライ チキン",
+      "size": "4kg",
+      "sale_price_yen": 36850
+    },
+    {
+      "id": "Z07",
+      "brand": "ZIWI",
+      "name": "スチームドライ ビーフ＆パンプキン",
+      "size": "3.2kg",
+      "sale_price_yen": 24310
+    },
+    {
+      "id": "Z08",
+      "brand": "ZIWI",
+      "name": "スチームドライ チキン＆オーチャードフルーツ",
+      "size": "3.2kg",
+      "sale_price_yen": 24310
+    },
+    {
+      "id": "Z09",
+      "brand": "ZIWI",
+      "name": "スチームドライ ラム＆グリーンベジタブル",
+      "size": "3.2kg",
+      "sale_price_yen": 24310
+    },
+    {
+      "id": "C01",
+      "brand": "CHARM",
+      "name": "フリーランチキンドッグ",
+      "size": "10kg",
+      "sale_price_yen": 24200
+    },
+    {
+      "id": "C02",
+      "brand": "CHARM",
+      "name": "ファームレイズダックドッグ",
+      "size": "10kg",
+      "sale_price_yen": 24200
+    },
+    {
+      "id": "C03",
+      "brand": "CHARM",
+      "name": "グラスフェッドラムドッグ",
+      "size": "10kg",
+      "sale_price_yen": 27280
+    },
+    {
+      "id": "C04",
+      "brand": "CHARM",
+      "name": "ノースアトランティックオーシャンフィッシュドッグ",
+      "size": "10kg",
+      "sale_price_yen": 27280
+    }
+  ]
+}
