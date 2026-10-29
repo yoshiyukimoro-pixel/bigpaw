@@ -1,0 +1,44 @@
+/* BIG PAW preview-only order review, no real order, payment or personal data. */
+.order-preview{max-width:1040px;margin:20px auto 55px}
+.order-preview-badge{display:inline-block;background:#fce4ee;color:#934868;font-weight:850;font-size:12px;padding:6px 12px;border-radius:20px}
+.order-preview h1{font-size:clamp(25px,4vw,35px);margin:12px 0}
+.order-steps{display:flex;gap:8px;flex-wrap:wrap;padding:0;list-style:none;margin:17px 0 25px}
+.order-steps li{font-size:12px;background:#f5f0f3;border:1px solid #e9dee6;color:#615465;font-weight:750;border-radius:8px;padding:8px 11px}
+.order-steps .active{background:#d96796;color:#fff;border-color:#d96796}
+.order-preview-warning{border-left:4px solid #d96796;background:#fff4f8;padding:13px 15px;border-radius:8px;font-size:13px;margin:12px 0 23px}
+.order-columns{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(290px,1fr);gap:22px;align-items:start}
+.order-panel{border:1px solid #e9e4ea;border-radius:16px;background:#fff;padding:19px;margin-bottom:18px}
+.order-panel h2{font-size:19px;margin:0 0 13px}
+.order-line{display:grid;grid-template-columns:64px 1fr auto;gap:12px;padding:13px 0;border-bottom:1px solid #eee7ee;align-items:center}
+.order-line:last-child{border-bottom:0}
+.order-line img{width:64px;height:70px;object-fit:contain;border-radius:8px;background:#fcf8fb}
+.order-line strong{font-size:13px;display:block}
+.order-line small{color:#756874;font-size:12px}
+.order-line-price{font-size:14px;font-weight:850;text-align:right;white-space:nowrap}
+.order-edit{display:inline-flex;background:#fff;border:1px solid #d9a0ba;padding:9px 12px;border-radius:9px;color:#a44372;font-size:12px;font-weight:850;cursor:pointer;margin-top:15px}
+.order-edits-notice{color:#756874;font-size:12px;margin:10px 0 0}
+.order-panel .order-summary-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;font-size:14px;border-bottom:1px solid #f0e9ef}
+.order-panel .order-summary-row:last-child{border-bottom:0}
+.order-summary-row.total{font-weight:900;font-size:19px}
+.order-summary-row .free{color:#29745d;font-weight:850}
+.order-status{border-radius:8px;background:#f8f5f8;padding:13px;font-size:13px;color:#675b68}
+.order-status p{margin:5px 0}
+.order-data-note{font-size:12px;color:#756874;margin:12px 0}
+.order-checked{display:flex;align-items:start;gap:10px;font-size:13px;line-height:1.6;margin:17px 0}
+.order-checked input{width:19px;height:19px;flex:none;accent-color:#b95484;margin-top:2px}
+.order-submit-test{width:100%;padding:13px 12px;border:0;border-radius:11px;background:#b45280;color:#fff;font-weight:850;cursor:pointer}
+.order-submit-test:disabled{background:#ebe3e9;color:#7d707c;cursor:not-allowed}
+.order-confirmation-message{padding:12px;background:#f8f2f6;border:1px solid #ead6e3;border-radius:10px;font-size:13px;margin-top:13px}
+.order-confirmation-message[hidden]{display:none}
+.order-empty{padding:22px;background:#fff;border:1px solid #e9e4ea;border-radius:12px}
+.order-empty a,.order-back{color:#a44372;font-weight:800}
+.order-back{display:inline-block;margin:10px 0 18px;font-size:13px}
+@media(max-width:700px){
+.order-preview{margin:14px auto 36px}
+.order-columns{grid-template-columns:1fr;gap:8px}
+.order-panel{padding:14px;margin-bottom:13px}
+.order-line{grid-template-columns:56px minmax(0,1fr);gap:9px}
+.order-line img{width:56px;height:60px;grid-row:span 2}
+.order-line-price{grid-column:2;text-align:left}
+.order-steps li{font-size:11px;flex:1;min-width:120px}
+}
