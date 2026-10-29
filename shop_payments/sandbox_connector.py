@@ -132,15 +132,47 @@ class SandboxOrderStore:
         with closing(self._open()) as conn:
             try:
                 conn.execute("BEGIN IMMEDIATE")
-                conn.execute("""
-                    INSERT INTO orders(order_id,cart_json,amount_yen,square_location_id,state,created_at)
-                    VALUES (?,?,?,?,?,?)
-                """, (order_id, line_snapshot, total, location_id, "created", int(time.time())))
+                existing = conn.execute(
+                    "SELECT cart_json, amount_yen, square_location_id FROM orders WHERE order_id=?",
+                    (order_id,),
+                ).fetchone()
+                if existing:
+                    if (existing["cart_json"] != line_snapshot
+                            or existing["amount_yen"] != total
+                            or existing["square_location_id"] != location_id):
+                        raise ValueError("cannot reuse checkout ID with different cart or pricing")
+                else:
+                    conn.execute("""
+                        INSERT INTO orders(order_id,cart_json,amount_yen,square_location_id,state,created_at)
+                        VALUES (?,?,?,?,?,?)
+                    """, (order_id, line_snapshot, total, location_id, "created", int(time.time())))
                 conn.execute("COMMIT")
             except Exception:
                 conn.execute("ROLLBACK")
                 raise
         return payload, total
+
+    def checkout_link_if_exists(self, order_id: str) -> dict | None:
+        """Return the same existing sandbox link for a retry; never create another."""
+        if not _ORDER_ID.fullmatch(order_id):
+            raise ValueError("Invalid order ID")
+        with closing(self._open()) as conn:
+            row = conn.execute(
+                "SELECT state,checkout_url,square_order_id,square_link_id,amount_yen "
+                "FROM orders WHERE order_id=?", (order_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        if row["state"] == "paid":
+            raise ValueError("Already paid; do not create new checkout link")
+        if row["state"] == "created":
+            return None
+        if row["state"] != "payment_pending" or not _safe_checkout_url(row["checkout_url"]):
+            raise ValueError("Invalid saved checkout")
+        return {
+            "url": row["checkout_url"], "square_order_id": row["square_order_id"],
+            "square_link_id": row["square_link_id"], "amount_yen": row["amount_yen"],
+        }
 
     def save_link(self, order_id: str, link: dict):
         if not _ORDER_ID.fullmatch(order_id) or not isinstance(link, dict):
