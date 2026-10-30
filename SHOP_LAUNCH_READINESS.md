@@ -109,6 +109,15 @@
 - [CI 41053562985](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41053562985)：両Docker・Python・Chromium・iPhone WebKitすべて成功。**P02は本番設定未登録につき未完了。O03（模擬決済通知の結合テスト）のみ3ポイント完了、全体残り90ポイント。**
 - 本番Squareキー登録・本番API GET・Square POST・Webhook公開、mainマージ、本番デプロイ、実メール送信、Railway追加サービスへの変更はなし。
 
+## 2026-10-30：本番用Square署名付きWebhook受信口の安全接続（開発ブランチのみ）
+
+- `app/backend/shop_live_webhook_bridge.py`を追加し、BIG PAW本体の`POST /api/shop/square-webhook`へ配線した。ただし**現在の未承認マニフェストと未登録の本番資格情報では404で全面拒否**。本番サイトやテストサイトへのデプロイ・Square通知先登録・課金は**行っていない**。
+- 正式運用の条件がすべて揃った将来に限り、Square署名（正規HTTPS URL+受信本文HMAC）を検証。無効/不明な本文、別Host/通知URL、ブラウザCookie、未承認環境・不正Content-Length・不正Content-Typeを遮断。顧客情報や秘密鍵を出力しない。
+- 署名が正しくても入金は信用せず、既存の非公開注文台帳から店舗・JPY金額・注文を特定し**Square Payments/Ordersの最新GETを独立照合した場合だけ**入金済みの遷移を記録。同一通知の再配信も冪等に処理、返金・金額差・未知の注文は失敗。
+- 購入API側にも、Square正式Webhook URL/署名鍵/受信有効化が整っていない場合は**本番購入を拒否**する追加ガードを実装した。
+- [CI 41054761005](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41054761005)はPython、BIG PAW本体Docker、Sandbox Docker、Chromium、iPhone Safari/WebKitすべて合格。テストは偽Square通知・通信のみ。本番SquareへのAPIアクセスはしていない。
+- `SHOP_PROGRESS_POINTS.json`のO01（本体への保護されたWebhookルート配線）を4ポイント完了、**残り86ポイント**。実Square本番接続・実Webhook受信・運営管理等はまだ未完了。
+
 ## 今の運用上の注意
 
 - ショップ公開用の `app/shop.html` は「販売準備中」で、決済ボタンが無効。現行の `bigpaw-test` は専用Sandbox Dockerサービスであり、公開用BIG PAW全体の変更を試すサービスではない。
