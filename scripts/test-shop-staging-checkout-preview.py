@@ -7,6 +7,7 @@ import base64
 from contextlib import contextmanager
 from http.client import HTTPConnection
 import json
+import sqlite3
 from pathlib import Path
 import tempfile
 from threading import Thread
@@ -168,6 +169,61 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertIn("21,450円".encode(), dashboard[2])
             self.assertIn("パピーラージ".encode(), dashboard[2])
             self.assertIn("決済確定前".encode(), dashboard[2])
+
+    def test_dashboard_paid_order_shows_next_action_and_drafts_without_sending(self):
+        # Test DB only: synthetic 'paid' fixture. This is NOT evidence of a real
+        # Square payment. The route must remain read-only and never notify anyone.
+        from shop_payments.retail_catalog import load_sale_catalog
+        with server_with_env() as (srv, store, calls):
+            store.add_pending_order(
+                order_id=ORDER, cart={"A02": 1},
+                verified_prices=load_sale_catalog(), shipping_yen=0,
+                location_id=BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
+            )
+            with sqlite3.connect(store.db_file) as conn:
+                conn.execute(
+                    "UPDATE orders SET state='paid', paid_at=1761780000, "
+                    "square_payment_id='MOCK_NOT_REAL_PAYMENT', "
+                    "square_order_id='MOCK_NOT_REAL_ORDER' WHERE order_id=?",
+                    (ORDER,),
+                )
+                conn.execute("""
+                    CREATE TABLE food_notification_drafts(
+                        order_id TEXT NOT NULL, kind TEXT NOT NULL,
+                        audience TEXT NOT NULL, created_at INTEGER NOT NULL,
+                        PRIMARY KEY(order_id, kind)
+                    )
+                """)
+                conn.executemany(
+                    "INSERT INTO food_notification_drafts VALUES (?,?,?,?)",
+                    ((ORDER, kind, audience, 1761780000) for kind, audience in (
+                        ("operator_new_order", "operator"),
+                        ("supplier_purchase_request", "supplier"),
+                        ("customer_order_confirmed", "customer"),
+                    )),
+                )
+                conn.commit()
+            self.assertEqual(request(srv, "/shop-test-orders.html", auth=False)[0], 401)
+            first = request(srv, "/shop-test-orders.html")
+            second = request(srv, "/shop-test-orders.html")
+            self.assertEqual(first[0], 200)
+            self.assertEqual(first[2], second[2], "refresh must not mutate order data")
+            html = first[2].decode("utf-8")
+            self.assertIn("入金確認済み（Sandbox）", html)
+            self.assertIn("仕入先に在庫・納期を確認", html)
+            self.assertIn("通知の下書き：3件", html)
+            self.assertIn("仕入先：在庫・納期確認と発注内容", html)
+            self.assertIn("お客様：決済・注文確認", html)
+            self.assertIn("未送信下書き", html)
+            self.assertIn("メールは送られません", html)
+            self.assertNotIn("MOCK_NOT_REAL_PAYMENT", html)
+            self.assertNotIn("MOCK_NOT_REAL_ORDER", html)
+            self.assertEqual(calls, [], "no Square checkout calls")
+            with sqlite3.connect(store.db_file) as conn:
+                count = conn.execute(
+                    "SELECT COUNT(*) FROM food_notification_drafts"
+                ).fetchone()[0]
+            self.assertEqual(count, 3, "dashboard must not send or change drafts")
 
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
         for config in (
