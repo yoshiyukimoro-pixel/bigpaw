@@ -292,8 +292,10 @@ class LiveOrderLedger:
         if row["state"] == "paid_verified":
             if row["payment_id"] != payment_id:
                 raise LiveOrderBlocked("Different payment for a paid order")
-            return {"state": "paid_verified", "new_transition": False}
-        if row["state"] != "checkout_recorded":
+            # An old paid row is NOT evidence of the current Square state:
+            # the same payment may have since been refunded/reversed.
+            # Always re-fetch Payments AND Orders even for a replay.
+        elif row["state"] != "checkout_recorded":
             raise LiveOrderBlocked("Unrecognized order state")
 
         if verifier is None:
