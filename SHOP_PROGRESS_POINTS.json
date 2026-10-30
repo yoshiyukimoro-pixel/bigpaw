@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 48,
-  "completed_points_since_baseline": 52,
+  "remaining_points": 46,
+  "completed_points_since_baseline": 54,
   "groups": [
     {
       "key": "purchase",
@@ -372,9 +372,17 @@
           "id": "T04",
           "weight": 2,
           "title": "既存データを保全し双方の回帰テストを実施",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "completed",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "verified_at": "2026-10-31",
+            "scope": "Non-destructive regression on original Square Sandbox and newly separate full-app + Sandbox webhook staging services; synthetic local checks and external HTTPS probes only, no real customer data or card payments.",
+            "synthetic_ci": "GitHub Actions 41129261203: 7 webhook HTTP/unit tests and 6 emergency stop audit tests passed using only local temporary stores",
+            "remote_ci": "GitHub Actions 41129261203 SUCCESS: old bigpaw-test /healthz 200; full-app staging /healthz 200 and anonymous shop & checkout config 401; new Sandbox webhook /healthz 200, / 404, deliberately unsigned POST 503",
+            "source_preservation": "Original BigPaw project untouched: bigpaw-test deployment 8a73fd3a-3b73-43d4-ac70-a0274993d44c SUCCESS with old volume 1bc0db0b-aa31-4039-97e6-393550320a36; production bigpaw-site deployment ad34900d-a890-442b-9d07-6434bd447818 SUCCESS and volume 39261bfb-ba40-48de-8429-0d9e957e375c unchanged. No read or write of customer data; no data restoration exercise claimed.",
+            "isolated_volumes": "New full-app volume 929f1017-f474-45af-9fe1-c40e11d72801 and new webhook volume 75266e34-b0bf-4bb4-8e7c-2743fbbb3d78 both separate 500 MB",
+            "remaining": "No real signed Square event dispatched, no credential migration or real sandbox payment. T03/P04 remain pending; this task covers non-destructive separation and regression only."
+          }
         }
       ]
     },
