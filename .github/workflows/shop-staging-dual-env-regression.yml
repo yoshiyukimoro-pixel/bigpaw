@@ -15,6 +15,13 @@ on:
       - 'scripts/test-shop-square-live-readonly.py'
       - 'scripts/test-shop-sandbox-procurement.py'
       - 'scripts/test-shop-sandbox-operator.py'
+      - 'scripts/test-shop-staging-checkout-preview.py'
+      - 'scripts/test-shop-sandbox-notifications.py'
+      - 'scripts/test-shop-sandbox-tracking.py'
+      - 'scripts/test-shop-sandbox-fulfillment.py'
+      - 'scripts/shop-sandbox-operator.py'
+      - 'shop_payments/sandbox_procurement.py'
+      - 'shop_payments/sandbox_fulfillment.py'
   workflow_dispatch:
 
 permissions:
@@ -35,6 +42,10 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-square-live-readonly.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-procurement.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator.py
+          PYTHONPATH=. python3 scripts/test-shop-staging-checkout-preview.py
+          PYTHONPATH=. python3 scripts/test-shop-sandbox-notifications.py
+          PYTHONPATH=. python3 scripts/test-shop-sandbox-tracking.py
+          PYTHONPATH=. python3 scripts/test-shop-sandbox-fulfillment.py
       - name: Verify existing and new Railway endpoints without writing persistent data
         shell: bash
         env:
