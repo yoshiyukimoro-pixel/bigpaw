@@ -47,7 +47,7 @@ const server = http.createServer((req,res)=>{
       assert.match(await page.locator('main').innerText(),/現在の決済・返金状況はSquareで個別確認が必要/);
       await page.getByText(/注文商品を表示/).click();
       assert.match(await page.locator('main').innerText(),/ACANA アダルトラージ/);
-      assert.equal(await page.locator('main').innerText().then(t=>/住所|電話番号|カード番号/.test(t)),false);
+      assert.equal(await page.locator('main').innerText().then(t=>/東京都|〒[0-9]{3}-[0-9]{4}|090-[0-9-]{8,}|buyer@example\.com|4111[ -]?1111/.test(t)),false);
       console.log(name+': operator order list UI OK');
     } finally { await browser.close(); authorized=false; }
   }
