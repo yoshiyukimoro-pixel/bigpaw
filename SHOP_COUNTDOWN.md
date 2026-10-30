@@ -255,3 +255,9 @@
 - [初回カード照合 41122860333](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41122860333)はSquare Sandbox `CreatePayment`でHTTP 400 `BAD_REQUEST`。支払い作成前に停止し、成功した入金・台帳記録はない。Sandbox内で決済リンク/注文の作成までは進んだ可能性がある。
 - 秘密値や応答本文を出さない診断だけ追加し、[再試行 41123302475](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41123302475)を実行。再び`CreatePayment`の400 `BAD_REQUEST`で、Square応答には安全に表示できるfield名もなかった。
 - Squareの公式テストカードnonceはAPI資料上有効な値だが、今回の拒否原因は判別できていない。追加の連続課金リクエストは止め、Square Sandbox設定/注文との組み合わせを確認する課題として残す。実請求・本番設定変更なし。P04/R02は未完了、**ポイント減算なし**。
+
+## 2026-10-31：Square Sandbox誤テスト経路の安全停止（ポイント未減算）
+
+- 失敗したSquare Sandbox Actions #41122860333/#41123302475（CreatePayment: HTTP 400 BAD_REQUEST）を再検討。Payment Linksが作成するDRAFT注文に別途直接CreatePaymentすることは、Squareホスト決済の公式Sandbox試験手順ではない。プロバイダーから詳細fieldが返っていないため個別の拒否原因は断定しない。
+- 旧カードテストはSquare API通信より前に明示停止する安全なコードへ変更し、該当Actionsジョブも秘密値を使わないオフライン確認へ変更。公式Sandbox Testing Panelを使う独立ジョブは残す。2026-10-29の公式Panel成功Actions #40884120819を確認。
+- 公開HTTPS Webhook/隔離フルアプリ接続、実機E2E、販売者情報・返品条件等は未完。**残り53ポイント（完了47%）維持**。Draft PR #175のまま、本番変更なし。

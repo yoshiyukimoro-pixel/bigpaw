@@ -38,3 +38,11 @@ Test source: `scripts/smoke-shop-square-card-payment.py`, offline unit tests: `s
 - Therefore use the official Square Checkout Sandbox Testing Panel: create a real Sandbox link, click Next → Test Payment, then fetch the original Square order and corresponding payment from the Square APIs, and verify the exact local order snapshot.
 - A hosted panel success proves the simulated Square checkout path, not public HTTPS webhook delivery or iPhone physical-device checkout. The local order journal is exercised only using an *artificial signed event*, verified by a live fresh Square API lookup.
 - Scripts `scripts/smoke-shop-square-hosted-panel.py`, `scripts/smoke-shop-square-hosted-panel.cjs`; opt-in feature-branch-only action `square-sandbox-hosted-panel`.
+
+## 2026-10-31: Direct CreatePayment on a Payment Link DRAFT order is disabled
+
+- [Run 41122860333](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41122860333) and [run 41123302475](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41123302475) both failed at CreatePayment: HTTP 400 BAD_REQUEST, no error field, no verified new payment.
+- Square-hosted Checkout Payment Links start with a DRAFT Order. The supported payment simulation is the hosted Sandbox Testing Panel, not attempting to pay its DRAFT order with a separate direct Payments.CreatePayment request. See https://developer.squareup.com/docs/checkout-api/quick-pay-checkout
+- The previously successful official hosted-panel [run 40884120819](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/40884120819) had an independently matched Square Order/Payment (Sandbox only). It is not evidence that a public HTTPS webhook or new full-app staging deployment works.
+- The deprecated linked-card script now returns a documented non-success code **before any network or order creation**; its optional workflow job runs an offline safety check with no secrets. The separately opted-in hosted-panel and standalone Payments API workflows remain unchanged.
+- This is a probable explanation for these particular 400 errors, not a provider-confirmed detailed error field. No repeat payment attempt, production API call or release. No progress task completed by this investigation. **Remaining 53 points; 47 completed.**

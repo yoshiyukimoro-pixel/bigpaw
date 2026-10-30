@@ -12,7 +12,7 @@ on:
         type: boolean
         default: false
       run_sandbox_card_smoke:
-        description: "Create a fake test-card payment in Square Sandbox for one A02; never real funds"
+        description: "Verify unsupported linked-card API probe is blocked (offline, no Square calls)"
         required: true
         type: boolean
         default: false
@@ -49,23 +49,24 @@ jobs:
           BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
         run: PYTHONPATH=. python3 scripts/smoke-shop-square-sandbox.py
 
-  square-sandbox-card-payment:
-    # This deliberately creates a payment ONLY in Square Sandbox using Square's
-    # fixed fake card token. No cardholder data or production credentials.
+  square-sandbox-linked-card-safety:
+    # This is an OFFLINE fail-closed check, not a fake payment attempt.
+    # Payment Links DRAFT orders must use Square-hosted Sandbox Testing Panel.
     if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[square-card-smoke]')) || (github.event_name == 'workflow_dispatch' && inputs.run_sandbox_card_smoke == true))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Check test-card probe is sandbox-only before any network call
+      - name: Confirm deprecated direct linked-card probe cannot call Square
         run: |
           PYTHONPATH=. python3 scripts/test-shop-square-card-smoke.py
           PYTHONPATH=. python3 scripts/test-shop-retail-pricebook.py
-      - name: Square Sandbox test card payment and order ledger verification (fake money only)
-        env:
-          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
-          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
-        run: PYTHONPATH=. python3 scripts/smoke-shop-square-card-payment.py
+          set +e
+          PYTHONPATH=. python3 scripts/smoke-shop-square-card-payment.py
+          status=$?
+          set -e
+          test "$status" -eq 2
+          echo "Unsupported linked-card direct payment safely blocked; hosted Sandbox Panel remains separately opt-in."
 
   square-sandbox-standalone-card-api:
     # Explicit opt-in, fake Sandbox card source only, not a hosted Checkout order.
