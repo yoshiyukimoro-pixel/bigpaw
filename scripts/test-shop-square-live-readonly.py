@@ -172,6 +172,20 @@ class LiveReadOnlyTests(unittest.TestCase):
         with self.assertRaises(LiveSquareNotVerified):
             self.verify()
 
+    def test_multiple_shipments_even_same_email_are_ambiguous(self):
+        self.pay=deepcopy(PAY)
+        for second in (
+            deepcopy(ORDER["fulfillments"][0]),
+            {"type":"PICKUP"},
+        ):
+            with self.subTest(extra=second.get("type")):
+                self.order=deepcopy(ORDER)
+                self.order["fulfillments"].append(deepcopy(second))
+                self.calls=[]
+                with self.assertRaises(LiveSquareNotVerified):
+                    self.verify()
+                self.assertEqual(len(self.calls),2)
+
     def test_input_validation_makes_no_api_request(self):
         for modified in ({"payment_id":"foo"},{"location_id":"bad"},
                          {"square_order_id":".."},{"amount_yen":False},
