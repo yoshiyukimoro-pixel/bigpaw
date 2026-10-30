@@ -50,7 +50,7 @@ class DeliveryTermsTests(unittest.TestCase):
         self.assertIn("販売業者の氏名", COMMERCE)
         self.assertIn("事業者の所在地・電話番号", COMMERCE)
         self.assertIn("個人事業", COMMERCE)
-        self.assertIn("事業者が正式に確認するまで未確定", COMMERCE)
+        self.assertIn("法令に沿った表示内容または省略の適用条件を確認中", COMMERCE)
         self.assertIn("通常4〜7日程度", COMMERCE)
         self.assertIn("追加送料0円", COMMERCE)
         self.assertIn("info@bigpaw.site", COMMERCE)
