@@ -7,6 +7,7 @@ are bundled into the Git repository. Protect every route except /healthz.
 from __future__ import annotations
 
 import base64
+from contextlib import closing
 import hmac
 import http.client
 import os
@@ -60,9 +61,9 @@ def make_handler(*, user, password, upstream_port):
 
         def _health(self):
             try:
-                with http.client.HTTPConnection(
+                with closing(http.client.HTTPConnection(
                     "127.0.0.1", upstream_port, timeout=3
-                ) as conn:
+                )) as conn:
                     conn.request("GET", "/api/health")
                     res = conn.getresponse()
                     healthy = res.status == 200
@@ -103,9 +104,9 @@ def make_handler(*, user, password, upstream_port):
             if body is not None:
                 headers["Content-Length"] = str(len(body))
             try:
-                with http.client.HTTPConnection(
+                with closing(http.client.HTTPConnection(
                     "127.0.0.1", upstream_port, timeout=40
-                ) as conn:
+                )) as conn:
                     conn.request(self.command, self.path, body=body,
                                  headers=headers)
                     upstream = conn.getresponse()
