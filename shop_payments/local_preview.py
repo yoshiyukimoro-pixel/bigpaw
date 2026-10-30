@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 
 from .retail_catalog import load_sale_catalog
 from .sandbox_reconcile import retrieve_verified_sandbox_payment
+from .sandbox_auto_notify import maybe_notify_verified_payment
 from .sandbox_connector import (
     SandboxOrderStore, SquareSandboxError, create_square_sandbox_payment_link,
 )
@@ -194,6 +195,14 @@ class PreviewHandler(BaseHTTPRequestHandler):
                 return self._respond(HTTPStatus.FORBIDDEN, {"error": "invalid_signature_or_event"})
             except SquareSandboxError:
                 return self._respond(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "square_verification_unavailable"})
+            # Square signature AND fresh Payments API verification have already
+            # committed the paid order and its drafts. Operator-only mail is
+            # opt-in, isolated to Sandbox, and idempotent by order ID.
+            if status == "paid":
+                maybe_notify_verified_payment(
+                    self.server.store, webhook_status=status,
+                    raw_body=body, env=os.environ,
+                )
             # Ask Square to retry when order-link creation is racing or the
             # independent Square Payments API cannot yet confirm completion.
             if status in ("unmatched", "unverified"):
