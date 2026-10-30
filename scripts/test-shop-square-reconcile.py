@@ -145,6 +145,36 @@ class TestSandboxVerification(unittest.TestCase):
                 })
                 self.assertNotIn("SYNTHETIC", str(outcome))
 
+    def test_japan_ship_to_requires_valid_postcode_and_phone_without_pii(self):
+        from shop_payments.sandbox_reconcile import _valid_japanese_shipping_recipient
+        person = {
+            "display_name": "SYNTHETIC",
+            "phone_number": "090-1234-5678",
+            "address": {
+                "country": "JP",
+                "postal_code": "100-0001",
+                "address_line_1": "TEST ADDRESS ONLY",
+            },
+        }
+        self.assertTrue(_valid_japanese_shipping_recipient(person))
+        for phone in ("+81 90-1234-5678", "03-1234-5678"):
+            self.assertTrue(_valid_japanese_shipping_recipient({
+                **person, "phone_number": phone}))
+        for phone in ("", "123", "not a phone", "999-1234-5678",
+                      None, "090-1234-5678\\nBcc:x@example.invalid"):
+            with self.subTest(phone=phone):
+                self.assertFalse(_valid_japanese_shipping_recipient({
+                    **person, "phone_number": phone}))
+        for postcode in ("", "123", "100-000", "abc-defg", "100-00000",
+                         None, "100-0001\\nFAKE"):
+            with self.subTest(postcode=postcode):
+                self.assertFalse(_valid_japanese_shipping_recipient({
+                    **person, "address": {
+                        **person["address"], "postal_code": postcode}}))
+        self.assertFalse(_valid_japanese_shipping_recipient({
+            **person, "address": {
+                **person["address"], "address_line_1": "  "}}))
+
     def test_empty_or_overseas_shipment_is_not_complete(self):
         def missing(req, timeout):
             return FakeResponse({"order": {"id": ORDER_ID, "fulfillments": []}})
