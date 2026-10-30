@@ -15,6 +15,7 @@ import json
 import mimetypes
 import re
 import secrets
+import sqlite3
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -152,7 +153,7 @@ def handle_get(handler):
         except (OSError, ValueError):
             _send(handler, 503, {"error": "test_dashboard_unavailable"})
             return True
-        except __import__("sqlite3").Error:
+        except sqlite3.Error:
             _send(handler, 503, {"error": "test_dashboard_unavailable"})
             return True
         _send(handler, 200, html.encode("utf-8"), "text/html; charset=utf-8")
