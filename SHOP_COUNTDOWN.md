@@ -369,3 +369,14 @@
 - 新Railway独立Webhook受信サービス**だけ**を開発ブランチの固定コミット`9a58e198b29e9563d3ecc6fd35610cc9ef3b290f`へ更新。Deployment `f0edaf24-eb72-4d50-8c9c-803bec4e7f2c` **SUCCESS**。新Square鍵・Sandboxトークンは未設定でサービスは`sandbox_webhook_standby`を維持。
 - GitHub Actions `41137889413` **SUCCESS**。旧Sandbox HTTP`200`、保護付き新フルアプリ HTTP`200/401`、新Webhook`200`/署名無しPOST`503`、`sandbox_webhook_standby` JSONを外部確認。安全なオフライン返品・配送先テストも同時通過。旧本番/旧Sandboxの設定やVolumesには触れていない。
 - 本物のSquare署名イベントと新RailwayへのSquare機密値設定はまだ未完。Square Sandbox公式Testing Panelの架空カードは配送先が不完全なので発送承認はしない。**T03/P04/R02などの残り46ポイントは未減算（完了54%）**。PR #175はDraft、main・実決済・実メールに変更なし。
+
+## 2026-10-31：配送先の電話番号・郵便番号を含む注文処理の最終回帰試験
+
+- Square公式Payment Linkの `ask_for_shipping_address=true` では氏名・電話番号・住所を収集し、Square Orderの`shipment_details.recipient`へ反映する。参照： https://developer.squareup.com/docs/checkout-api/optional-checkout-configurations 及び https://developer.squareup.com/reference/square/objects/OrderFulfillmentRecipient 。
+- `shop_payments/sandbox_reconcile.py` の配送先チェックに日本国内の7桁郵便番号（`NNN-NNNN` 又は`NNNNNNN`）、国内電話番号（10-11桁、`+81`表記は国内形式へ変換）を追加。電話番号の改行等制御文字、宛名欠損、複数SHIPMENT、国外宛先、住所欠落を受け付けず、発送には進めない。対象注文の住所・氏名・電話番号は本チェックの戻り値、SQLite台帳、ログへ格納しない。
+- `shop_payments/square_live_readonly.py` でも同じ受取人検証を共有（実Square Production HTTP呼び出しのある経路には未接続）。実際の新規決済・メール送信は行わず、合成データのみで確認。
+- 仕入れ注文・発送・返金・注文メール・決済台帳・在庫・ブラウザーテストの合成受取人に適切な架空電話番号を追加し、正常系が通過することを検証。テストで不足を検知した箇所を修正した。
+- GitHub Actions `41139507070` **SUCCESS**: Python総合テスト、独立Square webhook DockerとフルアプリDocker、Chromium及びiPhone Safari/WebKitをすべて通過。
+- 独立した新Railway`bigpaw-square-sandbox-staging`に固定コミット`af741f6d07fa35f11ac2f7dc4b75b6d5a1fc563e`をデプロイ。最新稼働Deployment `0de6aafb-96d1-4070-9719-740977b41a3f` **SUCCESS**。旧版はREMOVED。今回変更した実稼働サービスは**新Webhookだけ**。
+- GitHub Actions `41139792667` **SUCCESS**: 旧Sandbox`/healthz` 200、新フルアプリ`/healthz` 200、未ログイン`/shop.html`と`/api/shop/checkout/config` 401、新Webhook`/healthz` 200・root 404・署名無しPOST 503・状態`sandbox_webhook_standby`を実URLから確認。仕入れ・発送の合成回帰も合格。
+- **未完**：新RailwayへSandbox専用の署名鍵・トークン・店舗IDを安全登録（GitHub ActionsのRailway Project Tokenが未設定）、無効WebhookのSquare実配信テスト、Sandboxの実際の配送先入力のE2E、オーナー承認済み法定表示/配送返品条件、本番決済/本番公開。Square Sandboxテストパネルの成功は配送先入力を証明しない。**残り46ポイント・完了54%維持**、PR #175はDraft、mainは未変更。
