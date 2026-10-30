@@ -7,6 +7,7 @@ import base64
 from contextlib import contextmanager
 from http.client import HTTPConnection
 import json
+import re
 import sqlite3
 from urllib.parse import urlencode
 from pathlib import Path
@@ -221,7 +222,11 @@ class CheckoutPreviewTests(unittest.TestCase):
             first = request(srv, "/shop-test-orders.html")
             second = request(srv, "/shop-test-orders.html")
             self.assertEqual(first[0], 200)
-            self.assertEqual(first[2], second[2], "refresh must not mutate order data")
+            self.assertEqual(
+                re.sub(rb'name="csrf" value="[^"]+"', b'name="csrf" value="REDACTED"', first[2]),
+                re.sub(rb'name="csrf" value="[^"]+"', b'name="csrf" value="REDACTED"', second[2]),
+                "refresh must not change order content (CSRF rotates on each request)"
+            )
             html = first[2].decode("utf-8")
             self.assertIn("入金確認済み（Sandbox）", html)
             self.assertIn("仕入先に在庫・納期を確認", html)
@@ -312,11 +317,15 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(states, ["supplier_ordered", "received_at_shop"])
 
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
+        with server_with_env({"BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"}) as (srv, _, _):
+            self.assertEqual(request(srv, "/shop.html")[0], 200)
+            self.assertEqual(request(srv, "/shop-test-orders.html")[0], 404)
+            self.assertEqual(request(srv, "/api/shop/sandbox/operator/transition",
+                                     method="POST", data=b"{}")[0], 404)
         for config in (
             {"BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0"},
             {"BIGPAW_SHOP_STAGE_PREVIEW_PASSWORD": ""},
             {"BIGPAW_SHOP_STAGE_PREVIEW_PASSWORD": "short"},
-            {"BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"},
             {"BIGPAW_ENV": "production"},
             {"RAILWAY_SERVICE_ID": "32e31163-1049-41d3-84f8-dd61a0a7019e"},
             {"RAILWAY_SERVICE_ID": "1ad6d952-c284-4886-9237-a30c364132fd"},
