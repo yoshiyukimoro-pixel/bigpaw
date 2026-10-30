@@ -1392,12 +1392,12 @@ https://www.bigpaw.site/'''
     def do_POST(self):
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
         path=urlparse(self.path).path
+        m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
         import shop_payments.live_operator_reconciliation as bp_live_reconcile
         if bp_live_reconcile.handle_post(
                 self, env=dict(os.environ), is_production=IS_PRODUCTION,
                 base_url=PUBLIC_BASE_URL, data_dir=DATA_DIR):
             return
-        m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
         if m:
             u=self.require();
             if not u:return
