@@ -76,16 +76,16 @@ def preview_paid_order_confirmation(
         )
     subject = "【BIG PAW】ドッグフードご注文・決済確認（送信前確認）"
     body = (
-        "このたびはご注文ありがとうございます。\\n"
-        f"ご注文番号：{snapshot['order_id']}\\n"
-        + "\\n".join(details)
-        + f"\\n合計（税込・送料込み）：{snapshot['amount_yen']:,}円"
-        + "\\n追加送料：0円\\n"
+        "このたびはご注文ありがとうございます。\n"
+        f"ご注文番号：{snapshot['order_id']}\n"
+        + "\n".join(details)
+        + f"\n合計（税込・送料込み）：{snapshot['amount_yen']:,}円"
+        + "\n追加送料：0円\n"
         "商品は決済後、九州の仕入先から埼玉の当店へ取り寄せ、"
         "検品後に当店から発送します。"
         "通常、ご注文・決済完了から4〜7日程度がお届けの目安です。"
         "休業日・欠品・配送事情等により前後する場合があります。"
-        "\\n※これは送信内容の社内確認用プレビューであり、メールは送信されていません。"
+        "\n※これは送信内容の社内確認用プレビューであり、メールは送信されていません。"
     )
 
     # The fingerprint binds the *exact* contact, paid payment and draft.
