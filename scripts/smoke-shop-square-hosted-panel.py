@@ -26,7 +26,8 @@ from shop_payments.sandbox_connector import (
     completed_payment_matches,
 )
 from shop_payments.sandbox_reconcile import (
-    retrieve_verified_sandbox_payment, _fetch_square_sandbox_resource,
+    retrieve_verified_sandbox_payment, retrieve_sandbox_shipment_status,
+    _fetch_square_sandbox_resource,
 )
 
 BASE = "https://connect.squareupsandbox.com"
@@ -112,6 +113,19 @@ def verify() -> None:
     refunded=payment.get("refunded_money",{})
     if isinstance(refunded,dict) and refunded.get("amount",0)>0:
         raise ValueError("Square payment refunded")
+
+    # The real hosted Sandbox panel can finish a fake payment without the
+    # shipping form. Verify a FRESH Square Orders GET, and reveal only one
+    # boolean; never print or persist the recipient, postal code or address.
+    # Missing shipping is a separate blocker, not a failed charge. Do not
+    # treat payment acceptance as permission to dispatch goods.
+    shipping = retrieve_sandbox_shipment_status(sq_order, token=token)
+    shipping_complete = shipping.get("shipment_details_complete") is True
+    print("SQUARE_CHECKOUT_PANEL_SHIPPING="
+          + ("COMPLETE" if shipping_complete else "INCOMPLETE"))
+    if not shipping_complete:
+        print("SQUARE_CHECKOUT_PANEL_SHIPPING_BLOCKED: "
+              "manual shipping evidence needed before fulfillment; no PII")
 
     # This is an artificial event to test the local ledger. It is NOT an
     # externally delivered Square webhook.
