@@ -194,6 +194,95 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertIn("パピーラージ".encode(), dashboard[2])
             self.assertIn("決済確定前".encode(), dashboard[2])
 
+    def test_timeout_repeated_request_never_creates_second_sandbox_link(self):
+        """HTTP integration: persist attempt before fake Square timeout."""
+        from shop_payments.sandbox_connector import SquareSandboxError
+        with server_with_env() as (srv, db, calls):
+            cfg = request(srv, "/api/shop/sandbox/config")
+            token = json_data(cfg)["csrf_token"]
+            good = {
+                "Origin": ORIGIN,
+                "Content-Type": "application/json",
+                "X-Shop-CSRF": token,
+                "Cookie": "bigpaw_shop_sandbox_csrf=" + token,
+            }
+            body = json.dumps({
+                "cart": {"A02": 1}, "attempt_id": ATTEMPT
+            }).encode()
+            def fake_timeout(payload, *, token):
+                calls.append(payload["idempotency_key"])
+                raise SquareSandboxError("fake lost Square response")
+            srv.checkout_creator = fake_timeout
+            first = request(
+                srv, "/api/shop/sandbox/checkout",
+                method="POST", data=body, headers=good
+            )
+            self.assertEqual(first[0], 502)
+            self.assertEqual(json_data(first)["error"],
+                             "sandbox_checkout_result_uncertain")
+            self.assertEqual(len(calls), 1)
+            with sqlite3.connect(db.db_file) as conn:
+                state = conn.execute(
+                    "SELECT state FROM checkout_link_claims WHERE order_id=?",
+                    (ORDER,)
+                ).fetchone()[0]
+                self.assertEqual(state, "attempt_unknown")
+            second = request(
+                srv, "/api/shop/sandbox/checkout",
+                method="POST", data=body, headers=good
+            )
+            self.assertEqual(second[0], 409)
+            self.assertEqual(json_data(second)["error"],
+                             "sandbox_checkout_operator_review_required")
+            self.assertEqual(len(calls), 1, "never silently retry Square POST")
+            self.assertEqual(db.status(ORDER), "created")
+            # Manual reconciliation, exact same id and link, recovers without
+            # a fresh POST and without deleting prior Sandbox records.
+            link = {
+                "url": "https://sandbox.square.link/u/NO_REAL_CHARGE",
+                "square_order_id": "MOCK_SQUARE_ORDER_123456",
+                "square_link_id": "MOCK_SQUARE_LINK_123456",
+            }
+            db.save_link(ORDER, link)
+            third = request(
+                srv, "/api/shop/sandbox/checkout",
+                method="POST", data=body, headers=good
+            )
+            self.assertEqual(third[0], 200)
+            self.assertEqual(json_data(third)["checkout_url"], link["url"])
+            self.assertEqual(len(calls), 1)
+
+    def test_pre_upgrade_created_order_without_claim_fails_closed(self):
+        """Existing pre-upgrade 'created' data must never be re-posted."""
+        from shop_payments.retail_catalog import load_sale_catalog
+        with server_with_env() as (srv, db, calls):
+            db.add_pending_order(
+                order_id=ORDER, cart={"A02": 1},
+                verified_prices=load_sale_catalog(), shipping_yen=0,
+                location_id=BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
+            )
+            with sqlite3.connect(db.db_file) as conn:
+                conn.execute(
+                    "DELETE FROM checkout_link_claims WHERE order_id=?", (ORDER,)
+                )
+            cfg = request(srv, "/api/shop/sandbox/config")
+            token = json_data(cfg)["csrf_token"]
+            body = json.dumps({
+                "cart": {"A02": 1}, "attempt_id": ATTEMPT
+            }).encode()
+            response = request(
+                srv, "/api/shop/sandbox/checkout",
+                method="POST", data=body, headers={
+                    "Origin": ORIGIN,
+                    "Content-Type": "application/json",
+                    "X-Shop-CSRF": token,
+                    "Cookie": "bigpaw_shop_sandbox_csrf=" + token,
+                }
+            )
+            self.assertEqual(response[0], 409)
+            self.assertEqual(calls, [])
+            self.assertEqual(db.status(ORDER), "created")
+
     def test_shop_commerce_disclosures_are_private_and_never_enable_sales(self):
         with server_with_env() as (srv, store, calls):
             self.assertEqual(request(srv, "/shop-commerce.html", auth=False)[0], 401)
