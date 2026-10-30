@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 51,
-  "completed_points_since_baseline": 49,
+  "remaining_points": 48,
+  "completed_points_since_baseline": 52,
   "groups": [
     {
       "key": "purchase",
@@ -342,12 +342,18 @@
           "id": "T02",
           "weight": 3,
           "title": "既存テストとショップSandboxを別環境に構築",
-          "status": "pending",
-          "completed_at": null,
+          "status": "completed",
+          "completed_at": "2026-10-31",
           "evidence": {
-            "reviewed_at": "2026-10-31",
-            "scope": "Read-only Railway topology shows a distinct bigpaw-test service and persistent volume beside bigpaw-site, but both are in the same Railway production environment.",
-            "result": "service-level separation observed; dedicated non-production environment and owner cost approval remain unverified; pending; no point deduction"
+            "verified_at": "2026-10-31",
+            "environment_design": "Dedicated full-app BIG PAW App Staging project/environment, separate from existing BigPaw/bigpaw-test Square Sandbox webhook service. Reversed service-name assignment from original plan but functionally isolates the complete test app and Sandbox webhook.",
+            "full_app_project": "BIG PAW App Staging 91215e46-028b-4280-90f4-8d192c687164; staging d0dacfcc-781b-4360-b539-461783ad47e2",
+            "service": "bigpaw-app-staging 26c225af-d7d3-41b3-86e3-347d22146312",
+            "deployment": "3bb941c3-7f20-451e-9f50-77ea2e92ef56 SUCCESS; separate persistent 500MB volume; no production data or live Square credentials",
+            "protected_origin": "https://bigpaw-app-staging-staging.up.railway.app",
+            "external_ci": "GitHub Actions 41127629968 SUCCESS: /healthz=200; /shop.html, /, /api/shop/checkout/config anonymous=401",
+            "health": "full-app staging online no alerts; existing BigPaw/bigpaw-test online no alerts; production bigpaw-site and bigpaw-web online no alerts",
+            "remaining_limits": "Shop Sandbox webhook is still physically in the original BigPaw project production environment, isolated from full-app staging project. No Square Sandbox webhook URL/key was migrated; integration, authenticated browser regressions, existing-data preservation and E2E verification belong to T03/T04/P04."
           }
         },
         {
