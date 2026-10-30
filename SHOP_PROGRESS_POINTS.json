@@ -296,7 +296,11 @@
           "title": "既存テストとショップSandboxを別環境に構築",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "reviewed_at": "2026-10-31",
+            "scope": "Read-only Railway topology shows a distinct bigpaw-test service and persistent volume beside bigpaw-site, but both are in the same Railway production environment.",
+            "result": "service-level separation observed; dedicated non-production environment and owner cost approval remain unverified; pending; no point deduction"
+          }
         },
         {
           "id": "T03",
@@ -304,7 +308,11 @@
           "title": "SandboxのWebhook署名URL/環境変数を安全に移行",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "reviewed_at": "2026-10-31",
+            "scope": "Read-only name-only inventory of the existing BigPaw/bigpaw-test Railway service. It contains Sandbox payment and webhook variable names and no live Square variable names. Values, including the webhook URL/key, were redacted and not requested.",
+            "result": "Sandbox configuration presence observed; safe migration, URL match and webhook delivery remain unverified; pending; no point deduction"
+          }
         },
         {
           "id": "T04",
@@ -327,7 +335,11 @@
           "title": "公開前バックアップとロールバック手順を確認",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "reviewed_at": "2026-10-31",
+            "scope": "Read-only Railway production inventory. The current successful app deployments for BIG PAW/bigpaw-live and BigPaw/bigpaw-site report canRollback=true; both services have separate attached persistent volumes. No backup/snapshot inventory or restore rehearsal was available through the connected read tools.",
+            "result": "app rollback capability observed; data backup and restore remain unverified; pending; no point deduction"
+          }
         },
         {
           "id": "R02",
