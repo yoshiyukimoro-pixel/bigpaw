@@ -49,7 +49,7 @@ BASE = {
 
 
 @contextmanager
-def server_with_env(config=None):
+def server_with_env(config=None, shipping_opener=None):
     folder = tempfile.TemporaryDirectory()
     db = SandboxOrderStore(Path(folder.name) / "orders.sqlite3")
     calls = []
@@ -65,6 +65,7 @@ def server_with_env(config=None):
     srv = StageWebhookServer(
         env={**BASE, **(config or {})}, store=db,
         host="127.0.0.1", port=0, checkout_creator=creator,
+        shipping_opener=shipping_opener,
     )
     task = Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     task.start()
@@ -296,7 +297,7 @@ class CheckoutPreviewTests(unittest.TestCase):
                 n = conn.execute("SELECT COUNT(*) FROM food_procurement_events "
                                  "WHERE order_id=?", (ORDER,)).fetchone()[0]
             self.assertEqual(n, 1, "stale retries never append duplicate events")
-            self.assertEqual(record({**form,"stage":"shipped"})[0], 400)
+            self.assertEqual(record({**form,"stage":"shipped"})[0], 409)
             self.assertEqual(record({**form,"stage":"refunded"})[0], 400)
             self.assertEqual(record({**form,"stage":"received_at_shop"})[0], 409)
             next_page = request(srv, "/shop-test-orders.html")
@@ -315,6 +316,102 @@ class CheckoutPreviewTests(unittest.TestCase):
                     "SELECT stage FROM food_procurement_events WHERE order_id=? ORDER BY id",
                     (ORDER,))]
             self.assertEqual(states, ["supplier_ordered", "received_at_shop"])
+
+    def test_shipment_requires_live_square_sandbox_address_check_then_creates_unsent_draft(self):
+        from shop_payments.retail_catalog import load_sale_catalog
+        from shop_payments.sandbox_procurement import SandboxProcurementOps
+        import urllib.parse
+        square_order = "MOCKSQUAREORDER12345"
+
+        class FakeResponse:
+            status = 200
+            def __init__(self, complete):
+                recipient = {"display_name": "PRIVATE", "address": {
+                    "country": "JP", "address_line_1": "PRIVATE STREET" if complete else "",
+                    "postal_code": "000-0000"}}
+                self.payload = json.dumps({"order": {
+                    "id": square_order,
+                    "fulfillments": [{"type": "SHIPMENT", "shipment_details": {
+                        "recipient": recipient}}]
+                }}).encode()
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, n): return self.payload[:n]
+
+        state = {"complete": False, "calls": 0}
+        def shipping_opener(req, timeout):
+            self.assertEqual(req.get_method(), "GET", "no shipping POSTs")
+            self.assertEqual(req.full_url,
+                             "https://connect.squareupsandbox.com/v2/orders/" + square_order)
+            self.assertEqual(timeout, 10)
+            state["calls"] += 1
+            return FakeResponse(state["complete"])
+
+        with server_with_env(shipping_opener=shipping_opener) as (srv, store, calls):
+            store.add_pending_order(order_id=ORDER, cart={"A02": 1},
+                                    verified_prices=load_sale_catalog(), shipping_yen=0,
+                                    location_id=BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"])
+            with sqlite3.connect(store.db_file) as conn:
+                conn.execute(
+                    "UPDATE orders SET state='paid',paid_at=1761780000,"
+                    "square_payment_id='MOCK_PAID_ID',square_order_id=? WHERE order_id=?",
+                    (square_order, ORDER),
+                )
+            ops = SandboxProcurementOps(store)
+            ops.transition(ORDER, "supplier_ordered")
+            ops.transition(ORDER, "received_at_shop")
+            page = request(srv, "/shop-test-orders.html")
+            self.assertEqual(page[0], 200)
+            self.assertIn("発送済みをテスト記録".encode(), page[2])
+            csrf = page[1]["Set-Cookie"].split(";", 1)[0]
+            data = {"order_id": ORDER, "stage": "shipped",
+                    "expected": "received_at_shop", "csrf": csrf.split("=",1)[1],
+                    "confirm": "record_only"}
+            def record(payload=data, *, origin=ORIGIN):
+                return request(srv, "/api/shop/sandbox/operator/transition", method="POST",
+                               data=urlencode(payload).encode(), headers={
+                                   "Origin": origin, "Content-Type": "application/x-www-form-urlencoded",
+                                   "Cookie": csrf})
+            self.assertEqual(record(origin="https://attacker.invalid")[0], 403)
+            self.assertEqual(state["calls"], 0)
+            self.assertEqual(record()[0], 409, "incomplete shipping recipient blocks shipped")
+            self.assertEqual(ops.state(ORDER), "received_at_shop")
+            self.assertEqual(state["calls"], 1)
+            state["complete"] = True
+            success = record()
+            self.assertEqual(success[0], 303)
+            self.assertEqual(ops.state(ORDER), "shipped")
+            self.assertEqual(state["calls"], 2)
+            self.assertEqual(record()[0], 409, "duplicate/stale form cannot reverify or resend")
+            self.assertEqual(state["calls"], 2)
+            self.assertEqual(calls, [], "no Square checkout calls")
+            page = request(srv, "/shop-test-orders.html")
+            self.assertIn("発送済み（テスト記録）".encode(), page[2])
+            self.assertIn("発送のお知らせ".encode(), page[2])
+            self.assertNotIn("PRIVATE STREET".encode(), page[2])
+            link = ("/api/shop/sandbox/operator/draft?" + urlencode({
+                "order_id": ORDER, "kind": "customer_shipment_notice"}))
+            self.assertEqual(request(srv, link, auth=False)[0], 401)
+            draft = request(srv, link)
+            self.assertEqual(draft[0], 200)
+            body = draft[2].decode("utf-8")
+            self.assertIn("ドッグフード発送のお知らせ", body)
+            self.assertIn("配送会社：【運営が確認して入力】", body)
+            self.assertIn("追跡番号：【運営が確認して入力】", body)
+            self.assertIn("メールは送れません", body)
+            self.assertNotIn("PRIVATE STREET", body)
+            self.assertEqual(request(srv, "/api/shop/sandbox/operator/draft?order_id="+ORDER+"&kind=not_valid")[0], 400)
+            with sqlite3.connect(store.db_file) as conn:
+                n = conn.execute(
+                    "SELECT COUNT(*) FROM food_notification_drafts "
+                    "WHERE order_id=? AND kind='customer_shipment_notice'", (ORDER,)
+                ).fetchone()[0]
+                events = [row[0] for row in conn.execute(
+                    "SELECT stage FROM food_procurement_events WHERE order_id=? ORDER BY id",
+                    (ORDER,)
+                )]
+            self.assertEqual(n, 1, "shipping must enqueue exactly one unsent draft")
+            self.assertEqual(events, ["supplier_ordered", "received_at_shop", "shipped"])
 
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
         with server_with_env({"BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"}) as (srv, _, _):
