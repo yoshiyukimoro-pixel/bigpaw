@@ -13,8 +13,8 @@ const previewHtml=fs.readFileSync('app/shop.html','utf8')
 const checkoutPath='/api/shop/sandbox/checkout';
 const fakeSquare='https://sandbox.square.link/u/BIGPAW_REVIEW_TEST_ONLY';
 const testOrder='FOOD12345678901234567890123456789012';
-const posted=[];
-let ready=true,chargeState='payment_pending',wrongAmount=false;
+const posted=[], quotes=[];
+let ready=true,chargeState='payment_pending',wrongAmount=false,wrongQuote=false;
 let unsafeCalls=0;
 const srv=http.createServer(async(req,res)=>{
   const u=new URL(req.url,'http://127.0.0.1');
@@ -29,6 +29,14 @@ const srv=http.createServer(async(req,res)=>{
   }
   if(req.method==='GET' && route==='/api/shop/sandbox/order/'+testOrder){
     json({order_status:chargeState});return;
+  }
+  if(req.method==='POST' && route==='/api/shop/sandbox/quote'){
+    const parts=[];for await(const b of req)parts.push(b);
+    const obj=JSON.parse(Buffer.concat(parts).toString());
+    quotes.push(obj);
+    json({sandbox:true,real_payments:false,verified:true,
+      amount_yen:wrongQuote?1:21450,shipping_yen:0});
+    return;
   }
   if(req.method==='POST' && route===checkoutPath){
     const parts=[];for await(const b of req)parts.push(b);
@@ -111,6 +119,15 @@ const srv=http.createServer(async(req,res)=>{
         await page.locator('#orderConfirmChecked').check();
         await page.locator('#orderConfirmPreview').click();
         assert.equal(await page.locator('#squareReviewSandboxCheckout').isEnabled(),true);
+
+        wrongQuote=true;
+        const previousCheckoutPosts=posted.length;
+        await page.locator('#squareReviewSandboxCheckout').click();
+        await page.waitForFunction(()=>document.querySelector('#squareReviewSandboxNotice')?.textContent.includes('価格に変更'));
+        assert.equal(posted.length,previousCheckoutPosts,'bad quote must block Square POST');
+        assert.deepEqual(quotes.at(-1),{cart:{A02:1}});
+        wrongQuote=false;
+        await page.locator('#orderConfirmPreview').click();
 
         wrongAmount=true;
         await page.locator('#squareReviewSandboxCheckout').click();
