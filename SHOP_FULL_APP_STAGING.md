@@ -15,3 +15,13 @@ Created on 2026-10-31 after the owner authorized additional Railway service char
 - No shop production launch, PR merge, Square live payment, customer mail or shipment is authorized by this setup.
 - Original `BigPaw/bigpaw-test` remains a separate existing Square Sandbox **webhook-only** service with its original 500 MB volume and secrets, not modified or migrated. It is not a full-app browser target.
 - Work remaining: protected URL health and browser tests, safe Square Sandbox webhook/Checkout integration under a dedicated service, real HTTPS callback, separate data preservation tests. Do not count T02/T03/T04 as done just because the service exists.
+
+## 実行結果（2026-10-31）
+
+- フルアプリRailwayデプロイ `3bb941c3-7f20-451e-9f50-77ea2e92ef56`：**SUCCESS/Online**、Railway警告0件。現行起動：`python3 backend/staging_auth_gateway.py`、ヘルスチェック `/healthz`。
+- 保護付きテストURL：`https://bigpaw-app-staging-staging.up.railway.app/shop.html`。HTTP Basic認証はRailway内に保存した個別のユーザー名/32文字超パスワードで、GitHubへ秘密値を保存しない。
+- GitHub Actions `41127078581`：ショップ単体・Docker・Chromium・WebKit総合テスト **SUCCESS**。
+- GitHub Actions `41127629968`：外部HTTPS検査 **SUCCESS**。`/healthz=200`、`/shop.html=401`、`/=401`、`/api/shop/checkout/config=401`（すべて認証なし）。
+- 既存`BigPaw/bigpaw-test`、本番`bigpaw-site`、`bigpaw-web`は引き続きOnline/警告0。元のSandboxボリューム・Webhook設定と本番データは未変更。
+- T01（2ポイント）とT02（3ポイント）の条件を確認したため、**残り53→48ポイント、完了47→52ポイント**。なお、T02は新規フルアプリ環境を独立プロジェクトで追加する方法。元`bigpaw-test`はSandbox Webhook専用のまま。
+- T03/T04/P04は未達。既存Sandbox Square SecretはOAuth経由で値が読めず、勝手に複製/移動しない。実カード・Webhook配信・配送情報・返金E2Eの成功扱いはしない。
