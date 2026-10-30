@@ -1,0 +1,41 @@
+name: BIG PAW full-app staging protected HTTPS probe
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-staging-remote-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-protected-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Probe health and anonymous access only (never sign in or pay)
+        shell: bash
+        env:
+          STAGING_URL: https://bigpaw-app-staging-staging.up.railway.app
+        run: |
+          set -euo pipefail
+          test "$STAGING_URL" = "https://bigpaw-app-staging-staging.up.railway.app"
+          check_status() {
+            local route="$1" expected="$2" result
+            result="$(curl --silent --show-error --location --output /dev/null \
+              --write-out '%{http_code}' --retry 6 --retry-all-errors --retry-delay 5 \
+              --max-time 15 "$STAGING_URL$route")"
+            if [ "$result" != "$expected" ]; then
+              echo "STAGING_PROBE_FAIL|route=$route|expected=$expected|actual=$result"
+              exit 1
+            fi
+            echo "STAGING_PROBE_OK|route=$route|status=$result"
+          }
+          check_status /healthz 200
+          check_status /shop.html 401
+          check_status / 401
+          check_status /api/shop/checkout/config 401
+          # Do not supply admin passwords or ever call Square.
