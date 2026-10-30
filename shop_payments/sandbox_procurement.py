@@ -21,6 +21,7 @@ from .sandbox_notifications import (install_notification_tables, enqueue_notific
 from .sandbox_reconcile import (
     retrieve_sandbox_shipment_status,
     retrieve_verified_sandbox_payment,
+    verify_current_sandbox_payment,
 )
 
 INITIAL = "awaiting_supplier_order"
@@ -105,7 +106,10 @@ class SandboxProcurementOps:
         paid=self._paid(order_id)
         if next_stage=="shipped":
             if not token:
-                raise ValueError("Sandbox token required to check recipient")
+                raise ValueError("Sandbox token required to verify shipment")
+            verify_current_sandbox_payment(
+                snapshot=paid, token=token, opener=opener,
+            )
             result=retrieve_sandbox_shipment_status(
                 paid["square_order_id"], token=token, opener=opener,
             )
