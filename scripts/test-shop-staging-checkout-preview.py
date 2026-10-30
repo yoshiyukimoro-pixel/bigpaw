@@ -166,7 +166,7 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertIn("決済確認待ち".encode(), dashboard[2])
             self.assertIn("21,450円".encode(), dashboard[2])
             self.assertIn("パピーラージ".encode(), dashboard[2])
-            self.assertIn("未発注".encode(), dashboard[2])
+            self.assertIn("決済確定前".encode(), dashboard[2])
 
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
         for config in (
