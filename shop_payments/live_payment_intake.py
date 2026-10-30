@@ -88,8 +88,13 @@ def record_verified_live_payment_event(
 
     # Fresh Square read MUST confirm paid, unrefunded, JPY total, store/location
     # and complete shipment before a single durable transition is recorded.
-    return ledger.reconcile_payment(
+    result = ledger.reconcile_payment(
         order_id=order_id, payment_id=payment_id, api_key=api_key,
         **({"opener": opener} if opener is not None else {}),
         **({"verifier": verifier} if verifier is not None else {}),
     )
+    if result["new_transition"] is False:
+        # Historic paid record is NOT proof the payment remains unrefunded.
+        # Future notification/fulfillment must perform its own fresh GETs.
+        return {"state": "already_recorded", "new_transition": False}
+    return result
