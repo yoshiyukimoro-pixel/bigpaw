@@ -53,6 +53,25 @@ separate launch and legal approvals are complete.
 - Preserve the Square event identity and local order ID in restricted audit
   records only. Never store the raw webhook body or credentials in a ticket.
 
+## Personal-data access boundary
+
+- Square's read-only shipment verifier checks the destination fields in memory
+  and returns only the recipient email needed for a future reviewed notice.
+  The paid-order ledger stores no recipient, address, or phone number.
+- The operator order list, manual-reconciliation response, audit entries,
+  customer-message preview, and review-approval result omit the full recipient
+  email and shipping details. The preview/approval check may show a masked
+  email; neither output is sendable.
+- `GET /api/operator/shop-orders` and its audit route require the existing
+  operator role before opening the private order journal. The customer notice
+  preview and approval helpers are not mounted as public or operator HTTP
+  routes. Checkout responses and Square webhook errors use bounded fields and
+  do not echo customer payloads.
+- The synthetic regression test checks the full flow from fake Square GET
+  through operator overview and notice review, then scans responses and the
+  SQLite file for fake names, email, address, postal code, phone, and keys.
+  It does not access a real customer record or Square production account.
+
 ## Current implementation limits
 
 - The operator page omits customer personal information. Manual reconciliation

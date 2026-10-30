@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "updated_at_jst": "2026-10-30",
+  "updated_at_jst": "2026-10-31",
   "purpose": "BIG PAW food shop remaining-work counter, baseline normalized to 100 on 2026-10-30",
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 75,
-  "completed_points_since_baseline": 25,
+  "remaining_points": 73,
+  "completed_points_since_baseline": 27,
   "groups": [
     {
       "key": "purchase",
@@ -144,9 +144,13 @@
           "id": "O06",
           "weight": 2,
           "title": "配送先など個人情報の必要最小限アクセスを検証",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554",
+            "verified_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
+            "scope": "Draft PR: synthetic PII tracing across Square read-only shipment verification, paid ledger, operator overview, customer notice preview, review approval and audit. Full name/email/address/postal/phone and API/review keys remain only in verifier memory and are absent from HTTP-oriented outputs and SQLite. The operator order and audit routes authenticate before opening the journal. No real customer data or production Square requests."
+          }
         }
       ]
     },
