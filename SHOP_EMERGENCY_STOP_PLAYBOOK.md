@@ -5,7 +5,7 @@
 ## 停止操作の意味を混同しない
 
 - 新規受付停止：将来、本番で開通した場合はサービス側の `BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0` が購入APIと購入設定取得を拒否する。追加で `BIGPAW_SHOP_OWNER_LAUNCH_APPROVED=0` を維持する。変更は環境変数の反映・再起動状況も実際の非本番/本番で確認する必要がある。**今は実環境を変更しない。**
-- 発行済みのSquare決済リンク：購入APIを止めても、すでにSquareにあるリンクは**自動では無効にならない**。Square Dashboard等で実際の状態を別途照合し、必要なリンクはSquareの正規手段で個別に無効化する。無効化の実行には運営者の明示判断が必要。
+- 発行済みのSquare決済リンク：購入APIを止めても、すでにSquareにあるリンクは**自動では無効にならない**。Square Checkout APIのRetrievePaymentLinkやListPaymentLinks等、権限を持つ運営者の読み取り照会で実際の状態を別途確認する。Checkout API発行のリンクはSquare Dashboardの通常の決済リンク一覧に現れない場合がある。無効化は運営者の明示判断に基づく別操作とし、この監査は実行しない。無効化の実行には運営者の明示判断が必要。
 - 決済通知：既発行リンクの支払いを見落とさないよう、署名付きWebhookとPayments/Ordersの独立照合は**購入受付停止と独立して稼働を維持**。Webhookの鍵・URL・受信可否を安易に停止しない。
 - 事故時の返金：お客様の決済と払い戻しは別処理。購入ボタン停止だけで入金や返金が取り消されることはない。
 
@@ -28,8 +28,15 @@ PYTHONPATH=. python3 scripts/audit-shop-stop-readiness.py --db /path/to/explicit
 
 - 実行には存在する私有DBファイルを明示指定。読取専用 `mode=ro` と `PRAGMA query_only` を使用。存在しないDBやスキーマ不一致は中止。
 - 出力は `planned` / `attempt_unknown` / `link_bound` と入金確認の**集計件数だけ**。リンクURL・Square ID・購入者氏名・住所・電話・メール・鍵は表示しない。
-- Squareとのネットワーク通信・無効化・返金・メール・DB更新は**一切行わない**。実際のリンク状態はSquare Dashboardなど独立した情報源で確認する。
+- Squareとのネットワーク通信・無効化・返金・メール・DB更新は**一切行わない**。実際のリンク状態はSquare CheckoutのPayment Links取得・一覧APIとSquare Orders/Paymentsの独立した読み取り照合で確認する。Dashboardの通常一覧に見当たらなくてもリンクなしと判断しない。
 
 ## ポイント上の扱い
 
 この監査とCIはP06の事前安全対策だが、P06の完了条件「購入停止スイッチと安全なロールバックの実機確認」のうち、実環境における停止復帰・発行済みリンク確認・ロールバック演習は未実施。**P06の3ポイントは減算しない**。P04/T02/R02も引き続き保留。
+
+## Square Checkout APIの注文状態について（2026-10-31確認）
+
+- CreatePaymentLink直後のSquare注文は原則`DRAFT`。これは支払済みを意味せず、Square Payments APIに直接`CreatePayment`を発行しても通常のHosted Checkout決済にはならない。
+- 決済画面を開いた時点で`OPEN`へ変化する場合があり、**OPENも入金の証拠ではない**。正確なSquare Payments APIの`COMPLETED`、注文ID・店舗・金額・通貨と返金状態の再取得を必須とする。
+- 開発ブランチは発行直後の`DRAFT`注文を、サーバー側の固定済み商品・数量・税込単価と照合し、一致した場合のみ「リンク発行済み」として保持する。`DRAFT`で受注入金確定にしてはならない。
+- Square公式資料：https://developer.squareup.com/reference/square/checkout/create-payment-link ・ https://developer.squareup.com/docs/checkout-api/common-pitfalls ・ https://developer.squareup.com/docs/checkout-api/quick-pay-checkout
