@@ -61,6 +61,15 @@ def _gate(env, base_url, status):
             or base_url not in ("https://bigpaw.site",
                                 "https://www.bigpaw.site")):
         return False
+    # A public checkout must never operate unless its independently
+    # authenticated production payment-event receiver is configured too.
+    # Without this, buyers could pay while the operator cannot confirm it.
+    if (env.get("BIGPAW_SHOP_SQUARE_LIVE_WEBHOOK_ENABLED") != "1"
+            or env.get("BIGPAW_SQUARE_LIVE_WEBHOOK_URL")
+               != base_url + "/api/shop/square-webhook"
+            or not isinstance(env.get("BIGPAW_SQUARE_LIVE_WEBHOOK_SIGNATURE_KEY"), str)
+            or len(env["BIGPAW_SQUARE_LIVE_WEBHOOK_SIGNATURE_KEY"].encode()) < 32):
+        return False
     # Sandbox credentials must never be recycled as production credentials,
     # even if an operator accidentally copied stage variables into live.
     if (env.get("BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN")
