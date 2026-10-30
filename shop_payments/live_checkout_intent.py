@@ -211,6 +211,16 @@ class LiveCheckoutIntent:
                                       separators=(",", ":"), ensure_ascii=False)
                 if restored != row["request_json"] or total != row["amount_yen"]:
                     raise LiveOrderBlocked("Saved Square payload integrity failure")
+                # A customer cannot issue a weeks-old checkout at a price
+                # that has changed before the external Square request.
+                now = int(time.time())
+                if not 0 <= now - row["created_at"] < 15 * 60:
+                    raise LiveOrderBlocked("Prepared checkout expired; create a new order")
+                saved_cart = json.loads(row["cart_json"])
+                latest_snapshot, latest_total = self.ledger._snapshot(saved_cart)
+                if (latest_snapshot != row["snapshot_json"]
+                        or latest_total != row["amount_yen"]):
+                    raise LiveOrderBlocked("Approved price changed before issuance")
                 db.execute(
                     "UPDATE food_live_checkout_intent SET state='attempt_unknown',"
                     "attempt_at=? WHERE order_id=? AND state='planned'",
@@ -276,18 +286,20 @@ class LiveCheckoutIntent:
                 or type(money.get("amount")) is not int
                 or money["amount"] != amount):
             raise LiveOrderBlocked("Square Order mismatch; manual reconciliation required")
-        current_snapshot, current_amount = self.ledger._snapshot(cart)
-        if current_snapshot != snapshot or current_amount != amount:
-            raise LiveOrderBlocked(
-                "Catalog changed after link attempt; manual reconciliation required"
-            )
-        # Legacy LiveOrderLedger writes to the same DB in its own transaction.
-        # A crash between these two commits is recoverable by calling THIS
-        # method with the SAME Square IDs, never by issuing another link.
-        self.ledger.register_checkout(
-            order_id=order_id, square_order_id=sid,
-            location_id=location, cart=cart
+        # The committed checkout price remains valid even if the catalog
+        # changes AFTER issuing the link. Rebuild from the saved immutable
+        # snapshot instead of repricing when binding a Square response.
+        rebuilt_payload, rebuilt_total = _payload_from_lines(
+            json.loads(snapshot), location_id=location, order_id=order_id
         )
+        serialized = json.dumps(rebuilt_payload, sort_keys=True,
+                                separators=(",", ":"), ensure_ascii=False)
+        if rebuilt_total != amount or serialized != row["request_json"]:
+            raise LiveOrderBlocked("Saved link issuance terms corrupted")
+
+        # One SQLite write transaction updates BOTH the private paid-order
+        # journal and the checkout-link result. A competing same-link binding
+        # cannot leave an orphan ledger order if uniqueness fails.
         with closing(self._open()) as db:
             try:
                 db.execute("BEGIN IMMEDIATE")
@@ -295,7 +307,8 @@ class LiveCheckoutIntent:
                 if (current["location_id"] != location
                         or current["amount_yen"] != amount
                         or current["cart_json"] != row["cart_json"]
-                        or current["snapshot_json"] != snapshot):
+                        or current["snapshot_json"] != snapshot
+                        or current["request_json"] != row["request_json"]):
                     raise LiveOrderBlocked("Checkout changed during Square binding")
                 if current["state"] == "link_bound":
                     if (current["square_order_id"], current["square_link_id"],
@@ -303,6 +316,30 @@ class LiveCheckoutIntent:
                         raise LiveOrderBlocked("Different link already bound")
                     changed = False
                 elif current["state"] == "attempt_unknown":
+                    LiveOrderLedger._install(db)
+                    existing = db.execute(
+                        "SELECT square_order_id,square_location_id,cart_snapshot,"
+                        "amount_yen,state FROM food_live_order_ledger "
+                        "WHERE order_id=?", (order_id,),
+                    ).fetchone()
+                    if existing:
+                        if any((existing["square_order_id"] != sid,
+                                existing["square_location_id"] != location,
+                                existing["cart_snapshot"] != snapshot,
+                                existing["amount_yen"] != amount)):
+                            raise LiveOrderBlocked("Existing private order differs")
+                        if existing["state"] not in ("checkout_recorded",
+                                                      "paid_verified"):
+                            raise LiveOrderBlocked("Unexpected private order state")
+                    else:
+                        db.execute(
+                            "INSERT INTO food_live_order_ledger "
+                            "(order_id,square_order_id,square_location_id,"
+                            "cart_snapshot,amount_yen,state,created_at) "
+                            "VALUES (?,?,?,?,?,'checkout_recorded',?)",
+                            (order_id, sid, location, snapshot, amount,
+                             int(time.time())),
+                        )
                     db.execute(
                         "UPDATE food_live_checkout_intent "
                         "SET state='link_bound',square_order_id=?,"
@@ -317,7 +354,7 @@ class LiveCheckoutIntent:
             except sqlite3.IntegrityError:
                 if db.in_transaction:
                     db.execute("ROLLBACK")
-                raise LiveOrderBlocked("Square link already used") from None
+                raise LiveOrderBlocked("Square order or link already bound") from None
             except Exception:
                 if db.in_transaction:
                     db.execute("ROLLBACK")
