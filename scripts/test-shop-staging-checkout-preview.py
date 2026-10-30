@@ -554,6 +554,10 @@ class CheckoutPreviewTests(unittest.TestCase):
                 rows=conn.execute("SELECT * FROM food_sandbox_customer_reviews").fetchall()
             self.assertEqual(len(rows),1)
             self.assertEqual(len(rows[0]),3,"DB stores no recipient PII")
+            dashboard = request(srv, "/shop-test-orders.html")
+            self.assertEqual(dashboard[0], 200)
+            self.assertIn("送信前チェック済み・未送信".encode(), dashboard[2])
+            self.assertNotIn("buyer-test@example.invalid".encode(), dashboard[2])
             self.assertEqual(calls,[],"No Square checkout POST allowed")
             self.assertGreaterEqual(state["calls"],4,"Read-only Square checks occurred")
 
