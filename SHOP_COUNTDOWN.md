@@ -296,3 +296,10 @@
 - 以上の**既存データ保全と両環境の非破壊回帰**を確認し、T04（2ポイント）完了、**残り48→46ポイント（完了52→54%）**。
 - Square Sandboxの署名鍵・トークン・Location IDはOAuth接続の機密保護で取り出せない。新Webhookは安全な待機状態に維持し、Square実通知受信とT03/P04は未完了。Squareの正式設定順・旧通知の保全方法は `SHOP_SQUARE_SANDBOX_MIGRATION.md` に記録。
 - Square Sandboxの新サービスID `ca40ca3c-d65a-4f51-99f3-b85ebfca164d` とURLをソース側でも厳格照合する安全修正を開発ブランチへ追加。CI合格後に新Sandboxサービスに限り反映する。本番コードとPR Draftは維持。
+
+## 2026-10-31：Square-hosted Sandbox Testing Panelの再検証（実売上・実メールなし）
+
+- 独立したGitHub Actionsランナーの既存 `scripts/smoke-shop-square-hosted-panel.py` / `scripts/smoke-shop-square-hosted-panel.cjs` により、Square Sandboxの1商品・税込21,450円・送料0円の決済リンクを作成し、Square公式Testing Panelで架空のテスト支払を試行する。
+- 成功の採点前提：Square Sandbox Orders APIとPayments APIの両方で同じ注文ID、Location ID、JPY税込金額、`COMPLETED`支払いを独立確認してから、模擬署名イベントで私有の一時台帳に限り入金状態を反映する。**この模擬イベントはSquare→Railway実Webhook配信を証明しない。**
+- チャット、CIログ、GitHubのファイルにSquare Token、決済リンク、購入者情報、決済IDを出さない。既存のWebhookや本番サイトの環境変数を変更しない。
+- この実行自体はP04/T03/R02の全完了条件ではないため、成功時も**残り46ポイントを維持**。
