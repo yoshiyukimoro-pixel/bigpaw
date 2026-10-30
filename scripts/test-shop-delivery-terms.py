@@ -6,6 +6,7 @@ import unittest
 SHOP=Path("app/shop.html").read_text(encoding="utf-8")
 REVIEW=Path("app/shop-order-review.js").read_text(encoding="utf-8")
 COMMERCE=Path("app/shop-commerce.html").read_text(encoding="utf-8")
+RETURNS=Path("app/shop-returns.html").read_text(encoding="utf-8")
 
 
 class DeliveryTermsTests(unittest.TestCase):
@@ -47,6 +48,19 @@ class DeliveryTermsTests(unittest.TestCase):
         self.assertIn("現在、商品の注文・決済は受け付けていません", COMMERCE)
         self.assertIn("正式な特定商取引法に基づく表記", COMMERCE)
         self.assertIn("返品・キャンセル", COMMERCE)
+        self.assertIn('href="shop-returns.html"', COMMERCE)
+        self.assertIn('href="shop-returns.html"', SHOP)
+        self.assertIn('href="shop-returns.html"', REVIEW)
+        self.assertIn("返品・キャンセル対応案（未承認）", RETURNS)
+        self.assertIn("正式な返品特約ではありません", RETURNS)
+        for category in ("お客様都合の返品", "お届け前のキャンセル",
+                         "不良品・破損・誤配送", "仕入先欠品・配送遅延"):
+            self.assertIn(category, RETURNS)
+        self.assertIn("8日以内", RETURNS)
+        self.assertIn("クーリング・オフ制度はありません", RETURNS)
+        self.assertIn("返送料は購入者負担", RETURNS)
+        self.assertIn("販売者負担", RETURNS)
+        self.assertIn('name="robots" content="noindex,nofollow"', RETURNS)
         self.assertIn("販売業者の氏名", COMMERCE)
         self.assertIn("事業者の所在地・電話番号", COMMERCE)
         self.assertIn("個人事業", COMMERCE)
