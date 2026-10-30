@@ -69,7 +69,13 @@
           "title": "Square本番相当のJPY決済・配送情報を端から端まで検証",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "reviewed_at": "2026-10-31",
+            "railway_service": "BigPaw/bigpaw-test is live from Dockerfile.shop-staging with command shop_payments.staging_https_webhook and /healthz healthcheck; Sandbox variables are present by name only.",
+            "observed_blocker": "The shop preview path returns an HTTP Basic Auth challenge in the browser; credentials are not available to this read-only session. No Square API request or Sandbox payment was made.",
+            "workflow_observation": "GitHub Actions run 41119928985 deployed-test-browser failed because this webhook-only service returned 404 for /api/health. This shows the current regression target is not the full app service.",
+            "result": "pending_isolated_app_preview_auth_and_valid_shop_service_target; no point deduction"
+          }
         },
         {
           "id": "P05",
@@ -387,7 +393,12 @@
           "title": "iPhone/PC/セキュリティ・既存サイトの総回帰テスト",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "reviewed_at": "2026-10-31",
+            "successful_scope": "GitHub Actions run 41118129554 passed BIG PAW Docker build, shop desktop/mobile Chromium/WebKit checks and shop security flows; in run 41119928985 the isolated full-app authenticated browser regression passed.",
+            "remaining_scope": "The same run’s deployed-test-browser check failed with TEST_SERVER_HEALTH_404 because Railway bigpaw-test runs the Sandbox webhook-only Dockerfile. Full legacy-site regression against a separately isolated deployed app remains unverified.",
+            "result": "pending_deployed_isolated_app_regression; no point deduction"
+          }
         },
         {
           "id": "R04",
