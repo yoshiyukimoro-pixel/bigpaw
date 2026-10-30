@@ -126,7 +126,7 @@ def _csrf_valid(handler):
 
 def handle_get(handler):
     path = urlsplit(handler.path).path
-    allowed = path == "/shop.html" or path in FILES or path == "/api/shop/sandbox/config" or ORDER.fullmatch(path) or ASSETS.fullmatch(path)
+    allowed = path in ("/shop.html", "/shop-test-orders.html") or path in FILES or path == "/api/shop/sandbox/config" or ORDER.fullmatch(path) or ASSETS.fullmatch(path)
     if not allowed:
         return False
     if not _authenticated(handler):
@@ -144,6 +144,18 @@ def handle_get(handler):
         state = handler.server.store.status(match.group(1))
         _send(handler, 404 if state == "not_found" else 200,
               {"order_status": state} if state != "not_found" else {"error": "not_found"})
+        return True
+    if path == "/shop-test-orders.html":
+        from .staging_orders_dashboard import render
+        try:
+            html = render(handler.server.store)
+        except (OSError, ValueError):
+            _send(handler, 503, {"error": "test_dashboard_unavailable"})
+            return True
+        except __import__("sqlite3").Error:
+            _send(handler, 503, {"error": "test_dashboard_unavailable"})
+            return True
+        _send(handler, 200, html.encode("utf-8"), "text/html; charset=utf-8")
         return True
     if path == "/shop.html":
         html = (ROOT / "app/shop.html").read_text(encoding="utf-8")
