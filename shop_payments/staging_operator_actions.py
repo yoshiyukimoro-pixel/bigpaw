@@ -806,8 +806,26 @@ def handle_current_payment_check_post(handler) -> bool:
     try:
         current = verify_current_sandbox_payment(snapshot=paid, **options)
     except (SquareSandboxError, ValueError, KeyError):
-        # Do not claim that a failed read proves a refund; it may be an outage.
-        _send(handler, 503, {"error": "current_square_payment_not_verified"})
+        # Do not guess refund vs outage; no PII or internal Square responses.
+        # Give the operator a usable warning instead of a raw JSON failure.
+        failure_html = (
+            '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<meta name="robots" content="noindex,nofollow,noarchive">'
+            '<title>BIG PAW｜Square Sandbox再確認できません</title></head>'
+            '<body style="font:16px/1.7 -apple-system,sans-serif;max-width:720px;'
+            'margin:30px auto;padding:0 16px;color:#273a51">'
+            '<h1>現在の入金・未返金を確認できません</h1>'
+            '<p>Squareの応答がない、注文内容が一致しない、または返金や決済状態が'
+            '変わっている可能性があります。原因はこの画面だけでは確定できません。</p>'
+            '<p><strong>入金済みとして仕入れ・発送・メール送信を進めないでください。'
+            '</strong>Square Sandboxの管理画面で最新状態を確認してください。</p>'
+            '<p>この再確認では注文記録を変更していません。</p>'
+            '<a href="/shop-test-orders.html">テスト注文管理へ戻る</a>'
+            '</body></html>'
+        )
+        _send(handler, 503, failure_html.encode("utf-8"),
+              "text/html; charset=utf-8")
         return True
     html = (
         '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
