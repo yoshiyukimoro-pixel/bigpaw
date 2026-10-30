@@ -229,8 +229,12 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(Path(db.db_file).read_bytes(), before)
             self.assertEqual(calls, [])
             current["refund"] = 1
-            self.assertEqual(send()[0], 503,
+            refunded = send()
+            self.assertEqual(refunded[0], 503,
                              "refunded payment must never appear verified")
+            self.assertIn("現在の入金・未返金を確認できません".encode(), refunded[2])
+            self.assertIn("進めないでください".encode(), refunded[2])
+            self.assertNotIn(b"fake.buyer@example.invalid", refunded[2])
             current["refund"] = 0
             current["amount"] += 1
             self.assertEqual(send()[0], 503, "price mismatch fails closed")
