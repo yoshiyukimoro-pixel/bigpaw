@@ -8,6 +8,7 @@ on:
       - '.github/workflows/shop-staging-dual-env-regression.yml'
       - 'scripts/test-shop-https-webhook.py'
       - 'shop_payments/staging_https_webhook.py'
+      - 'shop_payments/sandbox_runtime_guard.py'
   workflow_dispatch:
 
 permissions:
@@ -81,5 +82,15 @@ jobs:
               status = error.code
           print("SHOP_DUAL_STAGING|scope=new_webhook_standby|method=POST|status=" + str(status))
           assert status == 503, "new Sandbox webhook must remain disabled without signing key"
+          PY
+          python3 - <<'PY'
+          import json
+          import urllib.request
+          url = "https://bigpaw-square-sandbox-staging-staging.up.railway.app/healthz"
+          with urllib.request.urlopen(url, timeout=15) as response:
+              payload = json.loads(response.read(1024))
+          assert payload == {"status": "sandbox_webhook_standby"}, (
+              "new Square Sandbox webhook unexpectedly became live")
+          print("SHOP_SANDBOX_SECRETS_ABSENT|standby_confirmed|no_real_payment")
           PY
           echo "SHOP_DUAL_STAGING_OK|old_untouched|new_standby|app_protected|no_payment"
