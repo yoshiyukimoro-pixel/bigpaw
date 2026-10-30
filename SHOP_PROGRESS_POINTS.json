@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 53,
-  "completed_points_since_baseline": 47,
+  "remaining_points": 51,
+  "completed_points_since_baseline": 49,
   "groups": [
     {
       "key": "purchase",
@@ -325,9 +325,18 @@
           "id": "T01",
           "weight": 2,
           "title": "追加Railwayサービスの費用と設定を所有者が承認",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "completed",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "owner_authorization": "2026-10-31: owner expressly approved additional Railway charges and creation of required test resources",
+            "project": "BIG PAW App Staging / 91215e46-028b-4280-90f4-8d192c687164",
+            "environment": "staging / d0dacfcc-781b-4360-b539-461783ad47e2",
+            "service": "bigpaw-app-staging / 26c225af-d7d3-41b3-86e3-347d22146312",
+            "volume": "bigpaw-app-staging-data / 929f1017-f474-45af-9fe1-c40e11d72801; 500MB isolated",
+            "resource_cap": "1 replica, 1 vCPU, 1GB RAM; metered usage, exact bill unknown",
+            "protected_deployment": "3bb941c3-7f20-451e-9f50-77ea2e92ef56 SUCCESS and Railway service Online, 0 warnings",
+            "safety": "No production credentials/data copied, live checkout and mail disabled, Draft PR retained. This approval does not authorize Square live payments or public commerce launch."
+          }
         },
         {
           "id": "T02",
