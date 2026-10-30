@@ -14,7 +14,7 @@ const checkoutPath='/api/shop/sandbox/checkout';
 const fakeSquare='https://sandbox.square.link/u/BIGPAW_REVIEW_TEST_ONLY';
 const testOrder='FOOD12345678901234567890123456789012';
 const posted=[], quotes=[];
-let ready=true,chargeState='payment_pending',wrongAmount=false,wrongQuote=false;
+let ready=true,chargeState='payment_pending',wrongAmount=false,wrongQuote=false,quoteDelayMs=0;
 let unsafeCalls=0;
 const srv=http.createServer(async(req,res)=>{
   const u=new URL(req.url,'http://127.0.0.1');
@@ -34,6 +34,7 @@ const srv=http.createServer(async(req,res)=>{
     const parts=[];for await(const b of req)parts.push(b);
     const obj=JSON.parse(Buffer.concat(parts).toString());
     quotes.push(obj);
+    if(quoteDelayMs) await new Promise(resolve=>setTimeout(resolve,quoteDelayMs));
     json({sandbox:true,real_payments:false,verified:true,
       amount_yen:wrongQuote?1:21450,shipping_yen:0});
     return;
@@ -119,6 +120,26 @@ const srv=http.createServer(async(req,res)=>{
         await page.locator('#orderConfirmChecked').check();
         await page.locator('#orderConfirmPreview').click();
         assert.equal(await page.locator('#squareReviewSandboxCheckout').isEnabled(),true);
+
+        // Rapid taps during an unsettled server quote MUST not produce
+        // multiple checkout requests. Both browser engines run this.
+        wrongQuote=true;
+        quoteDelayMs=120;
+        const quotesBeforeRapid=quotes.length;
+        const postedBeforeRapid=posted.length;
+        await page.evaluate(()=>{
+          const button=document.querySelector('#squareReviewSandboxCheckout');
+          for(let i=0;i<12;i++)
+            button.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+        });
+        await page.waitForFunction(()=>document.querySelector('#squareReviewSandboxNotice')?.textContent.includes('価格に変更'));
+        assert.equal(quotes.length,quotesBeforeRapid+1,
+          '12 rapid taps start only one quote while pending');
+        assert.equal(posted.length,postedBeforeRapid,
+          'rapid taps cannot create a Square link on a bad quote');
+        quoteDelayMs=0;
+        wrongQuote=false;
+        await page.locator('#orderConfirmPreview').click();
 
         wrongQuote=true;
         const previousCheckoutPosts=posted.length;
