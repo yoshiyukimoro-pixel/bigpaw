@@ -400,7 +400,7 @@ ul{padding-left:21px;margin:8px 0}.status{font-size:13px;background:#f1f6fa;bord
 <header><h1>BIG PAW｜注文管理</h1><p>Square Sandbox・手動進捗テスト（発注・発送・返金は実行しません）</p></header>
 <main><p class="warning"><strong>⚠ これはテスト注文です。</strong>本物の入金・在庫確保・発注・発送を示すものではありません。
 トランペッツへの仕入れ発注や商品の発送は行わないでください。</p>
-<nav><a href="/shop.html">テストショップを見る</a><a href="/shop-test-orders.html">最新の注文状態へ更新</a></nav>
+<nav><a href="/shop.html">テストショップを見る</a><a href="/shop-test-orders.html">最新の注文状態へ更新</a><a href="/shop-live-orders-preview.html">将来の注文管理画面を見る（表示テスト・読み取り専用）</a></nav>
 <div class="stats"><div><strong>""" + str(len(records)) + """</strong><span>注文件数</span></div>
 <div><strong>""" + str(paid) + """</strong><span>入金確認済み（テスト）</span></div>
 <div><strong>""" + str(pending) + """</strong><span>決済待ち・準備中</span></div></div>
