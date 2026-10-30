@@ -1,0 +1,24 @@
+name: BIG PAW Square Sandbox disabled webhook subscription one-time
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+
+permissions:
+  contents: read
+
+jobs:
+  create-disabled-sandbox-subscription:
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && contains(github.event.head_commit.message, '[square-disabled-subscription-opt-in]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate only disabled Sandbox subscription is registered
+        run: PYTHONPATH=. python3 scripts/test-shop-square-disabled-sandbox-webhook.py
+      - name: Create exactly one DISABLED Sandbox destination, never enable, never log signing key
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SHOP_REGISTER_DISABLED_WEBHOOK: '1'
+        run: PYTHONPATH=. python3 scripts/register-shop-square-disabled-sandbox-webhook.py
