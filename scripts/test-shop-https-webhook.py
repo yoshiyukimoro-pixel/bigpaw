@@ -153,6 +153,36 @@ class TestStageWebhook(unittest.TestCase):
             **existing_test, "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID": ""
         }))
 
+    def test_new_staging_webhook_rejects_wrong_railway_service_and_callback(self):
+        project = "91215e46-028b-4280-90f4-8d192c687164"
+        environment = "d0dacfcc-781b-4360-b539-461783ad47e2"
+        service = "ca40ca3c-d65a-4f51-99f3-b85ebfca164d"
+        url = ("https://bigpaw-square-sandbox-staging-staging.up.railway.app"
+               + WEBHOOK_PATH)
+        from shop_payments.staging_https_webhook import stage_identity_ok
+        new = {
+            **STAGING,
+            "RAILWAY_PROJECT_ID": project,
+            "RAILWAY_ENVIRONMENT_ID": environment,
+            "RAILWAY_SERVICE_ID": service,
+            "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID": project,
+            "BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL": url,
+        }
+        self.assertTrue(stage_identity_ok(new))
+        self.assertTrue(stage_ready(new))
+        for bad in (
+            {**new, "RAILWAY_SERVICE_ID": "26c225af-d7d3-41b3-86e3-347d22146312"},
+            {**new, "RAILWAY_ENVIRONMENT_ID": "ecc9fcbf-496f-4b51-a651-65a46a971588"},
+            {**new, "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID": "d70f7165-f5eb-41e8-95a0-62f85ff90478"},
+            {**new, "BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL": url.replace(
+                "bigpaw-square-sandbox-staging-staging", "bigpaw-app-staging-staging")},
+            {**new, "BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL": url + "/"},
+            {**new, "BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL": url.replace("https:", "http:")},
+        ):
+            with self.subTest(keys=tuple(k for k in bad if bad[k] != new.get(k))):
+                self.assertFalse(stage_identity_ok(bad))
+                self.assertFalse(stage_ready(bad))
+
     def test_standby_server_never_accepts_webhook_without_secrets(self):
         import copy
         from shop_payments.staging_https_webhook import stage_identity_ok
