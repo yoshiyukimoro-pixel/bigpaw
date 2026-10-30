@@ -11,7 +11,7 @@ import unittest
 
 from shop_payments.customer_mail_preflight import prepare_customer_email
 from shop_payments.retail_catalog import load_sale_catalog
-from shop_payments.sandbox_connector import SandboxOrderStore
+from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxError
 from shop_payments.sandbox_customer_dispatch import SandboxDryRunOutbox
 from shop_payments.sandbox_customer_review import SandboxCustomerReview
 from shop_payments.sandbox_notifications import SandboxNotificationDrafts
@@ -137,7 +137,7 @@ class CustomerMailPreflightTests(unittest.TestCase):
         self.approve()
         self.simulate()
         self.override_order = {"id": "OTHER_ORDER", "fulfillments": []}
-        with self.assertRaises(ValueError):
+        with self.assertRaises(SquareSandboxError):
             self.prep()
         self.override_order = {
             "id": SQUARE_ORDER, "fulfillments": [
