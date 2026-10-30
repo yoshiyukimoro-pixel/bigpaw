@@ -29,6 +29,7 @@ ORDER = {
         "shipment_details": {
             "recipient": {
                 "display_name": "FAKE PERSON",
+                "phone_number": "09012345678",
                 "email_address": "synthetic@example.invalid",
                 "address": {
                     "country": "JP", "address_line_1": "TEST ONLY",
