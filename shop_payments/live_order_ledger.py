@@ -100,11 +100,13 @@ class LiveOrderLedger:
             try:
                 db.execute("BEGIN IMMEDIATE")
                 old = db.execute(
-                    "SELECT square_order_id,square_location_id,cart_snapshot,amount_yen "
+                    "SELECT square_order_id,square_location_id,cart_snapshot,amount_yen,state "
                     "FROM food_live_order_ledger WHERE order_id=?", (order_id,)
                 ).fetchone()
                 expected = (square_order_id, location_id, cart_json, amount)
                 if old is not None:
+                    if old["state"] == "paid_verified":
+                        raise LiveOrderBlocked("A paid checkout cannot be started again")
                     actual = tuple(old[k] for k in (
                         "square_order_id", "square_location_id", "cart_snapshot",
                         "amount_yen"))
@@ -122,6 +124,10 @@ class LiveOrderLedger:
                     )
                     inserted = True
                 db.execute("COMMIT")
+            except sqlite3.IntegrityError:
+                if db.in_transaction:
+                    db.execute("ROLLBACK")
+                raise LiveOrderBlocked("Square order already registered") from None
             except Exception:
                 if db.in_transaction:
                     db.execute("ROLLBACK")
