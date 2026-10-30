@@ -108,11 +108,6 @@ def handle_post(handler, *, env=None, base_url="", data_dir=None,
             return _send(handler, 401, "invalid_signature")
         if not isinstance(data_dir, (str, Path)) or not Path(data_dir).is_dir():
             return _send(handler, 503, "private_store_unavailable")
-        # A signed notification cannot bootstrap a private order journal;
-        # it must match a link created previously by the trusted checkout.
-        db_path = Path(data_dir) / "bigpaw-shop-live-orders.sqlite3"
-        if not db_path.is_file():
-            return _send(handler, 503, "private_order_journal_missing")
         raw_body = handler.rfile.read(length)
         if len(raw_body) != length:
             return _send(handler, 400, "invalid_length")
@@ -126,6 +121,12 @@ def handle_post(handler, *, env=None, base_url="", data_dir=None,
             )
         except (ValueError, UnicodeError):
             return _send(handler, 401, "invalid_signature")
+        # Only AFTER authenticating the raw Square notification may the
+        # private order journal be inspected. Missing journal never creates
+        # a database or calls any Square API, and keeps status ambiguous.
+        db_path = Path(data_dir) / "bigpaw-shop-live-orders.sqlite3"
+        if not db_path.is_file():
+            return _send(handler, 503, "private_order_journal_missing")
         from shop_payments.live_order_ledger import LiveOrderBlocked, LiveOrderLedger
         from shop_payments.live_payment_intake import record_verified_live_payment_event
         from shop_payments.square_live_readonly import LiveSquareNotVerified
