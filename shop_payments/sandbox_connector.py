@@ -123,6 +123,11 @@ class SandboxOrderStore:
                   event_id TEXT PRIMARY KEY,
                   received_at INTEGER NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS checkout_link_claims (
+                  order_id TEXT PRIMARY KEY,
+                  state TEXT NOT NULL CHECK(state IN ('ready','attempt_unknown')),
+                  attempt_at INTEGER
+                );
             """)
             # Older Sandbox journals predate the payment-reference column.
             # Keep them readable, but never assume a historical payment ID.
@@ -158,6 +163,13 @@ class SandboxOrderStore:
                         INSERT INTO orders(order_id,cart_json,amount_yen,square_location_id,state,created_at)
                         VALUES (?,?,?,?,?,?)
                     """, (order_id, line_snapshot, total, location_id, "created", int(time.time())))
+                    # New orders only: a checkout-link claim must exist before
+                    # ANY Square call. Older 'created' orders without a claim
+                    # remain blocked for manual reconciliation after upgrade.
+                    conn.execute(
+                        "INSERT INTO checkout_link_claims(order_id,state) "
+                        "VALUES (?,'ready')", (order_id,)
+                    )
                 # Capture immutable SKU/quantity data for the fulfillment ledger.
                 # Square line-item names alone are not unique inventory keys.
                 old_items = {
@@ -200,6 +212,47 @@ class SandboxOrderStore:
             "url": row["checkout_url"], "square_order_id": row["square_order_id"],
             "square_link_id": row["square_link_id"], "amount_yen": row["amount_yen"],
         }
+
+    def claim_checkout_link_attempt(self, order_id: str) -> None:
+        """Atomically record a *single* Square Sandbox POST attempt.
+
+        Called ONLY after add_pending_order and checkout_link_if_exists from
+        the authenticated staging route. A crash, timeout or missing response
+        leaves 'attempt_unknown' and MUST NOT automatically send another POST.
+        Old pre-upgrade 'created' orders lack a 'ready' row and fail closed.
+        """
+        if not isinstance(order_id, str) or not _ORDER_ID.fullmatch(order_id):
+            raise SquareSandboxError("Invalid checkout attempt")
+        with closing(self._open()) as conn:
+            try:
+                conn.execute("BEGIN IMMEDIATE")
+                order = conn.execute(
+                    "SELECT state FROM orders WHERE order_id=?", (order_id,)
+                ).fetchone()
+                if order is None or order["state"] != "created":
+                    raise SquareSandboxError(
+                        "Checkout not in a safe state for a new link"
+                    )
+                claim = conn.execute(
+                    "SELECT state FROM checkout_link_claims WHERE order_id=?",
+                    (order_id,)
+                ).fetchone()
+                if claim is None or claim["state"] != "ready":
+                    raise SquareSandboxError(
+                        "Square checkout result uncertain; operator audit required"
+                    )
+                count = conn.execute(
+                    "UPDATE checkout_link_claims SET state='attempt_unknown',"
+                    "attempt_at=? WHERE order_id=? AND state='ready'",
+                    (int(time.time()), order_id)
+                ).rowcount
+                if count != 1:
+                    raise SquareSandboxError("Checkout attempt already claimed")
+                conn.execute("COMMIT")
+            except Exception:
+                if conn.in_transaction:
+                    conn.execute("ROLLBACK")
+                raise
 
     def save_link(self, order_id: str, link: dict):
         if not _ORDER_ID.fullmatch(order_id) or not isinstance(link, dict):
