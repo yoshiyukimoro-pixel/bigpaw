@@ -87,6 +87,7 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
                  path in ("/api/shop/sandbox/operator/transition",
                           "/api/shop/sandbox/operator/tracking",
                           "/api/shop/sandbox/operator/review-customer",
+                          "/api/shop/sandbox/operator/revoke-customer-review",
                           "/api/shop/sandbox/operator/simulate-customer-notice",
                           "/api/shop/sandbox/operator/mock-customer-mail",
                           "/api/shop/sandbox/operator/verify-full-refund",
@@ -583,16 +584,57 @@ class CheckoutPreviewTests(unittest.TestCase):
             with sqlite3.connect(store.db_file) as conn:
                 rows=conn.execute("SELECT * FROM food_sandbox_customer_reviews").fetchall()
             self.assertEqual(len(rows),1)
-            self.assertEqual(len(rows[0]),5,"DB stores keyed hashes but no raw recipient")
+            self.assertEqual(len(rows[0]),6,"DB stores keyed hashes and a revoke flag, no raw recipient")
             self.assertNotIn("buyer-test@example.invalid",str(rows))
             self.assertEqual(len(rows[0][3]),64)
             self.assertEqual(len(rows[0][4]),64)
             dashboard = request(srv, "/shop-test-orders.html")
             self.assertEqual(dashboard[0], 200)
-            self.assertIn("送信前チェック履歴あり・未送信".encode(), dashboard[2])
+            self.assertIn("送信前チェックの記録あり・現在の有効性は要再照合".encode(), dashboard[2])
             self.assertNotIn("buyer-test@example.invalid".encode(), dashboard[2])
             self.assertEqual(calls,[],"No Square checkout POST allowed")
             self.assertGreaterEqual(state["calls"],4,"Read-only Square checks occurred")
+            # Operator can revoke a preview review, without sending mail or
+            # changing the Square payment, then explicitly approve it again.
+            revoke_path = "/api/shop/sandbox/operator/revoke-customer-review"
+            revoke_page = request(srv, path)
+            self.assertIn("送信前チェックを取り消す（送信しない）".encode(),
+                          revoke_page[2])
+            revoke_cookie = revoke_page[1]["Set-Cookie"].split(";", 1)[0]
+            revoke_data = {"order_id": ORDER,
+                           "kind": "customer_order_confirmed",
+                           "csrf": revoke_cookie.split("=", 1)[1],
+                           "confirm": "revoke_only"}
+            def revoke(fields=revoke_data, *, auth=True, origin=ORIGIN,
+                       cookie=revoke_cookie):
+                return request(srv, revoke_path, method="POST", auth=auth,
+                    data=urlencode(fields).encode(), headers={
+                        "Origin": origin, "Cookie": cookie,
+                        "Content-Type": "application/x-www-form-urlencoded"})
+            self.assertEqual(revoke(auth=False)[0], 401)
+            self.assertEqual(revoke(origin="https://evil.invalid")[0], 403)
+            self.assertEqual(revoke({**revoke_data, "csrf": "bad"})[0], 403)
+            self.assertEqual(revoke({**revoke_data, "confirm": "send_now"})[0], 400)
+            self.assertEqual(revoke()[0], 303)
+            self.assertEqual(revoke()[0], 409, "revocation must be idempotent fail closed")
+            stale = request(srv, path)
+            self.assertIn("以前の確認は失効しました".encode(), stale[2])
+            self.assertNotIn("送信せずに最終チェックをテストする".encode(), stale[2])
+            self.assertEqual(approve(data, cookie=cookie)[0], 303)
+
+            # After fifteen minutes, an old approval can no longer be
+            # treated as active, even if the Square contact has not changed.
+            import time
+            with sqlite3.connect(store.db_file) as conn:
+                conn.execute("UPDATE food_sandbox_customer_reviews "
+                             "SET reviewed_at=? WHERE order_id=? AND kind=?",
+                             (int(time.time()) - 901, ORDER, "customer_order_confirmed"))
+            expired = request(srv, path)
+            self.assertIn("以前の確認は失効しました".encode(), expired[2])
+            self.assertNotIn("送信せずに最終チェックをテストする".encode(),
+                             expired[2])
+            self.assertEqual(approve(data, cookie=cookie)[0], 303)
+
             # A changed Square contact invalidates old approvals even if the
             # masked preview looks identical. No message is sent.
             simulate_path = "/api/shop/sandbox/operator/simulate-customer-notice"
