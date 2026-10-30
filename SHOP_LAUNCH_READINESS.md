@@ -100,6 +100,15 @@
 - HTTPテストに認証失敗（未ログイン/購入者/Host違い/機能無効）、データ更新ゼロ・不正HTMLのエスケープ・noindex/iframe拒否、画面の架空データ区別を追加。Chromium/iPhone Safariの画面表示と横スクロールなしもCIで確認。
 - **テスト専用表示であり、本番の運営管理画面や実Square決済・返金・発送・メールに接続していない。** 本番利用はオーナーの法定表示・公開/運用の承認後に別途行う。
 
+## 2026-10-30：Square本番の接続準備・決済通知復旧の再検証
+
+- 接続済みRailwayサービスの**変数名のみ**を調査。実サイト`bigpaw-live`、`bigpaw-site`に`BIGPAW_SQUARE_LIVE_ACCESS_TOKEN`と`BIGPAW_SQUARE_LIVE_LOCATION_ID`が存在しないことを確認。Sandbox`bigpaw-test`は専用の`BIGPAW_SQUARE_SANDBOX_*`で隔離。本番の認証値は参照/保存/登録/送信していない。
+- `shop_payments/square_live_preflight.py`：変数名だけから不足を安全に確認。本番用の情報がオーナー承認後に別途提供された場合だけ、**GET /v2/locations/{id}**でJPY/JP/ACTIVE・カード処理対応を確認する準備関数を追加。テストでは偽Square応答だけを使う。**本番アカウントへの通信はまだない。** Square Checkout CreatePaymentLinkに必要な`ORDERS_READ`、`ORDERS_WRITE`、`PAYMENTS_WRITE`、追加の決済照合`PAYMENTS_READ`・店舗参照`MERCHANT_PROFILE_READ`は、実際の本番権限を別途確認しない限り「承認済み」とみなさない。
+- `shop_live_checkout_bridge.py`：Sandbox用トークンまたはSandbox店舗IDを本番用変数として誤流用した場合、購入処理開始前に拒否。Square本番キー/承認なしで販売可能になることはない。
+- `scripts/test-shop-live-payment-intake.py`を拡充。**同一署名付き通知8件の同時到着**で入金確認遷移1回/イベント監査1件。入金コミット後、イベント記録前の模擬クラッシュでは再送時にSquare PaymentsとOrdersを再照合して復旧。既存の返金後/金額不一致/署名無効/イベントID衝突も検証。
+- [CI 41053562985](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41053562985)：両Docker・Python・Chromium・iPhone WebKitすべて成功。**P02は本番設定未登録につき未完了。O03（模擬決済通知の結合テスト）のみ3ポイント完了、全体残り90ポイント。**
+- 本番Squareキー登録・本番API GET・Square POST・Webhook公開、mainマージ、本番デプロイ、実メール送信、Railway追加サービスへの変更はなし。
+
 ## 今の運用上の注意
 
 - ショップ公開用の `app/shop.html` は「販売準備中」で、決済ボタンが無効。現行の `bigpaw-test` は専用Sandbox Dockerサービスであり、公開用BIG PAW全体の変更を試すサービスではない。
