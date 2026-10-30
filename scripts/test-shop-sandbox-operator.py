@@ -113,7 +113,8 @@ class OperatorConsoleTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.run_console(["assess",self.order])
         with self.assertRaises(ValueError):
-            self.run_console(["record-shipped",self.order],write=True)
+            self.run_console(["record-shipped",self.order],write=True,
+                opener=shipment_opener(self.square,payment=self.fake_payment))
         result=self.run_console(["assess",self.order],write=True,
             opener=shipment_opener(self.square))
         self.assertEqual(result["fulfillment_state"],"ready_to_pack")
