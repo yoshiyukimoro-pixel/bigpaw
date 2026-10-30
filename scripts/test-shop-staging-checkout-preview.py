@@ -83,6 +83,7 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
     h = {"Host": HOST, **(headers or {})}
     if auth and "Authorization" not in h:
         admin = (path.startswith("/shop-test-orders.html") or
+                 path.startswith("/shop-live-orders-preview.html") or
                  path.startswith("/api/shop/sandbox/operator/draft?") or
                  path in ("/api/shop/sandbox/operator/transition",
                           "/api/shop/sandbox/operator/tracking",
@@ -111,6 +112,72 @@ def json_data(response):
 
 
 class CheckoutPreviewTests(unittest.TestCase):
+    def test_operator_only_future_order_display_is_readonly_and_private(self):
+        """The new future-ledger view never grants shopper login admin powers."""
+        from shop_payments.live_order_ledger import LiveOrderLedger
+        from shop_payments.retail_catalog import load_sale_catalog
+        import json as json_lib
+        with server_with_env() as (srv, store, calls):
+            url = "/shop-live-orders-preview.html"
+            self.assertEqual(request(srv, url, auth=False)[0], 401)
+            shopper = "Basic " + base64.b64encode(
+                ("shoptester:" + PASSWORD).encode()
+            ).decode()
+            self.assertEqual(
+                request(srv, url, headers={"Authorization": shopper})[0], 401
+            )
+            self.assertEqual(
+                request(srv, url, headers={"Host": "bigpaw.site"})[0], 400
+            )
+            no_orders = request(srv, url)
+            self.assertEqual(no_orders[0], 200)
+            self.assertIn("まだありません".encode(), no_orders[2])
+            self.assertIn("読み取り専用".encode(), no_orders[2])
+            self.assertIn("noindex", no_orders[1]["X-Robots-Tag"])
+            self.assertEqual(no_orders[1]["X-Frame-Options"], "DENY")
+            self.assertEqual(calls, [])
+            ledger = LiveOrderLedger(store.db_file)
+            sku = next(iter(load_sale_catalog()))
+            live_id = "FOOD" + "f" * 32
+            ledger.register_checkout(
+                order_id=live_id,
+                square_order_id="SYNTHETICORDERSTAGING12345",
+                location_id="SYNTHETICLOCATION12345",
+                cart={sku: 1},
+            )
+            # A hostile item name in an existing record may never produce a
+            # script tag in the administrator's HTML view.
+            with sqlite3.connect(store.db_file) as db:
+                snapshot = json_lib.loads(db.execute(
+                    "SELECT cart_snapshot FROM food_live_order_ledger "
+                    "WHERE order_id=?", (live_id,)
+                ).fetchone()[0])
+                snapshot[0]["name"] = '<script>alert("bad")</script>'
+                db.execute(
+                    "UPDATE food_live_order_ledger SET cart_snapshot=? "
+                    "WHERE order_id=?",
+                    (json_lib.dumps(snapshot), live_id),
+                )
+            before = Path(store.db_file).read_bytes()
+            result = request(srv, url)
+            self.assertEqual(result[0], 200)
+            self.assertIn(live_id.encode(), result[2])
+            self.assertIn(b"&lt;script&gt;", result[2])
+            self.assertNotIn(b'<script>alert("bad")</script>', result[2])
+            self.assertIn("現在の入金".encode(), result[2])
+            self.assertEqual(Path(store.db_file).read_bytes(), before)
+            self.assertEqual(calls, [])
+            shop_dashboard = request(srv, "/shop-test-orders.html")
+            self.assertEqual(shop_dashboard[0], 200)
+            self.assertIn(b"/shop-live-orders-preview.html", shop_dashboard[2])
+
+    def test_future_order_display_is_disabled_without_operator(self):
+        with server_with_env({"BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"}) as (srv, db, calls):
+            self.assertEqual(
+                request(srv, "/shop-live-orders-preview.html")[0], 404
+            )
+            self.assertEqual(calls, [])
+
     def test_only_password_access_can_view_shop_and_assets(self):
         with server_with_env() as (srv, db, calls):
             self.assertEqual(request(srv, "/shop.html", auth=False)[0], 401)
