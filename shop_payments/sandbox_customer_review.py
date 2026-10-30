@@ -8,6 +8,8 @@ This is NOT proof of ownership/consent nor authorization to send.
 from __future__ import annotations
 
 from contextlib import closing
+import hashlib
+import hmac
 import re
 import sqlite3
 import time
@@ -55,7 +57,31 @@ def lookup_masked_recipient(square_order_id: str, *, token: str, opener=None) ->
     email = found.pop()
     local, domain = email.rsplit("@", 1)
     masked = local[:1] + "***@" + domain[:1] + "***"
-    return {"ready": True, "masked": masked}
+    # HMAC key is the server-only Square SANDBOX token; no raw email stored.
+    # Token rotation intentionally invalidates prior approvals.
+    fingerprint = hmac.new(
+        token.encode("utf-8"), email.encode("utf-8"), hashlib.sha256
+    ).hexdigest()
+    return {"ready": True, "masked": masked, "fingerprint": fingerprint}
+
+
+def _draft_fingerprint(store, order_id: str, kind: str) -> str:
+    """Hash exact message content, including carrier/tracking from Sandbox DB."""
+    draft = SandboxNotificationDrafts(store).preview(order_id, kind)
+    body = draft["body"]
+    if kind == "customer_shipment_notice":
+        from .sandbox_tracking import SandboxTrackingJournal
+        tracking = SandboxTrackingJournal(store).read(order_id)
+        if tracking is None:
+            raise ValueError("Shipment tracking is required")
+        body = body.replace(
+            "配送会社：【運営が確認して入力】",
+            "配送会社：" + tracking["carrier_label"]
+        ).replace(
+            "追跡番号：【運営が確認して入力】",
+            "追跡番号：" + tracking["tracking_number"]
+        )
+    return hashlib.sha256((draft["subject"] + "\\0" + body).encode("utf-8")).hexdigest()
 
 
 class SandboxCustomerReview:
@@ -76,9 +102,23 @@ class SandboxCustomerReview:
                 kind TEXT NOT NULL CHECK(kind IN
                     ('customer_order_confirmed','customer_shipment_notice')),
                 reviewed_at INTEGER NOT NULL,
+                contact_fingerprint TEXT,
+                content_fingerprint TEXT,
                 PRIMARY KEY (order_id, kind)
             )
         """)
+        # Existing test DBs contain 3-column rows: migrate in-place and
+        # invalidate those old approvals until the operator reviews again.
+        names = {
+            column[1] for column in db.execute(
+                "PRAGMA table_info(food_sandbox_customer_reviews)"
+            )
+        }
+        for name in ("contact_fingerprint", "content_fingerprint"):
+            if name not in names:
+                db.execute(
+                    "ALTER TABLE food_sandbox_customer_reviews ADD COLUMN " + name + " TEXT"
+                )
 
     def reviewed(self, order_id: str, kind: str) -> bool:
         if not isinstance(order_id, str) or not ORDER_ID.fullmatch(order_id) or kind not in CUSTOMER_KINDS:
@@ -114,7 +154,27 @@ class SandboxCustomerReview:
         if opener is not None:
             opts["opener"] = opener
         status = lookup_masked_recipient(snapshot["square_order_id"], **opts)
-        return {**status, "reviewed": self.reviewed(order_id, kind)}
+        if not status["ready"]:
+            return {"ready": False, "masked": None, "reviewed": False,
+                    "review_history": self.reviewed(order_id, kind)}
+        content_fingerprint = _draft_fingerprint(self.store, order_id, kind)
+        with closing(self._open()) as db:
+            cols = {
+                c[1] for c in db.execute("PRAGMA table_info(food_sandbox_customer_reviews)")
+            }
+            old = (db.execute(
+                "SELECT contact_fingerprint, content_fingerprint "
+                "FROM food_sandbox_customer_reviews WHERE order_id=? AND kind=?",
+                (order_id, kind)
+            ).fetchone() if {"contact_fingerprint", "content_fingerprint"} <= cols
+                else None)
+        current = bool(
+            old and old["contact_fingerprint"] == status["fingerprint"]
+            and old["content_fingerprint"] == content_fingerprint
+        )
+        return {"ready": True, "masked": status["masked"], "reviewed": current,
+                "review_history": old is not None,
+                "_fingerprints": (status["fingerprint"], content_fingerprint)}
 
     def mark_reviewed(self, order_id: str, kind: str, *, token: str, opener=None) -> bool:
         status = self.readiness(order_id, kind, token=token, opener=opener)
@@ -124,13 +184,26 @@ class SandboxCustomerReview:
             self._install(db)
             try:
                 db.execute("BEGIN IMMEDIATE")
-                count = db.execute(
-                    "INSERT OR IGNORE INTO food_sandbox_customer_reviews "
-                    "(order_id,kind,reviewed_at) VALUES (?,?,?)",
-                    (order_id, kind, int(time.time()))
-                ).rowcount
+                before = db.execute(
+                    "SELECT contact_fingerprint,content_fingerprint "
+                    "FROM food_sandbox_customer_reviews WHERE order_id=? AND kind=?",
+                    (order_id, kind)
+                ).fetchone()
+                same = bool(before and
+                            (before["contact_fingerprint"], before["content_fingerprint"])
+                            == status["_fingerprints"])
+                if not same:
+                    db.execute(
+                        "INSERT INTO food_sandbox_customer_reviews "
+                        "(order_id,kind,reviewed_at,contact_fingerprint,content_fingerprint) "
+                        "VALUES (?,?,?,?,?) ON CONFLICT(order_id,kind) DO UPDATE SET "
+                        "reviewed_at=excluded.reviewed_at,"
+                        "contact_fingerprint=excluded.contact_fingerprint,"
+                        "content_fingerprint=excluded.content_fingerprint",
+                        (order_id, kind, int(time.time()), *status["_fingerprints"])
+                    )
                 db.execute("COMMIT")
-                return count == 1
+                return not same
             except Exception:
                 db.execute("ROLLBACK")
                 raise
