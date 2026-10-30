@@ -25,6 +25,7 @@ on:
       - 'scripts/test-shop-customer-email-transport.py'
       - 'scripts/test-shop-square-live-readonly.py'
       - 'scripts/test-shop-live-order-ledger.py'
+      - 'scripts/test-shop-live-payment-intake.py'
       - 'scripts/test-shop-live-customer-notice-preview.py'
       - 'scripts/test-shop-live-notice-approval.py'
       - 'scripts/test-shop-square.py'
@@ -121,6 +122,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-customer-email-transport.py
           PYTHONPATH=. python3 scripts/test-shop-square-live-readonly.py
           PYTHONPATH=. python3 scripts/test-shop-live-order-ledger.py
+          PYTHONPATH=. python3 scripts/test-shop-live-payment-intake.py
           PYTHONPATH=. python3 scripts/test-shop-live-customer-notice-preview.py
           PYTHONPATH=. python3 scripts/test-shop-live-notice-approval.py
           PYTHONPATH=. python3 scripts/test-shop-staging-seed-order.py
