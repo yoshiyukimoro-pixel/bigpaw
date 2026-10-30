@@ -127,9 +127,12 @@ def _csrf_valid(handler):
 
 def handle_get(handler):
     path = urlsplit(handler.path).path
-    allowed = path in ("/shop.html", "/shop-test-orders.html") or path in FILES or path == "/api/shop/sandbox/config" or ORDER.fullmatch(path) or ASSETS.fullmatch(path)
+    allowed = path in ("/shop.html", "/shop-test-orders.html", "/api/shop/sandbox/operator/draft") or path in FILES or path == "/api/shop/sandbox/config" or ORDER.fullmatch(path) or ASSETS.fullmatch(path)
     if not allowed:
         return False
+    if path == "/api/shop/sandbox/operator/draft":
+        from .staging_operator_actions import handle_draft_get
+        return handle_draft_get(handler)
     if path == "/shop-test-orders.html":
         from .staging_operator_actions import authenticate, new_csrf_cookie
         if not authenticate(handler):
