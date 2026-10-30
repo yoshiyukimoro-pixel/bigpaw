@@ -49,7 +49,7 @@ BASE = {
 
 
 @contextmanager
-def server_with_env(config=None, shipping_opener=None):
+def server_with_env(config=None, shipping_opener=None, refund_opener=None):
     folder = tempfile.TemporaryDirectory()
     db = SandboxOrderStore(Path(folder.name) / "orders.sqlite3")
     calls = []
@@ -65,7 +65,7 @@ def server_with_env(config=None, shipping_opener=None):
     srv = StageWebhookServer(
         env={**BASE, **(config or {})}, store=db,
         host="127.0.0.1", port=0, checkout_creator=creator,
-        shipping_opener=shipping_opener,
+        shipping_opener=shipping_opener, refund_opener=refund_opener,
     )
     task = Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     task.start()
@@ -88,7 +88,8 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
                           "/api/shop/sandbox/operator/tracking",
                           "/api/shop/sandbox/operator/review-customer",
                           "/api/shop/sandbox/operator/simulate-customer-notice",
-                          "/api/shop/sandbox/operator/mock-customer-mail"))
+                          "/api/shop/sandbox/operator/mock-customer-mail",
+                          "/api/shop/sandbox/operator/verify-full-refund"))
         credentials = (("operationstest:" + OPERATOR_PASSWORD) if admin
                        else ("shoptester:" + PASSWORD))
         h["Authorization"] = "Basic " + base64.b64encode(
@@ -647,6 +648,98 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertNotIn("b-UPDATED@example.invalid",str(saved)+str(hashed))
             self.assertEqual(calls,[],"no provider email or new checkout ever sent")
 
+    def test_verified_full_refund_operator_action_never_initiates_square_refund(self):
+        from shop_payments.retail_catalog import load_sale_catalog
+        from shop_payments.sandbox_procurement import SandboxProcurementOps
+        payment_id = "MOCKSQUAREPAYMENTFULL12345"
+        square_order = "MOCKSQUAREORDERFULL12345"
+        state = {"refunded": 0, "reads": 0}
+
+        class MockResponse:
+            status = 200
+            def __init__(self):
+                self.body = json.dumps({"payment": {
+                    "id": payment_id, "order_id": square_order,
+                    "location_id": BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
+                    "status": "COMPLETED",
+                    "amount_money": {"amount": 21450, "currency": "JPY"},
+                    "refunded_money": {"amount": state["refunded"], "currency": "JPY"},
+                }}).encode()
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, n): return self.body[:n]
+
+        def refund_opener(request, timeout):
+            self.assertEqual(request.get_method(), "GET", "refund API MUST be read-only")
+            self.assertEqual(request.full_url,
+                "https://connect.squareupsandbox.com/v2/payments/" + payment_id)
+            self.assertEqual(timeout, 10)
+            state["reads"] += 1
+            return MockResponse()
+
+        with server_with_env(refund_opener=refund_opener) as (srv, store, calls):
+            store.add_pending_order(
+                order_id=ORDER, cart={"A02": 1},
+                verified_prices=load_sale_catalog(), shipping_yen=0,
+                location_id=BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
+            )
+            with sqlite3.connect(store.db_file) as conn:
+                conn.execute(
+                    "UPDATE orders SET state='paid',paid_at=1761780000,"
+                    "square_payment_id=?,square_order_id=? WHERE order_id=?",
+                    (payment_id, square_order, ORDER)
+                )
+            ops = SandboxProcurementOps(store)
+            ops.transition(ORDER, "refund_review")
+            page = request(srv, "/shop-test-orders.html")
+            self.assertEqual(page[0], 200)
+            self.assertIn("Square全額返金済みを照合する".encode(), page[2])
+            cookie = page[1]["Set-Cookie"].split(";", 1)[0]
+            data = {
+                "order_id": ORDER, "csrf": cookie.split("=", 1)[1],
+                "confirm": "verify_read_only",
+            }
+            path = "/api/shop/sandbox/operator/verify-full-refund"
+            def check(payload=data, *, auth=True, origin=ORIGIN, cookie_value=cookie):
+                return request(srv, path, auth=auth, method="POST",
+                    data=urlencode(payload).encode(),
+                    headers={"Origin": origin, "Cookie": cookie_value,
+                             "Content-Type": "application/x-www-form-urlencoded"})
+            self.assertEqual(check(auth=False)[0], 401)
+            self.assertEqual(check(origin="https://untrusted.invalid")[0], 403)
+            self.assertEqual(check(cookie_value="invalid=x")[0], 403)
+            self.assertEqual(check({**data, "confirm": "refund_now"})[0], 400)
+            self.assertEqual(state["reads"], 0, "invalid requests cannot read Square")
+            self.assertEqual(check()[0], 409, "no refund cannot mark as refunded")
+            self.assertEqual(ops.state(ORDER), "refund_review")
+            state["refunded"] = 500
+            self.assertEqual(check()[0], 409, "partial refund cannot mark as full")
+            self.assertEqual(ops.state(ORDER), "refund_review")
+            state["refunded"] = 21450
+            success = check()
+            self.assertEqual(success[0], 303)
+            self.assertEqual(success[1]["Location"],
+                             "/shop-test-orders.html?refund_verified=1")
+            self.assertEqual(ops.state(ORDER), "refunded")
+            self.assertEqual(check()[0], 303, "duplicate GET never duplicates events")
+            self.assertEqual(calls, [], "never create another checkout")
+            with sqlite3.connect(store.db_file) as conn:
+                events = [r[0] for r in conn.execute(
+                    "SELECT stage FROM food_procurement_events "
+                    "WHERE order_id=? ORDER BY id", (ORDER,)
+                )]
+                drafts = conn.execute(
+                    "SELECT COUNT(*) FROM food_notification_drafts "
+                    "WHERE order_id=? AND kind='customer_refund_completed'", (ORDER,)
+                ).fetchone()[0]
+            self.assertEqual(events, ["refund_review", "refunded"])
+            self.assertEqual(drafts, 1, "refund notice is a draft, never emailed")
+            completed = request(srv, "/shop-test-orders.html")
+            self.assertIn("返金確認済み（テスト記録）".encode(), completed[2])
+            self.assertNotIn("Square全額返金済みを照合する".encode(), completed[2])
+            self.assertEqual(state["reads"], 4)
+            self.assertNotIn("MOCKSQUAREPAYMENTFULL12345".encode(), completed[2])
+
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
         with server_with_env({"BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"}) as (srv, _, _):
             self.assertEqual(request(srv, "/shop.html")[0], 200)
@@ -660,6 +753,8 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/simulate-customer-notice",
                                      method="POST", data=b"{}")[0], 404)
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/mock-customer-mail",
+                                     method="POST", data=b"{}")[0], 404)
+            self.assertEqual(request(srv, "/api/shop/sandbox/operator/verify-full-refund",
                                      method="POST", data=b"{}")[0], 404)
         for config in (
             {"BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0"},
