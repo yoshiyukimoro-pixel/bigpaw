@@ -23,6 +23,7 @@ COOKIE = "__Host-bigpaw_shop_operator_csrf"
 PATH = "/api/shop/sandbox/operator/transition"
 TRACKING_PATH = "/api/shop/sandbox/operator/tracking"
 REVIEW_PATH = "/api/shop/sandbox/operator/review-customer"
+DRYRUN_PATH = "/api/shop/sandbox/operator/simulate-customer-notice"
 STAGES = frozenset(("supplier_ordered", "supplier_backorder",
                     "received_at_shop", "refund_review", "shipped"))
 ORDER = re.compile(r"^FOOD[0-9a-f]{32}$")
@@ -142,14 +143,40 @@ def handle_draft_get(handler) -> bool:
             status = reviewer.readiness(order_id, kind, **opts)
         except (SquareSandboxError, ValueError, KeyError):
             status = {"ready": False, "masked": None,
-                      "reviewed": reviewer.reviewed(order_id, kind)}
-        if status["reviewed"]:
-            review_panel = '<p><strong>送信前チェック済み（テスト記録）。未送信です。</strong></p>'
+                      "reviewed": False,
+                      "review_history": reviewer.reviewed(order_id, kind)}
+        if status["ready"] and status["reviewed"]:
+            from .sandbox_customer_dispatch import SandboxDryRunOutbox
+            dryrun = SandboxDryRunOutbox(handler.server.store)
+            if dryrun.inspected(order_id, kind):
+                review_panel = (
+                    '<p><strong>送信シミュレーション完了（テスト記録）。'
+                    '実際のメールは未送信です。</strong></p>'
+                )
+            else:
+                csrf, cookie = new_csrf_cookie()
+                extra_header = {"Set-Cookie": cookie}
+                review_panel = (
+                    '<section><p><strong>送信前チェック済み・未送信</strong></p>'
+                    '<p>Squareの宛先と本文の最新版を再確認して、'
+                    'メールを送らずに送信直前の手順だけテストできます。</p>'
+                    '<form method="post" action="' + DRYRUN_PATH + '">'
+                    '<input type="hidden" name="order_id" value="' + escape(order_id, quote=True) + '">'
+                    '<input type="hidden" name="kind" value="' + escape(kind, quote=True) + '">'
+                    '<input type="hidden" name="csrf" value="' + escape(csrf, quote=True) + '">'
+                    '<label><input type="checkbox" name="confirm" value="simulate_only" required>'
+                    '実メールを送信しないシミュレーションであることを確認</label>'
+                    '<button type="submit">送信せずに最終チェックをテストする</button>'
+                    '</form></section>'
+                )
         elif status["ready"]:
             csrf, cookie = new_csrf_cookie()
             extra_header = {"Set-Cookie": cookie}
             review_panel = (
-                '<section><h3>送信前の確認（メールは送られません）</h3>'
+                '<section><h3>送信前の確認（メールは送られません）</h3>' +
+                ('<p><strong>以前の確認は失効しました。'
+                 'Squareの宛先または本文が変わったため再確認してください。</strong></p>'
+                 if status.get("review_history") else '') +
                 '<p>Square Sandbox注文情報の連絡先：' +
                 escape(status["masked"], quote=True) +
                 '（一部のみ表示、メールアドレスの本人確認は未実施）</p>'
@@ -262,6 +289,75 @@ def handle_customer_review_post(handler) -> bool:
     return True
 
 
+def handle_dryrun_post(handler) -> bool:
+    """No send operation. Record only an idempotent reviewed dry run."""
+    from .staging_checkout_preview import _send
+    from .sandbox_customer_dispatch import SandboxDryRunOutbox
+    from .sandbox_customer_review import CUSTOMER_KINDS
+    if handler.path != DRYRUN_PATH:
+        return False
+    if not authenticate(handler):
+        return True
+    if handler.headers.get("Transfer-Encoding"):
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    if handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
+        _send(handler, 415, {"error": "invalid_type"})
+        return True
+    try:
+        size = int(handler.headers.get("Content-Length", ""))
+    except ValueError:
+        size = 0
+    if not 1 <= size <= 500:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    raw = handler.rfile.read(size)
+    if len(raw) != size:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    try:
+        values = parse_qs(raw.decode("ascii"), keep_blank_values=True,
+                          strict_parsing=True, max_num_fields=4)
+        if set(values) != {"order_id", "kind", "csrf", "confirm"} or any(
+            len(v) != 1 for v in values.values()
+        ):
+            raise ValueError("invalid_form")
+        fields = {k: v[0] for k, v in values.items()}
+    except (ValueError, UnicodeError):
+        _send(handler, 400, {"error": "invalid_form"})
+        return True
+    if not _csrf_ok(handler, fields["csrf"]):
+        _send(handler, 403, {"error": "invalid_origin_or_csrf"})
+        return True
+    if (not ORDER.fullmatch(fields["order_id"]) or
+        fields["kind"] not in CUSTOMER_KINDS or
+        fields["confirm"] != "simulate_only"):
+        _send(handler, 400, {"error": "invalid_simulation_request"})
+        return True
+    opts = {"token": handler.server.env["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"]}
+    if handler.server.shipping_opener is not None:
+        opts["opener"] = handler.server.shipping_opener
+    try:
+        SandboxDryRunOutbox(handler.server.store).simulate_once(
+            fields["order_id"], fields["kind"], **opts
+        )
+    except SquareSandboxError:
+        _send(handler, 503, {"error": "square_contact_read_unavailable"})
+        return True
+    except (ValueError, KeyError):
+        _send(handler, 409, {"error": "review_stale_or_simulation_conflict"})
+        return True
+    from urllib.parse import urlencode
+    handler.send_response(303)
+    handler.send_header("Location", "/api/shop/sandbox/operator/draft?" +
+                        urlencode({"order_id": fields["order_id"], "kind": fields["kind"]}))
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Referrer-Policy", "no-referrer")
+    handler.send_header("Content-Length", "0")
+    handler.end_headers()
+    return True
+
+
 def handle_tracking_post(handler) -> bool:
     """Manually record a shipping reference; NEVER send it to a recipient."""
     from .staging_checkout_preview import _send
@@ -326,6 +422,8 @@ def handle_post(handler) -> bool:
         return handle_tracking_post(handler)
     if handler.path == REVIEW_PATH:
         return handle_customer_review_post(handler)
+    if handler.path == DRYRUN_PATH:
+        return handle_dryrun_post(handler)
     from .staging_checkout_preview import _send
     from .sandbox_runtime_guard import is_allowed_sandbox_runtime
     if handler.path != PATH:
