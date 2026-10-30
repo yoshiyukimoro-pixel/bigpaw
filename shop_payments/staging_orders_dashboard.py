@@ -252,6 +252,23 @@ def render(store, *, csrf: str = "") -> str:
                     'これはテスト記録であり、実際の配送・メール送信ではないことを確認</label>'
                     '<button type="submit">配送情報をテスト登録</button></form></section>'
                 )
+        refund_html = ""
+        if order["state"] == "paid" and current_stage == "refund_review" and csrf:
+            refund_html = (
+                '<section class="tracking-box"><h3>Square全額返金を照合（Sandboxのみ）</h3>'
+                '<p>Squareの決済履歴を読み取って「返金済み」を確認します。'
+                'この操作で実際の返金・メール送信は行いません。'
+                '全額返金が確認できない場合、状態は変更されません。</p>'
+                '<form method="post" action="/api/shop/sandbox/operator/verify-full-refund"'
+                ' class="stage-form">'
+                '<input type="hidden" name="order_id" value="' + _safe(order_id) + '">'
+                '<input type="hidden" name="csrf" value="' + _safe(csrf) + '">'
+                '<label><input type="checkbox" name="confirm" value="verify_read_only" required>'
+                'すでにSquareで返金操作が完了していることを読み取るだけで、'
+                'ここから返金は実行しないと確認</label>'
+                '<button type="submit">Square全額返金済みを照合する（テスト）</button>'
+                '</form></section>'
+            )
         cards.append(
             '<article class="order"><div class="order-top"><strong>' +
             _safe(PAYMENT_LABELS.get(order["state"], "状態確認が必要")) +
@@ -264,7 +281,7 @@ def render(store, *, csrf: str = "") -> str:
             '<p class="status">仕入れ：' + _safe(procurement_text) +
             "<br>運営メール：" + _safe(mail_text) + "</p>" +
             '<div class="next-action"><strong>次の確認作業</strong><p>' +
-            _safe(action) + "</p></div>" + drafts_html + controls + tracking_html + "</article>"
+            _safe(action) + "</p></div>" + drafts_html + controls + tracking_html + refund_html + "</article>"
         )
     paid = sum(row["state"] == "paid" for row in records)
     pending = len(records) - paid
