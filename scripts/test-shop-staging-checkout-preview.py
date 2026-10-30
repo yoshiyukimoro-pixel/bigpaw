@@ -21,7 +21,7 @@ from shop_payments.sandbox_runtime_guard import (
 HOST = "bigpaw-test-production.up.railway.app"
 ORIGIN = "https://" + HOST
 PASSWORD = "not-a-production-password-32-characters"
-ORDER = "FOOD12345678123442348234123456789a"
+ORDER = "FOOD" + ATTEMPT.replace("-", "")
 ATTEMPT = "12345678-1234-4234-8234-123456789abc"
 BASE = {
     "RAILWAY_PROJECT_ID": LEGACY_BIGPAW_PROJECT,
@@ -73,7 +73,7 @@ def server_with_env(config=None):
 def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
     conn = HTTPConnection("127.0.0.1", srv.server_port, timeout=4)
     h = {"Host": HOST, **(headers or {})}
-    if auth:
+    if auth and "Authorization" not in h:
         h["Authorization"] = "Basic " + base64.b64encode(
             ("shoptester:" + PASSWORD).encode()
         ).decode()
