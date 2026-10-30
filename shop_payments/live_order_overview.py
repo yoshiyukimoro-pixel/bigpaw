@@ -13,8 +13,10 @@ from __future__ import annotations
 
 from contextlib import closing
 import json
+from pathlib import Path
 import re
 import sqlite3
+from urllib.parse import quote
 
 from .live_order_ledger import LiveOrderLedger, LiveOrderBlocked
 
@@ -31,7 +33,13 @@ def read_order_management_snapshot(*, ledger: LiveOrderLedger, limit=100):
         raise LiveOrderBlocked("Private live ledger is required")
     if type(limit) is not int or not 1 <= limit <= 100:
         raise LiveOrderBlocked("Invalid private order list limit")
-    with closing(sqlite3.connect(ledger.db_file, timeout=5)) as db:
+    # SQLite mode=ro makes it impossible for a read-only listing to create
+    # an empty DB accidentally or write to the order journal.
+    file_path = Path(ledger.db_file)
+    if not file_path.is_file():
+        return {"orders": [], "count": 0, "read_only": True}
+    uri = "file:" + quote(str(file_path.resolve())) + "?mode=ro"
+    with closing(sqlite3.connect(uri, timeout=5, uri=True)) as db:
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA query_only=ON")
         db.execute("BEGIN")
