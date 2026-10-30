@@ -74,25 +74,22 @@ def create_fake_card_payment(
                 raise SquareSandboxError("Sandbox payment API status unexpected")
             data = json.loads(response.read(262144))
     except HTTPError as exc:
-        # Only print a sanitized provider error CODE. Never print response
-        # messages, tokens, order IDs, request headers or any payload body.
+        # Only print sanitized provider error CODE and field name. Never print
+        # response messages, tokens, order IDs, request headers or payloads.
         code = "UNKNOWN"
+        field = "UNSPECIFIED"
         try:
             detail = json.loads(exc.read(4096))
-            candidate = detail.get("errors", [{}])[0].get("code", "")
+            error = detail.get("errors", [{}])[0]
+            candidate = error.get("code", "")
             if isinstance(candidate, str) and re.fullmatch(r"[A-Z_]{3,64}", candidate):
                 code = candidate
-        except (ValueError, TypeError, KeyError, IndexError):
-            pass
-        field = ""
-        try:
-            detail = json.loads(exc.read(4096))
-            candidate = detail.get("errors", [{}])[0].get("field", "")
-            if isinstance(candidate, str) and re.fullmatch(r"[A-Za-z0-9_.\[\]-]{1,80}", candidate):
+            candidate = error.get("field", "")
+            if isinstance(candidate, str) and re.fullmatch(r"[A-Za-z0-9_.\\[\\]-]{1,80}", candidate):
                 field = candidate
         except (ValueError, TypeError, KeyError, IndexError):
             pass
-        print("SQUARE_SANDBOX_PAYMENTS_HTTP_STATUS=%d CODE=%s FIELD=%s" % (exc.code, code, field or "UNSPECIFIED"))
+        print("SQUARE_SANDBOX_PAYMENTS_HTTP_STATUS=%d CODE=%s FIELD=%s" % (exc.code, code, field))
         raise SquareSandboxError("Square Sandbox CreatePayment HTTP error") from None
     except (URLError, OSError, ValueError, TimeoutError):
         raise SquareSandboxError("Square Sandbox CreatePayment connection unavailable") from None
