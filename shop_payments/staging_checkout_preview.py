@@ -254,6 +254,18 @@ def handle_post(handler):
     except OSError:
         _send(handler, 503, {"error": "sandbox_db_unavailable"})
         return True
+    if not prior:
+        try:
+            # This SQLite transition commits BEFORE making the external
+            # request. An unknown outcome or concurrent click must never
+            # create another Square link automatically.
+            handler.server.store.claim_checkout_link_attempt(local_order_id)
+        except SquareSandboxError:
+            _send(handler, 409, {"error": "sandbox_checkout_operator_review_required"})
+            return True
+        except (OSError, sqlite3.Error):
+            _send(handler, 503, {"error": "sandbox_checkout_journal_unavailable"})
+            return True
     try:
         if prior:
             link = prior
@@ -262,8 +274,10 @@ def handle_post(handler):
                 payload, token=handler.server.env["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"]
             )
             handler.server.store.save_link(local_order_id, link)
-    except (SquareSandboxError, ValueError, OSError):
-        _send(handler, 502, {"error": "sandbox_checkout_unavailable"})
+    except (SquareSandboxError, ValueError, OSError, sqlite3.Error):
+        # The attempt remains 'attempt_unknown' until a trusted operator
+        # reconciles the exact Square order/link. Do NOT reset and re-POST.
+        _send(handler, 502, {"error": "sandbox_checkout_result_uncertain"})
         return True
     _send(handler, 200, {
         "sandbox": True, "checkout_url": link["url"], "order_id": local_order_id,
