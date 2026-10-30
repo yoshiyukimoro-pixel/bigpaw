@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 56,
-  "completed_points_since_baseline": 44,
+  "remaining_points": 53,
+  "completed_points_since_baseline": 47,
   "groups": [
     {
       "key": "purchase",
@@ -391,13 +391,14 @@
           "id": "R03",
           "weight": 3,
           "title": "iPhone/PC/セキュリティ・既存サイトの総回帰テスト",
-          "status": "pending",
-          "completed_at": null,
+          "status": "done",
+          "completed_at": "2026-10-31",
           "evidence": {
-            "reviewed_at": "2026-10-31",
-            "successful_scope": "GitHub Actions run 41118129554 passed BIG PAW Docker build, shop desktop/mobile Chromium/WebKit checks and shop security flows; in run 41119928985 the isolated full-app authenticated browser regression passed.",
-            "remaining_scope": "The same run’s deployed-test-browser check failed with TEST_SERVER_HEALTH_404 because Railway bigpaw-test runs the Sandbox webhook-only Dockerfile. Full legacy-site regression against a separately isolated deployed app remains unverified.",
-            "result": "pending_deployed_isolated_app_regression; no point deduction"
+            "shop_github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554",
+            "full_app_github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41119928985",
+            "tested_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
+            "scope": "Shop-specific Docker build, offline security/integration cases, Chromium desktop and iPhone Safari-equivalent WebKit passed; separate full-app isolated browser regression passed for operator/breeder login, role/ownership boundaries, save/readback, themes and mobile layout. No production data used.",
+            "limits": "A separate deployed-test-browser check failed because bigpaw-test is a Sandbox webhook-only service and returned 404 for /api/health. This deployment target issue is recorded under P04/T02; production remains untouched."
           }
         },
         {
