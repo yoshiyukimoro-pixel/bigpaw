@@ -215,3 +215,10 @@
 - Google Drive「BIG PAW Backups」に5日前の`bigpaw-weekly-2026-W44.sqlite3`（1,249,280 bytes）を確認。読み取り専用コピーでSQLite `PRAGMA integrity_check`=`ok`、テーブル55件を確認。行の内容は閲覧・出力していない。
 - Railwayの本番`bigpaw-live`と`bigpaw-site`は最新成功デプロイをロールバック可能と表示。各サービスの永続ボリュームは別。アプリを戻してもDBデータは戻らない点を手順上の注意として記録。
 - 実データの復元演習は未実施。バックアップ実体の整合性とアプリロールバック可能性は確認済みのため、R01の2ポイントを減算し**残り56ポイント**。
+
+
+## 2026-10-31：P04/R03 のテスト環境接続先を調査（ポイント未減算）
+
+- Railwayの`BigPaw/bigpaw-test`は`Dockerfile.shop-staging`からSquare Sandbox Webhook専用プロセスを起動し、`/healthz`で稼働確認する構成。Square Sandbox変数名はあるが、ショップ運営者/プレビュー画面の認証値は読めない。
+- `GET /shop.html`はBasic認証を要求し、このセッションに認証情報がないため停止。認証回避やSquare API呼び出し、テスト決済はしていない。
+- GitHub Actions [41119928985](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41119928985)の隔離フルアプリ回帰は成功した一方、デプロイ先回帰はWebhook専用サービスに`/api/health`を求めて404で失敗。P04/R03は正しい隔離アプリ環境と認証経路が揃うまで未完了。残り56ポイントを維持。
