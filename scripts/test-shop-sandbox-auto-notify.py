@@ -149,6 +149,29 @@ class OperatorAutoNotificationTests(unittest.TestCase):
                              "missing_send_key")
         self.assertEqual(self.sent, [])
 
+    def test_existing_railway_test_service_only_is_allowed(self):
+        status, raw = self.verified_webhook()
+        self.assertEqual(status, "paid")
+        target = {**ENABLED,
+            "RAILWAY_PROJECT_ID": "d70f7165-f5eb-41e8-95a0-62f85ff90478",
+            "RAILWAY_ENVIRONMENT_ID": "ecc9fcbf-496f-4b51-a651-65a46a971588",
+            "RAILWAY_SERVICE_ID": "1a1a32bd-e885-4848-a6b5-fde5ef9ac902",
+            "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID":
+                "d70f7165-f5eb-41e8-95a0-62f85ff90478",
+        }
+        for service in (
+            "32e31163-1049-41d3-84f8-dd61a0a7019e",  # bigpaw-site
+            "1ad6d952-c284-4886-9237-a30c364132fd",  # bigpaw-web
+            "fake-service",
+        ):
+            self.assertEqual(
+                self.call(status, raw, env={**target, "RAILWAY_SERVICE_ID": service}),
+                "disabled",
+            )
+        self.assertEqual(self.sent, [])
+        self.assertEqual(self.call(status, raw, env=target), "accepted")
+        self.assertEqual(len(self.sent), 1)
+
     def test_event_payment_id_must_match_committed_paid_order(self):
         status, raw = self.verified_webhook()
         self.assertEqual(status, "paid")
