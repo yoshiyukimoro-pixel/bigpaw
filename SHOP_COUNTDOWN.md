@@ -276,3 +276,13 @@
 - 開発用の疑似Square GET/POST、DRAFTからOPENになった後の署名済みWebhook＋最新COMPLETED Payment照合、悪意ある明細差替のテストを追加。実本番Square POSTや顧客データ、メールは使用しない。
 - 緊急停止手順も更新。Square Checkout APIで作ったリンクは通常Square Dashboardの一覧で確認できない場合があるので、運営権限のあるCheckout Payment Links一覧/取得APIで独立照合する。
 - P04/P06/R02等の実環境・実機条件は未達で、**残り53ポイント（完了47%）を維持**。PR #175はDraft、mainマージ・本番デプロイ・追加課金なし。
+
+## 2026-10-31：Railway有料テスト環境の承認・分離構築（T01/T02合計5ポイント完了）
+
+- 利用者が、必要なRailway追加費用の発生とテスト環境構築の継続実行を明示承認。Railway新規プロジェクト `BIG PAW App Staging`／`staging` 環境／`bigpaw-app-staging` サービスを新設。
+- 従来の `BigPaw/bigpaw-test` Square Sandbox Webhook専用サービスと500MBデータボリュームを変更せず、フルアプリ用の新規独立500MBボリュームを作成。Dockerfileは本体フルアプリ、開発PR#175のコミット `361ff926b8834ef099b85046610c61fb4a29eed7` を固定。
+- 新サービスに本番Square/SMTP/Resend秘密値は設定しない。実決済、メール、ショップ販売開始スイッチを無効化。リソース上限は1 replica、1vCPU、1GB RAM。
+- GitHub Actions `41127078581`：ショップ全体の単体・Docker・PC Chromium・iPhone WebKit模擬テスト成功。Railway保護付きデプロイ `3bb941c3-7f20-451e-9f50-77ea2e92ef56` はSUCCESS、Online、警告0件。
+- パスワード保護 `app/backend/staging_auth_gateway.py` を分岐導入し、`https://bigpaw-app-staging-staging.up.railway.app` を公開。GitHub Actions `41127629968` は外部から `/healthz=200`、`/shop.html`・`/`・注文設定APIの匿名アクセス=401を確認。
+- **T01（2）/T02（3）を採点済み：残り53→48、完了47→52。** 料金はRailway従量課金で固定月額見積ではない。
+- 既存Sandbox鍵/署名Webhook URLは未移行。顧客の本番実決済、Square本番キー登録、mainマージ、実メール送信なし。T03/T04/P04/R02と法定表示は引き続き未完了。詳細は `SHOP_FULL_APP_STAGING.md`。
