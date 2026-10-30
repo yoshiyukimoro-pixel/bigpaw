@@ -352,3 +352,11 @@
 - SquareからRailwayへ認証情報を直接送るGitHub Actionsのコードを作成：`scripts/sync-shop-staging-sandbox-secrets.py`／`scripts/test-shop-staging-sandbox-secret-sync.py`／`.github/workflows/shop-staging-sandbox-secret-sync.yml`。既存Square Sandbox Token＋Location IDと、当該無効通知先の専用署名鍵のみを、新`BIG PAW App Staging`の`staging`環境・Webhook専用Serviceに書き込む。Railway Project Tokenが別途GitHub Secretに設定されない限り実行不可。書込後も`skipDeploys=true`で公開/配信開始はしない。
 - Actions `41134714141` **SUCCESS**：5ケースの秘密値移送安全ガード、Python、Square Sandbox単体、独立Docker・本体Docker、Chromium・iPhone Safari/WebKitの総合CI合格。
 - 新RailwayサービスへのSquare機密値の設定、新URLの有効化、Square→Railway本物Webhook受信・配送先実入力は**未実施**。T03/P04は未完了、**残り46ポイント（完了54%）**で変更なし。ユーザーがトークンをチャットに貼る必要はない。詳細：`SHOP_SQUARE_SANDBOX_MIGRATION.md`。
+
+## 2026-10-31：返金情報のnullと複数配送先の安全な拒否
+
+- `shop_payments/square_live_readonly.py` と `sandbox_reconcile.py` の最新Payment GET照合を強化。Squareが任意の `refunded_money` を完全に**省略**した場合のみ未返金0円の既定値を使用。欄が存在するのに`null`、`{}`、真偽値、文字列、通貨不一致、部分返金などの場合は「未返金」を認めず、安全側で拒否。Squareの`COMPLETED`状態だけで未返金とは判断しない。
+- `retrieve_sandbox_shipment_status` と `verify_paid_live_shipment` も、1件の注文に複数の配送先/SHIPMENT/PICKUPが存在する場合を住所曖昧と判定し、自動梱包・入金確認の承認に進めず運営者の手動確認へ。1件でも正しい宛先があるからといって、他の配送先を黙って無視しない。
+- `scripts/test-shop-square-live-readonly.py` と `scripts/test-shop-square-reconcile.py` に、返品情報の不正値・正しい0JPY・欄省略・配送先複数の合成回帰テストを追加。**本番Squareネットワーク呼び出しなし**。
+- Python/署名・一括Docker・Chromium・iPhone WebKitの最新総合CIが完了するまで新stagingサービスへのデプロイはしない。旧stagingと既存BigPawサイトは変更しない。
+- 署名付きSquare→Railway実Webhook配送、店舗の正式条件・返金規約・配送先入力の実E2Eは未確認で、**残り46ポイント／完了54%のまま**。
