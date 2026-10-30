@@ -32,7 +32,7 @@ class SeedOrderTests(unittest.TestCase):
         self.assertEqual(token,"FAKE_SANDBOX_TOKEN")
         self.assertEqual(payload["order"]["location_id"],LOCATION)
         self.assertEqual(payload["order"]["line_items"][0]["base_price_money"]["amount"],21450)
-        self.assertEqual(payload["order"]["checkout_options"]["allow_tipping"],False)
+        self.assertEqual(payload["checkout_options"]["allow_tipping"],False)
         self.calls.append(payload["idempotency_key"])
         return {"url":"https://sandbox.square.link/u/only-test",
                 "square_order_id":"SQUARE_ORDER_STAGE_TEST",
