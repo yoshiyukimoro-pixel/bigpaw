@@ -41,6 +41,12 @@ DRAFT_LABELS = {
     "operator_refund_action_needed": "運営：返金対応の確認",
     "customer_refund_completed": "お客様：返金の確認",
 }
+MOCK_MAIL_LABELS = {
+    "reserved": "送信テスト予約中・結果未確定（実メール未送信）",
+    "simulated_accepted": "模擬受付成功（実メール未送信）",
+    "simulated_refused": "模擬受付拒否（実メール未送信）",
+    "simulated_unknown": "模擬通信結果不明（再操作禁止・実メール未送信）",
+}
 NEXT_ACTIONS = {
     "awaiting_supplier_order": "入金確認後、仕入先に在庫・納期を確認（自動発注はしません）",
     "supplier_ordered": "仕入先からの入荷を待ち、届いた商品の数量と状態を確認",
@@ -119,6 +125,18 @@ def render(store, *, csrf: str = "") -> str:
                     "SELECT order_id,kind FROM food_sandbox_customer_reviews"
                 ).fetchall()
             }
+        mocked_mail_status = {}
+        if db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='food_sandbox_customer_mail_attempts'"
+        ).fetchone():
+            mocked_mail_status = {
+                (x["order_id"], x["kind"]): x["status"]
+                for x in db.execute(
+                    "SELECT order_id,kind,status "
+                    "FROM food_sandbox_customer_mail_attempts"
+                ).fetchall()
+            }
         items_by_order = {}
         for row in records:
             items_by_order[row["order_id"]] = [
@@ -154,6 +172,10 @@ def render(store, *, csrf: str = "") -> str:
             "（" + _safe({"operator": "運営", "supplier": "仕入先",
                          "customer": "お客様"}.get(audience, "宛先要確認")) +
             "向け・未送信下書き） " +
+            ("【送信テスト：" + _safe(
+                MOCK_MAIL_LABELS.get(mocked_mail_status[(order_id, kind)],
+                                     "状態確認が必要・実メール未送信")
+            ) + "】 " if (order_id, kind) in mocked_mail_status else "") +
             ("【送信前チェック履歴あり・未送信（直前再照合必要）】 " if
              (order_id, kind) in reviewed_customer_drafts else
              "【送信前未チェック】 " if audience == "customer" else "") +
