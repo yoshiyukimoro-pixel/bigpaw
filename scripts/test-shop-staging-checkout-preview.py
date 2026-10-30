@@ -252,6 +252,36 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(json_data(third)["checkout_url"], link["url"])
             self.assertEqual(len(calls), 1)
 
+    def test_concurrent_square_link_claims_allow_only_one_attempt(self):
+        """Parallel shop requests must reserve exactly one Square POST slot."""
+        from concurrent.futures import ThreadPoolExecutor
+        from shop_payments.sandbox_connector import SquareSandboxError
+        from shop_payments.retail_catalog import load_sale_catalog
+        with server_with_env() as (srv, store, calls):
+            store.add_pending_order(
+                order_id=ORDER, cart={"A02": 1},
+                verified_prices=load_sale_catalog(), shipping_yen=0,
+                location_id=BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
+            )
+            def claim(_):
+                try:
+                    store.claim_checkout_link_attempt(ORDER)
+                    return "won"
+                except SquareSandboxError:
+                    return "blocked"
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                results = list(pool.map(claim, range(8)))
+            self.assertEqual(results.count("won"), 1)
+            self.assertEqual(results.count("blocked"), 7)
+            self.assertEqual(store.status(ORDER), "created")
+            self.assertEqual(calls, [], "claiming never sends a Square POST")
+            with sqlite3.connect(store.db_file) as conn:
+                count = conn.execute(
+                    "SELECT COUNT(*) FROM checkout_link_claims "
+                    "WHERE order_id=? AND state='attempt_unknown'", (ORDER,)
+                ).fetchone()[0]
+            self.assertEqual(count, 1)
+
     def test_pre_upgrade_created_order_without_claim_fails_closed(self):
         """Existing pre-upgrade 'created' data must never be re-posted."""
         from shop_payments.retail_catalog import load_sale_catalog
