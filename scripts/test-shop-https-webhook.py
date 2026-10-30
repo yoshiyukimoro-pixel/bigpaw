@@ -129,6 +129,8 @@ class TestStageWebhook(unittest.TestCase):
                     "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID": "isolated-sandbox-project"}
         self.assertTrue(stage_ready(isolated))
         existing_test = {**STAGING,
+            "BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL":
+                "https://bigpaw-test-production.up.railway.app" + WEBHOOK_PATH,
             "RAILWAY_PROJECT_ID": "d70f7165-f5eb-41e8-95a0-62f85ff90478",
             "RAILWAY_ENVIRONMENT_ID": "ecc9fcbf-496f-4b51-a651-65a46a971588",
             "RAILWAY_SERVICE_ID": "1a1a32bd-e885-4848-a6b5-fde5ef9ac902",
