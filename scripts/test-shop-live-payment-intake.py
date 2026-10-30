@@ -126,7 +126,7 @@ class SignedSquarePaymentIntakeTests(unittest.TestCase):
         before = len(self.calls)
         self.assertEqual(
             self.receive(),
-            {"state": "paid_verified", "new_transition": False},
+            {"state": "already_recorded", "new_transition": False},
         )
         self.assertEqual(len(self.calls), before, "already-paid event is idempotent")
         stored = self.database.read_bytes()
