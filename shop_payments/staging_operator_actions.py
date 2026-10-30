@@ -195,7 +195,7 @@ def handle_draft_get(handler) -> bool:
                 extra_header = {"Set-Cookie": cookie}
                 review_panel = (
                     '<section><p><strong>送信前チェック済み・未送信</strong></p>'
-                    '<p>Squareの宛先と本文の最新版を再確認して、'
+                    '<p>この確認は15分で失効します。Squareの宛先と本文の最新版を再確認して、'
                     'メールを送らずに送信直前の手順だけテストできます。</p>'
                     '<form method="post" action="' + DRYRUN_PATH + '">'
                     '<input type="hidden" name="order_id" value="' + escape(order_id, quote=True) + '">'
@@ -227,7 +227,7 @@ def handle_draft_get(handler) -> bool:
             review_panel = (
                 '<section><h3>送信前の確認（メールは送られません）</h3>' +
                 ('<p><strong>以前の確認は失効しました。'
-                 'Squareの宛先または本文が変わったため再確認してください。</strong></p>'
+                 '有効期限・取り消し・Squareの宛先や本文変更のため再確認してください。</strong></p>'
                  if status.get("review_history") else '') +
                 '<p>Square Sandbox注文情報の連絡先：' +
                 escape(status["masked"], quote=True) +
