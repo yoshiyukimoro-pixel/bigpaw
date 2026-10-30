@@ -389,3 +389,12 @@
 - GitHub Actions `41139507070` **SUCCESS**：Python全テスト・Square Sandbox照合・Dockerイメージ二種類・PC Chromium・iPhone WebKit。新隔離Webhook専用Railwayだけをコミット `af741f6d07fa35f11ac2f7dc4b75b6d5a1fc563e`へデプロイし、`0de6aafb-96d1-4070-9719-740977b41a3f` **SUCCESS**。
 - GitHub Actions `41139792667` **SUCCESS**：Sandbox/Liveの返金・配送先・仕入れテストと、新旧RailwayのGET/保護401/未署名POST503/`sandbox_webhook_standby`を外部から再確認。
 - 新受信機にはSquare Sandbox Token/Location/署名鍵は依然として未設定、Square側の新サブスクリプションも無効。本物の署名付きSquare→新Railway配信や本番サイト販売は未実施。旧BigPaw運営サイト・本番決済・顧客メール・PR #175 Draft・mainは未変更。**完了54%／残り46ポイントを維持。**
+
+## 2026-10-31：返金後の誤発送を防ぐ最新Square再確認
+
+- 発見：Private Sandboxテスト運営コンソールの`record-shipped` / `supplier-shipped` は、以前受信した支払済み記録とSquare配送先確認だけを使用し、**発送直前の現在のSquare返金状態を必須で照合していなかった**。Sandboxは出荷を実行しないが、誤った「発送済み」記録や通知下書きを生み得た。
+- 修正：`shop_payments/sandbox_fulfillment.py::mark_shipped` と `sandbox_procurement.py::transition(... shipped)` は、対象の保存済み注文に対して`verify_current_sandbox_payment`を呼び、Square SandboxのPayments **GET**およびOrders **GET**で同じ決済ID・注文ID・場所・JPY金額・COMPLETED・未返金(0円)を確認した場合のみ、続けて最新Order配送先の**GET**検証へ進む。部分返金・全額返金・情報不正・Square API不達は安全側で発送記録を拒否。APIのPOST・実際の仕入れや配送は実行しない。
+- `scripts/shop-sandbox-operator.py`も`record-shipped`にSandbox確認トークンとGET検証を必須化。合成Payment/Orderを返すテストで、返金した注文からの発送記録、無効住所、ステージ不整合を拒否し、正常な発送記録の一度限りの処理を確認。個人情報はログ・Local SQLiteに追加保存しない。
+- GitHub Actions `41140899019` **SUCCESS**：Sandbox各系統、Python、2つのDocker、PC Chromium、iPhone Safari/WebKitの総合テスト通過。新しい独立したSquare Sandbox受信サービス**だけ**、固定コミット`c5d508e3db3c61014ada614f90284b804f928032`をRailwayに反映し、Deployment `649b122d-354c-4870-a8f4-e0993deabd76` **SUCCESS**。
+- GitHub Actions `41141218188` **SUCCESS**：追加した最新Square支払い/発送テストと、新旧RailwayのHTTPSヘルスチェック・認証付画面・署名無しWebhook拒否・新Webhookの`sandbox_webhook_standby`を再検証した。
+- 重要：これはSquareの過去に決済済みの**テスト**注文を手動で「発送記録」へ変更する直前の瞬時の再確認であり、本番での実配送・在庫確保・決済返金保証ではない。新WebhookのSquare Sandbox資格情報3件はまだ未設定、Square新通知サブスクリプションはdisabled。**T03/P04/R02等は未完、完了54%／残り46ポイントで維持**。PR #175はDraft。既存の本番サイト、実決済、顧客メール、Square本番は変更していない。
