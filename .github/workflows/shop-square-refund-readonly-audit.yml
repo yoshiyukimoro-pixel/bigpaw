@@ -6,6 +6,8 @@ on:
       - feature/dogfood-shop-staging-20261028
     paths:
       - '.github/workflows/shop-square-refund-readonly-audit.yml'
+      - 'scripts/test-shop-sandbox-refund-readonly.py'
+      - 'scripts/audit-shop-sandbox-refund-readonly.py'
   workflow_dispatch:
 
 permissions:
