@@ -329,3 +329,10 @@
 - フラグ `BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0` へ復元した後、既知の安定デプロイから `8bf0a601-ee0e-4d50-9d22-1299dfb7e01d` を再デプロイし **SUCCESS**。最新の問題ない動作コミットは `361ff926b8834ef099b85046610c61fb4a29eed7`。先のビルドは`REMOVED`。stagingフルアプリと専用Webhook両サービスOnline、警告0件、データVolume IDは不変。既存`BigPaw`サービスもOnlineで本番コード未変更。
 - 重要な運用知見：Railway環境変数を変更すると、**意図した旧コミットでなくGitHubブランチの現行HEAD**がビルドされ得るため、停止操作時は再デプロイされたコミットIDを必ず照合し、必要なら安定Deployment IDを指定して復旧する。
 - 実際に購入可能なフローをOFFにする完全な実機試験、発行済みSquareリンクの操作、Signed Webhookの実配信はまだ未検証。**P06/P04/T03は未減算、残り46ポイント・完了54%維持**。運用手順は`SHOP_EMERGENCY_STOP_PLAYBOOK.md`を参照。
+
+## 2026-10-31：Square Sandbox実配送先フィールドの有無を検証
+
+- 公式Square Sandbox Testing Panelの架空カード決済を再実行し、独立した `Orders GET` で`SHIPMENT`の日本国内宛名・住所・郵便番号が完全に存在するか、**TRUE/FALSEだけ**出す追加試験。
+- 決済の成功と配送先の保存を別々に記録する。Squareの公式テストパネルで配送先が省略される場合、**発送不可のまま**にする。氏名/住所/メール/決済ID/リンクURL等はログに出さない。
+- この実行は全額JPY／ゼロ送料の実Sandboxテストのみ。発注・発送・本番決済・Square本番キー・メール送信・Square→Railway実Webhook配送は含まれない。
+- P04の全条件は未完で、残り46ポイントからは減算しない。実行結果はGitHub Actionsのログを確認後に追記する。
