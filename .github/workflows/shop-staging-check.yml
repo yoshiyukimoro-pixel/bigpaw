@@ -6,6 +6,11 @@ on:
       - feature/dogfood-shop-staging-20261028
     paths:
       - 'app/shop.html'
+      - 'app/shop-commerce.html'
+      - 'SHOP_LAUNCH_READINESS.md'
+      - 'shop_payments/retail_launch_guard.py'
+      - 'shop_payments/retail_launch_status.json'
+      - 'scripts/test-shop-retail-launch-guard.py'
       - 'app/shop-cart-preview.js'
       - 'app/shop-order-review.js'
       - 'app/shop-order-review.css'
@@ -112,6 +117,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-operator-resend-audit.py
           PYTHONPATH=. python3 scripts/test-shop-info-mail-simple.py
           PYTHONPATH=. python3 scripts/test-shop-delivery-terms.py
+          PYTHONPATH=. python3 scripts/test-shop-retail-launch-guard.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-report.py
           PYTHONPATH=. python3 scripts/test-shop-image-import.py
           python3 -m py_compile scripts/import-shop-detail-assets.py
