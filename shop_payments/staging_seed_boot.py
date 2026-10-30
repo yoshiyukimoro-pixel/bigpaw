@@ -18,7 +18,7 @@ _TEST_SKU = "A02"
 
 
 def create_enabled_test_link(env: dict, *, creator=None, output=print) -> str:
-    """Return 'disabled', 'blocked', 'created', 'reused' or 'failed'.
+    """Return 'disabled', 'blocked', 'created', 'reused', 'already_paid' or 'failed'.
 
     Only bigpaw-test (exact environment/service identity) may perform a real
     sandbox API request. The operator enables one fixed order ID explicitly.
@@ -41,6 +41,23 @@ def create_enabled_test_link(env: dict, *, creator=None, output=print) -> str:
     if not stage_ready(env):
         output("SHOP_SANDBOX_SEED=BLOCKED_NO_SQUARE_CONFIG")
         return "blocked"
+    # Read only our explicitly allowed test order. Do not print payment IDs,
+    # customer fields or private credentials. This confirms the durable journal
+    # after a real Sandbox webhook, not merely an HTTP 200 receipt.
+    from .sandbox_connector import SandboxOrderStore
+    try:
+        state = SandboxOrderStore(env["BIGPAW_SHOP_SANDBOX_DB"]).status(order_id)
+    except (OSError, ValueError):
+        output("SHOP_SANDBOX_ORDER_STATUS=UNAVAILABLE")
+        return "failed"
+    if state not in ("not_found", "created", "payment_pending", "paid"):
+        output("SHOP_SANDBOX_ORDER_STATUS=UNEXPECTED")
+        return "blocked"
+    output("SHOP_SANDBOX_ORDER_STATUS=" + state.upper())
+    if state == "paid":
+        # A previously completed test checkout must never be created again.
+        output("SHOP_SANDBOX_SEED=ALREADY_PAID_NO_NEW_CHECKOUT")
+        return "already_paid"
     from .staging_seed_order import prepare_test_checkout
     try:
         options = dict(
