@@ -33,9 +33,18 @@ class Response:
 
 
 def square_recipient(req,timeout):
+    assert req.get_method()=="GET"
+    if req.full_url=="https://connect.squareupsandbox.com/v2/payments/"+PAYMENT:
+        return Response({"payment":{
+            "id":PAYMENT,"order_id":SQ_ORDER,"location_id":LOCATION,
+            "status":"COMPLETED",
+            "amount_money":{"amount":21450,"currency":"JPY"},
+            "refunded_money":{"amount":0,"currency":"JPY"}}})
     assert req.full_url=="https://connect.squareupsandbox.com/v2/orders/"+SQ_ORDER
     return Response({"order":{
-        "id":SQ_ORDER,"fulfillments":[{"type":"SHIPMENT",
+        "id":SQ_ORDER,"location_id":LOCATION,"state":"OPEN",
+        "total_money":{"amount":21450,"currency":"JPY"},
+        "fulfillments":[{"type":"SHIPMENT",
         "shipment_details":{"recipient":{"display_name":"PRIVATE CUSTOMER","phone_number":"09012345678",
         "address":{"country":"JP","postal_code":"100-0001",
                    "address_line_1":"PRIVATE CUSTOMER ADDRESS"}}}}]}})
