@@ -286,3 +286,13 @@
 - パスワード保護 `app/backend/staging_auth_gateway.py` を分岐導入し、`https://bigpaw-app-staging-staging.up.railway.app` を公開。GitHub Actions `41127629968` は外部から `/healthz=200`、`/shop.html`・`/`・注文設定APIの匿名アクセス=401を確認。
 - **T01（2）/T02（3）を採点済み：残り53→48、完了47→52。** 料金はRailway従量課金で固定月額見積ではない。
 - 既存Sandbox鍵/署名Webhook URLは未移行。顧客の本番実決済、Square本番キー登録、mainマージ、実メール送信なし。T03/T04/P04/R02と法定表示は引き続き未完了。詳細は `SHOP_FULL_APP_STAGING.md`。
+
+## 2026-10-31：Square Sandbox別サービス・既存データ非破壊回帰（T04完了）
+
+- 既存`BigPaw/bigpaw-test`と既存本番`bigpaw-site`には一切手を入れず、独立Project `BIG PAW App Staging`内に `bigpaw-square-sandbox-staging` Webhook受信専用サービスと個別500MBボリュームを追加。新サービスのRailwayデプロイ `d473aaf0-fa7b-4177-8346-8de93fe11fca` はSUCCESS、Online、警告0。
+- 新Webhook URL：`https://bigpaw-square-sandbox-staging-staging.up.railway.app/api/shop/sandbox/webhook`。本番/旧Square鍵・Tokenを移さず、Webhookは403/503等の安全拒否（秘密値未設定のため503待機）。フルアプリは別のBasic認証付きURLを使い継続。
+- GitHub Actions `41129261203` がSUCCESS。既存Sandbox `/healthz=200`、新フルアプリ `/healthz=200`・未認証画面=401、新Webhook `/healthz=200`・意図した未認証POST=503。ローカル署名/重複確認7テストと停止監査6テスト合格。誤ったcurl終了コードによる最初の失敗はPython HTTP検証に変更して解消。
+- Railwayの既存デプロイ `bigpaw-test=8a73fd3a-3b73-43d4-ac70-a0274993d44c` と `bigpaw-site=ad34900d-a890-442b-9d07-6434bd447818`、旧ボリュームIDは変化なし。新ボリューム2つは完全に別IDで、既存DB読書き/移動/リストアは未実施。
+- 以上の**既存データ保全と両環境の非破壊回帰**を確認し、T04（2ポイント）完了、**残り48→46ポイント（完了52→54%）**。
+- Square Sandboxの署名鍵・トークン・Location IDはOAuth接続の機密保護で取り出せない。新Webhookは安全な待機状態に維持し、Square実通知受信とT03/P04は未完了。Squareの正式設定順・旧通知の保全方法は `SHOP_SQUARE_SANDBOX_MIGRATION.md` に記録。
+- Square Sandboxの新サービスID `ca40ca3c-d65a-4f51-99f3-b85ebfca164d` とURLをソース側でも厳格照合する安全修正を開発ブランチへ追加。CI合格後に新Sandboxサービスに限り反映する。本番コードとPR Draftは維持。
