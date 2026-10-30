@@ -25,3 +25,12 @@ Created on 2026-10-31 after the owner authorized additional Railway service char
 - 既存`BigPaw/bigpaw-test`、本番`bigpaw-site`、`bigpaw-web`は引き続きOnline/警告0。元のSandboxボリューム・Webhook設定と本番データは未変更。
 - T01（2ポイント）とT02（3ポイント）の条件を確認したため、**残り53→48ポイント、完了47→52ポイント**。なお、T02は新規フルアプリ環境を独立プロジェクトで追加する方法。元`bigpaw-test`はSandbox Webhook専用のまま。
 - T03/T04/P04は未達。既存Sandbox Square SecretはOAuth経由で値が読めず、勝手に複製/移動しない。実カード・Webhook配信・配送情報・返金E2Eの成功扱いはしない。
+
+## 追加のSquare Sandbox受信専用サービス（2026-10-31）
+
+- 新規サービス：`bigpaw-square-sandbox-staging`（`ca40ca3c-d65a-4f51-99f3-b85ebfca164d`）。新独立Volume `75266e34-b0bf-4bb4-8e7c-2743fbbb3d78` は500MB。
+- 完全別コンテナ、`Dockerfile.shop-staging`と`python3 -m shop_payments.staging_https_webhook`でデプロイ `d473aaf0-fa7b-4177-8346-8de93fe11fca` をSUCCESS確認。
+- URL：`https://bigpaw-square-sandbox-staging-staging.up.railway.app/api/shop/sandbox/webhook`。Square署名鍵・APIトークン・Location IDの秘密値は存在しないため**503待機**。既存 `BigPaw/bigpaw-test` の署名鍵は持ち込まない。
+- GitHub Actions `41129261203`：旧Sandbox・新アプリ・新Webhook全て非破壊外部回帰合格。旧Volume ID、旧デプロイID一致。**T04（2）完了、残り48→46（完了52→54%）。**
+- 新Webhookを誤ったRailway IDや異なるHTTPS URLで起動させないソースガードと回帰テストを追加。Square Sandbox実イベントの移行・検証は未実施でT03保留。
+- 安全な署名鍵/接続先の最終移行手順は `SHOP_SQUARE_SANDBOX_MIGRATION.md` を参照。
