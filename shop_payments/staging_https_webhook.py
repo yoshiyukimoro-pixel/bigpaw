@@ -35,24 +35,37 @@ REQUIRED_SECRETS = (
 )
 
 
-def stage_ready(env: dict) -> bool:
+def stage_identity_ok(env: dict) -> bool:
+    """Can start the isolated test server, without enabling webhook processing."""
     if env.get("BIGPAW_ENV") != "sandbox":
         return False
     if env.get("BIGPAW_SHOP_STAGING_ISOLATED") != "1":
         return False
     if env.get("BIGPAW_SHOP_STAGING_HTTPS_ENABLED") != "1":
         return False
-    if any(not isinstance(env.get(k), str) or not env[k].strip()
-           for k in REQUIRED_SECRETS):
+    raw_url = env.get("BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL", "")
+    if not isinstance(raw_url, str):
         return False
-    url = urlsplit(env["BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL"])
+    url = urlsplit(raw_url)
     if (url.scheme != "https" or not url.hostname or url.username
             or url.password or url.query or url.fragment
-            or url.path != WEBHOOK_PATH):
+            or url.port not in (None, 443) or url.path != WEBHOOK_PATH):
         return False
     if not is_allowed_sandbox_runtime(env):
         return False
+    # Existing bigpaw-test must use only its already-owned domain.
+    if env.get("RAILWAY_SERVICE_ID") == "1a1a32bd-e885-4848-a6b5-fde5ef9ac902":
+        if url.hostname != "bigpaw-test-production.up.railway.app":
+            return False
     return True
+
+
+def stage_ready(env: dict) -> bool:
+    """Only live Square credentials enable the public webhook route."""
+    return stage_identity_ok(env) and all(
+        isinstance(env.get(k), str) and bool(env[k].strip())
+        for k in REQUIRED_SECRETS
+    )
 
 
 class StageWebhookServer(ThreadingHTTPServer):
@@ -60,8 +73,8 @@ class StageWebhookServer(ThreadingHTTPServer):
 
     def __init__(self, *, env: dict, store: SandboxOrderStore, host="127.0.0.1", port=0,
                  payment_lookup=None, notify=None):
-        if not stage_ready(env):
-            raise ValueError("Dedicated Square Sandbox staging configuration required")
+        if not stage_identity_ok(env):
+            raise ValueError("Dedicated Square Sandbox staging identity required")
         self.env = dict(env)
         self.store = store
         self.payment_lookup = payment_lookup or (
@@ -93,12 +106,18 @@ class StageWebhookHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/healthz":
-            return self._answer(HTTPStatus.OK, "sandbox_webhook_ready")
+            return self._answer(
+                HTTPStatus.OK,
+                "sandbox_webhook_ready" if stage_ready(self.server.env)
+                else "sandbox_webhook_standby",
+            )
         return self._answer(HTTPStatus.NOT_FOUND, "not_found")
 
     def do_POST(self):
         if self.path != WEBHOOK_PATH:
             return self._answer(HTTPStatus.NOT_FOUND, "not_found")
+        if not stage_ready(self.server.env):
+            return self._answer(HTTPStatus.SERVICE_UNAVAILABLE, "sandbox_not_configured")
         if self.headers.get("Square-Environment", "").lower() != "sandbox":
             return self._answer(HTTPStatus.FORBIDDEN, "invalid_environment")
         if self.headers.get("Content-Type", "").split(";")[0].strip().lower() != "application/json":
@@ -143,8 +162,8 @@ class StageWebhookHandler(BaseHTTPRequestHandler):
 
 def main():
     env = dict(os.environ)
-    if not stage_ready(env):
-        raise SystemExit("Disabled: dedicated Square Sandbox staging required")
+    if not stage_identity_ok(env):
+        raise SystemExit("Disabled: dedicated Square Sandbox staging identity required")
     db = env.get("BIGPAW_SHOP_SANDBOX_DB", "")
     if not db:
         raise SystemExit("Dedicated persistent Sandbox DB path missing")
