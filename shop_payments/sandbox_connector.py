@@ -340,10 +340,18 @@ class SandboxOrderStore:
             amount_yen=row["amount_yen"], location_id=row["square_location_id"],
         ):
             return "unverified"
-        # Do not mark paid when Square reports a fully/partially refunded payment.
-        refund = current.get("refunded_money", {})
-        if isinstance(refund, dict) and isinstance(refund.get("amount"), int) and refund["amount"] > 0:
-            return "unverified"
+        # A refund does not change Square's COMPLETED payment status.
+        # If Square reports refunded_money, require an exact zero JPY amount.
+        # Malformed/ambiguous data (including bool, wrong currency, missing
+        # amount, or an explicit null) must not allow a fresh paid transition.
+        # Square can omit this optional field when nothing was refunded.
+        if "refunded_money" in current:
+            refund = current["refunded_money"]
+            if (not isinstance(refund, dict)
+                    or refund.get("currency") != "JPY"
+                    or type(refund.get("amount")) is not int
+                    or refund["amount"] != 0):
+                return "unverified"
         # Import only after independent Square API verification, to avoid
         # circular module initialization and any pre-payment notice.
         from .sandbox_notifications import (
