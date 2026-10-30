@@ -36,7 +36,7 @@ class Tests(unittest.TestCase):
             return Response({"subscription":{**payload["subscription"],
                                              "signature_key":"MUST_NEVER_LOG",
                                              "id":"SECRET_ID"}},201)
-        label,code=m.register_disabled(ENV,opener=fake)
+        label,code=m.register_disabled(env=ENV,opener=fake)
         self.assertEqual((label,code),("new_target_created_disabled_no_delivery",0))
         self.assertEqual([x[0] for x in calls],["GET","POST"])
         self.assertNotIn("MUST_NEVER_LOG",label)
@@ -46,7 +46,7 @@ class Tests(unittest.TestCase):
         def fake(req,timeout):
             actions.append(req.get_method())
             return Response({"subscriptions":[{"notification_url":m.TARGET,"enabled":False}]})
-        self.assertEqual(m.register_disabled(ENV,opener=fake),
+        self.assertEqual(m.register_disabled(env=ENV,opener=fake),
                          ("new_target_already_registered_disabled",0))
         self.assertEqual(actions,["GET"])
     def test_never_mutate_existing_enabled_or_paginated(self):
@@ -56,7 +56,7 @@ class Tests(unittest.TestCase):
             def fake(req,timeout):
                 methods.append(req.get_method())
                 return Response(value)
-            self.assertEqual(m.register_disabled(ENV,opener=fake)[1],2)
+            self.assertEqual(m.register_disabled(env=ENV,opener=fake)[1],2)
             self.assertEqual(methods,["GET"])
     def test_no_post_retry_on_uncertain(self):
         count=[]
@@ -64,11 +64,11 @@ class Tests(unittest.TestCase):
             count.append(req.get_method())
             if req.get_method()=="GET":return Response({"subscriptions":[]})
             raise URLError("SYNTHETIC_CONNECTION_RESET")
-        self.assertEqual(m.register_disabled(ENV,opener=fake),
+        self.assertEqual(m.register_disabled(env=ENV,opener=fake),
                          ("subscription_post_uncertain_no_retry_manual_get",2))
         self.assertEqual(count,["GET","POST"])
     def test_no_network_without_explicit_opt_in(self):
         def no(*args):self.fail("No Square call")
-        self.assertEqual(m.register_disabled({},opener=no)[1],3)
+        self.assertEqual(m.register_disabled(env={},opener=no)[1],3)
 
 if __name__=="__main__":unittest.main()
