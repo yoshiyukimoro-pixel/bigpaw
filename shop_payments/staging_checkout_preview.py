@@ -169,6 +169,11 @@ def handle_get(handler):
         # No real shopper can confuse this with the unlaunched public store.
         html = html.replace("大型犬専門 BIG PAW｜ドッグフード販売準備中",
                             "【Sandbox専用】BIG PAW ドッグフード決済テスト", 1)
+        html = html.replace("</header>",
+            '</header><div style="text-align:right;max-width:1180px;margin:10px auto 0;padding:0 16px">'
+            '<a id="stageOrdersDashboardLink" href="/shop-test-orders.html" '
+            'style="display:inline-block;padding:10px 15px;background:#174f7f;color:white;'
+            'border-radius:9px;font-size:13px;font-weight:800">テスト注文管理を見る</a></div>', 1)
         _send(handler, 200, html.encode(), "text/html; charset=utf-8")
         return True
     file = FILES.get(path)
