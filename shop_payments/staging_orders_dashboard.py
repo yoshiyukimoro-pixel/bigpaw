@@ -14,6 +14,7 @@ from contextlib import closing
 
 from .retail_catalog import load_sale_catalog
 from .sandbox_procurement import TRANSITIONS
+from urllib.parse import urlencode
 
 JP = timezone(timedelta(hours=9))
 PAYMENT_LABELS = {
@@ -141,7 +142,10 @@ def render(store, *, csrf: str = "") -> str:
             "<li>" + _safe(DRAFT_LABELS.get(kind, "通知内容の確認が必要")) +
             "（" + _safe({"operator": "運営", "supplier": "仕入先",
                          "customer": "お客様"}.get(audience, "宛先要確認")) +
-            "向け・未送信下書き）</li>"
+            "向け・未送信下書き） "
+            '<a href="/api/shop/sandbox/operator/draft?' +
+            _safe(urlencode({"order_id": order_id, "kind": kind})) +
+            '">下書き本文を見る（送信されません）</a></li>'
             for kind, audience in notices
         )
         drafts_html = (
@@ -156,6 +160,7 @@ def render(store, *, csrf: str = "") -> str:
             "supplier_backorder": "欠品をテスト記録",
             "received_at_shop": "入荷・検品をテスト記録",
             "refund_review": "返金確認が必要とテスト記録",
+            "shipped": "発送済みをテスト記録（Square配送先の照合必須）",
         }
         current_stage = procurement or "awaiting_supplier_order"
         transitions = (TRANSITIONS.get(current_stage, ()) if
@@ -172,7 +177,8 @@ def render(store, *, csrf: str = "") -> str:
                 '<input type="hidden" name="expected" value="' + _safe(current_stage) + '">'
                 '<input type="hidden" name="csrf" value="' + _safe(csrf) + '">'
                 '<label><input type="checkbox" name="confirm" value="record_only" required>'
-                'これはテスト上の記録のみで、実際の発注・発送・返金ではないことを確認</label>'
+                'これはテスト上の記録のみで、実際の発注・発送・返金ではないことを確認。'
+                '発送済みの記録はSquareの配送先確認が完了した場合だけ可能</label>'
                 '<button type="submit">' + _safe(label) + '</button></form>'
             )
         controls = ('<section class="stage-controls"><h3>手動の進捗記録（Sandboxのみ）</h3>'
