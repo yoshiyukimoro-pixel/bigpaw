@@ -163,3 +163,14 @@ Square sandbox checkout: https://developer.squareup.com/reference/square/checkou
 - 独立した公開HTTPS staging/Webhookの本物の受信・Sandboxカード決済、受注管理UI、通知送信、返品規約と特商法表示、在庫確保、発送完了連携、実機iPhone確認は未完了。CIのWebKitテストは自動エミュレーションであり実機ではない。
 
 **必須ルール：PR #175はDraft維持。mainへのマージ、Railway本番デプロイ、Square本番決済開始は利用者の明示承認まで禁止。**
+
+
+## 2026-10-30: Sandbox入金済み注文→運営宛通知の自動連携（本番無効）
+
+- 受信できた `info@bigpaw.site` 宛Resend単発メールの成功を前提に、**開発ブランチのlocalhost専用** `shop_payments/local_preview.py` に、署名とSquare Sandbox Payments APIの両方で検証され、SQLiteで `paid` がコミットされた直後だけ運営宛のテスト通知を試みるフックを追加。
+- `shop_payments/sandbox_auto_notify.py` は送信を初期状態で禁止。**3条件すべて** `BIGPAW_ENV=sandbox`, `BIGPAW_SHOP_SANDBOX_AUTO_NOTIFY_ENABLED=1`, `BIGPAW_SHOP_SANDBOX_OPERATOR_EMAIL_ENABLED=1` が成立し、さらにローカル実行環境に有効な送信専用 `RESEND_API_KEY` が設定されている場合にのみ処理する。Railway環境変数が存在する場合は強制無効。
+- メール宛先 `info@bigpaw.site` は固定。件名・本文に「Square Sandboxテスト・実注文ではない」「トランペッツへ発注しない」と明記。仕入先・お客様・LINEへは送信しない。注文内容（商品SKU・数量・税込金額・送料0円）以外の個人情報は含めない。
+- `accept_webhook` が新規 `paid` を返す場合に限定。未決済・検証失敗・偽署名・二重Webhookは送信しない。メール送信前にSQLiteへ永続的な予約を残し、Resend `Idempotency-Key` を併用。通信結果が不明な場合も自動再送せず運営の照会が必要。
+- `scripts/test-shop-sandbox-auto-notify.py` で未決済拒否、署名と支払い再検証後のみ、二重送信防止、Railway/本番環境の拒否、キー未設定、通信断、送信先固定を**全て模擬データ**で検査。実際のメールの再送信や決済は行わない。
+- 今回の実装は**自動通知のソースとモック試験**。公開HTTPS Sandbox Webhook接続、実Sandboxカード決済→通知のEnd-to-End試験、認証済み運営画面、本番通知は未完成。GitHubの送信専用キーをRailway本番にコピーしない。
+- PR #175はDraftのまま、mainマージ・Railway本番デプロイ・Square本番決済を禁止。公開前の明示承認、特商法・返品・配送手順確認が必要。
