@@ -319,3 +319,13 @@
 - `scripts/test-shop-square-sandbox-refund.py` に、任意欄省略を許容し、明示的な不一致は拒否する回帰テストを追加。
 - GitHub Actions `41131517682` と `41131681839` のショップCIが **SUCCESS**。Python/Sandbox安全テスト、独立Webhook用Docker・本体Docker、Chromium・iPhone WebKit画面試験を通過。
 - これらは模擬/非本番の品質確認であり、P04/R02の実Webhook/配送/メール/本番相当の全完了条件は未達。**残り46ポイント（完了54%）を維持**。
+
+## 2026-10-31：Square返金値のフェイルクローズ強化とRailway復旧リハーサル
+
+- Square Sandboxの署名済みWebhookが来ても、`GET /v2/payments/{id}`による最新Paymentに**返金済み**を示す金額があれば、新規の入金確定/注文通知を行わない。返金金額が`JPY 0`と厳密に判断できる時、またはSquareが任意の`refunded_money`欄を省略した時だけ従来の照合を継続する。
+- 返金欄の通貨不一致、null、欠損amount、真偽値、負数、文字列、正の返金額を安全側で拒否。テスト `scripts/test-shop-https-webhook.py` に拒否10ケース・正常2ケースを追加し、未入金維持と通知未作成を検証。
+- GitHub Actions `41132692606` 非破壊両環境テスト **SUCCESS**、`41132692520` Python/Docker/Chromium/iPhone WebKit全体テスト **SUCCESS**。
+- Railway `BIG PAW App Staging / bigpaw-app-staging` のみに一時的な購入許可フラグ試験。新規ビルド `b64233f3-98a9-4206-9fc9-83ee5fddb925` が走ったが、本番店頭の購入機能は独立条件で未承認のまま。
+- フラグ `BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0` へ復元した後、既知の安定デプロイから `8bf0a601-ee0e-4d50-9d22-1299dfb7e01d` を再デプロイし **SUCCESS**。最新の問題ない動作コミットは `361ff926b8834ef099b85046610c61fb4a29eed7`。先のビルドは`REMOVED`。stagingフルアプリと専用Webhook両サービスOnline、警告0件、データVolume IDは不変。既存`BigPaw`サービスもOnlineで本番コード未変更。
+- 重要な運用知見：Railway環境変数を変更すると、**意図した旧コミットでなくGitHubブランチの現行HEAD**がビルドされ得るため、停止操作時は再デプロイされたコミットIDを必ず照合し、必要なら安定Deployment IDを指定して復旧する。
+- 実際に購入可能なフローをOFFにする完全な実機試験、発行済みSquareリンクの操作、Signed Webhookの実配信はまだ未検証。**P06/P04/T03は未減算、残り46ポイント・完了54%維持**。運用手順は`SHOP_EMERGENCY_STOP_PLAYBOOK.md`を参照。
