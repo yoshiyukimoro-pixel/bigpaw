@@ -87,7 +87,8 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
                  path in ("/api/shop/sandbox/operator/transition",
                           "/api/shop/sandbox/operator/tracking",
                           "/api/shop/sandbox/operator/review-customer",
-                          "/api/shop/sandbox/operator/simulate-customer-notice"))
+                          "/api/shop/sandbox/operator/simulate-customer-notice",
+                          "/api/shop/sandbox/operator/mock-customer-mail"))
         credentials = (("operationstest:" + OPERATOR_PASSWORD) if admin
                        else ("shoptester:" + PASSWORD))
         h["Authorization"] = "Basic " + base64.b64encode(
@@ -584,8 +585,39 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(dryrun()[0],303)
             self.assertEqual(dryrun()[0],303,"retries must not duplicate the dryrun")
             sent_status=request(srv,path)
-            self.assertIn("送信シミュレーション完了".encode(),sent_status[2])
-            self.assertIn("実際のメールは未送信".encode(),sent_status[2])
+            self.assertIn("メール送信結果のオフライン試験".encode(),sent_status[2])
+            self.assertIn("実メールは一切送信せず".encode(),sent_status[2])
+            mock_cookie=sent_status[1]["Set-Cookie"].split(";",1)[0]
+            mock_data={
+                "order_id":ORDER,
+                "kind":"customer_order_confirmed",
+                "csrf":mock_cookie.split("=",1)[1],
+                "confirm":"offline_only",
+                "outcome":"simulated_unknown",
+            }
+            mock_path="/api/shop/sandbox/operator/mock-customer-mail"
+            def mocked(data=mock_data,*,auth=True,origin=ORIGIN,cookie=mock_cookie):
+                return request(srv,mock_path,method="POST",auth=auth,
+                    data=urlencode(data).encode(),headers={
+                        "Origin":origin,"Cookie":cookie,
+                        "Content-Type":"application/x-www-form-urlencoded",
+                    })
+            self.assertEqual(mocked(auth=False)[0],401)
+            self.assertEqual(mocked(origin="https://untrusted.invalid")[0],403)
+            self.assertEqual(mocked(cookie="invalid=x")[0],403)
+            self.assertEqual(mocked({**mock_data,"outcome":"send_real_email"})[0],400)
+            self.assertEqual(mocked({**mock_data,"confirm":"actually_send"})[0],400)
+            self.assertEqual(mocked()[0],303)
+            self.assertEqual(mocked({**mock_data,"outcome":"simulated_accepted"})[0],303,
+                             "uncertain results must NEVER be automatically retried")
+            mock_status=request(srv,path)
+            self.assertIn("送信シミュレーション完了".encode(),mock_status[2])
+            self.assertIn("模擬通信結果不明".encode(),mock_status[2])
+            self.assertIn("実メール未送信".encode(),mock_status[2])
+            dashboard=request(srv,"/shop-test-orders.html")
+            self.assertIn("模擬通信結果不明".encode(),dashboard[2])
+            self.assertIn("実メール未送信".encode(),dashboard[2])
+            self.assertNotIn("buyer-test@example.invalid".encode(),dashboard[2])
             state["address"]="b-UPDATED@example.invalid"
             changed=request(srv,path)
             self.assertIn("以前の確認は失効".encode(),changed[2])
@@ -602,7 +634,13 @@ class CheckoutPreviewTests(unittest.TestCase):
                 hashed=conn.execute(
                     "SELECT contact_fingerprint FROM food_sandbox_customer_reviews"
                 ).fetchone()[0]
+                attempted=conn.execute(
+                    "SELECT status,snapshot_digest FROM food_sandbox_customer_mail_attempts"
+                ).fetchall()
             self.assertEqual(len(saved),1)
+            self.assertEqual(attempted[0][0],"simulated_unknown")
+            self.assertEqual(len(attempted),1)
+            self.assertEqual(len(attempted[0][1]),64)
             self.assertEqual(saved[0][0],"simulated_only")
             self.assertEqual(len(saved[0][1]),64)
             self.assertEqual(len(hashed),64)
@@ -620,6 +658,8 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/review-customer",
                                      method="POST", data=b"{}")[0], 404)
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/simulate-customer-notice",
+                                     method="POST", data=b"{}")[0], 404)
+            self.assertEqual(request(srv, "/api/shop/sandbox/operator/mock-customer-mail",
                                      method="POST", data=b"{}")[0], 404)
         for config in (
             {"BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0"},
