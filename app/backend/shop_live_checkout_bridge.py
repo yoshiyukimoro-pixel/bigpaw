@@ -61,6 +61,16 @@ def _gate(env, base_url, status):
             or base_url not in ("https://bigpaw.site",
                                 "https://www.bigpaw.site")):
         return False
+    # Sandbox credentials must never be recycled as production credentials,
+    # even if an operator accidentally copied stage variables into live.
+    if (env.get("BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN")
+            and env.get("BIGPAW_SQUARE_LIVE_ACCESS_TOKEN")
+            == env.get("BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN")):
+        return False
+    if (env.get("BIGPAW_SQUARE_SANDBOX_LOCATION_ID")
+            and env.get("BIGPAW_SQUARE_LIVE_LOCATION_ID")
+            == env.get("BIGPAW_SQUARE_SANDBOX_LOCATION_ID")):
+        return False
     # These are independently revalidated by checkout_live_request.
     if (not isinstance(env.get("BIGPAW_SHOP_APPROVED_TERMS_SHA256"), str)
             or not re.fullmatch(r"[0-9a-f]{64}",
