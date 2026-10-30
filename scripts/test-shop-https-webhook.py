@@ -151,6 +151,36 @@ class TestStageWebhook(unittest.TestCase):
             **existing_test, "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID": ""
         }))
 
+    def test_standby_server_never_accepts_webhook_without_secrets(self):
+        import copy
+        from shop_payments.staging_https_webhook import stage_identity_ok
+        standby = {**STAGING, "BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN": "",
+                   "BIGPAW_SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY": ""}
+        self.assertTrue(stage_identity_ok(standby))
+        self.assertFalse(stage_ready(standby))
+        with tempfile.TemporaryDirectory() as folder:
+            store = SandboxOrderStore(Path(folder) / "safe-standby.sqlite3")
+            server = StageWebhookServer(
+                env=standby, store=store, host="127.0.0.1", port=0,
+            )
+            runner = Thread(target=server.serve_forever,
+                            kwargs={"poll_interval": 0.01}, daemon=True)
+            runner.start()
+            try:
+                status, payload = request(server, method="GET", path="/healthz")
+                self.assertEqual(status, 200)
+                self.assertEqual(payload["status"], "sandbox_webhook_standby")
+                body = event()
+                self.assertEqual(
+                    request(server, body=body, headers=signed_headers(body))[0],
+                    503,
+                )
+                self.assertEqual(store.status(ORDER), "not_found")
+            finally:
+                server.shutdown()
+                runner.join(timeout=3)
+                server.server_close()
+
     def test_only_health_and_signed_webhook_are_exposed(self):
         with stage_server() as (server, store):
             self.assertEqual(request(server, method="GET", path="/healthz")[0], 200)
