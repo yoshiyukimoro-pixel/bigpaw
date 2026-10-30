@@ -11,15 +11,18 @@ import base64
 from http.cookies import SimpleCookie
 import re
 import secrets
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit, parse_qs as parse_query
+from urllib.request import urlopen
+from html import escape
 from .sandbox_procurement import SandboxProcurementOps, TRANSITIONS
+from .sandbox_connector import SquareSandboxError
 
 HOST = "bigpaw-test-production.up.railway.app"
 ORIGIN = "https://" + HOST
 COOKIE = "__Host-bigpaw_shop_operator_csrf"
 PATH = "/api/shop/sandbox/operator/transition"
 STAGES = frozenset(("supplier_ordered", "supplier_backorder",
-                    "received_at_shop", "refund_review"))
+                    "received_at_shop", "refund_review", "shipped"))
 ORDER = re.compile(r"^FOOD[0-9a-f]{32}$")
 TOKEN = re.compile(r"^[A-Za-z0-9_-]{32,128}$")
 USERNAME = re.compile(r"^[A-Za-z0-9_-]{4,32}$")
@@ -87,6 +90,50 @@ def _csrf_ok(handler, token: str) -> bool:
         return False
 
 
+def handle_draft_get(handler) -> bool:
+    """Operator-only HTML preview of an existing unsent notification draft."""
+    from .staging_checkout_preview import _send
+    from .sandbox_notifications import SandboxNotificationDrafts, ALL_TYPES
+    if urlsplit(handler.path).path != "/api/shop/sandbox/operator/draft":
+        return False
+    if not authenticate(handler):
+        return True
+    query = parse_query(urlsplit(handler.path).query, keep_blank_values=True)
+    if set(query) != {"order_id", "kind"} or any(len(v) != 1 for v in query.values()):
+        _send(handler, 400, {"error": "invalid_draft_query"})
+        return True
+    order_id, kind = query["order_id"][0], query["kind"][0]
+    if not ORDER.fullmatch(order_id) or kind not in ALL_TYPES:
+        _send(handler, 400, {"error": "invalid_draft_query"})
+        return True
+    try:
+        # This creates no send attempt; merely formats the already queued draft.
+        draft = SandboxNotificationDrafts(handler.server.store).preview(order_id, kind)
+    except ValueError:
+        _send(handler, 404, {"error": "draft_unavailable"})
+        return True
+    html = (
+        '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="robots" content="noindex,nofollow">'
+        '<title>BIG PAW Sandbox 未送信下書き</title>'
+        '<style>body{font:15px/1.7 -apple-system,sans-serif;'
+        'max-width:750px;margin:30px auto;padding:0 14px;background:#f7f9fb;'
+        'color:#20314b}pre{white-space:pre-wrap;overflow-wrap:anywhere;'
+        'background:white;border:1px solid #ddd;padding:16px;border-radius:12px}'
+        'a{color:#175c8a}</style></head><body>'
+        '<h1>BIG PAW・通知の下書き</h1>'
+        '<p><strong>テスト・未送信です。ここからメールは送れません。</strong></p>'
+        '<p>送信先種別：' + escape(draft["audience"], quote=True) + '</p>'
+        '<h2>' + escape(draft["subject"], quote=True) + '</h2>'
+        '<pre>' + escape(draft["body"], quote=True) + '</pre>'
+        '<a href="/shop-test-orders.html">注文管理に戻る</a>'
+        '</body></html>'
+    )
+    _send(handler, 200, html.encode("utf-8"), "text/html; charset=utf-8")
+    return True
+
+
 def handle_post(handler) -> bool:
     """POST /api/shop/sandbox/operator/transition; false for other routes."""
     from .staging_checkout_preview import _send
@@ -144,12 +191,21 @@ def handle_post(handler) -> bool:
         if values["stage"] not in TRANSITIONS.get(current, ()):
             _send(handler, 409, {"error": "stage_transition_not_allowed"})
             return True
-        # No token passed; shipped/refunded are unconditionally forbidden by STAGES.
-        ops.transition(values["order_id"], values["stage"])
+        if values["stage"] == "shipped":
+            # Requires a fresh read of Square Sandbox shipping details.
+            # It NEVER creates a delivery or sends any message.
+            kwargs = {"token": handler.server.env["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"]}
+            if handler.server.shipping_opener is not None:
+                kwargs["opener"] = handler.server.shipping_opener
+            ops.transition(values["order_id"], values["stage"], **kwargs)
+        else:
+            ops.transition(values["order_id"], values["stage"])
+    except SquareSandboxError:
+        _send(handler, 503, {"error": "square_sandbox_shipping_check_unavailable"})
+        return True
     except (ValueError, KeyError):
         _send(handler, 409, {"error": "verified_paid_order_required"})
         return True
-    from .staging_checkout_preview import _send as unused  # Request body never logged.
     handler.send_response(303)
     handler.send_header("Location", "/shop-test-orders.html?updated=1")
     handler.send_header("Cache-Control", "no-store")
