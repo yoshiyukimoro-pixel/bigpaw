@@ -13,6 +13,7 @@ import sqlite3
 from contextlib import closing
 
 from .retail_catalog import load_sale_catalog
+from .sandbox_procurement import TRANSITIONS
 
 JP = timezone(timedelta(hours=9))
 PAYMENT_LABELS = {
@@ -68,7 +69,7 @@ def _when(timestamp) -> str:
     except (ValueError, OverflowError, OSError):
         return "—"
 
-def render(store) -> str:
+def render(store, *, csrf: str = "") -> str:
     """Render a sanitized HTML snapshot from the existing SQLite database only."""
     catalog = load_sale_catalog()
     with closing(sqlite3.connect(store.db_file, timeout=5)) as db:
@@ -148,6 +149,36 @@ def render(store) -> str:
             str(len(notices)) + "件（メールは送られません）</summary><ul>" +
             draft_items + "</ul></details>"
         ) if notices else '<p class="draft-empty">通知の下書きはまだありません</p>'
+        # Operator-only sandbox stage records; never actually issue purchases,
+        # send goods or refund payments. All allowed actions require paid state.
+        allowed_actions = {
+            "supplier_ordered": "仕入先へ発注したことをテスト記録",
+            "supplier_backorder": "欠品をテスト記録",
+            "received_at_shop": "入荷・検品をテスト記録",
+            "refund_review": "返金確認が必要とテスト記録",
+        }
+        current_stage = procurement or "awaiting_supplier_order"
+        transitions = (TRANSITIONS.get(current_stage, ()) if
+                       order["state"] == "paid" and csrf else ())
+        forms = []
+        for candidate, label in allowed_actions.items():
+            if candidate not in transitions:
+                continue
+            # Form fields contain no Square ID, card data, supplier contact or PII.
+            forms.append(
+                '<form method="post" action="/api/shop/sandbox/operator/transition" class="stage-form">'
+                '<input type="hidden" name="order_id" value="' + _safe(order_id) + '">'
+                '<input type="hidden" name="stage" value="' + _safe(candidate) + '">'
+                '<input type="hidden" name="expected" value="' + _safe(current_stage) + '">'
+                '<input type="hidden" name="csrf" value="' + _safe(csrf) + '">'
+                '<label><input type="checkbox" name="confirm" value="record_only" required>'
+                'これはテスト上の記録のみで、実際の発注・発送・返金ではないことを確認</label>'
+                '<button type="submit">' + _safe(label) + '</button></form>'
+            )
+        controls = ('<section class="stage-controls"><h3>手動の進捗記録（Sandboxのみ）</h3>'
+                    '<p>操作した内容はテスト用注文履歴に残ります。'
+                    '実際の発注・入荷・返金・発送処理は行われません。</p>' +
+                    "".join(forms) + '</section>') if forms else ""
         cards.append(
             '<article class="order"><div class="order-top"><strong>' +
             _safe(PAYMENT_LABELS.get(order["state"], "状態確認が必要")) +
@@ -160,14 +191,14 @@ def render(store) -> str:
             '<p class="status">仕入れ：' + _safe(procurement_text) +
             "<br>運営メール：" + _safe(mail_text) + "</p>" +
             '<div class="next-action"><strong>次の確認作業</strong><p>' +
-            _safe(action) + "</p></div>" + drafts_html + "</article>"
+            _safe(action) + "</p></div>" + drafts_html + controls + "</article>"
         )
     paid = sum(row["state"] == "paid" for row in records)
     pending = len(records) - paid
     return """<!doctype html><html lang="ja"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow,noarchive">
-<title>BIG PAW｜Sandbox注文管理（閲覧専用）</title>
+<title>BIG PAW｜Sandbox注文管理（手動進捗テスト）</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#20314b;font:15px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans",Meiryo,sans-serif}
 header{background:#164f80;color:white;padding:19px max(16px,calc((100% - 960px)/2))}
@@ -190,10 +221,17 @@ ul{padding-left:21px;margin:8px 0}.status{font-size:13px;background:#f1f6fa;bord
 .drafts summary{cursor:pointer;font-weight:800;color:#285681}
 .drafts li{padding:3px 0}
 .draft-empty{color:#718197;font-size:12px}
+.stage-controls{margin-top:14px;padding:12px;border:1px solid #bfd9e9;border-radius:9px;background:#f6faff}
+.stage-controls h3{margin:0 0 5px;font-size:15px}.stage-controls p{font-size:12px;margin:0 0 10px}
+.stage-form{border-top:1px solid #dbe8f0;padding:10px 0;display:grid;gap:9px}
+.stage-form label{font-size:12px;display:flex;align-items:flex-start;gap:7px}
+.stage-form input{margin-top:4px}
+.stage-form button{background:#205b85;color:white;border:0;border-radius:8px;padding:10px;cursor:pointer;font-weight:700}
+.stage-form button:focus-visible{outline:3px solid #f0ae40;outline-offset:3px}
 .empty{padding:30px;text-align:center;background:#fff;border-radius:10px}
 @media(max-width:500px){.stats{gap:6px}.stats div{padding:10px}.stats strong{font-size:22px}}
 </style></head><body>
-<header><h1>BIG PAW｜注文管理</h1><p>Square Sandbox・閲覧専用テスト画面</p></header>
+<header><h1>BIG PAW｜注文管理</h1><p>Square Sandbox・手動進捗テスト（発注・発送・返金は実行しません）</p></header>
 <main><p class="warning"><strong>⚠ これはテスト注文です。</strong>本物の入金・在庫確保・発注・発送を示すものではありません。
 トランペッツへの仕入れ発注や商品の発送は行わないでください。</p>
 <nav><a href="/shop.html">テストショップを見る</a><a href="/shop-test-orders.html">最新の注文状態へ更新</a></nav>
@@ -203,6 +241,6 @@ ul{padding-left:21px;margin:8px 0}.status{font-size:13px;background:#f1f6fa;bord
 <section aria-label="注文一覧"><h2>注文一覧（直近100件）</h2>""" + (
         "".join(cards) if cards else '<p class="empty">テスト注文の記録はありません。</p>'
     ) + """</section>
-<p class="warning">このページは閲覧専用です。仕入先・お客様向けの通知は未送信下書きのため、別途連絡が必要です。注文変更・返金・自動発注・メール再送はできません。
+<p class="warning">このページはSandboxの手動進捗記録です。仕入先・お客様向けの通知は未送信下書きのため、別途連絡が必要です。実際の仕入れ発注・発送・返金・メール送信はできません。
 配送先などの個人情報は表示しません。</p>
 </main></body></html>"""
