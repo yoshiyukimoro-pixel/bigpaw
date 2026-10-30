@@ -17,6 +17,7 @@ from .sandbox_connector import SandboxOrderStore, SquareSandboxError
 from .sandbox_reconcile import (
     retrieve_sandbox_shipment_status,
     retrieve_verified_sandbox_payment,
+    verify_current_sandbox_payment,
 )
 
 
@@ -159,8 +160,24 @@ class SandboxFulfillmentOps:
                 conn.execute("ROLLBACK")
                 raise
 
-    def mark_shipped(self, order_id: str) -> str:
-        """Private operator journal only; DOES NOT update Square or ship goods."""
+    def mark_shipped(self, order_id: str, *, token: str, opener=urlopen) -> str:
+        """Journal dispatch only after fresh Square payment AND address checks.
+
+        No goods are shipped, payment is created or customer data saved here.
+        A historical paid webhook is not proof against a later Square refund.
+        """
+        snapshot = self.order_store.paid_order_snapshot(order_id)
+        if snapshot is None:
+            raise ValueError("Previously verified paid Sandbox order required")
+        verify_current_sandbox_payment(
+            snapshot=snapshot, token=token, opener=opener
+        )
+        shipping = retrieve_sandbox_shipment_status(
+            snapshot["square_order_id"], token=token, opener=opener
+        )
+        if (shipping.get("square_order_id") != snapshot["square_order_id"]
+                or shipping.get("shipment_details_complete") is not True):
+            raise ValueError("Shipping recipient needs fresh Square verification")
         with closing(self._open()) as conn:
             try:
                 conn.execute("BEGIN IMMEDIATE")
