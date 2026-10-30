@@ -18,6 +18,7 @@ untrusted browser and never copy real customer data into logs.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 
 from .live_order_ledger import LiveOrderBlocked, LiveOrderLedger
@@ -86,6 +87,10 @@ def record_verified_live_payment_event(
     if private["amount_yen"] != money["amount"]:
         raise LiveOrderBlocked("Signed amount differs from saved checkout")
 
+    fingerprint = hashlib.sha256(raw_body).hexdigest()
+    ledger.assert_signed_event_identity(
+        event_id=event_id, fingerprint=fingerprint
+    )
     # Fresh Square read MUST confirm paid, unrefunded, JPY total, store/location
     # and complete shipment before a single durable transition is recorded.
     result = ledger.reconcile_payment(
@@ -93,8 +98,17 @@ def record_verified_live_payment_event(
         **({"opener": opener} if opener is not None else {}),
         **({"verifier": verifier} if verifier is not None else {}),
     )
+    # Record the signed event only AFTER the independent, fresh Square GET
+    # has succeeded. Unknown/unsigned/refunded events never enter the journal.
+    # A crash between paid transition and this write can be safely recovered
+    # by receiving the same event again (with another fresh GET).
+    ledger.record_signed_payment_event(
+        event_id=event_id, fingerprint=fingerprint,
+        order_id=order_id, payment_id=payment_id,
+    )
     if result["new_transition"] is False:
         # Historic paid record is NOT proof the payment remains unrefunded.
-        # Future notification/fulfillment must perform its own fresh GETs.
+        # The duplicate was verified against Square just now but doesn't
+        # produce a second new-paid business transition.
         return {"state": "already_recorded", "new_transition": False}
     return result
