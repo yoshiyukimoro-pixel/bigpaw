@@ -22,4 +22,9 @@ jobs:
       - name: List existing Sandbox webhook subscriptions without modifications
         env:
           BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
-        run: PYTHONPATH=. python3 scripts/audit-shop-square-subscriptions-readonly.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python3 scripts/audit-shop-square-subscriptions-readonly.py | tee /tmp/bigpaw-square-sandbox-subscription-check.txt
+          grep -Fqx 'SHOP_SQUARE_SANDBOX_SUBSCRIPTIONS=old_enabled_payment_updated__new_disabled_payment_updated__read_only' /tmp/bigpaw-square-sandbox-subscription-check.txt
+          grep -Fqx 'SHOP_SQUARE_WEBHOOK_MUTATIONS=ZERO' /tmp/bigpaw-square-sandbox-subscription-check.txt
