@@ -134,6 +134,7 @@ class FullSyntheticOrderPipelineTests(unittest.TestCase):
                 "type": "SHIPMENT",
                 "shipment_details": {"recipient": {
                     "display_name": "FAKE BUYER NEVER SEND",
+                    "phone_number": "09012345678",
                     "email_address": "fake@example.invalid",
                     "address": {
                         "country": "JP", "postal_code": "000-0000",

@@ -116,6 +116,7 @@ class WebhookAdapterTests(unittest.TestCase):
                 "type": "SHIPMENT",
                 "shipment_details": {"recipient": {
                     "display_name": "SYNTHETIC NEVER REAL",
+                    "phone_number": "09012345678",
                     "email_address": "buyer@example.invalid",
                     "address": {"country": "JP", "postal_code": "000-0000",
                                 "address_line_1": "NOT REAL"},

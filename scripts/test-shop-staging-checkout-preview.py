@@ -721,7 +721,7 @@ class CheckoutPreviewTests(unittest.TestCase):
         class FakeResponse:
             status = 200
             def __init__(self, complete):
-                recipient = {"display_name": "PRIVATE", "address": {
+                recipient = {"display_name": "PRIVATE", "phone_number": "09012345678", "address": {
                     "country": "JP", "address_line_1": "PRIVATE STREET" if complete else "",
                     "postal_code": "000-0000"}}
                 self.payload = json.dumps({"order": {
@@ -874,6 +874,7 @@ class CheckoutPreviewTests(unittest.TestCase):
                     "fulfillments": [{"type": "SHIPMENT", "shipment_details": {
                         "recipient": {
                             "display_name": "PRIVATE NAME",
+                            "phone_number": "09012345678",
                             "email_address": address,
                             "address": {"country": "JP", "postal_code": "123-4567",
                                         "address_line_1": "PRIVATE ADDRESS"}

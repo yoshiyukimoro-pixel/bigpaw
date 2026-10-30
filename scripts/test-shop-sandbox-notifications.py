@@ -36,7 +36,7 @@ def square_recipient(req,timeout):
     assert req.full_url=="https://connect.squareupsandbox.com/v2/orders/"+SQ_ORDER
     return Response({"order":{
         "id":SQ_ORDER,"fulfillments":[{"type":"SHIPMENT",
-        "shipment_details":{"recipient":{"display_name":"PRIVATE CUSTOMER",
+        "shipment_details":{"recipient":{"display_name":"PRIVATE CUSTOMER","phone_number":"09012345678",
         "address":{"country":"JP","postal_code":"100-0001",
                    "address_line_1":"PRIVATE CUSTOMER ADDRESS"}}}}]}})
 
