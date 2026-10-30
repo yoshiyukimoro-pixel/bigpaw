@@ -115,6 +115,31 @@ class LiveReadOnlyTests(unittest.TestCase):
                 with self.assertRaises(LiveSquareNotVerified):
                     self.verify()
 
+    def test_present_malformed_refund_field_is_never_unrefunded(self):
+        # A completed payment with an explicit malformed refunded_money must
+        # NOT be treated as though Square omitted the optional field.
+        for value in (None, {}, False, [], "", "0",
+                      {"currency": "JPY"},
+                      {"amount": False, "currency": "JPY"},
+                      {"amount": -1, "currency": "JPY"},
+                      {"amount": 0, "currency": "USD"},
+                      {"amount": 1, "currency": "JPY"}):
+            with self.subTest(refund=value):
+                self.pay=deepcopy(PAY)
+                self.pay["refunded_money"]=value
+                self.calls=[]
+                with self.assertRaises(LiveSquareNotVerified):
+                    self.verify()
+                self.assertEqual(self.calls,[
+                    ("GET", ENDPOINT+"/payments/"+P),
+                ])
+        # The field may genuinely be absent on an unrefunded payment.
+        self.pay=deepcopy(PAY)
+        del self.pay["refunded_money"]
+        self.calls=[]
+        self.assertTrue(self.verify()["live_square_verified"])
+        self.assertEqual(len(self.calls),2)
+
     def test_order_or_recipient_mismatch_is_blocked(self):
         cases=[
             {"id":"OTHER"},
