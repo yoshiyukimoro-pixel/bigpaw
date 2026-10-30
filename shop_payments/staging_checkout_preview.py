@@ -202,6 +202,7 @@ def handle_post(handler):
     if path in ("/api/shop/sandbox/operator/transition",
                 "/api/shop/sandbox/operator/tracking",
                 "/api/shop/sandbox/operator/review-customer",
+                "/api/shop/sandbox/operator/revoke-customer-review",
                 "/api/shop/sandbox/operator/simulate-customer-notice",
                 "/api/shop/sandbox/operator/mock-customer-mail",
                 "/api/shop/sandbox/operator/verify-full-refund",
