@@ -62,6 +62,44 @@ class TestSeedBoot(unittest.TestCase):
         self.assertEqual(len(self.orders), 1)
         self.assertIn("SHOP_SANDBOX_SEED=REUSED", self.events[-1])
 
+    def test_paid_order_detected_after_verified_webhook_without_reseeding(self):
+        import base64
+        import hashlib
+        import hmac
+        import json
+        from shop_payments.sandbox_connector import SandboxOrderStore
+        self.assertEqual(self.invoke(), "created")
+        payment = {
+            "id": "SANDBOX_PAYMENT_TEST_12345",
+            "order_id": "SANDBOX_ORDER_ONLY_12345",
+            "location_id": "SANDBOX_LOCATION_12345",
+            "status": "COMPLETED",
+            "amount_money": {"amount": 21450, "currency": "JPY"},
+        }
+        raw = json.dumps({
+            "event_id": "real-sandbox-signature-fixture-123",
+            "type": "payment.updated",
+            "data": {"object": {"payment": payment}},
+        }).encode("utf-8")
+        digest = hmac.new(
+            self.env["BIGPAW_SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY"].encode(),
+            self.env["BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL"].encode() + raw,
+            hashlib.sha256,
+        ).digest()
+        sig = base64.b64encode(digest).decode()
+        store = SandboxOrderStore(self.env["BIGPAW_SHOP_SANDBOX_DB"])
+        self.assertEqual(store.accept_webhook(
+            raw_body=raw, signature_header=sig,
+            signature_key=self.env["BIGPAW_SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY"],
+            notification_url=self.env["BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL"],
+            payment_lookup=lambda payment_id: dict(payment),
+        ), "paid")
+        self.assertEqual(self.invoke(), "already_paid")
+        self.assertEqual(len(self.orders), 1)
+        self.assertIn("SHOP_SANDBOX_ORDER_STATUS=PAID", self.events)
+        self.assertEqual(self.events[-1],
+                         "SHOP_SANDBOX_SEED=ALREADY_PAID_NO_NEW_CHECKOUT")
+
     def test_fail_closed_for_wrong_service_or_missing_consent(self):
         altered = [
             {**self.env, "BIGPAW_SHOP_SANDBOX_SEED_ENABLED": "0"},
