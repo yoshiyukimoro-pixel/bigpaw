@@ -726,6 +726,11 @@ class CheckoutPreviewTests(unittest.TestCase):
                     "postal_code": "000-0000"}}
                 self.payload = json.dumps({"order": {
                     "id": square_order,
+                    "location_id": BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
+                    "state": "OPEN",
+                    "total_money": {
+                        "amount": load_sale_catalog()["A02"].sale_price_yen,
+                        "currency": "JPY"},
                     "fulfillments": [{"type": "SHIPMENT", "shipment_details": {
                         "recipient": recipient}}]
                 }}).encode()
@@ -736,10 +741,25 @@ class CheckoutPreviewTests(unittest.TestCase):
         state = {"complete": False, "calls": 0}
         def shipping_opener(req, timeout):
             self.assertEqual(req.get_method(), "GET", "no shipping POSTs")
-            self.assertEqual(req.full_url,
-                             "https://connect.squareupsandbox.com/v2/orders/" + square_order)
             self.assertEqual(timeout, 10)
             state["calls"] += 1
+            if req.full_url == "https://connect.squareupsandbox.com/v2/payments/MOCK_PAID_ID":
+                payment = {
+                    "id": "MOCK_PAID_ID", "order_id": square_order,
+                    "location_id": BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
+                    "status": "COMPLETED", "amount_money": {
+                        "amount": load_sale_catalog()["A02"].sale_price_yen,
+                        "currency": "JPY"},
+                }
+                class PaymentResponse:
+                    status = 200
+                    def __enter__(self): return self
+                    def __exit__(self, *args): return False
+                    def read(self, n):
+                        return json.dumps({"payment": payment}).encode()[:n]
+                return PaymentResponse()
+            self.assertEqual(req.full_url,
+                             "https://connect.squareupsandbox.com/v2/orders/" + square_order)
             return FakeResponse(state["complete"])
 
         with server_with_env(shipping_opener=shipping_opener) as (srv, store, calls):
@@ -771,14 +791,14 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(state["calls"], 0)
             self.assertEqual(record()[0], 409, "incomplete shipping recipient blocks shipped")
             self.assertEqual(ops.state(ORDER), "received_at_shop")
-            self.assertEqual(state["calls"], 1)
+            self.assertEqual(state["calls"], 3)
             state["complete"] = True
             success = record()
             self.assertEqual(success[0], 303)
             self.assertEqual(ops.state(ORDER), "shipped")
-            self.assertEqual(state["calls"], 2)
+            self.assertEqual(state["calls"], 6)
             self.assertEqual(record()[0], 409, "duplicate/stale form cannot reverify or resend")
-            self.assertEqual(state["calls"], 2)
+            self.assertEqual(state["calls"], 6)
             self.assertEqual(calls, [], "no Square checkout calls")
             page = request(srv, "/shop-test-orders.html")
             self.assertIn("発送済み（テスト記録）".encode(), page[2])
