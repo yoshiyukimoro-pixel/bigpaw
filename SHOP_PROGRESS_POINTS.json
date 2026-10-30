@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 97,
-  "completed_points_since_baseline": 3,
+  "remaining_points": 93,
+  "completed_points_since_baseline": 7,
   "groups": [
     {
       "key": "purchase",
@@ -17,9 +17,14 @@
           "id": "P01",
           "weight": 4,
           "title": "購入APIを本番サイトの認証・公開禁止ガードへ安全に配線",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41051639761",
+            "tested_commit": "99a4beedd3357c2867f44137176614e8b6386dd6",
+            "scope": "Draft development branch: app/backend/server.py contains dormant /api/shop/checkout and /api/shop/checkout/config routes with buyer session, strict HTTPS Origin/Host, session HMAC CSRF, bounded request and rate limit. Live checkout controller is gated by all unchecked merchant approvals. Production Docker image builds with imported bridge; synthetic Square integration/denial tests, Chromium and WebKit checks succeed. No public production deployment or real payment.",
+            "limits": "P02 Square production credentials, P03 final disclosure approval, P04 production-equivalent payment/ship tests, R02 final E2E and R05 public deployment remain pending. API cannot be used while launch manifest is unapproved."
+          }
         },
         {
           "id": "P02",
