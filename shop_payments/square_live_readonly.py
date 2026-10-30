@@ -75,7 +75,11 @@ def verify_paid_live_shipment(*, payment_id, square_order_id, location_id,
     if not isinstance(payment, dict) or payment.get("id") != payment_id:
         raise LiveSquareNotVerified("Payment ID mismatch")
     money = payment.get("amount_money")
-    refunded = payment.get("refunded_money") or {"amount": 0, "currency": "JPY"}
+    # Square may omit refunded_money on a never-refunded payment. A PRESENT
+    # value of null, {}, false or otherwise malformed is ambiguous and must
+    # not be treated as the same trusted zero-JPY refund amount.
+    refunded = (payment["refunded_money"] if "refunded_money" in payment
+                else {"amount": 0, "currency": "JPY"})
     if (payment.get("status") != "COMPLETED"
         or payment.get("order_id") != square_order_id
         or payment.get("location_id") != location_id
