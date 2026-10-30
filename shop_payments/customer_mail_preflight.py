@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+from contextlib import closing
 
 from .sandbox_connector import SquareSandboxError
 from .sandbox_customer_review import (
@@ -94,7 +95,7 @@ def prepare_customer_email(
         (order_id + ":" + kind + ":" + approved_contact_hash +
          ":" + approved_message_hash).encode("ascii")
     ).hexdigest()
-    with dryrun._open() as db:
+    with closing(dryrun._open()) as db:
         row = db.execute(
             "SELECT snapshot_digest FROM food_sandbox_customer_dryrun "
             "WHERE order_id=? AND kind=?", (order_id, kind)
