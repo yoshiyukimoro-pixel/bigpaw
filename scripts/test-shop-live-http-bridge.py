@@ -89,6 +89,10 @@ class DormantCheckoutRouteTests(unittest.TestCase):
                 b"FAKE APPROVED TEXT FOR OFFLINE TEST").hexdigest(),
             "BIGPAW_SQUARE_LIVE_ACCESS_TOKEN": TOKEN,
             "BIGPAW_SQUARE_LIVE_LOCATION_ID": LOCATION,
+            "BIGPAW_SHOP_SQUARE_LIVE_WEBHOOK_ENABLED": "1",
+            "BIGPAW_SQUARE_LIVE_WEBHOOK_URL": SITE + "/api/shop/square-webhook",
+            "BIGPAW_SQUARE_LIVE_WEBHOOK_SIGNATURE_KEY":
+                "synthetic-not-for-production-webhook-key-at-least-32",
         }
         self.events = []
         self.amount = load_sale_catalog()[CART].sale_price_yen
@@ -153,6 +157,9 @@ class DormantCheckoutRouteTests(unittest.TestCase):
             {"BIGPAW_SHOP_ORDER_HMAC_SECRET": "too-short"},
             {"BIGPAW_SHOP_APPROVED_TERMS_SHA256": ""},
             {"BIGPAW_SQUARE_LIVE_ACCESS_TOKEN": ""},
+            {"BIGPAW_SHOP_SQUARE_LIVE_WEBHOOK_ENABLED": "0"},
+            {"BIGPAW_SQUARE_LIVE_WEBHOOK_URL": "https://evil.invalid/webhook"},
+            {"BIGPAW_SQUARE_LIVE_WEBHOOK_SIGNATURE_KEY": ""},
         )
         for diff in variations:
             with self.subTest(diff=diff):
