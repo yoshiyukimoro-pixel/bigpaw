@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 78,
-  "completed_points_since_baseline": 22,
+  "remaining_points": 75,
+  "completed_points_since_baseline": 25,
   "groups": [
     {
       "key": "purchase",
@@ -132,9 +132,13 @@
           "id": "O05",
           "weight": 3,
           "title": "確認不能注文の手動復旧と監査運用を完成",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41067343990",
+            "verified_commit": "af4970bdf65fc86636deed93c2356bb8204a13a1",
+            "scope": "Draft PR: operator-only manual Square payment recheck with strict production Origin/Host, CSRF, explicit live feature flag and dedicated live token. Server trusts amount/order/location from the private ledger and confirms the current payment with Square Payments and Orders GET before updating. Successful and failed authorized attempts are audited without payment IDs or personal data; missing journals are not created. Local fake-Square tests and Docker/Chromium/WebKit CI passed; no live Square request or deployment."
+          }
         },
         {
           "id": "O06",
