@@ -167,6 +167,10 @@ jobs:
       - name: Build independent Sandbox webhook image (never deploy)
         run: |
           docker build -f Dockerfile.shop-staging -t bigpaw-shop-sandbox-webhook:ci .
+      - name: Build BIG PAW app image with dormant checkout route (never deploy)
+        run: |
+          timeout 600s docker build -f Dockerfile -t bigpaw-shop-dormant-route:ci .
+          docker run --rm --entrypoint python3 bigpaw-shop-dormant-route:ci -c "import sys; sys.path[:0]=['/app','/app/backend']; import shop_live_checkout_bridge,shop_payments.retail_launch_guard as g; assert not g.load_and_check()[0]; print('DORMANT_SHOP_ROUTE_IMAGE_OK|launch=disabled')"
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
