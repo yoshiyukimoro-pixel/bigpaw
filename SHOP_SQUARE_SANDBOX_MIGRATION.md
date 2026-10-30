@@ -69,3 +69,13 @@ T03（Square実Webhook鍵とURL移行、受信検証）、P04（決済JPY・配�
 - 新WebhookサービスはSquare認証情報・**新通知先専用署名鍵が未設定**であり、HTTP 503 `sandbox_webhook_standby` を維持。未登録注文のWebhook受信や本番販売を有効化していない。
 - 次に必要：Square Developer Console等から新サブスクリプションの`signature_key`を確認し、新Railwayサービスの`BIGPAW_SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY`、`BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN`、`BIGPAW_SQUARE_SANDBOX_LOCATION_ID`を**安全な秘密変数**として設定する。秘密値をGitHub・チャット・CIログに貼らない。実署名通知と最新Square Payment照合に成功した後だけT03達成とする。
 - 本作業でT03/P04/R02はまだ完了していないため、**残り46ポイント・完了54%維持**。
+
+## 2026-10-31：Square新通知先の署名鍵GET検証と安全な秘密値移送
+
+- Square無効Webhookの登録はGitHub Actions `41133935500` で **SUCCESS**。新URL `https://bigpaw-square-sandbox-staging-staging.up.railway.app/api/shop/sandbox/webhook` だけを `enabled=false` で登録、旧URLは未変更。
+- GitHub Actions `41134370968` でSquare Sandboxの**GET**リクエストから新通知先の署名鍵を安全に取得できると確認。ローカルHMACの正しいURL/誤URL比較は成功。鍵そのもの・SquareサブスクリプションIDはGitHub・チャット・Railwayログへ出していない。
+- `scripts/sync-shop-staging-sandbox-secrets.py` と `.github/workflows/shop-staging-sandbox-secret-sync.yml` を作成。元Square Sandboxの専用テストトークン・店舗ID、対象Webhookの署名鍵を、GitHub Actionsプロセス内だけで取得し、Railwayの新stagingサービス`ca40ca3c-d65a-4f51-99f3-b85ebfca164d`へのみ `variableCollectionUpsert` を行う。既存のBigPaw環境と本番サービスには一切触れない。対象Square通知先が`enabled=false`かつ、Railwayプロジェクト・環境トークンの参照先が完全一致する場合のみ1回実行し、`skipDeploys=true`。未知の返答では自動再試行しない。**通常Pushでは実行されない。**
+- この自動化を使う場合は、**Railway新プロジェクト`BIG PAW App Staging`の`staging`環境だけ**を対象とするProject Tokenを生成し、**GitHubリポジトリのActions secret `BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN`** へ登録する。トークンをチャットに貼り付けない。Railway Project TokenでAPIの変数更新が拒否される場合は、広いAccount Tokenへ無条件に変更せず、Railway新サービス内にSquare署名鍵・Sandboxアクセストークン・Location IDを運営者が直接保存する経路を使う。
+- GitHubのテスト用Sandbox認証情報は既存の`BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN`と`BIGPAW_SQUARE_SANDBOX_LOCATION_ID`（いずれもActions Secrets）を使用する。
+- 機密値が設定されても、**新Webhookはまだ無効**。別途確認してデプロイし、Square側の試験配信時だけ制御付きで有効にする必要がある。T03やP04は現時点では未完了、**残り46ポイント**。
+- Square公式資料： https://developer.squareup.com/reference/square/webhook-subscriptions-api/retrieve-webhook-subscription / https://docs.railway.com/integrations/api/manage-variables / https://docs.railway.com/integrations/api
