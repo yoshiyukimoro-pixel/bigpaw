@@ -1,6 +1,6 @@
 """Post-commit operator mail bridge for verified Square *Sandbox* payments.
 
-Only the isolated 127.0.0.1 preview may call this. The Square webhook has
+Only a dedicated isolated Sandbox preview or staging webhook may call this. The Square webhook has
 already passed signature verification AND an independent Square Payments API
 reconciliation in SandboxOrderStore.accept_webhook before this function runs.
 
@@ -30,9 +30,28 @@ def _opted_in(env: dict) -> bool:
         env.get("BIGPAW_ENV") == "sandbox"
         and env.get("BIGPAW_SHOP_SANDBOX_AUTO_NOTIFY_ENABLED") == "1"
         and env.get("BIGPAW_SHOP_SANDBOX_OPERATOR_EMAIL_ENABLED") == "1"
-        and not env.get("RAILWAY_ENVIRONMENT_ID")
-        and not env.get("RAILWAY_SERVICE_ID")
+        and _is_isolated_stage(env)
     )
+
+
+def _is_isolated_stage(env: dict) -> bool:
+    """Allow only explicit isolated Sandbox runtimes, never BIG PAW production."""
+    if env.get("BIGPAW_SHOP_STAGING_ISOLATED") != "1":
+        return False
+    project = env.get("RAILWAY_PROJECT_ID")
+    if project in {
+        "afb79723-1a2d-4c43-b498-f166e501760c",
+        "d70f7165-f5eb-41e8-95a0-62f85ff90478",
+    }:
+        return False
+    if project or env.get("RAILWAY_ENVIRONMENT_ID") or env.get("RAILWAY_SERVICE_ID"):
+        return bool(
+            project
+            and env.get("RAILWAY_ENVIRONMENT_ID")
+            and env.get("RAILWAY_SERVICE_ID")
+            and project == env.get("BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID")
+        )
+    return True
 
 
 def maybe_notify_verified_payment(
