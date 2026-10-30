@@ -195,6 +195,20 @@ class DormantCheckoutRouteTests(unittest.TestCase):
         for item in (TOKEN, SECRET, SESSION, "fake.buyer@example.invalid"):
             self.assertNotIn(item.encode(), raw)
 
+    def test_reused_sandbox_credential_or_location_blocks_checkout_before_db(self):
+        for change in (
+            {"BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN": TOKEN},
+            {"BIGPAW_SQUARE_SANDBOX_LOCATION_ID": LOCATION},
+        ):
+            h = FakeHandler(body=self.make_body())
+            h.headers["X-Shop-CSRF"] = bridge._csrf(SECRET, SESSION, USER)
+            self.request(h, env={**self.env, **change})
+            self.assertEqual(h.code, 404)
+            self.assertEqual(h.auth_reads, 0)
+            self.assertEqual(h.rfile.tell(), 0)
+            self.assertEqual(self.events, [])
+            self.assertFalse(list(self.root.iterdir()))
+
     def test_origin_session_csrf_rate_and_payload_validation(self):
         body = self.make_body()
         def check(modifier, expected):
