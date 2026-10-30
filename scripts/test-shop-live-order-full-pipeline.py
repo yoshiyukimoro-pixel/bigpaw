@@ -216,6 +216,13 @@ class FullSyntheticOrderPipelineTests(unittest.TestCase):
         return handler
 
     def test_buyer_to_signed_paid_and_replay_same_private_ledger(self):
+        # Hosted checkout starts in DRAFT before the customer opens the link.
+        self.order["state"] = "DRAFT"
+        self.order["line_items"] = [{
+            "name": (PRODUCT.name + " " + PRODUCT.size)[:120],
+            "quantity": "1",
+            "base_price_money": {"amount": TOTAL, "currency": "JPY"},
+        }]
         initial = self.buy()
         self.assertEqual(initial.code, 200)
         self.assertEqual(len(self.posts), 1)
@@ -231,7 +238,9 @@ class FullSyntheticOrderPipelineTests(unittest.TestCase):
         self.assertEqual(stopped.rfile.tell(), 0)
         self.assertEqual(len(self.posts), 1)
 
-        # Signed payment confirmation STILL works for the prior order.
+        # Square-hosted checkout later transitions to OPEN; only a fresh
+        # COMPLETED Payment, not DRAFT/OPEN itself, confirms paid.
+        self.order["state"] = "OPEN"
         receipt = self.signed_payment(env=env_closed)
         self.assertEqual(receipt.responses[-1], (200, {"ok": True}))
         self.assertEqual(self.ledger.status(order_id)["state"], "paid_verified")
