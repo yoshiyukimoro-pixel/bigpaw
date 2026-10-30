@@ -48,6 +48,12 @@
           '<div class="order-status">クレジットカード（Square）を予定しています。' +
           '現在はテスト段階のため、支払いはできません。</div>' +
         '</section>' +
+        '<section class="order-panel" id="orderCommerceTerms" aria-labelledby="orderCommerceTitle">' +
+          '<h2 id="orderCommerceTitle">返品・キャンセル・販売事業者のご案内</h2>' +
+          '<p>返品の可否・期限・送料負担、事業者情報などの正式な条件は販売開始前に確定します。' +
+          '条件が未確定のため、この画面からお申し込み・決済はできません。</p>' +
+          '<p><a href="shop-commerce.html">ドッグフードショップの販売条件（準備中）を確認する</a></p>' +
+        '</section>' +
       '</div>' +
       '<aside class="order-panel" aria-labelledby="orderTotalTitle">' +
         '<h2 id="orderTotalTitle">お支払い金額</h2>' +
@@ -57,7 +63,7 @@
         '<p class="order-data-note">メーカー希望小売価格を税込・送料込みの販売価格として表示しています。</p>' +
         '<p id="orderReviewLimit" class="order-preview-warning" hidden role="alert"></p>' +
         '<label class="order-checked"><input id="orderConfirmChecked" type="checkbox">' +
-          '<span>商品・数量・合計金額・追加送料0円と、お取り寄せによる通常4〜7日程度のお届け目安、欠品時のご案内・返金対応を確認しました。</span></label>' +
+          '<span>商品・数量・合計金額・追加送料0円と、お取り寄せによる通常4〜7日程度のお届け目安、欠品時のご案内・返金対応を確認しました。正式な返品・キャンセル条件は販売開始前にご案内します。</span></label>' +
         '<button type="button" class="order-submit-test" id="orderConfirmPreview" disabled>' +
           '注文内容を確認する（テスト）</button>' +
         '<p class="order-data-note">このボタンを押しても注文や決済は行われません。' +
