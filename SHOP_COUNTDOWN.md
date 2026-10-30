@@ -268,3 +268,11 @@
 - `scripts/test-shop-stop-readiness.py` に合成DBを使った読取専用、欠損DB、スキーマ不一致、PII非漏洩、停止後のリンク残存リスクの回帰テストを追加し、ショップCIに登録。
 - `SHOP_EMERGENCY_STOP_PLAYBOOK.md` に緊急停止時のチェック手順を記録。**新規購入を止めても発行済みSquareリンクは自動停止しないこと**、決済Webhookは残すこと、アプリロールバックでDBは戻らないことを明示。
 - 実環境停止試験・既存Squareリンクの無効化・アプリロールバック演習は未実施のため、P06は未完了。**残り53ポイント（完了47%）維持**。本番未変更・Draft PR #175維持。
+
+## 2026-10-31：Square Checkout DRAFT注文のリンク発行検証修正（ポイント未減算）
+
+- Square公式CreatePaymentLinkは注文を初期DRAFTで発行するが、開発用`live_checkout_intent.bind_square_result`はOPEN/COMPLETEDのみ許可していた。このため、発行直後の通常のSquare注文がリンク照合で失敗する問題を修正。
+- DRAFTの注文ID・Location・JPY税込総額に加えて、Square Orders GETで取得した商品名・数量・税込単価の明細をサーバーで保存した注文と一致検証した場合のみ発行済みリンクを内部注文台帳へ保存する。明細なし、金額/名称/数量不一致、CANCELED等は拒否。DRAFTは絶対に入金済みと判定しない。
+- 開発用の疑似Square GET/POST、DRAFTからOPENになった後の署名済みWebhook＋最新COMPLETED Payment照合、悪意ある明細差替のテストを追加。実本番Square POSTや顧客データ、メールは使用しない。
+- 緊急停止手順も更新。Square Checkout APIで作ったリンクは通常Square Dashboardの一覧で確認できない場合があるので、運営権限のあるCheckout Payment Links一覧/取得APIで独立照合する。
+- P04/P06/R02等の実環境・実機条件は未達で、**残り53ポイント（完了47%）を維持**。PR #175はDraft、mainマージ・本番デプロイ・追加課金なし。
