@@ -52,6 +52,7 @@ class CheckoutIntentTests(unittest.TestCase):
         self.square_total = self.price
         self.square_location = LOCATION
         self.square_state = "OPEN"
+        self.square_lines = None
 
     def square_get(self, req, timeout):
         self.calls.append((req.get_method(), req.full_url))
@@ -59,11 +60,12 @@ class CheckoutIntentTests(unittest.TestCase):
         self.assertEqual(req.full_url, ENDPOINT + "/orders/" + SQUARE_ORDER)
         self.assertEqual(req.headers["Authorization"], "Bearer " + API_KEY)
         self.assertEqual(timeout, 10)
-        return FakeResponse({"order": {
-            "id": SQUARE_ORDER, "location_id": self.square_location,
-            "state": self.square_state,
-            "total_money": {"amount": self.square_total, "currency": "JPY"},
-        }})
+        order = {"id": SQUARE_ORDER, "location_id": self.square_location,
+                 "state": self.square_state,
+                 "total_money": {"amount": self.square_total, "currency": "JPY"}}
+        if self.square_lines is not None:
+            order["line_items"] = self.square_lines
+        return FakeResponse({"order": order})
 
     def prepare(self, **kwargs):
         args = {"order_id": ORDER, "location_id": LOCATION, "cart": self.cart}
@@ -163,7 +165,7 @@ class CheckoutIntentTests(unittest.TestCase):
         for bad_location, bad_total, bad_state in (
             ("WRONGLOCATION1234", self.price, "OPEN"),
             (LOCATION, self.price + 1, "OPEN"),
-            (LOCATION, self.price, "DRAFT"),
+            (LOCATION, self.price, "CANCELED"),
         ):
             self.square_location, self.square_total, self.square_state = (
                 bad_location, bad_total, bad_state
@@ -171,6 +173,37 @@ class CheckoutIntentTests(unittest.TestCase):
             with self.assertRaises(LiveOrderBlocked):
                 self.bind()
             self.assertEqual(self.ledger.status(ORDER)["state"], "not_found")
+
+    def test_square_hosted_draft_link_records_checkout_not_payment(self):
+        self.prepare()
+        saved = self.intent.begin_attempt(order_id=ORDER)
+        self.square_state = "DRAFT"
+        self.square_lines = saved["server_only_payload"]["order"]["line_items"]
+        self.assertEqual(self.bind(), {"state": "link_bound", "new_binding": True})
+        self.assertEqual(self.ledger.status(ORDER)["state"], "checkout_recorded")
+        self.assertFalse(self.bind()["new_binding"])
+
+    def test_draft_requires_same_server_saved_items_even_if_total_matches(self):
+        self.prepare()
+        saved = self.intent.begin_attempt(order_id=ORDER)
+        original = saved["server_only_payload"]["order"]["line_items"][0]
+        self.square_state = "DRAFT"
+        for lines in (
+            None, [],
+            [{**original, "name": "OTHER PRODUCT"}],
+            [{**original, "quantity": "2"}],
+            [{**original, "base_price_money": {"amount": self.price + 1,
+                                              "currency": "JPY"}}],
+            [{**original, "base_price_money": {"amount": True, "currency": "JPY"}}],
+        ):
+            with self.subTest(lines=lines):
+                self.square_lines = lines
+                with self.assertRaises(LiveOrderBlocked):
+                    self.bind()
+                self.assertEqual(self.intent.status(ORDER)["state"], "attempt_unknown")
+                self.assertEqual(self.ledger.status(ORDER)["state"], "not_found")
+        self.square_lines = [original]
+        self.assertTrue(self.bind()["new_binding"])
 
     def test_recovery_after_crash_between_ledger_and_intent_commit(self):
         self.prepare()
