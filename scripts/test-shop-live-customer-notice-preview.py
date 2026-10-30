@@ -66,6 +66,7 @@ class PaidNoticePreviewTests(unittest.TestCase):
                 "type": "SHIPMENT",
                 "shipment_details": {"recipient": {
                     "display_name": "FAKE RECIPIENT",
+                    "phone_number": "09012345678",
                     "email_address": EMAIL,
                     "address": {"country": "JP", "address_line_1": "TEST STREET",
                                 "postal_code": "000-0000"},

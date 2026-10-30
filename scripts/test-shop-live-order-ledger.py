@@ -62,6 +62,7 @@ class LiveLedgerTests(unittest.TestCase):
                 "type": "SHIPMENT",
                 "shipment_details": {"recipient": {
                     "display_name": "FAKE BUYER",
+                    "phone_number": "09012345678",
                     "email_address": "synthetic-buyer@example.invalid",
                     "address": {"country": "JP", "address_line_1": "FAKE ONLY",
                                 "postal_code": "000-0000"},
