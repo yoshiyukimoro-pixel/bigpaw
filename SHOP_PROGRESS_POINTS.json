@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 82,
-  "completed_points_since_baseline": 18,
+  "remaining_points": 78,
+  "completed_points_since_baseline": 22,
   "groups": [
     {
       "key": "purchase",
@@ -120,9 +120,13 @@
           "id": "O04",
           "weight": 4,
           "title": "実運営者認証付き注文一覧・詳細画面を接続",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41064941987",
+            "verified_commit": "5808701eaec83dce5a1a109189563135ab963f49",
+            "scope": "運営者role認証後のみGET /api/operator/shop-ordersを提供。私有注文台帳をread-onlyで最大100件参照し、個人情報を出さない注文一覧/詳細を運営画面に接続。GitHub Actionsで本体Docker、注文/決済のオフラインチェック、Chromium/iPhone Safari(WebKit)画面確認に成功。"
+          }
         },
         {
           "id": "O05",
