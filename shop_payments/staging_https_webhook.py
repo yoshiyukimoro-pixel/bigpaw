@@ -20,7 +20,7 @@ from pathlib import Path
 from threading import Thread
 from urllib.parse import urlsplit
 
-from .sandbox_connector import SandboxOrderStore, SquareSandboxError
+from .sandbox_connector import SandboxOrderStore, SquareSandboxError, create_square_sandbox_payment_link
 from .sandbox_reconcile import retrieve_verified_sandbox_payment
 from .sandbox_auto_notify import maybe_notify_verified_payment
 from .sandbox_runtime_guard import is_allowed_sandbox_runtime
@@ -72,7 +72,7 @@ class StageWebhookServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, *, env: dict, store: SandboxOrderStore, host="127.0.0.1", port=0,
-                 payment_lookup=None, notify=None):
+                 payment_lookup=None, notify=None, checkout_creator=None):
         if not stage_identity_ok(env):
             raise ValueError("Dedicated Square Sandbox staging identity required")
         self.env = dict(env)
@@ -83,6 +83,7 @@ class StageWebhookServer(ThreadingHTTPServer):
             )
         )
         self.notify = notify or maybe_notify_verified_payment
+        self.checkout_creator = checkout_creator or create_square_sandbox_payment_link
         super().__init__((host, port), StageWebhookHandler)
 
 
@@ -111,10 +112,17 @@ class StageWebhookHandler(BaseHTTPRequestHandler):
                 "sandbox_webhook_ready" if stage_ready(self.server.env)
                 else "sandbox_webhook_standby",
             )
+        # Optional password-gated customer checkout preview, never production.
+        from .staging_checkout_preview import handle_get
+        if handle_get(self):
+            return
         return self._answer(HTTPStatus.NOT_FOUND, "not_found")
 
     def do_POST(self):
         if self.path != WEBHOOK_PATH:
+            from .staging_checkout_preview import handle_post
+            if handle_post(self):
+                return
             return self._answer(HTTPStatus.NOT_FOUND, "not_found")
         if not stage_ready(self.server.env):
             return self._answer(HTTPStatus.SERVICE_UNAVAILABLE, "sandbox_not_configured")
