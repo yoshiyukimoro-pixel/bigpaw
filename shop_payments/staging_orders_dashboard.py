@@ -14,6 +14,7 @@ from contextlib import closing
 
 from .retail_catalog import load_sale_catalog
 from .sandbox_procurement import TRANSITIONS
+from .sandbox_tracking import SandboxTrackingJournal, CARRIERS
 from urllib.parse import urlencode
 
 JP = timezone(timedelta(hours=9))
@@ -185,6 +186,37 @@ def render(store, *, csrf: str = "") -> str:
                     '<p>操作した内容はテスト用注文履歴に残ります。'
                     '実際の発注・入荷・返金・発送処理は行われません。</p>' +
                     "".join(forms) + '</section>') if forms else ""
+        tracking_html = ""
+        if order["state"] == "paid" and current_stage == "shipped" and csrf:
+            recorded = SandboxTrackingJournal(store).read(order_id)
+            if recorded:
+                tracking_html = (
+                    '<section class="tracking-box"><strong>配送情報（テスト記録）</strong>'
+                    '<p>配送会社：' + _safe(recorded["carrier_label"]) +
+                    '<br>追跡番号：<code>' +
+                    _safe(recorded["tracking_number"]) +
+                    '</code></p><p>この画面では変更・発送・メール送信しません。</p></section>'
+                )
+            else:
+                options = "".join(
+                    '<option value="' + _safe(code) + '">' + _safe(name) + '</option>'
+                    for code, name in CARRIERS.items()
+                )
+                tracking_html = (
+                    '<section class="tracking-box"><h3>配送会社・追跡番号（テスト記録）</h3>'
+                    '<p>実際の配送は手配しません。登録済みの内容はこの画面から変更できません。</p>'
+                    '<form method="post" action="/api/shop/sandbox/operator/tracking" class="stage-form">'
+                    '<input type="hidden" name="order_id" value="' + _safe(order_id) + '">'
+                    '<input type="hidden" name="csrf" value="' + _safe(csrf) + '">'
+                    '<label>配送会社<select name="carrier_code" required>'
+                    '<option value="">選択してください</option>' + options + '</select></label>'
+                    '<label>追跡番号<input name="tracking_number" type="text"'
+                    ' required minlength="8" maxlength="35" pattern="[A-Za-z0-9-]{8,35}"'
+                    ' autocomplete="off" placeholder="半角英数字・ハイフン"></label>'
+                    '<label><input type="checkbox" name="confirm" value="record_only" required>'
+                    'これはテスト記録であり、実際の配送・メール送信ではないことを確認</label>'
+                    '<button type="submit">配送情報をテスト登録</button></form></section>'
+                )
         cards.append(
             '<article class="order"><div class="order-top"><strong>' +
             _safe(PAYMENT_LABELS.get(order["state"], "状態確認が必要")) +
@@ -197,7 +229,7 @@ def render(store, *, csrf: str = "") -> str:
             '<p class="status">仕入れ：' + _safe(procurement_text) +
             "<br>運営メール：" + _safe(mail_text) + "</p>" +
             '<div class="next-action"><strong>次の確認作業</strong><p>' +
-            _safe(action) + "</p></div>" + drafts_html + controls + "</article>"
+            _safe(action) + "</p></div>" + drafts_html + controls + tracking_html + "</article>"
         )
     paid = sum(row["state"] == "paid" for row in records)
     pending = len(records) - paid
@@ -234,6 +266,13 @@ ul{padding-left:21px;margin:8px 0}.status{font-size:13px;background:#f1f6fa;bord
 .stage-form input{margin-top:4px}
 .stage-form button{background:#205b85;color:white;border:0;border-radius:8px;padding:10px;cursor:pointer;font-weight:700}
 .stage-form button:focus-visible{outline:3px solid #f0ae40;outline-offset:3px}
+.tracking-box{margin-top:14px;padding:13px;border:1px solid #b6d4da;border-radius:10px;background:#f0fafb}
+.tracking-box h3{font-size:15px;margin:0 0 7px}
+.tracking-box p{font-size:12px;margin:7px 0}
+.tracking-box select,.tracking-box input[type=text]{width:100%;padding:11px;border:1px solid #aabfce;border-radius:7px;background:#fff;font-size:15px}
+.tracking-box .stage-form label{display:grid;gap:5px}
+.tracking-box .stage-form label:has(input[type=checkbox]){display:flex}
+
 .empty{padding:30px;text-align:center;background:#fff;border-radius:10px}
 @media(max-width:500px){.stats{gap:6px}.stats div{padding:10px}.stats strong{font-size:22px}}
 </style></head><body>
