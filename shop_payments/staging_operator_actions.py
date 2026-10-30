@@ -23,6 +23,7 @@ COOKIE = "__Host-bigpaw_shop_operator_csrf"
 PATH = "/api/shop/sandbox/operator/transition"
 TRACKING_PATH = "/api/shop/sandbox/operator/tracking"
 REVIEW_PATH = "/api/shop/sandbox/operator/review-customer"
+REVOKE_REVIEW_PATH = "/api/shop/sandbox/operator/revoke-customer-review"
 DRYRUN_PATH = "/api/shop/sandbox/operator/simulate-customer-notice"
 MAIL_MOCK_PATH = "/api/shop/sandbox/operator/mock-customer-mail"
 REFUND_VERIFY_PATH = "/api/shop/sandbox/operator/verify-full-refund"
@@ -205,6 +206,21 @@ def handle_draft_get(handler) -> bool:
                     '<button type="submit">送信せずに最終チェックをテストする</button>'
                     '</form></section>'
                 )
+            # The existing form's token must remain valid: do not rotate the
+            # CSRF cookie when adding a second action to the same HTML page.
+            if extra_header is None:
+                csrf, cookie = new_csrf_cookie()
+                extra_header = {"Set-Cookie": cookie}
+            review_panel += (
+                '<form method="post" action="' + REVOKE_REVIEW_PATH + '">'
+                '<input type="hidden" name="order_id" value="' + escape(order_id, quote=True) + '">'
+                '<input type="hidden" name="kind" value="' + escape(kind, quote=True) + '">'
+                '<input type="hidden" name="csrf" value="' + escape(csrf, quote=True) + '">'
+                '<label><input type="checkbox" name="confirm" value="revoke_only" required>'
+                '現在の送信前チェック記録を取り消します。実メールは送信しません。</label>'
+                '<button type="submit">送信前チェックを取り消す（送信しない）</button>'
+                '</form>'
+            )
         elif status["ready"]:
             csrf, cookie = new_csrf_cookie()
             extra_header = {"Set-Cookie": cookie}
@@ -324,6 +340,72 @@ def handle_customer_review_post(handler) -> bool:
     handler.end_headers()
     return True
 
+
+
+def handle_customer_review_revoke_post(handler) -> bool:
+    """Protected Sandbox-only review revocation; never contacts Square or mail."""
+    from .staging_checkout_preview import _send
+    from .sandbox_customer_review import SandboxCustomerReview, CUSTOMER_KINDS
+    if handler.path != REVOKE_REVIEW_PATH:
+        return False
+    if not authenticate(handler):
+        return True
+    if handler.headers.get("Transfer-Encoding"):
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    if handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
+        _send(handler, 415, {"error": "invalid_type"})
+        return True
+    try:
+        length = int(handler.headers.get("Content-Length", ""))
+    except ValueError:
+        length = 0
+    if not 1 <= length <= 500:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    raw = handler.rfile.read(length)
+    if len(raw) != length:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    try:
+        values = parse_qs(raw.decode("ascii"), keep_blank_values=True,
+                          strict_parsing=True, max_num_fields=4)
+        if set(values) != {"order_id", "kind", "csrf", "confirm"} or any(
+            len(v) != 1 for v in values.values()
+        ):
+            raise ValueError("unexpected_form")
+        fields = {key: values[key][0] for key in values}
+    except (ValueError, UnicodeError):
+        _send(handler, 400, {"error": "invalid_form"})
+        return True
+    if not _csrf_ok(handler, fields["csrf"]):
+        _send(handler, 403, {"error": "invalid_origin_or_csrf"})
+        return True
+    if (not ORDER.fullmatch(fields["order_id"]) or
+        fields["kind"] not in CUSTOMER_KINDS or
+        fields["confirm"] != "revoke_only"):
+        _send(handler, 400, {"error": "invalid_revoke_request"})
+        return True
+    try:
+        changed = SandboxCustomerReview(handler.server.store).revoke_review(
+            fields["order_id"], fields["kind"]
+        )
+    except (ValueError, OSError):
+        _send(handler, 409, {"error": "review_revoke_unavailable"})
+        return True
+    if not changed:
+        _send(handler, 409, {"error": "review_not_active"})
+        return True
+    from urllib.parse import urlencode
+    handler.send_response(303)
+    handler.send_header("Location", "/api/shop/sandbox/operator/draft?" +
+                        urlencode({"order_id": fields["order_id"],
+                                   "kind": fields["kind"]}))
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Referrer-Policy", "no-referrer")
+    handler.send_header("Content-Length", "0")
+    handler.end_headers()
+    return True
 
 def handle_dryrun_post(handler) -> bool:
     """No send operation. Record only an idempotent reviewed dry run."""
@@ -663,6 +745,8 @@ def handle_post(handler) -> bool:
         return handle_tracking_post(handler)
     if handler.path == REVIEW_PATH:
         return handle_customer_review_post(handler)
+    if handler.path == REVOKE_REVIEW_PATH:
+        return handle_customer_review_revoke_post(handler)
     if handler.path == DRYRUN_PATH:
         return handle_dryrun_post(handler)
     if handler.path == MAIL_MOCK_PATH:
