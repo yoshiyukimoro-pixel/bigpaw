@@ -93,6 +93,13 @@
 - `live_order_overview.py`：将来の運営専用注文管理のための**SQLite完全読取専用、最大100件**の一覧データ。注文SKU・数量・税込額・過去の入金記録・署名付き通知数を出せる。`paid_verified`は過去の確認履歴であり、**現在の返金状況は必ず`not_checked`と表示**する。顧客PII・Squareトークンは含めない。
 - `test-shop-live-payment-intake.py`、`test-shop-live-order-ledger.py`、`test-shop-live-order-overview.py`をGitHub CIで無通信検証。現在のサイト・運営画面・Square本番・購入者へのメール送信へはまだ**未接続**。正式販売承認が完了するまで有効化しない。
 
+## 2026-10-30：将来の注文管理画面を実際に閲覧できるSandbox専用ページに接続
+
+- `shop_payments/staging_live_overview_page.py`が`live_order_overview.py`の**SQLite読み取り専用**注文一覧をスマホ対応HTMLに変換。表示するのはSKU・数量・商品名・確定金額・過去の入金確認記録・署名付き通知数のみ。最新の返金/入金状態は`未確認`と明示。顧客PII・Squareトークン・決済IDは表示しない。
+- `staging_checkout_preview.py`に既存`bigpaw-test`の**運営者ログインだけ**でアクセスできる`GET /shop-live-orders-preview.html`を追加。購入者用のプレビューログインでは表示できない。既存`shop-test-orders.html`からのリンクを追加。該当する将来の台帳が空なら`DEMO-ORDER-001/002`という**架空の見本のみ**を表示し、実注文・売上の件数に算入しない。
+- HTTPテストに認証失敗（未ログイン/購入者/Host違い/機能無効）、データ更新ゼロ・不正HTMLのエスケープ・noindex/iframe拒否、画面の架空データ区別を追加。Chromium/iPhone Safariの画面表示と横スクロールなしもCIで確認。
+- **テスト専用表示であり、本番の運営管理画面や実Square決済・返金・発送・メールに接続していない。** 本番利用はオーナーの法定表示・公開/運用の承認後に別途行う。
+
 ## 今の運用上の注意
 
 - ショップ公開用の `app/shop.html` は「販売準備中」で、決済ボタンが無効。現行の `bigpaw-test` は専用Sandbox Dockerサービスであり、公開用BIG PAW全体の変更を試すサービスではない。
