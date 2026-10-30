@@ -1,0 +1,38 @@
+{
+  "status": "draft_not_approved",
+  "business_structure": "individual_proprietor",
+  "policy_applies_to": "dog_food_shop_only",
+  "accepted_by_proprietor": false,
+  "policies": {
+    "customer_change_of_mind": {
+      "approved": false,
+      "proposed": "Unopened and unused goods, contact within eight days of delivery; buyer-funded return postage",
+      "decision_needed": "Eligible products, timeline, whether returns allowed, exact shipping-cost allocation"
+    },
+    "before_shipping_cancel": {
+      "approved": false,
+      "proposed": "Inspect supplier order and shipping state before cancellation decision",
+      "decision_needed": "Paid-but-not-ordered, ordered, and dispatched cases; fees/refund"
+    },
+    "defect_damage_wrong_item": {
+      "approved": false,
+      "proposed": "Request report and offer exchange or refund for confirmed defects/wrong items; seller-funded return freight when seller responsible",
+      "decision_needed": "Verification, exchange eligibility, return address, response timeline, no impairment of statutory buyer rights"
+    },
+    "supplier_out_of_stock_or_delay": {
+      "approved": false,
+      "proposed": "Contact customer promptly; arrange restock agreement or cancellation and full refund where fulfillment impossible",
+      "decision_needed": "Customer confirmation, communication deadline, late delivery options"
+    },
+    "refund_and_contact": {
+      "approved": false,
+      "proposed": "Use original Square payment route where feasible; info@bigpaw.site for pre-sale questions",
+      "decision_needed": "Refund period, operative legal contact, operator workflow"
+    }
+  },
+  "references": [
+    "https://www.no-trouble.caa.go.jp/what/mailorder/",
+    "https://www.no-trouble.caa.go.jp/qa/advertising.html"
+  ],
+  "notes": "The 8-day legal fallback for no advertised return special terms is not itself an approved merchant policy. No return term is legally adopted or authorized to turn on checkout by this draft."
+}
