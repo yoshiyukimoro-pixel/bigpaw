@@ -206,13 +206,20 @@ class TestIsolatedLocalPreview(unittest.TestCase):
                     self.assertEqual(server.store.status(order_id), "payment_pending")
                 with patch.object(local_preview, "retrieve_verified_sandbox_payment",
                                   return_value=payment_from_square) as lookup:
-                    self.assertEqual(self._request(opener, base+"/api/shop/sandbox/webhook",
-                        method="POST",body=raw,headers=sig_headers)[0], 200)
-                    self.assertEqual(lookup.call_count, 1)
-                    self.assertEqual(server.store.status(order_id), "paid")
-                    self.assertEqual(self._request(opener, base+"/api/shop/sandbox/webhook",
-                        method="POST",body=raw,headers=sig_headers)[0], 200)
-                    self.assertEqual(server.store.status(order_id), "paid")
+                    # The bridge runs only after the fresh Square API confirms
+                    # payment and the SQLite paid journal has committed.
+                    with patch.object(local_preview, "maybe_notify_verified_payment",
+                                      return_value="disabled") as notify:
+                        self.assertEqual(self._request(opener, base+"/api/shop/sandbox/webhook",
+                            method="POST",body=raw,headers=sig_headers)[0], 200)
+                        self.assertEqual(notify.call_count, 1)
+                        self.assertEqual(notify.call_args.kwargs["webhook_status"], "paid")
+                        self.assertEqual(lookup.call_count, 1)
+                        self.assertEqual(server.store.status(order_id), "paid")
+                        self.assertEqual(self._request(opener, base+"/api/shop/sandbox/webhook",
+                            method="POST",body=raw,headers=sig_headers)[0], 200)
+                        self.assertEqual(notify.call_count, 1, "duplicate webhook must not dispatch")
+                        self.assertEqual(server.store.status(order_id), "paid")
 
     def test_bad_signature_rejected_and_no_fake_mark_paid(self):
         with patch.dict(os.environ, FAKE_CREDS):
