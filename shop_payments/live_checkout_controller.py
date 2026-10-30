@@ -31,6 +31,7 @@ from urllib.parse import urlsplit
 
 from .live_checkout_intent import LiveCheckoutIntent
 from .live_order_ledger import LiveOrderBlocked
+from .square_live_readonly import LiveSquareNotVerified
 from .retail_launch_guard import check
 from .square_live_checkout_adapter import create_live_square_link
 
@@ -167,7 +168,15 @@ def checkout_live_request(
     verify = dict(order_id=order_id, link=link, api_key=token)
     if get_opener is not None:
         verify["opener"] = get_opener
-    bound = intent.bind_square_result(**verify)
+    try:
+        bound = intent.bind_square_result(**verify)
+    except LiveSquareNotVerified:
+        # The Square POST may already have created a link. The intent was
+        # atomically claimed before POST, so NEVER issue another automatically.
+        # Keep the uncertain result for deliberate operator investigation.
+        raise LiveOrderBlocked(
+            "Square order verification uncertain; operator audit required"
+        ) from None
     if bound != {"state": "link_bound", "new_binding": True}:
         raise LiveOrderBlocked("Square link was not newly verified")
     return {
