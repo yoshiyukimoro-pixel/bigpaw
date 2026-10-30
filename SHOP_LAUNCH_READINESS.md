@@ -6,6 +6,7 @@
 
 - [x] ACANA 14・ORIJEN 8・ZIWI 9・CHARM 4＝35商品。詳細用WebP画像63枚、商品別画像対応。現行の価格表は税込・追加送料0円でサーバー側に持ち、ブラウザからの販売単価改ざんを拒否。
 - [x] Square **Sandbox** 決済リンク・署名付きWebhook・Square Payments APIによる入金再照合、重複決済通知の安全対策。
+- [x] **将来の本番用・未接続の注文台帳** `shop_payments/live_order_ledger.py` を追加。既存35SKUの税込・送料込み価格から注文時スナップショットを作り、注文番号/Square注文ID/店舗ID/金額を固定。Square本番 Payments/Orders の読み取り照合に成功した場合だけ、支払確定を一度だけ記録する。個人情報・メール・本番キーは保存しない。現在のWebアプリ、Square本番Webhook、送信処理とは**未接続**。`scripts/test-shop-live-order-ledger.py`は偽のSquare応答による検証であり、実注文・課金・送信はない。
 - [x] Sandbox注文一覧、運営専用ログイン、仕入先発注・欠品・入荷/検品・発送の**手動テスト記録**。実際の仕入れ発注や発送はしない。
 - [x] Square Sandbox Ordersで配送先要件を再確認した後の発送テスト記録と、運送会社・追跡番号のテスト台帳。実配送はしない。
 - [x] 運営/仕入先/お客様向け通知の未送信下書き。Square Sandbox注文のメールアドレスを照合し、レビュー・変更検出・送信直前の模擬記録を追加。顧客宛メール送信は無効。
