@@ -31,14 +31,23 @@ class Response:
     def read(self,n):return self.data
 
 
-def shipping_opener(*,complete=True):
+def shipping_opener(*,complete=True,refunded_yen=0):
     def get(req,timeout):
         assert req.get_method()=="GET"
+        if req.full_url=="https://connect.squareupsandbox.com/v2/payments/"+PAYMENT:
+            return Response({"payment":{
+                "id":PAYMENT,"order_id":SQUARE,"location_id":LOCATION,
+                "status":"COMPLETED",
+                "amount_money":{"amount":21450,"currency":"JPY"},
+                "refunded_money":{"amount":refunded_yen,"currency":"JPY"},
+            }})
         assert req.full_url=="https://connect.squareupsandbox.com/v2/orders/"+SQUARE
         recipient={"display_name":"PRIVATE PERSON","phone_number":"09012345678","address":{
             "country":"JP","address_line_1":"PRIVATE STREET" if complete else "",
             "postal_code":"100-0001"}}
-        return Response({"order":{"id":SQUARE,"fulfillments":[{
+        return Response({"order":{"id":SQUARE,"location_id":LOCATION,
+            "state":"OPEN","total_money":{"amount":21450,"currency":"JPY"},
+            "fulfillments":[{
             "type":"SHIPMENT","shipment_details":{"recipient":recipient}}]}})
     return get
 
@@ -130,6 +139,18 @@ class ProcurementTests(unittest.TestCase):
             self.command("supplier-refund-review",confirm=True)
         # Staging stock wasn't set. No 0-stock restriction for paid buy-to-order.
         self.assertEqual(self.command("list")["orders"][0]["procurement_state"],"shipped")
+
+    def test_refunded_square_payment_blocks_supplier_dispatch(self):
+        self.order()
+        self.command("supplier-ordered",confirm=True)
+        self.command("supplier-received",confirm=True)
+        for refund in (1,21450):
+            with self.subTest(refund=refund), self.assertRaises(ValueError):
+                self.command("supplier-shipped",confirm=True,
+                             opener=shipping_opener(refunded_yen=refund))
+        self.assertEqual(self.proc.state(ORDER),"received_at_shop")
+        self.assertEqual([x["stage"] for x in self.proc.events(ORDER)],
+                         ["supplier_ordered","received_at_shop"])
 
     def test_shortage_then_supplier_available_or_full_refund(self):
         self.order()

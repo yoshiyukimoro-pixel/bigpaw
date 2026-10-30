@@ -28,12 +28,17 @@ class FakeResponse:
     def read(self,n):return self.content
 
 
-def shipment_opener(order_id):
+def shipment_opener(order_id, *, payment=None):
     def opener(req,timeout):
         assert req.get_method()=="GET"
+        if payment is not None and req.full_url=="https://connect.squareupsandbox.com/v2/payments/"+payment["id"]:
+            return FakeResponse({"payment":payment})
         assert req.full_url=="https://connect.squareupsandbox.com/v2/orders/"+order_id
         return FakeResponse({"order":{
-            "id":order_id,"fulfillments":[{"type":"SHIPMENT","shipment_details":{
+            "id":order_id,
+            "location_id":LOCATION,"state":"OPEN",
+            "total_money":{"amount":21450,"currency":"JPY"},
+            "fulfillments":[{"type":"SHIPMENT","shipment_details":{
                 "recipient":{"display_name":"PRIVATE NAME",
                     "phone_number":"09012345678",
                     "address":{"country":"JP","postal_code":"100-0001",
@@ -118,13 +123,29 @@ class OperatorConsoleTests(unittest.TestCase):
             opener=shipment_opener(self.square))
         self.assertEqual(again["fulfillment_state"],"ready_to_pack")
         self.assertEqual(self.run_console(["stock","A02"])["available"],1)
-        sent=self.run_console(["record-shipped",self.order],write=True)
+        sent=self.run_console(["record-shipped",self.order],write=True,
+            opener=shipment_opener(self.square,payment=self.fake_payment))
         self.assertEqual(sent["fulfillment_state"],"shipped")
         self.assertFalse(sent["shipping_executed"])
         with self.assertRaises(ValueError):
             self.run_console(["refund-review",self.order],write=True)
         kinds={e["event_type"] for e in self.run_console(["events"])["events"]}
         self.assertEqual(kinds,{"ready_to_pack","shipped"})
+
+    def test_refunded_payment_refuses_operator_dispatch(self):
+        self.paid_order()
+        self.run_console(["stock-set","A02","1"],write=True)
+        self.run_console(["assess",self.order],write=True,
+            opener=shipment_opener(self.square))
+        bad={**self.fake_payment,
+             "refunded_money":{"amount":21450,"currency":"JPY"}}
+        with self.assertRaises(ValueError):
+            self.run_console(["record-shipped",self.order],write=True,
+                opener=shipment_opener(self.square,payment=bad))
+        self.assertEqual(self.run_console(["check-paid",self.order])["state"],
+                         "ready_to_pack")
+        self.assertNotIn("shipped",
+            {e["event_type"] for e in self.run_console(["events"])["events"]})
 
     def test_refund_requires_square_verified_complete_refund(self):
         self.paid_order()

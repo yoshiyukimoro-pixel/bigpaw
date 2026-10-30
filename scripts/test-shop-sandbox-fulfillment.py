@@ -107,6 +107,40 @@ class TestFulfillment(unittest.TestCase):
             return FakeResponse({"payment": payment})
         return fake
 
+    @staticmethod
+    def fresh_dispatch_opener(payment, total, *, complete=True):
+        def fake(req, timeout):
+            assert req.get_method() == "GET"
+            if req.full_url.endswith("/payments/" + payment["id"]):
+                return FakeResponse({"payment": payment})
+            assert req.full_url.endswith("/orders/" + payment["order_id"])
+            return FakeResponse({"order": {
+                "id": payment["order_id"],
+                "location_id": payment["location_id"],
+                "state": "OPEN",
+                "total_money": {"amount": total, "currency": "JPY"},
+                "fulfillments": [{
+                    "type": "SHIPMENT", "shipment_details": {
+                        "recipient": {
+                            "display_name": "PRIVATE RECIPIENT",
+                            "phone_number": "09012345678",
+                            "address": {
+                                "country": "JP" if complete else "US",
+                                "postal_code": "100-0001",
+                                "address_line_1": "PRIVATE ADDRESS",
+                            },
+                        },
+                    },
+                }],
+            }})
+        return fake
+
+    def dispatch(self, order_id, payment, amount, *, complete=True):
+        return self.ops.mark_shipped(
+            order_id, token="FAKE_TEST_TOKEN",
+            opener=self.fresh_dispatch_opener(payment, amount, complete=complete),
+        )
+
     def assess(self, order_id, payment, *, complete=True):
         return self.ops.assess_paid_order(
             order_id, token="FAKE_TEST_TOKEN",
@@ -114,20 +148,20 @@ class TestFulfillment(unittest.TestCase):
         )
 
     def test_paid_shipping_and_stock_gate_with_idempotency(self):
-        order_id, payment, _ = self.make_paid_order({"A02": 2})
+        order_id, payment, amount = self.make_paid_order({"A02": 2})
         self.assertEqual(self.ops.state(order_id), "not_assessed")
         self.assertEqual(self.assess(order_id, payment, complete=False), "address_review")
         self.assertEqual(self.assess(order_id, payment), "stock_review")
         self.assertEqual(self.ops.stock("A02"), 0)
         with self.assertRaises(ValueError):
-            self.ops.mark_shipped(order_id)
+            self.dispatch(order_id, payment, amount)
         self.ops.set_stock("A02", 2)
         self.assertEqual(self.assess(order_id, payment), "ready_to_pack")
         self.assertEqual(self.ops.stock("A02"), 0)
         self.assertEqual(self.assess(order_id, payment), "ready_to_pack")
         self.assertEqual(self.ops.stock("A02"), 0)
-        self.assertEqual(self.ops.mark_shipped(order_id), "shipped")
-        self.assertEqual(self.ops.mark_shipped(order_id), "shipped")
+        self.assertEqual(self.dispatch(order_id, payment, amount), "shipped")
+        self.assertEqual(self.dispatch(order_id, payment, amount), "shipped")
         with self.assertRaises(ValueError):
             self.ops.request_refund_review(order_id)
         events = self.ops.operator_queue()
@@ -136,6 +170,24 @@ class TestFulfillment(unittest.TestCase):
             {"address_review", "stock_review", "ready_to_pack", "shipped"},
         )
         self.assertNotIn("PRIVATE", json.dumps(events))
+
+    def test_refunded_payment_blocks_dispatch_before_local_journal_change(self):
+        order_id, payment, amount = self.make_paid_order({"A02": 1})
+        self.ops.set_stock("A02", 1)
+        self.assertEqual(self.assess(order_id, payment), "ready_to_pack")
+        for money in (
+            {"amount": 1, "currency": "JPY"},
+            {"amount": amount, "currency": "JPY"},
+            None,
+        ):
+            with self.subTest(refund=money), self.assertRaises(SquareSandboxError):
+                self.dispatch(order_id, {**payment, "refunded_money": money}, amount)
+        with self.assertRaises(ValueError):
+            self.dispatch(order_id, payment, amount, complete=False)
+        self.assertEqual(self.ops.state(order_id), "ready_to_pack")
+        self.assertEqual(self.ops.stock("A02"), 0)
+        self.assertNotIn("shipped", [e["event_type"] for e in self.ops.operator_queue()])
+        self.assertEqual(self.dispatch(order_id, payment, amount), "shipped")
 
     def test_full_refund_only_after_square_confirmation(self):
         order_id, payment, total = self.make_paid_order({"Z01": 1, "A02": 2})
@@ -147,7 +199,7 @@ class TestFulfillment(unittest.TestCase):
         self.assertEqual(self.ops.request_refund_review(order_id), "refund_review")
         self.assertEqual(self.ops.request_refund_review(order_id), "refund_review")
         with self.assertRaises(ValueError):
-            self.ops.mark_shipped(order_id)
+            self.dispatch(order_id, payment, total)
         for refund in (
             {},
             {"amount": total - 1, "currency": "JPY"},

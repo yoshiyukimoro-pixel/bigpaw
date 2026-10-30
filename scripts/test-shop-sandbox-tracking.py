@@ -32,10 +32,20 @@ class Response:
 
 def shipping_opener(req, timeout):
     assert req.get_method() == "GET"
+    if req.full_url == "https://connect.squareupsandbox.com/v2/payments/" + PAYMENT:
+        return Response({"payment": {
+            "id": PAYMENT, "order_id": SQUARE_ORDER, "location_id": LOCATION,
+            "status": "COMPLETED", "amount_money": {
+                "amount": load_sale_catalog()["A02"].sale_price_yen, "currency": "JPY"},
+        }})
     assert req.full_url == (
         "https://connect.squareupsandbox.com/v2/orders/" + SQUARE_ORDER
     )
-    return Response({"order": {"id": SQUARE_ORDER, "fulfillments": [{
+    return Response({"order": {"id": SQUARE_ORDER,
+        "location_id": LOCATION, "state": "OPEN",
+        "total_money": {
+            "amount": load_sale_catalog()["A02"].sale_price_yen, "currency": "JPY"},
+        "fulfillments": [{
         "type": "SHIPMENT", "shipment_details": {"recipient": {
             "display_name": PII[0],
             "address": {"country": "JP", "address_line_1": PII[1],
