@@ -149,7 +149,8 @@ class SandboxCustomerReview:
                 raise ValueError("Sandbox shipment stage required")
             from .sandbox_tracking import SandboxTrackingJournal
             if not SandboxTrackingJournal(self.store).read(order_id):
-                return {"ready": False, "masked": None, "reviewed": self.reviewed(order_id, kind)}
+                return {"ready": False, "masked": None, "reviewed": False,
+                        "review_history": self.reviewed(order_id, kind)}
         opts = {"token": token}
         if opener is not None:
             opts["opener"] = opener
