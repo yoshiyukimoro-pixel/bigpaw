@@ -6,9 +6,10 @@ a signature by itself NEVER marks an order paid. The signed payment is mapped
 to the immutable private checkout journal and independently re-fetched via
 Square Production GET Payments + Orders before the journal is updated.
 
-With the checked-in unapproved launch manifest, this route always returns 404
-BEFORE reading any request body, accessing a database or sending Square GETs.
-No provider endpoint, merchant credential or webhook is configured/enabled.
+Webhook reconciliation has its own explicit operator authorization and stays
+available to existing orders if public checkout is suspended. Neither checked-in
+Railway project has configured live Square webhook credentials; the route
+therefore remains disabled until the owner explicitly provisions them.
 """
 from __future__ import annotations
 
@@ -17,7 +18,6 @@ from pathlib import Path
 import re
 from urllib.parse import urlsplit
 
-from shop_live_checkout_bridge import _gate, _load_manifest
 
 PATH = "/api/shop/square-webhook"
 MAX_BYTES = 256_000
@@ -30,16 +30,32 @@ def _send(handler, code: int, reason: str):
 
 
 def _allowed(env, base_url, status):
-    if not _gate(env, base_url, status):
+    # IMPORTANT: disabling new checkout does NOT cancel pending Square links.
+    # Keep signed reconciliation available for already-issued orders when
+    # BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0 or checkout approval checks fail.
+    # Only independently authorized webhook configuration permits this.
+    if not isinstance(env, dict):
         return False
-    if env.get("BIGPAW_SHOP_SQUARE_LIVE_WEBHOOK_ENABLED") != "1":
+    if base_url not in ("https://bigpaw.site", "https://www.bigpaw.site"):
+        return False
+    if (env.get("BIGPAW_ENV") != "production"
+            or env.get("BIGPAW_SHOP_OWNER_LAUNCH_APPROVED") != "1"
+            or env.get("BIGPAW_SHOP_SQUARE_LIVE_WEBHOOK_ENABLED") != "1"):
         return False
     if env.get("BIGPAW_SQUARE_LIVE_WEBHOOK_URL") != base_url + PATH:
         return False
+    token = env.get("BIGPAW_SQUARE_LIVE_ACCESS_TOKEN")
+    location = env.get("BIGPAW_SQUARE_LIVE_LOCATION_ID")
     signature_key = env.get("BIGPAW_SQUARE_LIVE_WEBHOOK_SIGNATURE_KEY")
-    if (not isinstance(signature_key, str)
+    if (not isinstance(token, str) or len(token.strip()) < 20
+            or not isinstance(location, str)
+            or not re.fullmatch(r"[A-Za-z0-9_-]{8,80}", location)
+            or not isinstance(signature_key, str)
             or len(signature_key.encode("utf-8")) < 32
             or any(x in signature_key for x in "\r\n")):
+        return False
+    if (token == env.get("BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN")
+            or location == env.get("BIGPAW_SQUARE_SANDBOX_LOCATION_ID")):
         return False
     return True
 
@@ -68,10 +84,12 @@ def handle_post(handler, *, env=None, base_url="", data_dir=None,
         return False
     env = dict(os.environ if env is None else env)
     try:
-        status = _load_manifest() if launch_status is None else launch_status
-        # Absolute first gate; with current manifest this cannot read the
-        # webhook body, initialize SQLite, call Square or mark a payment.
-        if not _allowed(env, base_url, status):
+        # Webhook reconciliation is an INDEPENDENT authorization gate.
+        # No public purchase approvals or storefront kill-switch are required;
+        # a paid link created BEFORE checkout suspension still needs handling.
+        # Checked-in Railway environments lack a live Square signing key, so
+        # this remains disabled without operator-approved runtime credentials.
+        if not _allowed(env, base_url, launch_status):
             return _send(handler, 404, "shop_webhook_unavailable")
         if not _trusted_request(handler, base_url):
             return _send(handler, 403, "webhook_request_rejected")
@@ -90,6 +108,11 @@ def handle_post(handler, *, env=None, base_url="", data_dir=None,
             return _send(handler, 401, "invalid_signature")
         if not isinstance(data_dir, (str, Path)) or not Path(data_dir).is_dir():
             return _send(handler, 503, "private_store_unavailable")
+        # A signed notification cannot bootstrap a private order journal;
+        # it must match a link created previously by the trusted checkout.
+        db_path = Path(data_dir) / "bigpaw-shop-live-orders.sqlite3"
+        if not db_path.is_file():
+            return _send(handler, 503, "private_order_journal_missing")
         raw_body = handler.rfile.read(length)
         if len(raw_body) != length:
             return _send(handler, 400, "invalid_length")
@@ -106,7 +129,7 @@ def handle_post(handler, *, env=None, base_url="", data_dir=None,
         from shop_payments.live_order_ledger import LiveOrderBlocked, LiveOrderLedger
         from shop_payments.live_payment_intake import record_verified_live_payment_event
         from shop_payments.square_live_readonly import LiveSquareNotVerified
-        ledger = LiveOrderLedger(Path(data_dir) / "bigpaw-shop-live-orders.sqlite3")
+        ledger = LiveOrderLedger(db_path)
         args = {
             "ledger": ledger, "raw_body": raw_body,
             "signature_header": signature,
