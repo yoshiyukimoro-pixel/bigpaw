@@ -59,6 +59,36 @@ def retrieve_verified_sandbox_payment(
     return pay
 
 
+def _valid_japanese_shipping_recipient(recipient: dict) -> bool:
+    """Validate one ship-to recipient; never return or persist personal data.
+
+    Square requires a phone for shipment recipients. For postal shipping to
+    Japan, the postcode must contain exactly seven digits (optionally 3-4),
+    and the normalized phone must start with domestic zero and have 10/11
+    digits. Accept the common +81 international format too.
+    """
+    if not isinstance(recipient, dict):
+        return False
+    address = recipient.get("address")
+    name = recipient.get("display_name")
+    phone = recipient.get("phone_number")
+    if (not isinstance(address, dict) or address.get("country") != "JP"
+            or not isinstance(name, str) or not 1 <= len(name.strip()) <= 255
+            or not isinstance(phone, str) or not 10 <= len(phone) <= 24):
+        return False
+    line = address.get("address_line_1")
+    post = address.get("postal_code")
+    if (not isinstance(line, str) or not 1 <= len(line.strip()) <= 200
+            or any(ch in line for ch in ("\\r", "\\n"))
+            or not isinstance(post, str)
+            or not re.fullmatch(r"[0-9]{3}-?[0-9]{4}", post)):
+        return False
+    compact = re.sub(r"[\\s()\\-]", "", phone)
+    if compact.startswith("+81"):
+        compact = "0" + compact[3:]
+    return bool(re.fullmatch(r"0[0-9]{9,10}", compact))
+
+
 def retrieve_sandbox_shipment_status(
     square_order_id: str, *, token: str, opener=urlopen
 ) -> dict:
@@ -90,18 +120,7 @@ def retrieve_sandbox_shipment_status(
             recipient = details.get("recipient", {})
             if not isinstance(recipient, dict):
                 continue
-            address = recipient.get("address", {})
-            if not isinstance(address, dict):
-                continue
-            if (
-                address.get("country") == "JP"
-                and isinstance(address.get("address_line_1"), str)
-                and bool(address["address_line_1"].strip())
-                and isinstance(address.get("postal_code"), str)
-                and bool(address["postal_code"].strip())
-                and isinstance(recipient.get("display_name"), str)
-                and bool(recipient["display_name"].strip())
-            ):
+            if _valid_japanese_shipping_recipient(recipient):
                 valid = True
                 break
     return {"square_order_id": square_order_id, "shipment_details_complete": valid}
