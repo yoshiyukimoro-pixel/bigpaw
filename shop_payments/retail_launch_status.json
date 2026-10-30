@@ -1,0 +1,18 @@
+{
+  "business_structure": "individual_proprietor",
+  "sandbox_only": true,
+  "public_live_checkout_enabled": false,
+  "launch_checks": {
+    "seller_identity": false,
+    "statutory_contact": false,
+    "return_policy": false,
+    "checkout_disclosure": false,
+    "fulfillment_sla": false,
+    "customer_email_delivery": false,
+    "square_live_readiness": false,
+    "environment_separation": false,
+    "production_e2e_tests": false,
+    "proprietor_approval": false
+  },
+  "notes": "Individual proprietor confirmed by owner. Merchant legal full name/contact, on-request disclosure arrangements, returns, live payments, delivery and real email remain unapproved. Never save personal details/secrets in Git."
+}
