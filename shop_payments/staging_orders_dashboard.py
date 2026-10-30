@@ -25,6 +25,28 @@ MAIL_LABELS = {
     "reserved": "送信確認中",
     "unknown": "送信結果が不明・要確認",
 }
+# These are prepared notifications, not evidence of actual delivery.
+DRAFT_LABELS = {
+    "operator_new_order": "運営：新規注文の確認",
+    "supplier_purchase_request": "仕入先：在庫・納期確認と発注内容",
+    "customer_order_confirmed": "お客様：決済・注文確認",
+    "operator_supplier_ordered": "運営：仕入先への発注記録",
+    "operator_supplier_shortage": "運営：欠品対応",
+    "customer_supplier_shortage": "お客様：欠品のご案内",
+    "operator_goods_received": "運営：入荷・検品の確認",
+    "customer_shipment_notice": "お客様：発送のお知らせ",
+    "operator_refund_action_needed": "運営：返金対応の確認",
+    "customer_refund_completed": "お客様：返金の確認",
+}
+NEXT_ACTIONS = {
+    "awaiting_supplier_order": "入金確認後、仕入先に在庫・納期を確認（自動発注はしません）",
+    "supplier_ordered": "仕入先からの入荷を待ち、届いた商品の数量と状態を確認",
+    "supplier_backorder": "欠品の連絡・入荷待ちか全額返金かを確認",
+    "received_at_shop": "お届け先と梱包内容を確認して発送準備",
+    "shipped": "配送状況を確認し、必要な対応を行う",
+    "refund_review": "Squareの返金状況を別途確認（この画面では返金しません）",
+    "refunded": "返金の記録を確認",
+}
 PROCUREMENT_LABELS = {
     "awaiting_supplier_order": "仕入れ手配待ち（未発注）",
     "supplier_ordered": "発注済み（テスト記録）",
@@ -72,6 +94,18 @@ def render(store) -> str:
                 row["order_id"]: row["stage"]
                 for row in db.execute("SELECT order_id,stage FROM food_procurement").fetchall()
             }
+        drafts_by_order = {}
+        if db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='food_notification_drafts'"
+        ).fetchone():
+            for notice in db.execute("""
+                SELECT order_id,kind,audience FROM food_notification_drafts
+                ORDER BY created_at,order_id,kind
+            """).fetchall():
+                drafts_by_order.setdefault(notice["order_id"], []).append(
+                    (notice["kind"], notice["audience"])
+                )
         items_by_order = {}
         for row in records:
             items_by_order[row["order_id"]] = [
@@ -96,6 +130,24 @@ def render(store) -> str:
         mail_text = MAIL_LABELS.get(mail, "未送信・記録なし") if mail else "未送信・記録なし"
         procurement = procurement_states.get(order_id)
         procurement_text = PROCUREMENT_LABELS.get(procurement, "未発注（テスト）") if order["state"] == "paid" else "決済確定前"
+        if order["state"] != "paid":
+            action = "決済完了の確認待ちです。入金済みとして処理しないでください"
+        else:
+            action = NEXT_ACTIONS.get(procurement or "awaiting_supplier_order",
+                                      "仕入れ状況を確認してください")
+        notices = drafts_by_order.get(order_id, [])
+        draft_items = "".join(
+            "<li>" + _safe(DRAFT_LABELS.get(kind, "通知内容の確認が必要")) +
+            "（" + _safe({"operator": "運営", "supplier": "仕入先",
+                         "customer": "お客様"}.get(audience, "宛先要確認")) +
+            "向け・未送信下書き）</li>"
+            for kind, audience in notices
+        )
+        drafts_html = (
+            '<details class="drafts"><summary>通知の下書き：' +
+            str(len(notices)) + "件（メールは送られません）</summary><ul>" +
+            draft_items + "</ul></details>"
+        ) if notices else '<p class="draft-empty">通知の下書きはまだありません</p>'
         cards.append(
             '<article class="order"><div class="order-top"><strong>' +
             _safe(PAYMENT_LABELS.get(order["state"], "状態確認が必要")) +
@@ -106,7 +158,9 @@ def render(store) -> str:
             "　入金：" + _safe(_when(order["paid_at"])) + "</p>" +
             "<ul>" + "".join(lines) + "</ul>" +
             '<p class="status">仕入れ：' + _safe(procurement_text) +
-            "<br>運営メール：" + _safe(mail_text) + "</p></article>"
+            "<br>運営メール：" + _safe(mail_text) + "</p>" +
+            '<div class="next-action"><strong>次の確認作業</strong><p>' +
+            _safe(action) + "</p></div>" + drafts_html + "</article>"
         )
     paid = sum(row["state"] == "paid" for row in records)
     pending = len(records) - paid
@@ -130,6 +184,12 @@ nav a{display:inline-block;background:white;border:1px solid #ccd8e5;border-radi
 .order-top strong{color:#176e55}.amount{font-size:19px;font-weight:850}
 code{font-size:11px;color:#56657a}.date{font-size:12px;color:#6b7888}
 ul{padding-left:21px;margin:8px 0}.status{font-size:13px;background:#f1f6fa;border-radius:8px;padding:10px}
+.next-action{background:#eaf4ee;border-left:4px solid #367b59;border-radius:6px;padding:10px 12px;font-size:13px}
+.next-action p{margin:4px 0 0}
+.drafts{margin-top:12px;border:1px solid #d9e3ef;border-radius:8px;padding:9px 11px;font-size:13px}
+.drafts summary{cursor:pointer;font-weight:800;color:#285681}
+.drafts li{padding:3px 0}
+.draft-empty{color:#718197;font-size:12px}
 .empty{padding:30px;text-align:center;background:#fff;border-radius:10px}
 @media(max-width:500px){.stats{gap:6px}.stats div{padding:10px}.stats strong{font-size:22px}}
 </style></head><body>
@@ -143,6 +203,6 @@ ul{padding-left:21px;margin:8px 0}.status{font-size:13px;background:#f1f6fa;bord
 <section aria-label="注文一覧"><h2>注文一覧（直近100件）</h2>""" + (
         "".join(cards) if cards else '<p class="empty">テスト注文の記録はありません。</p>'
     ) + """</section>
-<p class="warning">このページから注文変更・返金・自動発注・メール再送はできません。
+<p class="warning">このページは閲覧専用です。仕入先・お客様向けの通知は未送信下書きのため、別途連絡が必要です。注文変更・返金・自動発注・メール再送はできません。
 配送先などの個人情報は表示しません。</p>
 </main></body></html>"""
