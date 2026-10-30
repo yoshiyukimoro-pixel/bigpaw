@@ -48,6 +48,7 @@ class HostedShippingReadOnlyTests(unittest.TestCase):
                 "shipment_details": {
                     "recipient": {
                         "display_name": "Synthetic Sample",
+                        "phone_number": "09012345678",
                         "address": {
                             "country": "JP",
                             "postal_code": "000-0000",
@@ -82,9 +83,11 @@ class HostedShippingReadOnlyTests(unittest.TestCase):
             {"fulfillments": [{"type": "PICKUP"}]},
             {"fulfillments": [{"type": "SHIPMENT", "shipment_details": {
                 "recipient": {"display_name": "Synthetic Sample",
+                        "phone_number": "09012345678",
                               "email_address": "sample@example.invalid"}}}]},
             {"fulfillments": [{"type": "SHIPMENT", "shipment_details": {
                 "recipient": {"display_name": "Synthetic Sample",
+                        "phone_number": "09012345678",
                               "address": {"country": "US", "postal_code": "00000",
                                           "address_line_1": "Fake"}}}}]},
         ):
