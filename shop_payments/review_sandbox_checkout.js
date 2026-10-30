@@ -180,6 +180,11 @@
         headers:{'Content-Type':'application/json','X-Shop-CSRF':config.csrf_token},
         body:JSON.stringify({cart,attempt_id}),
       });
+      if(r.status===409){
+        notice.textContent='Squareテスト決済リンクの作成結果を確認できません。二重作成を防ぐため、この注文は自動再試行できません。運営者に確認してください。';
+        agreedFingerprint=null;
+        return;
+      }
       if(!r.ok) throw new Error('Square Sandbox checkout unavailable');
       const result=await r.json();
       if(result.sandbox !== true || result.shipping_yen !== 0 ||
