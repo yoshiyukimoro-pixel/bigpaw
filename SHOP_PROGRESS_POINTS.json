@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 65,
-  "completed_points_since_baseline": 35,
+  "remaining_points": 61,
+  "completed_points_since_baseline": 39,
   "groups": [
     {
       "key": "purchase",
@@ -214,9 +214,15 @@
           "id": "F04",
           "weight": 4,
           "title": "トランペッツへの発注/欠品/入荷/検品フローを運用可能に",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554",
+            "tested_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
+            "local_tests": "scripts/test-shop-sandbox-procurement.py (4 tests passed); procurement and notification flow coverage passed in the full CI batch",
+            "scope": "Private authenticated Sandbox operator dashboard supports supplier-order recorded, backorder, received/inspection recorded and dispatch-status tracking. Only a Square-verified paid order can advance; transitions are validated/idempotent and notification drafts are queued. Supplier contact itself is a manual operator action; no external order or message is sent.",
+            "limits": "Workflow is implemented and tested on the development/Sandbox side; production deployment, real supplier operation and approved customer terms remain pending."
+          }
         },
         {
           "id": "F05",
