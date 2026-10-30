@@ -28,6 +28,9 @@ on:
       - 'shop_payments/sandbox_operator_email.py'
       - 'scripts/test-shop-sandbox-operator-email.py'
       - 'scripts/test-shop-sandbox-auto-notify.py'
+      - 'shop_payments/staging_https_webhook.py'
+      - 'scripts/test-shop-https-webhook.py'
+      - 'Dockerfile.shop-staging'
       - 'scripts/smoke-shop-operator-resend-once.py'
       - 'scripts/test-shop-operator-resend-once.py'
       - 'scripts/audit-shop-operator-resend-attempt.py'
@@ -88,6 +91,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-sandbox-notifications.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-email.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-auto-notify.py
+          PYTHONPATH=. python3 scripts/test-shop-https-webhook.py
           PYTHONPATH=. python3 scripts/test-shop-operator-resend-once.py
           PYTHONPATH=. python3 scripts/test-shop-operator-resend-audit.py
           PYTHONPATH=. python3 scripts/test-shop-info-mail-simple.py
@@ -97,6 +101,7 @@ jobs:
           python3 -m py_compile scripts/import-shop-detail-assets.py
           PYTHONPATH=. python3 scripts/test-shop-detail-importer.py
           PYTHONPATH=. python3 scripts/test-shop-98-installer.py
+          python3 -m py_compile shop_payments/staging_https_webhook.py
           node scripts/test-shop-detail-images.cjs
           PYTHONPATH=. python3 scripts/test-shop-square-smoke.py
           PYTHONPATH=. python3 scripts/test-shop-square-card-smoke.py
