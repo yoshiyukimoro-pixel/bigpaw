@@ -143,6 +143,10 @@
         body: JSON.stringify({cart, attempt_id: checkoutAttemptFor(cart)}),
       });
       const result = await res.json();
+      if (res.status === 409) {
+        notice.textContent = 'Squareテスト決済リンクの発行結果が不明です。二重作成を防ぐため、この注文の再試行を止めています。運営者に確認してください。';
+        return;
+      }
       if (!res.ok || !result.sandbox || !result.checkout_url) throw new Error('no checkout URL');
       const destination = new URL(result.checkout_url);
       if (destination.protocol !== 'https:' || destination.hostname !== 'sandbox.square.link') {
