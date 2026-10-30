@@ -128,7 +128,13 @@ class SignedSquarePaymentIntakeTests(unittest.TestCase):
             self.receive(),
             {"state": "already_recorded", "new_transition": False},
         )
-        self.assertEqual(len(self.calls), before, "already-paid event is idempotent")
+        self.assertEqual(len(self.calls), before + 2,
+                         "replayed webhook must re-check current Square payment/order")
+        self.payment["refunded_money"] = {"amount": 1, "currency": "JPY"}
+        with self.assertRaises(LiveSquareNotVerified):
+            self.receive()
+        self.assertEqual(self.ledger.status(ORDER_ID)["state"], "paid_verified")
+        self.payment["refunded_money"] = {"amount": 0, "currency": "JPY"}
         stored = self.database.read_bytes()
         for value in ("SYNTHETIC BUYER", "FAKE ADDRESS",
                       "fake-buyer@example.invalid", API_KEY, SIGN_KEY):
