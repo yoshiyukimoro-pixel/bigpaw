@@ -174,3 +174,31 @@ Square sandbox checkout: https://developer.squareup.com/reference/square/checkou
 - `scripts/test-shop-sandbox-auto-notify.py` で未決済拒否、署名と支払い再検証後のみ、二重送信防止、Railway/本番環境の拒否、キー未設定、通信断、送信先固定を**全て模擬データ**で検査。実際のメールの再送信や決済は行わない。
 - 今回の実装は**自動通知のソースとモック試験**。公開HTTPS Sandbox Webhook接続、実Sandboxカード決済→通知のEnd-to-End試験、認証済み運営画面、本番通知は未完成。GitHubの送信専用キーをRailway本番にコピーしない。
 - PR #175はDraftのまま、mainマージ・Railway本番デプロイ・Square本番決済を禁止。公開前の明示承認、特商法・返品・配送手順確認が必要。
+
+
+## 2026-10-30: 独立HTTPS Sandbox Webhook受信サービスの開発（非デプロイ）
+
+- `shop_payments/staging_https_webhook.py` を追加。Squareの**Sandbox専用**イベントを受信するサーバーを、既存BIG PAW本番Webサーバーから完全に分離。通常の注文画面/管理画面/カート/商品情報を公開せず、公開経路は `GET /healthz` と `POST /api/shop/sandbox/webhook` のみ。
+- TLSは**専用ホスティング側のHTTPS終端**を利用する前提で、アプリ内部はHTTP。Square Developer Consoleに登録するHTTPS通知URLと署名検証に用いるURLを**完全一致**させる。実URLやWebhook署名鍵は**まだ登録していない**。
+- `Square-Environment: Sandbox` を要求し、本文サイズ/JSON形式を制限。Square署名のHMAC-SHA256を生バイトに対して照合し、さらにSquare Sandbox Payments APIで注文番号・金額・通貨・店舗・決済完了を再照会する。署名不正は403、検証保留は503、受理済みイベントは200。イベント重複防止はSQLiteで永続化。
+- 確認済み決済に対する運営メールはレスポンスと分離したスレッドに送る。通知はさらに `BIGPAW_SHOP_SANDBOX_AUTO_NOTIFY_ENABLED=1` / `BIGPAW_SHOP_SANDBOX_OPERATOR_EMAIL_ENABLED=1` / `BIGPAW_SHOP_STAGING_ISOLATED=1` の明示設定がなければ送信しない。予約/重複防止と不明結果の自動再送禁止を保持。
+- **既存の2つのBIG PAW Railway本番プロジェクトIDを実行時に拒否**。別Railwayプロジェクトで動かす場合も `RAILWAY_PROJECT_ID` と `BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID` の完全一致が必要。SQLiteは別ボリュームの `BIGPAW_SHOP_SANDBOX_DB` だけを使う。
+- `Dockerfile.shop-staging` はショップの検証に必要な `shop_payments/` のみコピーする隔離コンテナ。既存本番の `Dockerfile` や `app/backend/server.py` は変更しない。
+- `scripts/test-shop-https-webhook.py` は偽署名、productionヘッダー、未入金、Square再照会不一致、重複、注文ダイアリーへの `paid` コミット後の通知、公開ルート制限、誤設定の起動拒否を**外部通信なし**で検査。ショップCIで実行し、隔離Dockerfileもビルドする。
+- **未完了**：独立ホスティングの確保・有償課金/ボリュームの承認、Sandbox秘密情報と正確なHTTPS通知URLの安全な設定、Square Developer Consoleのテスト購読登録、実Sandbox決済→実Webhook→メールの通し試験、障害復旧時の未送信下書き再処理、実機確認。これら完了前に本番公開しない。
+- 署名検証・再送仕様の公式参照： https://developer.squareup.com/docs/webhooks/step3validate 、 https://developer.squareup.com/docs/webhooks/overview
+
+### 起動の前提（専用隔離環境のみ）
+
+テスト専用ボリュームを添付し、`BIGPAW_SHOP_SANDBOX_DB` でそのDBパスを指定する。
+必要な設定名は `BIGPAW_ENV=sandbox`, `BIGPAW_SHOP_STAGING_ISOLATED=1`,
+`BIGPAW_SHOP_STAGING_HTTPS_ENABLED=1`,
+`BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN`, `BIGPAW_SQUARE_SANDBOX_LOCATION_ID`,
+`BIGPAW_SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY`,
+`BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL=https://<staging-host>/api/shop/sandbox/webhook`。
+実際の試験で運営メールを有効にする場合のみ
+`BIGPAW_SHOP_SANDBOX_AUTO_NOTIFY_ENABLED=1` と
+`BIGPAW_SHOP_SANDBOX_OPERATOR_EMAIL_ENABLED=1`, `RESEND_API_KEY` が必要。
+Railwayの場合は追加で `BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID` を別のstagingプロジェクトIDへ設定。
+**秘密鍵はGitHubコード、チャット、公開ログ、スクリーンショットへ貼らない。**
+
