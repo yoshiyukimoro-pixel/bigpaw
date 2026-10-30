@@ -85,6 +85,10 @@ jobs:
           # New Webhook exists but no Square tokens/keys: explicit standby.
           probe new_webhook_standby GET "$NEW_WEBHOOK/healthz" 200
           probe new_webhook_standby GET "$NEW_WEBHOOK/" 404
+          # Isolated webhook should expose NO shopper or operator views.
+          # These read-only probes contain no real customer order or credentials.
+          probe new_webhook_standby GET "$NEW_WEBHOOK/shop-test-orders.html" 404
+          probe new_webhook_standby GET "$NEW_WEBHOOK/api/shop/sandbox/operator/draft" 404
           # urllib reports expected HTTP 503 as an exception with a status.
           # curl may exit 23 on this proxy's early 503 response while uploading;
           # never classify an expected 503 as a failed payment or test failure.
