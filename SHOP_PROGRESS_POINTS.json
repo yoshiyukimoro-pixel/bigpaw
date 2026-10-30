@@ -442,7 +442,16 @@
             "full_app_github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41119928985",
             "tested_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
             "scope": "Shop-specific Docker build, offline security/integration cases, Chromium desktop and iPhone Safari-equivalent WebKit passed; separate full-app isolated browser regression passed for operator/breeder login, role/ownership boundaries, save/readback, themes and mobile layout. No production data used.",
-            "limits": "A separate deployed-test-browser check failed because bigpaw-test is a Sandbox webhook-only service and returned 404 for /api/health. This deployment target issue is recorded under P04/T02; production remains untouched."
+            "limits": "A separate deployed-test-browser check failed because bigpaw-test is a Sandbox webhook-only service and returned 404 for /api/health. This deployment target issue is recorded under P04/T02; production remains untouched.",
+            "additional_sandbox_runtime_hardening": {
+              "confirmed_at": "2026-10-31",
+              "purpose": "New and old named Sandbox Railway services remain valid; unrecognized self-declared Railway project IDs are rejected, preventing accidental webhook activation outside the approved runtime IDs.",
+              "source_commit": "935ef41c71e225d236629d58381d13856b8c0db6",
+              "test_commit": "cea4c1ee3535cb45bb55ec6043fbb41a046f1c3d",
+              "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41144642134",
+              "result": "SUCCESS, Python/static, isolated Docker builds, Chromium and iPhone WebKit simulation",
+              "limits": "Does not include an actual signed Square HTTPS webhook, actual iPhone physical-device testing, or production release. R03 was already done; no new point deduction."
+            }
           }
         },
         {
