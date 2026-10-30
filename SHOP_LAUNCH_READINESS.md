@@ -42,6 +42,13 @@
 - `shop_payments/staging_orders_dashboard.py`：過去の確認履歴を「現在も有効」と誤認させない表示へ変更。**この画面は本番の運営画面ではなく、隔離した既存`bigpaw-test`のSandbox専用機能**。フード本番注文/顧客メールの許可・接続・正式規約承認を意味しない。
 - GitHub自動テストは認証なし・不正Origin・CSRF不一致・二重取り消し・期限超過・明示的な再承認・個人情報非保存と全既存ショップ回帰を対象とする。実iPhone端末の手動確認は別途必要。
 
+### 同日：Railwayテストサービスへの適用結果
+
+- GitHub Actions [41031612883](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41031612883)：Python、独立Dockerビルド、Chromium、iPhone Safari/WebKit模擬テストは **SUCCESS**。
+- Railway既存`BigPaw`プロジェクトの **`bigpaw-test`サービスのみ** 開発コミット`3d036d00d02f29c94dd4bffdb69a1b39bfbb5c21`へ更新。デプロイ`0c71a59a-b5a9-4f2c-8611-e5b97787e41d`は **SUCCESS**、起動ログは`BIGPAW_SANDBOX_WEBHOOK_READY`。保管中のSandbox SQLite用500MB `bigpaw-shop-test-data`は`/data`に引き続き接続。
+- `bigpaw-site`/`bigpaw-web`と別プロジェクト`bigpaw-live`はOnline、警告0。既存の購入ボタンは引き続き本番無効、ユーザーの実メール送信やSquare本番決済の設定・販売開始は行っていない。
+- **注意**：ここで完成したのはSandbox用運営画面の「承認記録」の期限・取消操作。実顧客宛メール送信の認証付き運営画面、真正な本番発送/返金フロー、法定販売者情報、特商法条件、独立ショップ用テストサービス、公開前E2Eは依然未完成。
+
 ## 今の運用上の注意
 
 - ショップ公開用の `app/shop.html` は「販売準備中」で、決済ボタンが無効。現行の `bigpaw-test` は専用Sandbox Dockerサービスであり、公開用BIG PAW全体の変更を試すサービスではない。
