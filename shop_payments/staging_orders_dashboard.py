@@ -332,6 +332,22 @@ def render(store, *, csrf: str = "") -> str:
                 'お客様や仕入先への連絡、Square返金は実行されません。</p>' +
                 "".join(case_forms) + '</details>'
             )
+        payment_recheck = ""
+        if order["state"] == "paid" and csrf:
+            payment_recheck = (
+                '<section class="tracking-box"><h3>Square Sandboxの現在の入金状態を再確認</h3>'
+                '<p>一覧の入金済み表示は過去の記録です。返金後の可能性もあるため、'
+                '必要なときにSquareの最新の決済・注文情報を読み取って確認できます。'
+                '照会した結果はDBに保存しません。発注・返金・発送は実行しません。</p>'
+                '<form method="post" action="/api/shop/sandbox/operator/check-current-payment" '
+                'class="stage-form">'
+                '<input type="hidden" name="order_id" value="' + _safe(order_id) + '">'
+                '<input type="hidden" name="csrf" value="' + _safe(csrf) + '">'
+                '<label><input type="checkbox" name="confirm" value="read_only" required>'
+                'Square Sandboxの最新状態を読み取るだけで、決済・返金等を実行しないことを確認</label>'
+                '<button type="submit">現在のSquare入金・未返金を再確認（Sandbox）</button>'
+                '</form></section>'
+            )
         cards.append(
             '<article class="order"><div class="order-top"><strong>' +
             _safe(PAYMENT_LABELS.get(order["state"], "状態確認が必要")) +
@@ -344,7 +360,7 @@ def render(store, *, csrf: str = "") -> str:
             '<p class="status">仕入れ：' + _safe(procurement_text) +
             "<br>運営メール：" + _safe(mail_text) + "</p>" +
             '<div class="next-action"><strong>次の確認作業</strong><p>' +
-            _safe(action) + "</p></div>" + drafts_html + controls + tracking_html + refund_html + case_html + "</article>"
+            _safe(action) + "</p></div>" + payment_recheck + drafts_html + controls + tracking_html + refund_html + case_html + "</article>"
         )
     paid = sum(row["state"] == "paid" for row in records)
     pending = len(records) - paid
