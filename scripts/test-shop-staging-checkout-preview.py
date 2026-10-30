@@ -105,6 +105,13 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(review[0], 200)
             self.assertIn(b"shop-sandbox-review.js", review[2])
             self.assertNotIn(b'src="shop-sandbox-checkout.js"', review[2])
+            self.assertEqual(request(srv, "/shop-test-orders.html", auth=False)[0], 401)
+            empty_dashboard = request(srv, "/shop-test-orders.html")
+            self.assertEqual(empty_dashboard[0], 200)
+            self.assertIn("閲覧専用".encode(), empty_dashboard[2])
+            self.assertIn("注文の記録はありません".encode(), empty_dashboard[2])
+            self.assertNotIn(b"RESEND_API_KEY", empty_dashboard[2])
+            self.assertNotIn(b"square_payment_id", empty_dashboard[2])
             self.assertEqual(request(srv, "/shop-sandbox-review.js")[0], 200)
             self.assertEqual(request(srv, "/shop-cart-preview.js")[0], 200)
             self.assertEqual(request(srv, "/assets/shop-details/products/A02/ingredients.webp")[0], 200)
@@ -153,6 +160,13 @@ class CheckoutPreviewTests(unittest.TestCase):
             status = request(srv, "/api/shop/sandbox/order/" + ORDER)
             self.assertEqual(json_data(status)["order_status"], "payment_pending")
             self.assertEqual(request(srv, "/api/shop/sandbox/order/" + ORDER, auth=False)[0], 401)
+            dashboard = request(srv, "/shop-test-orders.html")
+            self.assertEqual(dashboard[0], 200)
+            self.assertIn(ORDER.encode(), dashboard[2])
+            self.assertIn("決済確認待ち".encode(), dashboard[2])
+            self.assertIn("21,450円".encode(), dashboard[2])
+            self.assertIn("パピーラージ".encode(), dashboard[2])
+            self.assertIn("未発注".encode(), dashboard[2])
 
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
         for config in (
@@ -173,6 +187,7 @@ class CheckoutPreviewTests(unittest.TestCase):
                     continue
                 with server_with_env(config) as (srv, db, calls):
                     self.assertEqual(request(srv, "/shop.html")[0], 404)
+                    self.assertEqual(request(srv, "/shop-test-orders.html")[0], 404)
                     self.assertEqual(request(srv, "/api/shop/sandbox/config")[0], 404)
                     self.assertEqual(request(srv, "/api/shop/sandbox/checkout", method="POST",
                                              data=b'{}')[0], 404)
