@@ -38,6 +38,18 @@ class RefundTests(unittest.TestCase):
                             "status":"PENDING",
                             "amount_money":{"amount":21450,"currency":"JPY"}}}
         self.assertEqual(mod.verify_refund(correct,p,o,loc),"PENDING")
+        # A refund can omit optional order/location in its first API response.
+        # The original Square Order and Payment were independently checked
+        # *before* the one allowed refund POST.
+        reduced = {**correct, "refund": {k: v for k, v in correct["refund"].items()
+                                      if k not in ("order_id", "location_id")}}
+        self.assertEqual(mod.verify_refund(reduced,p,o,loc),"PENDING")
+        for key,wrong in (("order_id","UNRELATED"),
+                          ("location_id","UNRELATED")):
+            poisoned={**reduced,"refund":{**reduced["refund"],key:wrong}}
+            with self.assertRaises(ValueError):
+                mod.verify_refund(poisoned,p,o,loc)
+
         for bad in (
             {**correct,"refund":{**correct["refund"],"status":"FAILED"}},
             {**correct,"refund":{**correct["refund"],"payment_id":"OTHER"}},

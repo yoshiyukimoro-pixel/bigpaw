@@ -64,14 +64,18 @@ def _post_refund(payload, token, opener=urlopen):
 
 
 def verify_refund(record, payment_id, square_order_id, location_id):
+    # Square may omit order_id/location_id from an initial refund response.
+    # If supplied they must match. The independent fresh Square Order and
+    # Payment API GET checks above already prove the payment's order/location.
+    # Never weaken the required payment ID, JPY amount or refund status checks.
     if not isinstance(record, dict):
         raise ValueError("Refund response missing")
     ref = record.get("refund")
     if (not isinstance(ref, dict) or not isinstance(ref.get("id"), str)
             or not 8 <= len(ref["id"]) <= 192
             or ref.get("payment_id") != payment_id
-            or ref.get("order_id") != square_order_id
-            or ref.get("location_id") != location_id
+            or ("order_id" in ref and ref["order_id"] != square_order_id)
+            or ("location_id" in ref and ref["location_id"] != location_id)
             or ref.get("amount_money") != {"amount": ORDER_PRICE, "currency": "JPY"}
             or ref.get("status") not in ("PENDING", "COMPLETED")):
         raise ValueError("Refund must match exact independently checked payment")
@@ -150,7 +154,10 @@ def main():
         return 0
     except Exception:
         # Never reveal payment URL, IDs, tokens or customer info.
+        attempted = bool(os.environ.get("RUNNER_TEMP")) and (
+            Path(os.environ["RUNNER_TEMP"]) / "bigpaw-refund-attempted").exists()
         print("SHOP_SANDBOX_REFUND_UNVERIFIED=YES; NEVER AUTOMATICALLY RETRY")
+        print("SHOP_SANDBOX_REFUND_ATTEMPT_RESERVED=" + str(attempted).lower())
         return 2
 
 
