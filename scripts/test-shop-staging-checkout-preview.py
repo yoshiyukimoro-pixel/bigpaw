@@ -86,7 +86,8 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
                  path.startswith("/api/shop/sandbox/operator/draft?") or
                  path in ("/api/shop/sandbox/operator/transition",
                           "/api/shop/sandbox/operator/tracking",
-                          "/api/shop/sandbox/operator/review-customer"))
+                          "/api/shop/sandbox/operator/review-customer",
+                          "/api/shop/sandbox/operator/simulate-customer-notice"))
         credentials = (("operationstest:" + OPERATOR_PASSWORD) if admin
                        else ("shoptester:" + PASSWORD))
         h["Authorization"] = "Basic " + base64.b64encode(
@@ -553,13 +554,60 @@ class CheckoutPreviewTests(unittest.TestCase):
             with sqlite3.connect(store.db_file) as conn:
                 rows=conn.execute("SELECT * FROM food_sandbox_customer_reviews").fetchall()
             self.assertEqual(len(rows),1)
-            self.assertEqual(len(rows[0]),3,"DB stores no recipient PII")
+            self.assertEqual(len(rows[0]),5,"DB stores keyed hashes but no raw recipient")
+            self.assertNotIn("buyer-test@example.invalid",str(rows))
+            self.assertEqual(len(rows[0][3]),64)
+            self.assertEqual(len(rows[0][4]),64)
             dashboard = request(srv, "/shop-test-orders.html")
             self.assertEqual(dashboard[0], 200)
-            self.assertIn("送信前チェック済み・未送信".encode(), dashboard[2])
+            self.assertIn("送信前チェック履歴あり・未送信".encode(), dashboard[2])
             self.assertNotIn("buyer-test@example.invalid".encode(), dashboard[2])
             self.assertEqual(calls,[],"No Square checkout POST allowed")
             self.assertGreaterEqual(state["calls"],4,"Read-only Square checks occurred")
+            # A changed Square contact invalidates old approvals even if the
+            # masked preview looks identical. No message is sent.
+            simulate_path = "/api/shop/sandbox/operator/simulate-customer-notice"
+            new_draft = request(srv,path)
+            self.assertIn("送信せずに最終チェックをテストする".encode(),new_draft[2])
+            current_cookie=new_draft[1]["Set-Cookie"].split(";",1)[0]
+            simulation={"order_id":ORDER,"kind":"customer_order_confirmed",
+                        "csrf":current_cookie.split("=",1)[1],
+                        "confirm":"simulate_only"}
+            def dryrun(values=simulation,*,cookie=current_cookie,origin=ORIGIN,auth=True):
+                return request(srv,simulate_path,method="POST",auth=auth,
+                    data=urlencode(values).encode(),headers={
+                    "Origin":origin,"Cookie":cookie,
+                    "Content-Type":"application/x-www-form-urlencoded"})
+            self.assertEqual(dryrun(auth=False)[0],401)
+            self.assertEqual(dryrun(origin="https://untrusted.invalid")[0],403)
+            self.assertEqual(dryrun({**simulation,"confirm":"actually_send"})[0],400)
+            self.assertEqual(dryrun()[0],303)
+            self.assertEqual(dryrun()[0],303,"retries must not duplicate the dryrun")
+            sent_status=request(srv,path)
+            self.assertIn("送信シミュレーション完了".encode(),sent_status[2])
+            self.assertIn("実際のメールは未送信".encode(),sent_status[2])
+            state["address"]="b-UPDATED@example.invalid"
+            changed=request(srv,path)
+            self.assertIn("以前の確認は失効".encode(),changed[2])
+            self.assertNotIn("送信シミュレーション完了".encode(),changed[2])
+            self.assertEqual(dryrun()[0],409,"stale contact must block dryrun")
+            changed_cookie=changed[1]["Set-Cookie"].split(";",1)[0]
+            updated_review=dict(data,csrf=changed_cookie.split("=",1)[1])
+            self.assertEqual(approve(updated_review,cookie=changed_cookie)[0],303)
+            self.assertEqual(dryrun()[0],409,"old dryrun snapshot must never be replaced silently")
+            with sqlite3.connect(store.db_file) as conn:
+                saved=conn.execute(
+                    "SELECT status,snapshot_digest FROM food_sandbox_customer_dryrun"
+                ).fetchall()
+                hashed=conn.execute(
+                    "SELECT contact_fingerprint FROM food_sandbox_customer_reviews"
+                ).fetchone()[0]
+            self.assertEqual(len(saved),1)
+            self.assertEqual(saved[0][0],"simulated_only")
+            self.assertEqual(len(saved[0][1]),64)
+            self.assertEqual(len(hashed),64)
+            self.assertNotIn("b-UPDATED@example.invalid",str(saved)+str(hashed))
+            self.assertEqual(calls,[],"no provider email or new checkout ever sent")
 
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
         with server_with_env({"BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"}) as (srv, _, _):
@@ -570,6 +618,8 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/tracking",
                                      method="POST", data=b"{}")[0], 404)
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/review-customer",
+                                     method="POST", data=b"{}")[0], 404)
+            self.assertEqual(request(srv, "/api/shop/sandbox/operator/simulate-customer-notice",
                                      method="POST", data=b"{}")[0], 404)
         for config in (
             {"BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0"},
