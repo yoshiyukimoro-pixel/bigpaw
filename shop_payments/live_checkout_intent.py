@@ -280,12 +280,40 @@ class LiveCheckoutIntent:
         money = order.get("total_money") if isinstance(order, dict) else None
         if (not isinstance(order, dict) or order.get("id") != sid
                 or order.get("location_id") != location
-                or order.get("state") not in ("OPEN", "COMPLETED")
+                or order.get("state") not in ("DRAFT", "OPEN", "COMPLETED")
                 or not isinstance(money, dict)
                 or money.get("currency") != "JPY"
                 or type(money.get("amount")) is not int
                 or money["amount"] != amount):
             raise LiveOrderBlocked("Square Order mismatch; manual reconciliation required")
+        # Checkout API links start with an unpaid DRAFT order. A DRAFT is
+        # acceptable for binding a link, never for verifying payment.
+        # Check the exact stored product lines against Square's order.
+        if order["state"] == "DRAFT":
+            expected_lines = json.loads(row["request_json"])["order"]["line_items"]
+            square_lines = order.get("line_items")
+            if not isinstance(square_lines, list) or len(square_lines) != len(expected_lines):
+                raise LiveOrderBlocked("Square draft items missing or mismatched")
+            def exact_lines(items):
+                output = []
+                for item in items:
+                    if not isinstance(item, dict):
+                        return None
+                    price = item.get("base_price_money")
+                    quantity = item.get("quantity")
+                    if (not isinstance(item.get("name"), str)
+                            or not isinstance(quantity, str)
+                            or not re.fullmatch(r"[1-9][0-9]*", quantity)
+                            or not isinstance(price, dict)
+                            or type(price.get("amount")) is not int
+                            or price["amount"] <= 0
+                            or price.get("currency") != "JPY"):
+                        return None
+                    output.append((item["name"], int(quantity), price["amount"]))
+                return sorted(output)
+            matched = exact_lines(square_lines)
+            if matched is None or matched != exact_lines(expected_lines):
+                raise LiveOrderBlocked("Square draft line items differ from approved cart")
         # The committed checkout price remains valid even if the catalog
         # changes AFTER issuing the link. Rebuild from the saved immutable
         # snapshot instead of repricing when binding a Square response.
