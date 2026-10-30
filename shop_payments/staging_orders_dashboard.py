@@ -154,7 +154,7 @@ def render(store, *, csrf: str = "") -> str:
             "（" + _safe({"operator": "運営", "supplier": "仕入先",
                          "customer": "お客様"}.get(audience, "宛先要確認")) +
             "向け・未送信下書き） " +
-            ("【送信前チェック済み・未送信】 " if
+            ("【送信前チェック履歴あり・未送信（直前再照合必要）】 " if
              (order_id, kind) in reviewed_customer_drafts else
              "【送信前未チェック】 " if audience == "customer" else "") +
             '<a href="/api/shop/sandbox/operator/draft?' +
