@@ -147,7 +147,7 @@ class SandboxOperatorEmail:
 
     def send_once(self, order_id: str, *, api_key: str, enabled: bool,
                   confirmed: bool, sender=send_resend) -> dict:
-        """Never auto-call. Sending requires both environment AND CLI opt-in."""
+        """One-time sandbox dispatch; caller must enforce operator or auto-sandbox gate."""
         if not enabled or not confirmed or not isinstance(api_key,str) or not api_key:
             raise SafeMailError("Sandbox mail is not explicitly enabled")
         # A real Square-confirmed paid order and its prepared draft are both
@@ -185,7 +185,7 @@ class SandboxOperatorEmail:
             "本メールはBIG PAWドッグフードショップのSandbox動作検証です。\n"
             "実際のお客様からの注文・入金ではありません。\n"
             "トランペッツへ発注しないでください。\n\n"
-            + draft["body"]
+            + draft["body"].replace(" この通知は実際に送信されていない下書きです。", "")
         )
         key="bigpaw-shop-sandbox-operator-new-order/"+order_id
         try:
