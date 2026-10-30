@@ -1,6 +1,7 @@
 """Offline staging gateway auth tests: no real Railway/Square connections."""
 from __future__ import annotations
 import base64
+from contextlib import closing
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -54,8 +55,8 @@ class StagingGatewayTests(unittest.TestCase):
         Upstream.hits.clear()
 
     def call(self, path, headers=None, method="GET", body=None):
-        with http.client.HTTPConnection("127.0.0.1",
-                                       self.gateway.server_port, timeout=5) as c:
+        with closing(http.client.HTTPConnection("127.0.0.1",
+                                       self.gateway.server_port, timeout=5)) as c:
             c.request(method, path, body=body, headers=headers or {})
             response = c.getresponse()
             return response.status, dict(response.getheaders()), response.read()
