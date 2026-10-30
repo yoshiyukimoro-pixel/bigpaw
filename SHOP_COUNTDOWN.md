@@ -248,3 +248,10 @@
 
 - 最新の価格表とテストカード安全ガードを通したうえで、Square Sandboxに架空カード決済を1件作成し、同じ注文・金額・店舗の決済照合を再確認するCIを実行。
 - 実請求・本番キー・顧客情報は使わない。結果が確認できるまでポイントは減算しない。
+
+
+## 2026-10-31：Sandboxカード照合の再試行結果（未完了・ポイント未減算）
+
+- [初回カード照合 41122860333](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41122860333)はSquare Sandbox `CreatePayment`でHTTP 400 `BAD_REQUEST`。支払い作成前に停止し、成功した入金・台帳記録はない。Sandbox内で決済リンク/注文の作成までは進んだ可能性がある。
+- 秘密値や応答本文を出さない診断だけ追加し、[再試行 41123302475](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41123302475)を実行。再び`CreatePayment`の400 `BAD_REQUEST`で、Square応答には安全に表示できるfield名もなかった。
+- Squareの公式テストカードnonceはAPI資料上有効な値だが、今回の拒否原因は判別できていない。追加の連続課金リクエストは止め、Square Sandbox設定/注文との組み合わせを確認する課題として残す。実請求・本番設定変更なし。P04/R02は未完了、**ポイント減算なし**。
