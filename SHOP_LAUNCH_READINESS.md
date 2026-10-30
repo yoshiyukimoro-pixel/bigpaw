@@ -65,6 +65,13 @@
 - `scripts/test-shop-live-checkout-intent.py`と`scripts/test-shop-square-live-checkout-adapter.py`で、偽Square POST/GET、改ざん商品・金額・URL、タイムアウト、15分経過、二重リンク、途中停止、台帳への一括登録を無通信テスト。実際の購入、実Square本番通信、カード課金、購入者へのメールは発生しない。
 - **未完了**：運営承認済みの最終確認画面から本番Checkoutを呼ぶ認証/レート制限付き公開ルート、Square通知先/本番秘密鍵、決済後の注文管理画面とメール配送、正式特商法表示・返品規約、店主の公開承認、2系統のRailwayテスト環境への分離、実機E2E。
 
+## 2026-10-30：購入処理の一連の疑似接続（公開開始ではない）
+
+- `shop_payments/live_checkout_flow.py` を追加。将来の本番購入フローに使う既存モジュールを、**明示されたテスト実行と注入した偽Squareアダプターだけ**で接続するオフライン試験用ヘルパー。`shop_payments/live_checkout_intent.py`（販売価格・注文番号固定）→`square_live_checkout_adapter.py`（Square決済リンクPOSTの形式）→Square注文GET照合→SQLite注文台帳への一括登録、の一連の通過を確認できる。
+- `scripts/test-shop-live-checkout-flow.py` で疑似POST×1回・GET×1回、注文番号・税/送料・重複試行拒否、途中通信断は`attempt_unknown`に保存して自動再試行しないこと、改ざんしたリンク拒否を確認。画面上のSquare Sandbox購入テストは既存`review_sandbox_checkout.js`とブラウザー回帰テストを継続。
+- **現時点では本番の`app/shop.html`から呼び出す決済APIルートはない。** `live_checkout_flow.py` は運用経路から一切呼ばれず、ブラウザーの購入ボタンも無効。本番用の認可、秘密鍵、決済先との接続、法定販売条件、事業者承認が揃うまでは実注文不可。実Square決済、実メール、実配送なし。
+- 工程カウントの目安：①購入UI/Square試験接続は**Sandboxと疑似本番部品の検証まで**。実際の本番連携と公開は別の未完ゲート。完了工程のカウントは「本番未接続」を明示して扱う。
+
 ## 今の運用上の注意
 
 - ショップ公開用の `app/shop.html` は「販売準備中」で、決済ボタンが無効。現行の `bigpaw-test` は専用Sandbox Dockerサービスであり、公開用BIG PAW全体の変更を試すサービスではない。
