@@ -15,6 +15,7 @@ import re
 import sqlite3
 from contextlib import closing
 
+from .sandbox_runtime_guard import is_allowed_sandbox_runtime
 from .sandbox_connector import SandboxOrderStore
 from .sandbox_operator_email import (
     SandboxOperatorEmail, SafeMailError, send_resend,
@@ -30,28 +31,11 @@ def _opted_in(env: dict) -> bool:
         env.get("BIGPAW_ENV") == "sandbox"
         and env.get("BIGPAW_SHOP_SANDBOX_AUTO_NOTIFY_ENABLED") == "1"
         and env.get("BIGPAW_SHOP_SANDBOX_OPERATOR_EMAIL_ENABLED") == "1"
-        and _is_isolated_stage(env)
+        and is_allowed_sandbox_runtime(env)
     )
 
 
-def _is_isolated_stage(env: dict) -> bool:
-    """Allow only explicit isolated Sandbox runtimes, never BIG PAW production."""
-    if env.get("BIGPAW_SHOP_STAGING_ISOLATED") != "1":
-        return False
-    project = env.get("RAILWAY_PROJECT_ID")
-    if project in {
-        "afb79723-1a2d-4c43-b498-f166e501760c",
-        "d70f7165-f5eb-41e8-95a0-62f85ff90478",
-    }:
-        return False
-    if project or env.get("RAILWAY_ENVIRONMENT_ID") or env.get("RAILWAY_SERVICE_ID"):
-        return bool(
-            project
-            and env.get("RAILWAY_ENVIRONMENT_ID")
-            and env.get("RAILWAY_SERVICE_ID")
-            and project == env.get("BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID")
-        )
-    return True
+
 
 
 def maybe_notify_verified_payment(
