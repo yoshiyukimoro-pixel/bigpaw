@@ -130,12 +130,29 @@ def _csrf_valid(handler):
 
 def handle_get(handler):
     path = urlsplit(handler.path).path
-    allowed = path in ("/shop.html", "/shop-test-orders.html", "/api/shop/sandbox/operator/draft") or path in FILES or path == "/api/shop/sandbox/config" or ORDER.fullmatch(path) or ASSETS.fullmatch(path)
+    allowed = path in ("/shop.html", "/shop-test-orders.html", "/shop-live-orders-preview.html", "/api/shop/sandbox/operator/draft") or path in FILES or path == "/api/shop/sandbox/config" or ORDER.fullmatch(path) or ASSETS.fullmatch(path)
     if not allowed:
         return False
     if path == "/api/shop/sandbox/operator/draft":
         from .staging_operator_actions import handle_draft_get
         return handle_draft_get(handler)
+    if path == "/shop-live-orders-preview.html":
+        # Only on the hard-gated isolated Sandbox service, and protected by
+        # the separate operator login, NOT the customer preview login.
+        from .staging_operator_actions import authenticate
+        if not authenticate(handler):
+            return True
+        from .live_order_ledger import LiveOrderLedger, LiveOrderBlocked
+        from .staging_live_overview_page import render_order_overview_preview
+        try:
+            html = render_order_overview_preview(
+                LiveOrderLedger(handler.server.store.db_file)
+            )
+        except (LiveOrderBlocked, OSError, ValueError, sqlite3.Error):
+            _send(handler, 503, {"error": "staging_order_preview_unavailable"})
+            return True
+        _send(handler, 200, html.encode("utf-8"), "text/html; charset=utf-8")
+        return True
     if path == "/shop-test-orders.html":
         from .staging_operator_actions import authenticate, new_csrf_cookie
         if not authenticate(handler):
