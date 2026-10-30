@@ -25,6 +25,7 @@ TRACKING_PATH = "/api/shop/sandbox/operator/tracking"
 REVIEW_PATH = "/api/shop/sandbox/operator/review-customer"
 DRYRUN_PATH = "/api/shop/sandbox/operator/simulate-customer-notice"
 MAIL_MOCK_PATH = "/api/shop/sandbox/operator/mock-customer-mail"
+REFUND_VERIFY_PATH = "/api/shop/sandbox/operator/verify-full-refund"
 STAGES = frozenset(("supplier_ordered", "supplier_backorder",
                     "received_at_shop", "refund_review", "shipped"))
 ORDER = re.compile(r"^FOOD[0-9a-f]{32}$")
@@ -392,6 +393,72 @@ def handle_dryrun_post(handler) -> bool:
     return True
 
 
+def handle_refund_verify_post(handler) -> bool:
+    """Verify an existing full Square Sandbox refund; NEVER initiate one."""
+    from .staging_checkout_preview import _send
+    if handler.path != REFUND_VERIFY_PATH:
+        return False
+    if not authenticate(handler):
+        return True
+    if handler.headers.get("Transfer-Encoding"):
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    if handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
+        _send(handler, 415, {"error": "invalid_type"})
+        return True
+    try:
+        size = int(handler.headers.get("Content-Length", ""))
+    except ValueError:
+        size = 0
+    if not 1 <= size <= 400:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    raw = handler.rfile.read(size)
+    if len(raw) != size:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    try:
+        values = parse_qs(raw.decode("ascii"), keep_blank_values=True,
+                          strict_parsing=True, max_num_fields=3)
+        if set(values) != {"order_id", "csrf", "confirm"} or any(
+            len(v) != 1 for v in values.values()
+        ):
+            raise ValueError("invalid_form")
+        data = {k: v[0] for k, v in values.items()}
+    except (ValueError, UnicodeError):
+        _send(handler, 400, {"error": "invalid_form"})
+        return True
+    if not _csrf_ok(handler, data["csrf"]):
+        _send(handler, 403, {"error": "invalid_origin_or_csrf"})
+        return True
+    if not ORDER.fullmatch(data["order_id"]) or data["confirm"] != "verify_read_only":
+        _send(handler, 400, {"error": "invalid_refund_verification"})
+        return True
+    # Only a Sandbox-verified full refund on exactly the same order, currency,
+    # location and payment can mark the test procurement journal refunded.
+    # Never use Square's create-refund endpoint or alter payment amounts.
+    opts = {"token": handler.server.env["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"]}
+    if handler.server.refund_opener is not None:
+        opts["opener"] = handler.server.refund_opener
+    try:
+        SandboxProcurementOps(handler.server.store).confirm_full_refund(
+            data["order_id"], **opts
+        )
+    except SquareSandboxError:
+        _send(handler, 503, {"error": "square_refund_read_unavailable"})
+        return True
+    except (ValueError, KeyError):
+        _send(handler, 409, {"error": "full_sandbox_refund_not_confirmed"})
+        return True
+    handler.send_response(303)
+    handler.send_header("Location", "/shop-test-orders.html?refund_verified=1")
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Referrer-Policy", "no-referrer")
+    handler.send_header("Content-Length", "0")
+    handler.end_headers()
+    return True
+
+
 def handle_mock_mail_post(handler) -> bool:
     """Operator-only no-network email state test. Cannot call mail providers."""
     from .staging_checkout_preview import _send
@@ -531,6 +598,8 @@ def handle_post(handler) -> bool:
         return handle_dryrun_post(handler)
     if handler.path == MAIL_MOCK_PATH:
         return handle_mock_mail_post(handler)
+    if handler.path == REFUND_VERIFY_PATH:
+        return handle_refund_verify_post(handler)
     from .staging_checkout_preview import _send
     from .sandbox_runtime_guard import is_allowed_sandbox_runtime
     if handler.path != PATH:
