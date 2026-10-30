@@ -202,3 +202,15 @@ Square sandbox checkout: https://developer.squareup.com/reference/square/checkou
 Railwayの場合は追加で `BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID` を別のstagingプロジェクトIDへ設定。
 **秘密鍵はGitHubコード、チャット、公開ログ、スクリーンショットへ貼らない。**
 
+
+
+## 2026-10-30: 既存bigpaw-testサービスの再利用方針
+
+Railwayの既存BigPawプロジェクト（`d70f7165-f5eb-41e8-95a0-62f85ff90478`）内にサービス`bigpaw-test`（`1a1a32bd-e885-4848-a6b5-fde5ef9ac902`）があることを確認。既存テストURLは `https://bigpaw-test-production.up.railway.app`。**必ずしも新しいRailwayプロジェクトは要らない**。ただし以下を満たすまではショップ用の実Webhook受信は行わない。
+
+- `bigpaw-test` は2026-10-20の `fix/handover-dashboard-blue-link-20261020` に接続した旧テストサービスで、アプリはSLEEPING状態。既存の画面テストを置き換える可能性があるため、無断でサービスソースやstartCommandを変更しない。
+- プロジェクトの環境名は `production` だが、同プロジェクトの `bigpaw-site` と `bigpaw-web` は別サービス。**同一プロジェクト・同一Railway環境なので、環境共通変数・ボリュームを共有したり別サービスを誤更新しないことが特に重要**。運営中の `bigpaw.site` の本番サービス `bigpaw-live` にも触れない。
+- 既存`bigpaw-test`には永続ボリュームが無い。SQLiteテスト注文・通知重複防止データを再起動後も保持するため、**テストサービス専用**の永続保存領域が必要。追加容量費用が発生する可能性は確認・承認前提。
+- `shop_payments/sandbox_runtime_guard.py` を導入。Railwayでは`RAILWAY_PROJECT_ID` / `RAILWAY_ENVIRONMENT_ID` / `RAILWAY_SERVICE_ID`を全照合。BigPawプロジェクトに限り、**上記テスト環境ID `ecc9fcbf-496f-4b51-a651-65a46a971588` + `bigpaw-test` ID完全一致**の場合にのみ起動・メール通知許可。`bigpaw-site` / `bigpaw-web` は必ず拒否。`BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID` にはそのテストサービスの親プロジェクトIDを設定しなければならない。初期送信無効は維持。
+- 既存Square Sandboxのトークン、Webhook署名鍵、Resend送信用キーは**テストサービス単位にのみ**設定し、ユーザーの本番サイトの共有変数や秘密情報を使い回さない。SquareのWebhook通知URLは既存テストドメイン + `/api/shop/sandbox/webhook` になる（URLをSquare側に登録するのはデプロイ後）。実Square Sandbox決済・メール連携テストは別途要実施。
+- **本段階ではコード/単体テストのみ変更。Railwayサービス設定、デプロイ、課金、Square Dashboardの購読設定は変更していない。**
