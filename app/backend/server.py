@@ -11,6 +11,7 @@ and use durable/off-site storage appropriate to the hosting environment.
 """
 from __future__ import annotations
 import planned_litters as bp_planned_litters
+import shop_live_checkout_bridge as bp_shop_checkout
 
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote, urlencode
@@ -916,6 +917,8 @@ class Handler(SimpleHTTPRequestHandler):
         if not urlparse(self.path).path.startswith('/api/') and self.static_blocked(self.path):
             self.send_error(404); return
         parsed=urlparse(self.path); path=parsed.path; q=parse_qs(parsed.query)
+        if path == '/api/shop/checkout/config':
+            return bp_shop_checkout.handle_get(self, env=dict(os.environ), base_url=PUBLIC_BASE_URL)
         if bp_planned_litters.handle(self, 'GET', path, q, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
         # Authenticated preview readiness: a persisted Stream UID is not proof
         # that Cloudflare has finished transcoding and can play an iframe.
@@ -1350,6 +1353,10 @@ https://www.bigpaw.site/'''
     def do_POST(self):
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
         path=urlparse(self.path).path
+        if path == '/api/shop/checkout':
+            return bp_shop_checkout.handle_post(
+                self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
+                data_dir=DATA_DIR, rate_limited=rate_limited)
         m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
         if m:
             u=self.require();
