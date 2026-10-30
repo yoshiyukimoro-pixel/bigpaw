@@ -109,6 +109,16 @@ def render(store, *, csrf: str = "") -> str:
                 drafts_by_order.setdefault(notice["order_id"], []).append(
                     (notice["kind"], notice["audience"])
                 )
+        reviewed_customer_drafts = set()
+        if db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='food_sandbox_customer_reviews'"
+        ).fetchone():
+            reviewed_customer_drafts = {
+                (x["order_id"], x["kind"]) for x in db.execute(
+                    "SELECT order_id,kind FROM food_sandbox_customer_reviews"
+                ).fetchall()
+            }
         items_by_order = {}
         for row in records:
             items_by_order[row["order_id"]] = [
@@ -143,7 +153,10 @@ def render(store, *, csrf: str = "") -> str:
             "<li>" + _safe(DRAFT_LABELS.get(kind, "通知内容の確認が必要")) +
             "（" + _safe({"operator": "運営", "supplier": "仕入先",
                          "customer": "お客様"}.get(audience, "宛先要確認")) +
-            "向け・未送信下書き） "
+            "向け・未送信下書き） " +
+            ("【送信前チェック済み・未送信】 " if
+             (order_id, kind) in reviewed_customer_drafts else
+             "【送信前未チェック】 " if audience == "customer" else "") +
             '<a href="/api/shop/sandbox/operator/draft?' +
             _safe(urlencode({"order_id": order_id, "kind": kind})) +
             '">下書き本文を見る（送信されません）</a></li>'
