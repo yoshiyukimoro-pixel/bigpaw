@@ -108,8 +108,13 @@ def verify_paid_live_shipment(*, payment_id, square_order_id, location_id,
         or total["amount"] != amount_yen):
         raise LiveSquareNotVerified("Square order total mismatch")
     fulfillments = order.get("fulfillments")
-    if not isinstance(fulfillments, list):
-        raise LiveSquareNotVerified("No shipping fulfillment")
+    # This shop ships one consolidated parcel to one verified destination.
+    # Multiple fulfillments (even with the same email) may contain different
+    # addresses; fail closed rather than silently selecting one.
+    if (not isinstance(fulfillments, list) or len(fulfillments) != 1
+            or not isinstance(fulfillments[0], dict)
+            or fulfillments[0].get("type") != "SHIPMENT"):
+        raise LiveSquareNotVerified("Missing or ambiguous shipping destination")
     emails = set()
     found_complete = False
     for f in fulfillments:
