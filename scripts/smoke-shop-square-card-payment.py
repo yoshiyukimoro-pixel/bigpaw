@@ -85,7 +85,7 @@ def create_fake_card_payment(
             if isinstance(candidate, str) and re.fullmatch(r"[A-Z_]{3,64}", candidate):
                 code = candidate
             candidate = error.get("field", "")
-            if isinstance(candidate, str) and re.fullmatch(r"[A-Za-z0-9_.\\[\\]-]{1,80}", candidate):
+            if isinstance(candidate, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", candidate):
                 field = candidate
         except (ValueError, TypeError, KeyError, IndexError):
             pass
