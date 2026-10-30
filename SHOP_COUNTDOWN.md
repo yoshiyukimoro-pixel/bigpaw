@@ -261,3 +261,10 @@
 - 失敗したSquare Sandbox Actions #41122860333/#41123302475（CreatePayment: HTTP 400 BAD_REQUEST）を再検討。Payment Linksが作成するDRAFT注文に別途直接CreatePaymentすることは、Squareホスト決済の公式Sandbox試験手順ではない。プロバイダーから詳細fieldが返っていないため個別の拒否原因は断定しない。
 - 旧カードテストはSquare API通信より前に明示停止する安全なコードへ変更し、該当Actionsジョブも秘密値を使わないオフライン確認へ変更。公式Sandbox Testing Panelを使う独立ジョブは残す。2026-10-29の公式Panel成功Actions #40884120819を確認。
 - 公開HTTPS Webhook/隔離フルアプリ接続、実機E2E、販売者情報・返品条件等は未完。**残り53ポイント（完了47%）維持**。Draft PR #175のまま、本番変更なし。
+
+## 2026-10-31：P06 緊急停止の発行済みリンク監査を事前整備（ポイント未減算）
+
+- `scripts/audit-shop-stop-readiness.py` を追加。SQLiteを読むだけで `planned` / `attempt_unknown` / `link_bound`、入金確認の集計件数を確認。DBを作らない・変更しない。Square API通信、リンク無効化、返金、実メールはしない。リンクURLや顧客情報は表示しない。
+- `scripts/test-shop-stop-readiness.py` に合成DBを使った読取専用、欠損DB、スキーマ不一致、PII非漏洩、停止後のリンク残存リスクの回帰テストを追加し、ショップCIに登録。
+- `SHOP_EMERGENCY_STOP_PLAYBOOK.md` に緊急停止時のチェック手順を記録。**新規購入を止めても発行済みSquareリンクは自動停止しないこと**、決済Webhookは残すこと、アプリロールバックでDBは戻らないことを明示。
+- 実環境停止試験・既存Squareリンクの無効化・アプリロールバック演習は未実施のため、P06は未完了。**残り53ポイント（完了47%）維持**。本番未変更・Draft PR #175維持。
