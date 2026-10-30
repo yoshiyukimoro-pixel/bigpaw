@@ -106,7 +106,7 @@ class LiveLedgerTests(unittest.TestCase):
                 with self.assertRaises(LiveOrderBlocked):
                     self.register(**changed)
         # One Square order cannot be attached to a second order.
-        with self.assertRaises(Exception):
+        with self.assertRaises(LiveOrderBlocked):
             self.register(order_id=SECOND_ID)
         self.assertEqual(self.ledger.status(SECOND_ID), {"state": "not_found"})
 
@@ -139,6 +139,8 @@ class LiveLedgerTests(unittest.TestCase):
         ])
         self.assertEqual(self.ledger.status(ORDER_ID),
                          {"state": "paid_verified", "amount_yen": self.price})
+        with self.assertRaises(LiveOrderBlocked):
+            self.register()  # Never restart a completed checkout.
         self.calls.clear()
         self.assertEqual(self.pay(),
                          {"state": "paid_verified", "new_transition": False})
