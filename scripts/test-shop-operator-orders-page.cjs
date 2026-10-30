@@ -14,6 +14,7 @@ const sample = {read_only:true,count:1,orders:[{
   items:[{sku:'A02',name:'ACANA アダルトラージ',size:'11.4kg',qty:1,unit_yen:21450}],
 }]};
 let authorized = false;
+let auditEvents = [];
 const server = http.createServer((req,res)=>{
   if(req.url==='/operator-shop-orders.html'){
     res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(html);return;
@@ -27,7 +28,16 @@ const server = http.createServer((req,res)=>{
   }
   if(req.url==='/api/operator/shop-orders/audit'){
     res.writeHead(authorized?200:401,{'content-type':'application/json','cache-control':'no-store'});
-    res.end(authorized?JSON.stringify({events:[]}):JSON.stringify({error:'unauthorized'}));return;
+    res.end(authorized?JSON.stringify({events:auditEvents}):JSON.stringify({error:'unauthorized'}));return;
+  }
+  if(req.url==='/api/operator/shop-orders/reconcile-token'){
+    res.writeHead(authorized?200:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(authorized?JSON.stringify({csrf_token:'A'.repeat(43)}):JSON.stringify({error:'unauthorized'}));return;
+  }
+  if(req.url==='/api/operator/shop-orders/reconcile'&&req.method==='POST'){
+    auditEvents=[{order_id:sample.orders[0].order_id,actor_id:'operator_test',action:'payment_reconciled',outcome:'newly_paid',created_at:1793390100}];
+    res.writeHead(authorized?200:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(authorized?JSON.stringify({state:'paid_verified',new_transition:true}):JSON.stringify({error:'unauthorized'}));return;
   }
   res.writeHead(404).end();
 });
@@ -45,6 +55,7 @@ const server = http.createServer((req,res)=>{
       await page.goto(base+'/operator-shop-orders.html');
       await page.getByText('運営アカウントでログインしてください。').waitFor();
       authorized=true;
+      auditEvents=[];
       await page.getByRole('button',{name:'再読み込み'}).click();
       await page.getByText(/表示中 1件/).waitFor();
       assert.match(await page.locator('main').innerText(),/過去にSquare入金確認あり/);
@@ -55,6 +66,11 @@ const server = http.createServer((req,res)=>{
       await page.getByText(/注文商品を表示/).click();
       assert.match(await page.locator('main').innerText(),/ACANA アダルトラージ/);
       assert.equal(await page.locator('main').innerText().then(t=>/東京都|〒[0-9]{3}-[0-9]{4}|090-[0-9-]{8,}|buyer@example\.com|4111[ -]?1111/.test(t)),false);
+      page.on('dialog',dialog=>dialog.accept());
+      await page.locator('input[name="payment_id"]').fill('SYNTHETICPAYMENT123456');
+      await page.getByRole('button',{name:'Squareと照合'}).click();
+      await page.getByText('Squareで入金を新規確認し、監査記録を保存しました。').waitFor();
+      assert.match(await page.locator('#audit').innerText(),/新規入金確認/);
       console.log(name+': operator order list UI OK');
     } finally { await browser.close(); authorized=false; }
   }
