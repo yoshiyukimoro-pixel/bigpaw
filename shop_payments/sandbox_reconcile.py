@@ -79,11 +79,11 @@ def _valid_japanese_shipping_recipient(recipient: dict) -> bool:
     line = address.get("address_line_1")
     post = address.get("postal_code")
     if (not isinstance(line, str) or not 1 <= len(line.strip()) <= 200
-            or any(ch in line for ch in ("\\r", "\\n"))
+            or any(ch in line for ch in ("\r", "\n"))
             or not isinstance(post, str)
             or not re.fullmatch(r"[0-9]{3}-?[0-9]{4}", post)):
         return False
-    compact = re.sub(r"[\\s()\\-]", "", phone)
+    compact = re.sub(r"[\s()\-]", "", phone)
     if compact.startswith("+81"):
         compact = "0" + compact[3:]
     return bool(re.fullmatch(r"0[0-9]{9,10}", compact))
