@@ -24,6 +24,7 @@ PATH = "/api/shop/sandbox/operator/transition"
 TRACKING_PATH = "/api/shop/sandbox/operator/tracking"
 REVIEW_PATH = "/api/shop/sandbox/operator/review-customer"
 DRYRUN_PATH = "/api/shop/sandbox/operator/simulate-customer-notice"
+MAIL_MOCK_PATH = "/api/shop/sandbox/operator/mock-customer-mail"
 STAGES = frozenset(("supplier_ordered", "supplier_backorder",
                     "received_at_shop", "refund_review", "shipped"))
 ORDER = re.compile(r"^FOOD[0-9a-f]{32}$")
@@ -149,10 +150,43 @@ def handle_draft_get(handler) -> bool:
             from .sandbox_customer_dispatch import SandboxDryRunOutbox
             dryrun = SandboxDryRunOutbox(handler.server.store)
             if dryrun.inspected(order_id, kind):
-                review_panel = (
-                    '<p><strong>送信シミュレーション完了（テスト記録）。'
-                    '実際のメールは未送信です。</strong></p>'
-                )
+                from .sandbox_customer_mail_attempts import SandboxCustomerMailAttempts
+                from .staging_orders_dashboard import MOCK_MAIL_LABELS
+                attempt = SandboxCustomerMailAttempts(handler.server.store)
+                state = attempt.status(order_id, kind)
+                if state:
+                    review_panel = (
+                        '<p><strong>送信シミュレーション完了（テスト記録）。'
+                        '実際のメールは未送信です。</strong></p>'
+                        '<p>模擬送信履歴：' +
+                        escape(MOCK_MAIL_LABELS.get(state, "未確認"), quote=True) +
+                        '</p><p>既存の予約を再実行しません。</p>'
+                    )
+                else:
+                    csrf, cookie = new_csrf_cookie()
+                    extra_header = {"Set-Cookie": cookie}
+                    review_panel = (
+                        '<section><h3>メール送信結果のオフライン試験</h3>'
+                        '<p>実メールは一切送信せず、成功・拒否・結果不明の'
+                        'いずれかの状態をテスト記録します。</p>'
+                        '<form method="post" action="' + MAIL_MOCK_PATH + '">'
+                        '<input type="hidden" name="order_id" value="' +
+                        escape(order_id, quote=True) + '">'
+                        '<input type="hidden" name="kind" value="' +
+                        escape(kind, quote=True) + '">'
+                        '<input type="hidden" name="csrf" value="' +
+                        escape(csrf, quote=True) + '">'
+                        '<label>模擬結果<select name="outcome" required>'
+                        '<option value="">選択してください</option>'
+                        '<option value="simulated_accepted">模擬受付成功</option>'
+                        '<option value="simulated_refused">模擬受付拒否</option>'
+                        '<option value="simulated_unknown">模擬通信結果不明</option>'
+                        '</select></label>'
+                        '<label><input type="checkbox" name="confirm" value="offline_only" required>'
+                        '実メール・仕入先連絡・Square決済などの処理は一切行わないと確認</label>'
+                        '<button type="submit">模擬結果だけを記録する（送信しない）</button>'
+                        '</form></section>'
+                    )
             else:
                 csrf, cookie = new_csrf_cookie()
                 extra_header = {"Set-Cookie": cookie}
@@ -358,6 +392,77 @@ def handle_dryrun_post(handler) -> bool:
     return True
 
 
+def handle_mock_mail_post(handler) -> bool:
+    """Operator-only no-network email state test. Cannot call mail providers."""
+    from .staging_checkout_preview import _send
+    from .sandbox_customer_mail_attempts import SandboxCustomerMailAttempts, OUTCOMES
+    from .sandbox_customer_review import CUSTOMER_KINDS
+    if handler.path != MAIL_MOCK_PATH:
+        return False
+    if not authenticate(handler):
+        return True
+    if handler.headers.get("Transfer-Encoding"):
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    if handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
+        _send(handler, 415, {"error": "invalid_type"})
+        return True
+    try:
+        size = int(handler.headers.get("Content-Length", ""))
+    except ValueError:
+        size = 0
+    if not 1 <= size <= 560:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    raw = handler.rfile.read(size)
+    if len(raw) != size:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    try:
+        values = parse_qs(raw.decode("ascii"), keep_blank_values=True,
+                          strict_parsing=True, max_num_fields=5)
+        if set(values) != {"order_id", "kind", "csrf", "confirm", "outcome"} or any(
+            len(v) != 1 for v in values.values()
+        ):
+            raise ValueError("invalid_form")
+        fields = {k: v[0] for k, v in values.items()}
+    except (ValueError, UnicodeError):
+        _send(handler, 400, {"error": "invalid_form"})
+        return True
+    if not _csrf_ok(handler, fields["csrf"]):
+        _send(handler, 403, {"error": "invalid_origin_or_csrf"})
+        return True
+    if (not ORDER.fullmatch(fields["order_id"]) or
+        fields["kind"] not in CUSTOMER_KINDS or
+        fields["outcome"] not in OUTCOMES or
+        fields["confirm"] != "offline_only"):
+        _send(handler, 400, {"error": "invalid_mock_mail_request"})
+        return True
+    opts = {"sandbox_token": handler.server.env["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"],
+            "outcome": fields["outcome"]}
+    if handler.server.shipping_opener is not None:
+        opts["opener"] = handler.server.shipping_opener
+    try:
+        SandboxCustomerMailAttempts(handler.server.store).simulate_attempt_once(
+            fields["order_id"], fields["kind"], **opts
+        )
+    except SquareSandboxError:
+        _send(handler, 503, {"error": "square_contact_read_unavailable"})
+        return True
+    except (ValueError, KeyError):
+        _send(handler, 409, {"error": "mail_review_expired_or_attempt_conflict"})
+        return True
+    from urllib.parse import urlencode
+    handler.send_response(303)
+    handler.send_header("Location", "/api/shop/sandbox/operator/draft?" +
+                        urlencode({"order_id": fields["order_id"], "kind": fields["kind"]}))
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Referrer-Policy", "no-referrer")
+    handler.send_header("Content-Length", "0")
+    handler.end_headers()
+    return True
+
+
 def handle_tracking_post(handler) -> bool:
     """Manually record a shipping reference; NEVER send it to a recipient."""
     from .staging_checkout_preview import _send
@@ -424,6 +529,8 @@ def handle_post(handler) -> bool:
         return handle_customer_review_post(handler)
     if handler.path == DRYRUN_PATH:
         return handle_dryrun_post(handler)
+    if handler.path == MAIL_MOCK_PATH:
+        return handle_mock_mail_post(handler)
     from .staging_checkout_preview import _send
     from .sandbox_runtime_guard import is_allowed_sandbox_runtime
     if handler.path != PATH:
