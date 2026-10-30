@@ -45,4 +45,4 @@ def is_allowed_sandbox_runtime(env: dict) -> bool:
         # accidentally accept or serve Square Sandbox events.
         return (environment == NEW_STAGING_ENVIRONMENT
                 and service == NEW_SANDBOX_WEBHOOK_SERVICE)
-    return True  # Other explicitly approved dedicated Sandbox projects
+    return False  # Unknown Railway projects must be explicitly added and reviewed
