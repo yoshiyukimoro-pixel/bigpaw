@@ -272,6 +272,52 @@ class TestStageWebhook(unittest.TestCase):
             self.assertEqual(request(server, body=body, headers=signed_headers(body))[0], 503)
             self.assertEqual(store.status(ORDER), "payment_pending")
 
+    def test_refunded_payment_never_becomes_new_paid_order(self):
+        # Fresh Square GET may still report payment.status=COMPLETED after
+        # a partial/full refund. Present but invalid refunded_money must also
+        # fail closed. No notification may be queued for either case.
+        bad_values = (
+            {"amount": 1, "currency": "JPY"},
+            {"amount": 21450, "currency": "JPY"},
+            {"amount": 0, "currency": "USD"},
+            {"amount": True, "currency": "JPY"},
+            {"amount": -1, "currency": "JPY"},
+            {"amount": "0", "currency": "JPY"},
+            {"currency": "JPY"},
+            {},
+            None,
+            "invalid",
+        )
+        for value in bad_values:
+            with self.subTest(value=value):
+                notified = []
+                def lookup(_payment_id, v=value):
+                    return {**FULL_PAYMENT, "refunded_money": v}
+                with stage_server(
+                    payment_lookup=lookup,
+                    notify=lambda **kwargs: notified.append(kwargs)
+                ) as (server, store):
+                    body = event()
+                    code, _payload = request(
+                        server, body=body, headers=signed_headers(body))
+                    self.assertEqual(code, 503)
+                    self.assertEqual(store.status(ORDER), "payment_pending")
+                    self.assertEqual(SandboxNotificationDrafts(store).pending(), [])
+                    self.assertEqual(notified, [])
+
+    def test_explicit_zero_jpy_refund_and_optional_missing_field_are_allowed(self):
+        for payment in (
+            dict(FULL_PAYMENT),
+            {**FULL_PAYMENT, "refunded_money": {"amount": 0, "currency": "JPY"}},
+        ):
+            with self.subTest(refund=payment.get("refunded_money", "missing")):
+                with stage_server(payment_lookup=lambda _: payment) as (server, store):
+                    body = event()
+                    self.assertEqual(
+                        request(server, body=body,
+                                headers=signed_headers(body))[0], 200)
+                    self.assertEqual(store.status(ORDER), "paid")
+
     def test_signature_url_must_match_exactly(self):
         with stage_server() as (server, store):
             body = event()
