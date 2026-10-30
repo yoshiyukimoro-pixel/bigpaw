@@ -53,6 +53,7 @@
           '<p>返品の可否・期限・送料負担、事業者情報などの正式な条件は販売開始前に確定します。' +
           '条件が未確定のため、この画面からお申し込み・決済はできません。</p>' +
           '<p><a href="shop-commerce.html">ドッグフードショップの販売条件（準備中）を確認する</a></p>' +
+          '<p><a href="shop-returns.html">返品・キャンセル・不良品・欠品時の対応案（未承認）</a></p>' +
         '</section>' +
       '</div>' +
       '<aside class="order-panel" aria-labelledby="orderTotalTitle">' +
