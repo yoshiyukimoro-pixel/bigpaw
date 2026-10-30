@@ -109,6 +109,9 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-square-hosted-panel.py
           python3 -m py_compile scripts/smoke-shop-square-hosted-panel.py
           node --check scripts/smoke-shop-square-hosted-panel.cjs
+      - name: Build independent Sandbox webhook image (never deploy)
+        run: |
+          docker build -f Dockerfile.shop-staging -t bigpaw-shop-sandbox-webhook:ci .
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
