@@ -79,6 +79,10 @@ const srv=http.createServer(async(req,res)=>{
           /返品・キャンセル・販売事業者/);
         assert.equal(await page.locator('a[href="shop-commerce.html"]').count(), 2,
           'shop footer and final review must both link to retail disclosures');
+        assert.equal(await page.locator('a[href="shop-returns.html"]').count(), 2,
+          'shop footer and final review must link to returns draft');
+        assert.match(await page.locator('#orderCommerceTerms').innerText(),
+          /返品・キャンセル・不良品・欠品時の対応案（未承認）/);
         assert.equal(await page.locator('#previewCheckout').isDisabled(),true,
           'public live checkout must stay disabled');
         assert.equal(await page.locator('#squareReviewSandboxCheckout').isDisabled(),true);
