@@ -1,0 +1,25 @@
+name: BIG PAW Square Sandbox webhook subscriptions READ ONLY
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-square-subscriptions-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test GET-only subscription audit with synthetic Square responses
+        run: PYTHONPATH=. python3 scripts/test-shop-square-subscriptions-readonly.py
+      - name: List existing Sandbox webhook subscriptions without modifications
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+        run: PYTHONPATH=. python3 scripts/audit-shop-square-subscriptions-readonly.py
