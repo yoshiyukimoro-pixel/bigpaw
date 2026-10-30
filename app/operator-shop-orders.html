@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja" data-bp-page-theme="operator">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>フードショップ注文管理｜BIG PAW運営</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/account-page-theme.css?v=20261005">
+  <style>
+    body{background:#fffbea;color:#263447}.wrap{max-width:1000px;margin:auto;padding:20px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .notice{background:#fff4d6;border-left:5px solid #c18b19;padding:12px 15px;border-radius:8px}
+    .order{background:white;border:1px solid #d9e0e8;border-radius:12px;padding:16px;margin:12px 0}
+    .row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.amount{font-weight:800;font-size:20px}
+    .muted{color:#657386;font-size:13px}.state{font-weight:750;color:#765a13}
+    details{margin-top:10px}summary{cursor:pointer;font-weight:700}ul{padding-left:22px}
+    #message{padding:18px;background:#fff;border-radius:10px}
+    @media(max-width:600px){.wrap{padding:14px}.order{padding:13px}}
+  </style>
+</head>
+<body class="bp-account-page">
+  <main class="wrap">
+    <div class="top"><h1>フードショップ注文管理</h1><button id="refresh" type="button">再読み込み</button></div>
+    <p class="notice"><strong>運営ログイン専用</strong>。一覧は過去の記録を表示します。過去の入金確認だけでは現在の返金状況は分からないため、発注・発送前にSquareの最新状態を確認してください。住所・氏名・電話番号は表示しません。</p>
+    <p id="message" role="status">注文情報を読み込んでいます…</p>
+    <section id="orders" aria-label="ショップ注文一覧"></section>
+    <p><a href="operator-admin.html">運営管理へ戻る</a></p>
+  </main>
+  <script>
+  (()=>{
+    const msg=document.getElementById('message'), list=document.getElementById('orders');
+    const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const date=s=>{if(!Number.isInteger(s)||s<0)return '—';try{return new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',dateStyle:'medium',timeStyle:'short'}).format(new Date(s*1000))}catch{return '—'}};
+    async function load(){msg.textContent='注文情報を読み込んでいます…';list.replaceChildren();try{
+      const r=await fetch('/api/operator/shop-orders',{credentials:'same-origin',headers:{Accept:'application/json'},cache:'no-store'});
+      if(r.status===401||r.status===403){msg.textContent='運営アカウントでログインしてください。';return}
+      if(!r.ok)throw Error();const d=await r.json();
+      msg.textContent=`表示中 ${d.count}件（最大100件）。現在の決済・返金状況はSquareで個別確認が必要です。`;
+      if(!d.orders?.length){msg.textContent='注文記録はまだありません。';return}
+      list.innerHTML=d.orders.map(o=>{
+        const state=o.payment_recorded_historically?'過去にSquare入金確認あり':'入金確認記録なし';
+        return `<article class="order"><div class="row"><strong class="state">${state}</strong><span class="amount">${Number(o.amount_yen).toLocaleString('ja-JP')}円</span></div>
+        <p><code>${esc(o.order_id)}</code></p><p class="muted">注文記録：${date(o.created_at)}　過去の入金確認：${date(o.paid_at)}</p>
+        <details><summary>注文商品を表示（${o.items.length}品目）</summary><ul>${o.items.map(i=>`<li>${esc(i.name)}／${esc(i.size)} × ${esc(i.qty)}　${Number(i.unit_yen).toLocaleString('ja-JP')}円</li>`).join('')}</ul></details>
+        <p class="muted">署名付き決済通知の検証記録：${esc(o.verified_signed_event_count)}件。現在の入金・返金状況を示すものではありません。</p></article>`;
+      }).join('');
+    }catch{msg.textContent='注文一覧を取得できませんでした。時間をおいて再読み込みしてください。'}}
+    document.getElementById('refresh').addEventListener('click',load);load();
+  })();
+  </script>
+</body>
+</html>

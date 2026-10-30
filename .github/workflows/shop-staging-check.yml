@@ -28,6 +28,7 @@ on:
       - 'scripts/test-shop-live-payment-intake.py'
       - 'scripts/test-shop-live-order-overview.py'
       - 'scripts/test-shop-live-order-preview-browser.cjs'
+      - 'scripts/test-shop-operator-orders-page.cjs'
       - 'scripts/test-shop-live-checkout-intent.py'
       - 'scripts/test-shop-square-live-checkout-adapter.py'
       - 'scripts/test-shop-square-live-preflight.py'
@@ -181,4 +182,4 @@ jobs:
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
-            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs && node scripts/test-shop-detail-gallery.cjs && node scripts/test-shop-order-review.cjs && node scripts/test-shop-review-square-browser.cjs && node scripts/test-shop-live-order-preview-browser.cjs'
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs && node scripts/test-shop-detail-gallery.cjs && node scripts/test-shop-order-review.cjs && node scripts/test-shop-review-square-browser.cjs && node scripts/test-shop-live-order-preview-browser.cjs && node scripts/test-shop-operator-orders-page.cjs'
