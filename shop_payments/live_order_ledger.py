@@ -153,6 +153,29 @@ class LiveOrderLedger:
                 raise
         return dict(row) if row else {"state": "not_found"}
 
+    def order_id_for_square_order(self, square_order_id, location_id):
+        """Resolve a Square event against a *pre-existing* private checkout.
+
+        No browser-provided local order ID, amount, or customer PII is trusted.
+        This is an internal lookup only; it is not an HTTP endpoint.
+        """
+        if not _valid_id(square_order_id) or not _valid_id(location_id):
+            raise LiveOrderBlocked("Invalid Square event reference")
+        with closing(self._open()) as db:
+            if db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_order_ledger'"
+            ).fetchone() is None:
+                raise LiveOrderBlocked("No trusted Square checkout journal")
+            row = db.execute(
+                "SELECT order_id FROM food_live_order_ledger "
+                "WHERE square_order_id=? AND square_location_id=?",
+                (square_order_id, location_id),
+            ).fetchone()
+        if row is None:
+            raise LiveOrderBlocked("Square order not registered in live journal")
+        return row["order_id"]
+
     def paid_notice_snapshot(self, order_id):
         """Internal-only paid-order snapshot for a later *review*, not sending.
 
