@@ -182,8 +182,13 @@ def execute(args,*,env=None,opener=None,mail_sender=None,mail_reader=None):
                if args.action=="assess"
                else ops.reconcile_full_refund(args.order_id,**kwargs))
     elif args.action=="record-shipped":
-        # ONLY updates a local journal, does not book/send any shipment.
-        state=ops.mark_shipped(args.order_id)
+        # Recheck Square Payment and Order now: a prior paid event may since
+        # have been refunded; this ONLY updates a local test journal.
+        token=str(env.get("BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN","")).strip()
+        if not token: raise ValueError("Sandbox Square verification token missing")
+        kwargs={"token":token}
+        if opener is not None: kwargs["opener"]=opener
+        state=ops.mark_shipped(args.order_id,**kwargs)
     elif args.action=="refund-review":
         # Requires separately authorized real refund elsewhere. Here = local hold.
         state=ops.request_refund_review(args.order_id)
