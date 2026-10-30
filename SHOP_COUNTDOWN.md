@@ -222,3 +222,11 @@
 - Railwayの`BigPaw/bigpaw-test`は`Dockerfile.shop-staging`からSquare Sandbox Webhook専用プロセスを起動し、`/healthz`で稼働確認する構成。Square Sandbox変数名はあるが、ショップ運営者/プレビュー画面の認証値は読めない。
 - `GET /shop.html`はBasic認証を要求し、このセッションに認証情報がないため停止。認証回避やSquare API呼び出し、テスト決済はしていない。
 - GitHub Actions [41119928985](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41119928985)の隔離フルアプリ回帰は成功した一方、デプロイ先回帰はWebhook専用サービスに`/api/health`を求めて404で失敗。P04/R03は正しい隔離アプリ環境と認証経路が揃うまで未完了。残り56ポイントを維持。
+
+
+## 2026-10-31：R03 iPhone/PC/セキュリティ総回帰（R03完了、56→53）
+
+- ショップ専用Docker/オフライン統合・セキュリティ試験、Chromiumデスクトップ、iPhone Safari相当WebKitが成功。隔離したフルアプリの回帰では運営者/ブリーダー認証、権限・所有者境界、保存/再読込、テーマ、モバイル表示が成功。
+- [ショップCI 41118129554](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554)、[隔離フルアプリ回帰 41119928985](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41119928985)。本番データなし。
+- 別のデプロイ先ブラウザーチェックは、`bigpaw-test`がWebhook専用サービスのため`/api/health`で404。これはP04/T02の環境接続課題として残す。実サイト/本番環境は変更していない。
+- `SHOP_PROGRESS_POINTS.json`を更新し、**残り56→53ポイント（完了47ポイント）**。
