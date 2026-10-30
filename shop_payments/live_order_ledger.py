@@ -79,7 +79,10 @@ class LiveOrderLedger:
             if type(unit) is not int or unit <= 0:
                 raise LiveOrderBlocked("Invalid approved unit price")
             total += unit * qty
-            lines.append({"sku": sku, "qty": qty, "unit_yen": unit})
+            # Preserve display details at checkout time. Product names and
+            # today's pricebook may change before the customer is notified.
+            lines.append({"sku": sku, "qty": qty, "unit_yen": unit,
+                          "name": catalog[sku].name, "size": catalog[sku].size})
         if total < 1 or total > _MAX_TOTAL:
             raise LiveOrderBlocked("Checkout total outside safety limit")
         return json.dumps(lines, sort_keys=True, separators=(",", ":")), total
@@ -149,6 +152,67 @@ class LiveOrderLedger:
                     return {"state": "not_found"}
                 raise
         return dict(row) if row else {"state": "not_found"}
+
+    def paid_notice_snapshot(self, order_id):
+        """Internal-only paid-order snapshot for a later *review*, not sending.
+
+        Returns only registered, immutable SKU lines and Square identifiers.
+        The caller must re-check fresh Square Payments AND Orders before
+        preparing a customer notice. No recipient, PII or credentials in DB.
+        This method is never exposed as an authenticated/public HTTP route.
+        """
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid order reference")
+        with closing(self._open()) as db:
+            exists = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_order_ledger'"
+            ).fetchone()
+            if not exists:
+                raise LiveOrderBlocked("No trusted paid order")
+            row = db.execute(
+                "SELECT * FROM food_live_order_ledger WHERE order_id=?",
+                (order_id,)
+            ).fetchone()
+        if (row is None or row["state"] != "paid_verified"
+                or not _valid_id(row["payment_id"])
+                or not _valid_id(row["square_order_id"])
+                or not _valid_id(row["square_location_id"])):
+            raise LiveOrderBlocked("Verified paid order required")
+        try:
+            lines = json.loads(row["cart_snapshot"])
+            if not isinstance(lines, list) or not 1 <= len(lines) <= 35:
+                raise ValueError()
+            amount = 0
+            seen = set()
+            for line in lines:
+                if not isinstance(line, dict) or set(line) != {
+                        "sku", "qty", "unit_yen", "name", "size"}:
+                    raise ValueError()
+                sku, qty, unit = line["sku"], line["qty"], line["unit_yen"]
+                if (not isinstance(sku, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,60}", sku)
+                        or sku in seen or type(qty) is not int or not 1 <= qty <= 10
+                        or type(unit) is not int or not 1 <= unit <= _MAX_TOTAL
+                        or not isinstance(line["name"], str)
+                        or not 1 <= len(line["name"]) <= 200
+                        or not isinstance(line["size"], str)
+                        or not 1 <= len(line["size"]) <= 60
+                        or any(x in line["name"] + line["size"] for x in ("\\r", "\\n"))):
+                    raise ValueError()
+                seen.add(sku)
+                amount += qty * unit
+            if amount != row["amount_yen"] or amount > _MAX_TOTAL:
+                raise ValueError()
+        except (TypeError, ValueError, KeyError):
+            raise LiveOrderBlocked("Paid-order snapshot integrity failure") from None
+        return {
+            "order_id": order_id,
+            "square_order_id": row["square_order_id"],
+            "location_id": row["square_location_id"],
+            "payment_id": row["payment_id"],
+            "amount_yen": amount,
+            "lines": lines,
+        }
 
     def reconcile_payment(self, *, order_id, payment_id, api_key, opener=None,
                           verifier=None):
