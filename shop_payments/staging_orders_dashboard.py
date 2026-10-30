@@ -190,7 +190,7 @@ def render(store, *, csrf: str = "") -> str:
                 MOCK_MAIL_LABELS.get(mocked_mail_status[(order_id, kind)],
                                      "状態確認が必要・実メール未送信")
             ) + "】 " if (order_id, kind) in mocked_mail_status else "") +
-            ("【送信前チェック履歴あり・未送信（直前再照合必要）】 " if
+            ("【送信前チェックの記録あり・現在の有効性は要再照合】 " if
              (order_id, kind) in reviewed_customer_drafts else
              "【送信前未チェック】 " if audience == "customer" else "") +
             '<a href="/api/shop/sandbox/operator/draft?' +
