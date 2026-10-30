@@ -21,9 +21,8 @@ PRICE_SKU, PRICE_ITEM = next(iter(load_sale_catalog().items()))
 
 
 class Response:
-    status = 201
-
-    def __init__(self, data):
+    def __init__(self, data, status=201):
+        self.status = status
         self.body = json.dumps(data).encode()
 
     def __enter__(self):
@@ -77,7 +76,7 @@ class LiveCheckoutAdapterTests(unittest.TestCase):
                 "amount": PRICE_ITEM.sale_price_yen,
                 "currency": "JPY",
             },
-        }})
+        }}, status=200)
 
     def test_end_to_end_prepared_request_fake_post_fake_get_atomic_bind(self):
         link = create_live_square_link(
