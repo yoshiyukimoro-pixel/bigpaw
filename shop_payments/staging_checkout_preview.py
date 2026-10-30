@@ -199,7 +199,8 @@ def handle_post(handler):
     if path in ("/api/shop/sandbox/operator/transition",
                 "/api/shop/sandbox/operator/tracking",
                 "/api/shop/sandbox/operator/review-customer",
-                "/api/shop/sandbox/operator/simulate-customer-notice"):
+                "/api/shop/sandbox/operator/simulate-customer-notice",
+                "/api/shop/sandbox/operator/mock-customer-mail"):
         from .staging_operator_actions import handle_post as operator_post
         return operator_post(handler)
     if path != "/api/shop/sandbox/checkout":
