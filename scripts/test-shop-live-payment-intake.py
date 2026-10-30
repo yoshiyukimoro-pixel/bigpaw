@@ -8,6 +8,7 @@ from copy import deepcopy
 import hashlib
 import hmac
 import json
+import sqlite3
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -140,6 +141,57 @@ class SignedSquarePaymentIntakeTests(unittest.TestCase):
                       "fake-buyer@example.invalid", API_KEY, SIGN_KEY):
             self.assertNotIn(value.encode(), stored)
         self.assertNotIn("customer", str(result).lower())
+
+    def test_signed_event_audit_deduplicates_and_rejects_id_collision(self):
+        """No customer PII in audit; same ID with different body is blocked."""
+        self.assertTrue(self.receive()["new_transition"])
+        self.assertFalse(self.receive()["new_transition"])
+        with sqlite3.connect(self.database) as db:
+            rows = db.execute(
+                "SELECT event_id,body_sha256,order_id,payment_id "
+                "FROM food_live_signed_payment_events"
+            ).fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], self.event["event_id"])
+        self.assertRegex(rows[0][1], r"^[0-9a-f]{64}$")
+        self.assertEqual(rows[0][2], ORDER_ID)
+        self.assertEqual(rows[0][3], PAYMENT_ID)
+        changed = deepcopy(self.event)
+        changed["data"]["object"]["payment"]["note"] = "SIGNED BUT DIFFERENT"
+        calls_before = len(self.calls)
+        with self.assertRaises(LiveOrderBlocked):
+            self.receive(event=changed)
+        self.assertEqual(len(self.calls), calls_before,
+                         "event collision must not GET or write again")
+        fresh = deepcopy(changed)
+        fresh["event_id"] = "another-event-123456789"
+        self.assertEqual(
+            self.receive(event=fresh),
+            {"state": "already_recorded", "new_transition": False},
+        )
+        with sqlite3.connect(self.database) as db:
+            self.assertEqual(db.execute(
+                "SELECT COUNT(*) FROM food_live_signed_payment_events"
+            ).fetchone()[0], 2)
+        raw = self.database.read_bytes()
+        for forbidden in (b"fake-buyer@example.invalid",
+                          b"FAKE ADDRESS", b"SIGNED BUT DIFFERENT",
+                          API_KEY.encode(), SIGN_KEY.encode()):
+            self.assertNotIn(forbidden, raw)
+
+    def test_refund_after_paid_does_not_write_new_signed_event(self):
+        self.assertTrue(self.receive()["new_transition"])
+        changed = deepcopy(self.event)
+        changed["event_id"] = "refunded-event-123456789"
+        self.payment["refunded_money"] = {"amount": 1, "currency": "JPY"}
+        with self.assertRaises(LiveSquareNotVerified):
+            self.receive(event=changed)
+        with sqlite3.connect(self.database) as db:
+            ids = [row[0] for row in db.execute(
+                "SELECT event_id FROM food_live_signed_payment_events"
+            ).fetchall()]
+        self.assertEqual(ids, [self.event["event_id"]])
+        self.assertEqual(self.ledger.status(ORDER_ID)["state"], "paid_verified")
 
     def test_invalid_signature_or_url_fails_before_read_or_state_change(self):
         for inputs in (
