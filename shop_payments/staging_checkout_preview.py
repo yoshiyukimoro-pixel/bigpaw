@@ -40,6 +40,7 @@ FILES = {
     "/shop-detail-gallery.css": ROOT / "app/shop-detail-gallery.css",
     "/shop-order-review.js": ROOT / "app/shop-order-review.js",
     "/shop-order-review.css": ROOT / "app/shop-order-review.css",
+    "/shop-commerce.html": ROOT / "app/shop-commerce.html",
     "/shop-sandbox-checkout.js": ROOT / "shop_payments/preview_checkout.js",
     "/shop-sandbox-review.js": ROOT / "shop_payments/review_sandbox_checkout.js",
 }
@@ -189,6 +190,7 @@ def handle_get(handler):
         return True
     mime = "image/webp" if path.endswith(".webp") else (
         "text/css; charset=utf-8" if path.endswith(".css")
+        else "text/html; charset=utf-8" if path.endswith(".html")
         else "text/javascript; charset=utf-8"
     )
     _send(handler, 200, file.read_bytes(), mime)
