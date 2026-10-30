@@ -176,6 +176,30 @@ class LiveOrderLedger:
             raise LiveOrderBlocked("Square order not registered in live journal")
         return row["order_id"]
 
+    def checkout_payment_match(self, order_id):
+        """Return only immutable total and state of an existing trusted checkout.
+
+        Event intake compares this private amount with the signed Square event.
+        It NEVER accepts a total provided by a caller's request body.
+        """
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid local checkout reference")
+        with closing(self._open()) as db:
+            if db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_order_ledger'"
+            ).fetchone() is None:
+                raise LiveOrderBlocked("No trusted checkout journal")
+            row = db.execute(
+                "SELECT amount_yen,state FROM food_live_order_ledger "
+                "WHERE order_id=?", (order_id,)
+            ).fetchone()
+        if (row is None or row["state"] not in ("checkout_recorded", "paid_verified")
+                or type(row["amount_yen"]) is not int
+                or not 1 <= row["amount_yen"] <= _MAX_TOTAL):
+            raise LiveOrderBlocked("No valid trusted checkout")
+        return {"amount_yen": row["amount_yen"], "state": row["state"]}
+
     def paid_notice_snapshot(self, order_id):
         """Internal-only paid-order snapshot for a later *review*, not sending.
 
