@@ -303,3 +303,11 @@
 - 成功の採点前提：Square Sandbox Orders APIとPayments APIの両方で同じ注文ID、Location ID、JPY税込金額、`COMPLETED`支払いを独立確認してから、模擬署名イベントで私有の一時台帳に限り入金状態を反映する。**この模擬イベントはSquare→Railway実Webhook配信を証明しない。**
 - チャット、CIログ、GitHubのファイルにSquare Token、決済リンク、購入者情報、決済IDを出さない。既存のWebhookや本番サイトの環境変数を変更しない。
 - この実行自体はP04/T03/R02の全完了条件ではないため、成功時も**残り46ポイントを維持**。
+
+## 2026-10-31：Square Sandbox本物APIによる架空決済・全額返金の照合（非販売、ポイント未減算）
+
+- GitHub Actions `41130318842` **SUCCESS**：Square公式Sandbox Testing Panelで商品A02を税込21,450円・送料0円の偽カード決済として完了。Square Orders GET=OPEN、tender=1、Payments GET=COMPLETED、同一注文ID／Location ID／金額JPY確認。ローカルの模擬署名イベントでだけ注文台帳を入金済みに更新。Square→Railwayの実Webhook配送は**未確認**。
+- GitHub Actions `41130886408`：新しい架空のSandbox決済の後、全額返金要求の確認処理がエラー。Squareが受理した可能性があるため**返金POSTは一切再試行しない**。
+- GitHub Actions `41131191985` **SUCCESS**：前記返金テスト時刻・Sandbox Location・テスト専用理由・JPY 21,450円に一致する返金履歴をSquareの`GET /v2/refunds`で読み取り、**該当1件の返金状態がCOMPLETED**であることを確認。監査ではPOST=0。元テストの確認処理のエラー原因は未特定であり、返金APIの処理手順・レスポンス照合を改めて検証する。
+- GitHub Actions `41130651834`：Resend送信ドメインの読み取り検証を実施。APIキーの`GET /domains`権限がなくHTTP 401/403で未検証（送信不可を意味しない）。実メール送信なし。
+- P04、R02、F01は各タスクの全完了条件を満たしていないため減算しない。**残り46ポイント／完了54%を維持**。

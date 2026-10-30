@@ -96,6 +96,9 @@ on:
       - 'scripts/smoke-shop-square-hosted-panel.py'
       - 'scripts/smoke-shop-square-hosted-panel.cjs'
       - 'scripts/test-shop-square-hosted-panel.py'
+      - 'scripts/test-shop-square-sandbox-refund.py'
+      - 'scripts/test-shop-sandbox-refund-readonly.py'
+      - 'scripts/test-shop-resend-domain-readonly.py'
       - 'scripts/smoke-shop-square-card-payment.py'
       - 'scripts/test-shop-staging.py'
       - 'scripts/test-shop-staging.cjs'
@@ -180,6 +183,9 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-square-card-smoke.py
           PYTHONPATH=. python3 scripts/test-shop-square-standalone-smoke.py
           PYTHONPATH=. python3 scripts/test-shop-square-hosted-panel.py
+          PYTHONPATH=. python3 scripts/test-shop-square-sandbox-refund.py
+          PYTHONPATH=. python3 scripts/test-shop-sandbox-refund-readonly.py
+          PYTHONPATH=. python3 scripts/test-shop-resend-domain-readonly.py
           python3 -m py_compile scripts/smoke-shop-square-hosted-panel.py
           node --check scripts/smoke-shop-square-hosted-panel.cjs
       - name: Build independent Sandbox webhook image (never deploy)

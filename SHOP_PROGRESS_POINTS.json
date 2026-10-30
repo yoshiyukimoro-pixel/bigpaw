@@ -77,7 +77,14 @@
             "result": "pending_safe_full_app_sandbox_origin_and_owner-approved_environment; no point deduction",
             "railway_inventory_at": "2026-10-31",
             "inventory": "Read-only Railway review found BigPaw/bigpaw-test is the only Sandbox shop service and runs Dockerfile.shop-staging webhook-only with /healthz in its production environment. BigPaw/bigpaw-site deploys main and owns www.bigpaw.site; the separate bigpaw-web image has no domain. No isolated full-app Sandbox service or separate Railway nonproduction environment is available.",
-            "safety_decision": "Did not target public www.bigpaw.site or the production app for test payments/browser mutation. No service/config/variable/deployment was changed."
+            "safety_decision": "Did not target public www.bigpaw.site or the production app for test payments/browser mutation. No service/config/variable/deployment was changed.",
+            "latest_real_sandbox_evidence": {
+              "hosted_checkout_actions_run": "41130318842 SUCCESS; Square official Sandbox Testing Panel only; fake JPY 21450 single item shipping 0",
+              "independent_confirmation": "Square Orders OPEN, one tender, Payments COMPLETED same order/location/amount; synthetic local signed event moved journal pending to paid",
+              "shipping_gap": "No actual shopper shipping-address entry / recipient details confirmed",
+              "webhook_gap": "No real Square-to-Railway signed HTTPS webhook delivered; new Sandbox receiver remains in 503 standby",
+              "decision": "partial evidence, P04 remains pending"
+            }
           }
         },
         {
@@ -195,7 +202,12 @@
           "title": "本番メールの送信ドメイン・送信元・送信許可を検証",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "domain_readonly_audit": "GitHub Actions 41130651834, offline tests succeeded, provider GET /domains returned 401/403. No messages sent.",
+            "interpretation": "API key may be sending-access only; read permission unavailable DOES NOT prove domain verification is false or sending disallowed",
+            "from_config": "noreply@bigpaw.site in source; reply-to info@bigpaw.site. Actual sender/domain verified delivery and permission not confirmed",
+            "status": "pending, no point deduction"
+          }
         },
         {
           "id": "F02",
@@ -411,7 +423,13 @@
           "title": "決済→注文→通知→発送→返金の最終E2E検証",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "sandbox_payment": "GitHub Actions 41130318842 SUCCESS confirmed fake hosted Checkout Square Orders + Payments",
+            "sandbox_refund_try": "GitHub Actions 41130886408: fake payment verified, refund confirmer errored after provider call; DO NOT RETRY",
+            "refund_readonly_reconciliation": "GitHub Actions 41131191985 SUCCESS: GET-only ListPaymentRefunds found exactly one matching reason, Sandbox location, JPY 21450 in 2026-10-30T21:24-21:27Z window with status COMPLETED; zero refund POSTs during audit",
+            "gaps": "Live Square->Railway signed webhook, approved transactional email, physical dispatch and fulfillment updates, full refunds in published shop flow unverified",
+            "status": "pending; partial Sandbox payment + refund provider evidence only"
+          }
         },
         {
           "id": "R03",
