@@ -336,3 +336,11 @@
 - 決済の成功と配送先の保存を別々に記録する。Squareの公式テストパネルで配送先が省略される場合、**発送不可のまま**にする。氏名/住所/メール/決済ID/リンクURL等はログに出さない。
 - この実行は全額JPY／ゼロ送料の実Sandboxテストのみ。発注・発送・本番決済・Square本番キー・メール送信・Square→Railway実Webhook配送は含まれない。
 - P04の全条件は未完で、残り46ポイントからは減算しない。実行結果はGitHub Actionsのログを確認後に追記する。
+
+## 2026-10-31：実Square Sandbox配送先不足と無効Webhook登録を確認
+
+- GitHub Actions `41133238933` ショップ全体テスト **SUCCESS**。合成日本宛配送先を用いたGET-only検査も通過。配送先のフルネーム・住所・郵便番号はログに出さない。
+- 実際のSquare公式Sandbox Testing Panel `41133268405` **SUCCESS**：税込JPY 21,450円・送料0円のA02架空決済はSquare Payments/Ordersで入金確認できた。ただしSquare注文の出荷先データは `SQUARE_CHECKOUT_PANEL_SHIPPING=INCOMPLETE`。**入金済みでも配送可と判断せず発送停止**。P04の配送要件は未達。
+- Square Webhook Subscriptionsの読み取り `41133493643` は旧通知先のみ有効、新通知先は未登録と確認。新通知先をSquare Sandboxに `enabled=false` で登録 `41133935500` **SUCCESS**。
+- 事後の別の読み取り検証 `41134021794` **SUCCESS**：旧通知先有効、新通知先無効、既存サブスクリプション変更なし。Squareの署名鍵や注文個人情報をCIログへ表示しない。新RailwayのWebhookは503待機継続。
+- T03（専用署名鍵/Location/Tokenの設定と実Webhook着信）・P04（送料込みJPYの端末→配送住所→決済→実Webhook）・R02は未完了。進捗は**残り46ポイント、完了54%**。本番公開・実決済・発注・メール送信なし。
