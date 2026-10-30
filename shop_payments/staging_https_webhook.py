@@ -181,6 +181,11 @@ def main():
     # test service; never from a public endpoint or from production.
     from .staging_seed_boot import create_enabled_test_link
     create_enabled_test_link(env)
+    # An independently verified prior payment may need its one-time operator
+    # notice when the Resend key was installed after the payment. This call
+    # is disabled unless all exact sandbox, service and mail opt-ins match.
+    from .staging_paid_mail_once import maybe_send_verified_test_order
+    maybe_send_verified_test_order(env)
     # Hosting must terminate HTTPS and forward to this private HTTP port.
     # The configured Square notification URL is exact and never reconstructed.
     print("BIGPAW_SANDBOX_WEBHOOK_READY", flush=True)
