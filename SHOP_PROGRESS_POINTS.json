@@ -32,7 +32,24 @@
           "title": "Square本番設定と接続先・権限を検証（実決済開始はしない）",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "verified_at": "2026-10-31",
+            "scope": "Read-only Railway production variable-name inventory for BIG PAW/bigpaw-live, BigPaw/bigpaw-site, and both production bigpaw-web services. Values were redacted; no secret values were requested or printed. No Square API call, payment, or deployment.",
+            "missing_required_names": [
+              "BIGPAW_SQUARE_LIVE_ACCESS_TOKEN",
+              "BIGPAW_SQUARE_LIVE_LOCATION_ID",
+              "BIGPAW_SHOP_ORDER_HMAC_SECRET",
+              "BIGPAW_SHOP_APPROVED_TERMS_SHA256",
+              "BIGPAW_SHOP_OWNER_LAUNCH_APPROVED",
+              "BIGPAW_SHOP_PUBLIC_LIVE_ENABLED"
+            ],
+            "missing_webhook_names": [
+              "BIGPAW_SHOP_SQUARE_LIVE_WEBHOOK_ENABLED",
+              "BIGPAW_SQUARE_LIVE_WEBHOOK_URL",
+              "BIGPAW_SQUARE_LIVE_WEBHOOK_SIGNATURE_KEY"
+            ],
+            "result": "blocked_pending_owner_configuration; production location access and OAuth permissions not verified; no point deduction"
+          }
         },
         {
           "id": "P03",
@@ -40,7 +57,11 @@
           "title": "注文確定画面の販売条件とサーバー金額を完全一致させる",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "reviewed_at": "2026-10-31",
+            "scope": "Source review only. Public preview explicitly says sales are not open and returns/cancellation terms remain unapproved. Live controller requires approved terms digest and owner launch gate, and derives the charge from server-side SKU/quantity pricebook rather than browser totals.",
+            "result": "pending_final_seller_terms_and_end_to_end_price_match; no point deduction"
+          }
         },
         {
           "id": "P04",
