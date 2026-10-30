@@ -177,6 +177,10 @@ def main():
         env=env, store=SandboxOrderStore(db_path),
         host="0.0.0.0", port=port,
     )
+    # One explicitly selected test order may be seeded on this isolated
+    # test service; never from a public endpoint or from production.
+    from .staging_seed_boot import create_enabled_test_link
+    create_enabled_test_link(env)
     # Hosting must terminate HTTPS and forward to this private HTTP port.
     # The configured Square notification URL is exact and never reconstructed.
     print("BIGPAW_SANDBOX_WEBHOOK_READY", flush=True)
