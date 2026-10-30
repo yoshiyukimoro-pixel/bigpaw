@@ -44,6 +44,37 @@ class TestDisabledLinkedCard(unittest.TestCase):
         self.assertIn("Sandbox Testing Panel", output.getvalue())
         self.assertNotIn("SQUARE_CARD_SANDBOX_OK", output.getvalue())
 
+    def test_linked_order_id_rejected_before_http(self):
+        from shop_payments.sandbox_connector import SquareSandboxError
+        with self.assertRaises(SquareSandboxError):
+            smoke.create_fake_card_payment(
+                order_id="DRAFT_LINK_ORDER", location_id="TESTLOCATION",
+                token="FAKE_SANDBOX_TOKEN", idempotency_key="bpapi-test-123",
+                opener=self.forbidden)
+
+    def test_standalone_api_request_contains_no_checkout_order(self):
+        import json
+        class Response:
+            status = 200
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return None
+            def read(self, limit):
+                return json.dumps({"payment": {"id": "TESTSANDBOXPAYMENT"}}).encode()
+        def opener(request, timeout):
+            self.assertEqual(request.full_url, "https://connect.squareupsandbox.com/v2/payments")
+            body = json.loads(request.data)
+            self.assertNotIn("order_id", body)
+            self.assertEqual(body["source_id"], "cnon:card-nonce-ok")
+            self.assertEqual(body["amount_money"], {"amount": 21450, "currency": "JPY"})
+            return Response()
+        result = smoke.create_fake_card_payment(
+            order_id=None, location_id="TESTLOCATION",
+            token="FAKE_SANDBOX_TOKEN", idempotency_key="bpapi-test-123",
+            opener=opener)
+        self.assertEqual(result["id"], "TESTSANDBOXPAYMENT")
+
 
 if __name__ == "__main__":
     unittest.main()
