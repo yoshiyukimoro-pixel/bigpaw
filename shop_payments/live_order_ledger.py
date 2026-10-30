@@ -160,6 +160,12 @@ class LiveOrderLedger:
         if not isinstance(api_key, str) or not api_key.strip():
             raise LiveOrderBlocked("Missing live Square credential")
         with closing(self._open()) as db:
+            exists = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_order_ledger'"
+            ).fetchone()
+            if not exists:
+                raise LiveOrderBlocked("No trusted checkout snapshot")
             row = db.execute(
                 "SELECT * FROM food_live_order_ledger WHERE order_id=?",
                 (order_id,)
