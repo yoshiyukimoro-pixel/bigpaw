@@ -63,5 +63,23 @@ jobs:
           # New Webhook exists but no Square tokens/keys: explicit standby.
           probe new_webhook_standby GET "$NEW_WEBHOOK/healthz" 200
           probe new_webhook_standby GET "$NEW_WEBHOOK/" 404
-          probe new_webhook_standby POST "$NEW_WEBHOOK/api/shop/sandbox/webhook" 503
+          # urllib reports expected HTTP 503 as an exception with a status.
+          # curl may exit 23 on this proxy's early 503 response while uploading;
+          # never classify an expected 503 as a failed payment or test failure.
+          python3 - <<'PY'
+          import urllib.error
+          import urllib.request
+          url = "https://bigpaw-square-sandbox-staging-staging.up.railway.app/api/shop/sandbox/webhook"
+          req = urllib.request.Request(
+              url, data=b"{}", method="POST",
+              headers={"Content-Type": "application/json",
+                       "Square-Environment": "Sandbox"})
+          try:
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  status = response.status
+          except urllib.error.HTTPError as error:
+              status = error.code
+          print("SHOP_DUAL_STAGING|scope=new_webhook_standby|method=POST|status=" + str(status))
+          assert status == 503, "new Sandbox webhook must remain disabled without signing key"
+          PY
           echo "SHOP_DUAL_STAGING_OK|old_untouched|new_standby|app_protected|no_payment"
