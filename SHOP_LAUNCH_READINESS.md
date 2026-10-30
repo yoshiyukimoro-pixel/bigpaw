@@ -56,6 +56,15 @@
 - `scripts/test-shop-live-payment-intake.py`で偽HMAC署名・偽Square GETを用いた連携を試験。署名改ざん、HTTPS URL変更、注文/金額/店舗不一致、返金済み・未入金、配送情報不備、重複受信、DB未登録注文を拒否。**外部課金・返金・メール送信・実顧客アクセスは実行しない。**
 - このコードは将来の**内部ライブラリ**であり、実際にリクエストを受ける本番HTTPS Webhookルート・認証/イベント重複保管・運営注文画面・顧客メール送信・公開スイッチには**未接続**。通知先URL・署名鍵・Production決済キーは未設定。公開前のSquare実機接続試験、合法的な販売条件、店主承認が必要。
 
+## 2026-10-30：本番用Square決済リンク作成の安全な準備（アプリ未接続）
+
+- `shop_payments/live_checkout_intent.py`を追加。店側価格表から商品の数量・名称・税込単価・送料0円を固定した`CreatePaymentLink`リクエストを**Squareに送る前に**専用SQLiteへ保存する。注文が同一なら再利用・内容が変われば拒否。発行前に15分経過または現行価格との不一致を検出すると処理を止める。
+- リンク発行の直前に注文を`attempt_unknown`状態へ一度だけ変更。通信断や結果不明でも同じ注文を**自動再送・新しいIDで再発行しない**。運営者がSquare側の結果を照合してから復旧する運用が必要。
+- `shop_payments/square_live_checkout_adapter.py`を追加。将来Square Productionへ`POST /v2/online-checkout/payment-links`を**一回だけ**発行するサーバー部品。固定URL、注文ID由来の冪等キー、税込JPY価格、配送先取得とチップ禁止の構造を検証する。**現在のBIG PAW / Railway / 起動処理 / 公開HTTPルートには一切接続しておらず、外部Square APIは実行していない。**
+- Squareの作成応答だけでは受注確定とせず、`GET /v2/orders/{id}`で店舗・通貨・金額を再確認後、リンク発行結果と既存入金台帳を**同じSQLiteトランザクションで一括保存**。別注文へのリンク重複登録もロールバックする。発行後の価格表変更があっても確定した注文当時の価格を保持する。
+- `scripts/test-shop-live-checkout-intent.py`と`scripts/test-shop-square-live-checkout-adapter.py`で、偽Square POST/GET、改ざん商品・金額・URL、タイムアウト、15分経過、二重リンク、途中停止、台帳への一括登録を無通信テスト。実際の購入、実Square本番通信、カード課金、購入者へのメールは発生しない。
+- **未完了**：運営承認済みの最終確認画面から本番Checkoutを呼ぶ認証/レート制限付き公開ルート、Square通知先/本番秘密鍵、決済後の注文管理画面とメール配送、正式特商法表示・返品規約、店主の公開承認、2系統のRailwayテスト環境への分離、実機E2E。
+
 ## 今の運用上の注意
 
 - ショップ公開用の `app/shop.html` は「販売準備中」で、決済ボタンが無効。現行の `bigpaw-test` は専用Sandbox Dockerサービスであり、公開用BIG PAW全体の変更を試すサービスではない。
