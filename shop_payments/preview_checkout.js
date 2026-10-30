@@ -156,6 +156,13 @@
         notice.textContent='カートが変更されました。もう一度金額を確認してください。';
         return;
       }
+      const visibleTotal=document.getElementById('previewCartSubtotal')?.textContent||'';
+      const shownAmount=Number(visibleTotal.replace(/[^0-9]/g,''));
+      if(!visibleTotal || !Number.isSafeInteger(shownAmount) ||
+         shownAmount!==quote.amount_yen){
+        notice.textContent='画面の金額とサーバーの販売価格が一致しません。決済テストは開始しません。画面を更新してください。';
+        return;
+      }
       notice.textContent='サーバー確認済み：税込・送料込み'+quote.amount_yen.toLocaleString('ja-JP')+'円。Square Sandboxへ接続します…';
       const res = await fetch('/api/shop/sandbox/checkout', {
         method: 'POST',
