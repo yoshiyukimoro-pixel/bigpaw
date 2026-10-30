@@ -147,6 +147,45 @@ class CheckoutPreviewTests(unittest.TestCase):
                 self.assertEqual(request(srv, path)[0], 404)
             self.assertEqual(calls, [])
 
+    def test_readonly_quote_uses_server_price_without_any_square_or_db_write(self):
+        with server_with_env() as (srv, db, calls):
+            config = json_data(request(srv, "/api/shop/sandbox/config"))
+            token = config["csrf_token"]
+            payload = json.dumps({"cart": {"A02": 2}}).encode()
+            good = {
+                "Origin": ORIGIN, "Content-Type": "application/json",
+                "X-Shop-CSRF": token,
+                "Cookie": "bigpaw_shop_sandbox_csrf=" + token,
+            }
+            def quote(body=payload, headers=good, auth=True):
+                return request(
+                    srv, "/api/shop/sandbox/quote", method="POST",
+                    data=body, auth=auth, headers=headers,
+                )
+            self.assertEqual(quote(auth=False)[0], 401)
+            self.assertEqual(quote(headers={**good, "Origin": "https://evil.invalid"})[0], 403)
+            self.assertEqual(quote(headers={**good, "X-Shop-CSRF": "0"*42})[0], 403)
+            self.assertEqual(quote(body=json.dumps({"cart": {"A02": 1}, "price": 1}).encode())[0], 400)
+            self.assertEqual(quote(body=b'{"cart":{"A02":1},"cart":{"A02":2}}')[0], 400)
+            self.assertEqual(quote(body=json.dumps({"cart": {"A02": True}}).encode())[0], 400)
+            self.assertEqual(quote(body=json.dumps({"cart": {"BAD": 1}}).encode())[0], 400)
+            self.assertEqual(quote(body=json.dumps({"cart": {"A02": 11}}).encode())[0], 400)
+            success = quote()
+            self.assertEqual(success[0], 200)
+            data = json_data(success)
+            self.assertEqual(data, {
+                "sandbox": True, "real_payments": False,
+                "verified": True, "amount_yen": 42900, "shipping_yen": 0,
+            })
+            self.assertEqual(calls, [], "read-only quote must not create link")
+            with sqlite3.connect(db.db_file) as conn:
+                self.assertEqual(conn.execute(
+                    "SELECT COUNT(*) FROM orders"
+                ).fetchone()[0], 0, "read-only quote cannot create order")
+                self.assertEqual(conn.execute(
+                    "SELECT COUNT(*) FROM checkout_link_claims"
+                ).fetchone()[0], 0)
+
     def test_checkout_requires_origin_csrf_authorization_and_server_prices(self):
         with server_with_env() as (srv, db, calls):
             status, headers, body = request(srv, "/api/shop/sandbox/config")
