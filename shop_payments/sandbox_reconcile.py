@@ -75,7 +75,12 @@ def retrieve_sandbox_shipment_status(
         raise SquareSandboxError("Square Sandbox order ID mismatch")
     fulfillments = order.get("fulfillments")
     valid = False
-    if isinstance(fulfillments, list):
+    # A shipping-only dog-food order cannot silently choose one recipient
+    # among multiple delivery destinations. Keep it in address_review for
+    # manual handling whenever Square reports no or ambiguous fulfillments.
+    if (isinstance(fulfillments, list) and len(fulfillments) == 1
+            and isinstance(fulfillments[0], dict)
+            and fulfillments[0].get("type") == "SHIPMENT"):
         for fulfillment in fulfillments:
             if not isinstance(fulfillment, dict) or fulfillment.get("type") != "SHIPMENT":
                 continue
