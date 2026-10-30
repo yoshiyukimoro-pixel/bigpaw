@@ -6,6 +6,7 @@ from shop_payments.sandbox_connector import SquareSandboxError
 from shop_payments.sandbox_reconcile import (
     retrieve_verified_sandbox_payment,
     retrieve_sandbox_shipment_status,
+    verify_current_sandbox_payment,
 )
 
 PAYMENT_ID = "PAYMENTTEST001"
@@ -55,6 +56,51 @@ class TestSandboxVerification(unittest.TestCase):
             return FakeResponse({"payment": {"id": "DIFFERENTPAYMENT"}})
         with self.assertRaises(SquareSandboxError):
             retrieve_verified_sandbox_payment(PAYMENT_ID, token="FAKE", opener=wrong_payment)
+
+    def test_fresh_sandbox_refund_metadata_never_treats_present_null_as_zero(self):
+        snapshot = {
+            "order_id": "FOOD" + "a" * 32,
+            "amount_yen": 21450,
+            "square_order_id": ORDER_ID,
+            "square_location_id": "SQUARELOCATIONTEST001",
+            "square_payment_id": PAYMENT_ID,
+            "cart": {"A02": 1},
+        }
+        original = {
+            "id": PAYMENT_ID, "order_id": ORDER_ID,
+            "location_id": snapshot["square_location_id"],
+            "status": "COMPLETED",
+            "amount_money": {"amount": 21450, "currency": "JPY"},
+        }
+        order = {"id": ORDER_ID,
+                 "location_id": snapshot["square_location_id"],
+                 "state": "OPEN",
+                 "total_money": {"amount": 21450, "currency": "JPY"}}
+        def opener(payment):
+            def fake(request, timeout):
+                self.assertEqual(request.get_method(), "GET")
+                if request.full_url.endswith("/payments/"+PAYMENT_ID):
+                    return FakeResponse({"payment": payment})
+                if request.full_url.endswith("/orders/"+ORDER_ID):
+                    return FakeResponse({"order": order})
+                self.fail("Unknown Square endpoint")
+            return fake
+        good = verify_current_sandbox_payment(
+            snapshot=snapshot, token="FAKE_SANDBOX_ONLY",
+            opener=opener(original))
+        self.assertTrue(good["unrefunded_verified"])
+        for refund in (None, {}, [], False, "0",
+                       {"amount": True, "currency": "JPY"},
+                       {"amount": 0, "currency": "USD"},
+                       {"amount": 1, "currency": "JPY"}):
+            with self.subTest(refund=refund), self.assertRaises(SquareSandboxError):
+                verify_current_sandbox_payment(
+                    snapshot=snapshot, token="FAKE_SANDBOX_ONLY",
+                    opener=opener({**original, "refunded_money": refund}))
+        self.assertTrue(verify_current_sandbox_payment(
+            snapshot=snapshot, token="FAKE_SANDBOX_ONLY",
+            opener=opener({**original, "refunded_money": {
+                "amount": 0, "currency": "JPY"}}))["unrefunded_verified"])
 
     def test_shipping_address_is_only_tested_not_returned(self):
         def mock_order(req, timeout):
