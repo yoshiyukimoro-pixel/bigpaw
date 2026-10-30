@@ -83,6 +83,7 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
     h = {"Host": HOST, **(headers or {})}
     if auth and "Authorization" not in h:
         admin = (path.startswith("/shop-test-orders.html") or
+                 path.startswith("/api/shop/sandbox/operator/draft?") or
                  path == "/api/shop/sandbox/operator/transition")
         credentials = (("operationstest:" + OPERATOR_PASSWORD) if admin
                        else ("shoptester:" + PASSWORD))
