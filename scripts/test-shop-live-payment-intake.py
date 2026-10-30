@@ -5,6 +5,9 @@ Never calls actual Square, Resend, Railway, buyers, or suppliers.
 """
 import base64
 from copy import deepcopy
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from unittest.mock import patch
 import hashlib
 import hmac
 import json
@@ -192,6 +195,69 @@ class SignedSquarePaymentIntakeTests(unittest.TestCase):
             ).fetchall()]
         self.assertEqual(ids, [self.event["event_id"]])
         self.assertEqual(self.ledger.status(ORDER_ID)["state"], "paid_verified")
+
+    def test_restart_after_paid_commit_but_before_event_audit_recovers(self):
+        """A crash between paid transition and event journal never double-pays."""
+        original = self.ledger.record_signed_payment_event
+        def crash_once(**_kwargs):
+            raise RuntimeError("SYNTHETIC PROCESS CRASH AFTER PAID COMMIT")
+        with patch.object(self.ledger, "record_signed_payment_event",
+                          side_effect=crash_once):
+            with self.assertRaisesRegex(RuntimeError, "SYNTHETIC PROCESS CRASH"):
+                self.receive()
+        self.assertEqual(self.ledger.status(ORDER_ID)["state"], "paid_verified")
+        with sqlite3.connect(self.database) as db:
+            exists = db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_signed_payment_events'"
+            ).fetchone()
+            if exists:
+                self.assertEqual(db.execute(
+                    "SELECT COUNT(*) FROM food_live_signed_payment_events"
+                ).fetchone()[0], 0)
+        first_gets = len(self.calls)
+        self.assertEqual(first_gets, 2)
+        recovered = self.receive()
+        self.assertEqual(recovered, {
+            "state": "already_recorded", "new_transition": False
+        })
+        self.assertEqual(len(self.calls), first_gets + 2,
+                         "recovery must revalidate live payment and order")
+        with sqlite3.connect(self.database) as db:
+            self.assertEqual(db.execute(
+                "SELECT COUNT(*) FROM food_live_signed_payment_events"
+            ).fetchone()[0], 1)
+        self.assertEqual(self.receive()["new_transition"], False)
+        with sqlite3.connect(self.database) as db:
+            self.assertEqual(db.execute(
+                "SELECT COUNT(*) FROM food_live_signed_payment_events"
+            ).fetchone()[0], 1)
+        self.assertEqual(self.ledger.status(ORDER_ID)["state"], "paid_verified")
+
+    def test_eight_concurrent_replayed_signed_events_transition_once(self):
+        """Simultaneous legitimate notifications must not duplicate journal."""
+        count = 8
+        barrier = Barrier(count)
+        def run(_index):
+            barrier.wait(timeout=8)
+            return self.receive()
+        with ThreadPoolExecutor(max_workers=count) as executor:
+            results = list(executor.map(run, range(count)))
+        self.assertEqual(sum(result["new_transition"] is True
+                             for result in results), 1)
+        self.assertEqual(sum(result["new_transition"] is False
+                             for result in results), count - 1)
+        self.assertEqual(self.ledger.status(ORDER_ID)["state"], "paid_verified")
+        with sqlite3.connect(self.database) as db:
+            self.assertEqual(db.execute(
+                "SELECT COUNT(*) FROM food_live_signed_payment_events"
+            ).fetchone()[0], 1)
+            self.assertEqual(db.execute(
+                "SELECT COUNT(*) FROM food_live_order_ledger WHERE order_id=?",
+                (ORDER_ID,)
+            ).fetchone()[0], 1)
+        self.assertEqual(len(self.calls), count * 2,
+                         "every replay revalidates Square Payments AND Orders")
 
     def test_invalid_signature_or_url_fails_before_read_or_state_change(self):
         for inputs in (
