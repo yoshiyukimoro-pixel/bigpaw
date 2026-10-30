@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 from shop_payments.retail_catalog import load_sale_catalog
-from shop_payments.sandbox_connector import SandboxOrderStore
+from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxError
 from shop_payments.sandbox_fulfillment import SandboxFulfillmentOps
 
 spec=importlib.util.spec_from_file_location(
@@ -139,7 +139,7 @@ class OperatorConsoleTests(unittest.TestCase):
             opener=shipment_opener(self.square))
         bad={**self.fake_payment,
              "refunded_money":{"amount":21450,"currency":"JPY"}}
-        with self.assertRaises(ValueError):
+        with self.assertRaises(SquareSandboxError):
             self.run_console(["record-shipped",self.order],write=True,
                 opener=shipment_opener(self.square,payment=bad))
         self.assertEqual(self.run_console(["check-paid",self.order])["state"],

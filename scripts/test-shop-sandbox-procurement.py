@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 from shop_payments.retail_catalog import load_sale_catalog
-from shop_payments.sandbox_connector import SandboxOrderStore
+from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxError
 from shop_payments.sandbox_procurement import SandboxProcurementOps
 
 spec=importlib.util.spec_from_file_location(
@@ -145,7 +145,7 @@ class ProcurementTests(unittest.TestCase):
         self.command("supplier-ordered",confirm=True)
         self.command("supplier-received",confirm=True)
         for refund in (1,21450):
-            with self.subTest(refund=refund), self.assertRaises(ValueError):
+            with self.subTest(refund=refund), self.assertRaises(SquareSandboxError):
                 self.command("supplier-shipped",confirm=True,
                              opener=shipping_opener(refunded_yen=refund))
         self.assertEqual(self.proc.state(ORDER),"received_at_shop")

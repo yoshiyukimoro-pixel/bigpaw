@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 from shop_payments.retail_catalog import load_sale_catalog
-from shop_payments.sandbox_connector import SandboxOrderStore
+from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxError
 from shop_payments.sandbox_fulfillment import SandboxFulfillmentOps
 
 LOCATION = "SQUARE_SANDBOX_TEST01"
