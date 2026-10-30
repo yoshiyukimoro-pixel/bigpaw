@@ -80,6 +80,7 @@ class TestFulfillment(unittest.TestCase):
             )
             recipient = {
                 "display_name": "PRIVATE RECIPIENT",
+                "phone_number": "09012345678",
                 "address": {
                     "country": "JP" if complete else "US",
                     "postal_code": "100-0001",
