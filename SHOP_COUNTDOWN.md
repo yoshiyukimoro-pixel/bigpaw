@@ -230,3 +230,9 @@
 - [ショップCI 41118129554](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554)、[隔離フルアプリ回帰 41119928985](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41119928985)。本番データなし。
 - 別のデプロイ先ブラウザーチェックは、`bigpaw-test`がWebhook専用サービスのため`/api/health`で404。これはP04/T02の環境接続課題として残す。実サイト/本番環境は変更していない。
 - `SHOP_PROGRESS_POINTS.json`を更新し、**残り56→53ポイント（完了47ポイント）**。
+
+
+## 2026-10-31：P04 テスト接続先の読み取り再確認（ポイント未減算）
+
+- Railwayの読み取り確認で、`BigPaw/bigpaw-test`は本番環境内のSandbox Webhook専用サービス（`Dockerfile.shop-staging`、`/healthz`）。同プロジェクトの`bigpaw-site`はmainを配信し`www.bigpaw.site`を持つ公開サイト、`bigpaw-web`はドメイン未設定。別の非本番フルアプリは見つからない。
+- 公開本番サイトや本番アプリをブラウザーテスト/決済先にしない判断。サービス・設定・変数・デプロイの変更なし。P04は、安全なフルアプリSandbox URLと専用環境が用意されるまで保留。**残り53ポイントのまま**。
