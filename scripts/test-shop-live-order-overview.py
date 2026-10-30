@@ -52,6 +52,11 @@ class LiveOrderManagementOverviewTests(unittest.TestCase):
     def test_missing_db_does_not_create_any_file(self):
         self.assertEqual(self.read(),
                          {"orders": [], "count": 0, "read_only": True})
+        preview = render_order_overview_preview(self.ledger)
+        self.assertIn("DEMO-ORDER-001", preview)
+        self.assertIn("DEMO-ORDER-002", preview)
+        self.assertIn("架空の注文", preview)
+        self.assertIn("<strong>0</strong>", preview)
         self.assertFalse(self.path.exists())
 
     def test_operator_read_model_returns_two_historical_state_labels(self):
