@@ -311,3 +311,11 @@
 - GitHub Actions `41131191985` **SUCCESS**：前記返金テスト時刻・Sandbox Location・テスト専用理由・JPY 21,450円に一致する返金履歴をSquareの`GET /v2/refunds`で読み取り、**該当1件の返金状態がCOMPLETED**であることを確認。監査ではPOST=0。元テストの確認処理のエラー原因は未特定であり、返金APIの処理手順・レスポンス照合を改めて検証する。
 - GitHub Actions `41130651834`：Resend送信ドメインの読み取り検証を実施。APIキーの`GET /domains`権限がなくHTTP 401/403で未検証（送信不可を意味しない）。実メール送信なし。
 - P04、R02、F01は各タスクの全完了条件を満たしていないため減算しない。**残り46ポイント／完了54%を維持**。
+
+## 2026-10-31：Square Sandboxの返金受付後の確認処理を修正、総合CI再合格
+
+- Squareの実Sandboxに対して新しい返金POSTや二重処理は実行していない。
+- `scripts/smoke-shop-square-sandbox-refund.py` はSandboxの返金レスポンスで注文ID/店舗IDが省略されても、事前にSquare Orders/Paymentsで両方を独立照合している場合に限り、返金ID・決済ID・正確なJPY金額・返金状態を必須チェックするよう改善。注文ID/店舗IDが存在する場合の不一致は拒否。途中失敗時に「返金要求を予約済みか」だけを安全に診断表示し、**絶対に自動再試行しない**。
+- `scripts/test-shop-square-sandbox-refund.py` に、任意欄省略を許容し、明示的な不一致は拒否する回帰テストを追加。
+- GitHub Actions `41131517682` と `41131681839` のショップCIが **SUCCESS**。Python/Sandbox安全テスト、独立Webhook用Docker・本体Docker、Chromium・iPhone WebKit画面試験を通過。
+- これらは模擬/非本番の品質確認であり、P04/R02の実Webhook/配送/メール/本番相当の全完了条件は未達。**残り46ポイント（完了54%）を維持**。
