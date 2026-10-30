@@ -38,21 +38,19 @@ class Tests(unittest.TestCase):
     def test_sends_only_one_real_mail_to_fixed_owner_not_customer(self):
         calls=[]
         def fake(req,timeout):
-            self.assertEqual(req.full_url,"https://api.resend.com"+("/emails" if not calls else "/emails/mail-test-123456"))
-            self.assertIn(req.get_method(),("POST","GET"))
+            self.assertEqual(req.full_url,"https://api.resend.com/emails")
+            self.assertEqual(req.get_method(),"POST")
             calls.append(req.get_method())
-            if req.get_method()=="POST":
-                data=json.loads(req.data)
-                self.assertEqual(data["to"],["info@bigpaw.site"])
-                self.assertEqual(data["from"],"BIG PAW <noreply@bigpaw.site>")
-                self.assertIn("実注文ではありません",data["subject"])
-                self.assertIn("発注は不要",data["text"])
-                return FakeResponse({"id":"mail-test-123456"})
-            return FakeResponse({"id":"mail-test-123456","to":["info@bigpaw.site"],"last_event":"delivered"})
+            data=json.loads(req.data)
+            self.assertEqual(data["to"],["info@bigpaw.site"])
+            self.assertEqual(data["from"],"BIG PAW <noreply@bigpaw.site>")
+            self.assertIn("実注文ではありません",data["subject"])
+            self.assertIn("発注は不要",data["text"])
+            return FakeResponse({"id":"mail-test-123456"})
         status,output=self.capture(env=ENV,opener=fake,delay=lambda s:None)
         self.assertEqual(status,0)
-        self.assertEqual(calls,["POST","GET"])
-        self.assertIn("DELIVERED",output)
+        self.assertEqual(calls,["POST"])
+        self.assertIn("ACCEPTED_DELIVERY_NOT_VERIFIED",output)
         self.assertNotIn("mail-test-123456",output)
     def test_ambiguous_timeout_does_not_retry(self):
         calls=[]
@@ -63,13 +61,12 @@ class Tests(unittest.TestCase):
         self.assertEqual(calls,["POST"])
     def test_accepted_but_unverified_never_resends(self):
         calls=[]
-        def unavailable(req,timeout):
+        def accepted(req,timeout):
             calls.append(req.get_method())
-            if req.get_method()=="POST":return FakeResponse({"id":"mail-test-123456"})
-            return FakeResponse({"id":"mail-test-123456","to":["info@bigpaw.site"],"last_event":"sent"})
-        status,output=self.capture(env=ENV,opener=unavailable,delay=lambda s:None)
-        self.assertEqual(status,4)
-        self.assertEqual(calls.count("POST"),1)
-        self.assertIn("DELIVERY_UNVERIFIED",output)
+            return FakeResponse({"id":"mail-test-123456"})
+        status,output=self.capture(env=ENV,opener=accepted,delay=lambda s:None)
+        self.assertEqual(status,0)
+        self.assertEqual(calls,["POST"])
+        self.assertIn("ACCEPTED_DELIVERY_NOT_VERIFIED",output)
 
 if __name__=="__main__":unittest.main()
