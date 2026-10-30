@@ -132,9 +132,11 @@ def verify_current_sandbox_payment(*, snapshot: dict, token: str, opener=urlopen
     money = payment.get("amount_money")
     # Square may omit refunded_money while no refunds exist; a present
     # structure must still be valid JPY with an exact zero amount.
-    refund = payment.get("refunded_money")
-    if refund is None:
-        refund = {"amount": 0, "currency": "JPY"}
+    # Omitted optional refunded_money is normal. An explicitly present null,
+    # false, empty object, wrong currency, or non-integer value is NOT proof
+    # that a completed payment remains unrefunded.
+    refund = (payment["refunded_money"] if "refunded_money" in payment
+              else {"amount": 0, "currency": "JPY"})
     if (payment.get("status") != "COMPLETED"
             or payment.get("order_id") != square_order_id
             or payment.get("location_id") != location_id
