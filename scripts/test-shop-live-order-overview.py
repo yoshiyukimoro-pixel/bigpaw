@@ -6,6 +6,7 @@ import unittest
 
 from shop_payments.live_order_ledger import LiveOrderLedger, LiveOrderBlocked
 from shop_payments.live_order_overview import read_order_management_snapshot
+from shop_payments.staging_live_overview_page import render_order_overview_preview
 from shop_payments.retail_catalog import load_sale_catalog
 
 PENDING = "FOOD" + "a" * 32
@@ -80,6 +81,38 @@ class LiveOrderManagementOverviewTests(unittest.TestCase):
         self.assertNotIn("recipient", str(snapshot).lower())
         self.assertNotIn("payment_id", str(snapshot).lower())
         self.assertNotIn("square_order_id", str(snapshot).lower())
+
+    def test_preview_html_displays_history_without_promising_current_payment(self):
+        self.setup_orders()
+        self.mark_paid_offline()
+        html = render_order_overview_preview(self.ledger)
+        self.assertIn("BIG PAW｜注文管理の表示確認", html)
+        self.assertIn("過去のSquare入金確認記録あり", html)
+        self.assertIn("現在の入金・返金状況は未確認", html)
+        self.assertIn("仕入れ・発送やお客様への入金済み通知は行わない", html)
+        self.assertIn("最大100件", html)
+        self.assertNotIn("action=", html)
+        self.assertNotIn("<form", html)
+        for forbidden in ("recipient_email", "payment_id", "square_order_id",
+                          "Authorization", "Bearer "):
+            self.assertNotIn(forbidden, html)
+        self.assertIn(f"{self.price:,}円", html)
+        with sqlite3.connect(self.path) as db:
+            import json
+            row = db.execute(
+                "SELECT cart_snapshot FROM food_live_order_ledger "
+                "WHERE order_id=?", (PENDING,),
+            ).fetchone()
+            lines = json.loads(row[0])
+            lines[0]["name"] = '<img src=x onerror="alert(1)">'
+            db.execute(
+                "UPDATE food_live_order_ledger SET cart_snapshot=? "
+                "WHERE order_id=?",
+                (json.dumps(lines), PENDING),
+            )
+        html = render_order_overview_preview(self.ledger)
+        self.assertNotIn('<img src=x onerror="alert(1)">', html)
+        self.assertIn("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;", html)
 
     def test_limit_and_invalid_private_entry_are_blocked(self):
         self.setup_orders()
