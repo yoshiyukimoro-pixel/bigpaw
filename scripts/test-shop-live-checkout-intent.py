@@ -186,6 +186,43 @@ class CheckoutIntentTests(unittest.TestCase):
         self.assertFalse(self.bind()["new_binding"])
         self.assertEqual(self.ledger.status(ORDER)["state"], "checkout_recorded")
 
+    def test_past_plan_cannot_issue_and_no_api_attempt_is_created(self):
+        self.prepare()
+        import time
+        with sqlite3.connect(self.path) as db:
+            db.execute(
+                "UPDATE food_live_checkout_intent SET created_at=? WHERE order_id=?",
+                (int(time.time()) - 16 * 60, ORDER),
+            )
+        with self.assertRaises(LiveOrderBlocked):
+            self.intent.begin_attempt(order_id=ORDER)
+        self.assertEqual(self.intent.status(ORDER)["state"], "planned")
+        self.assertEqual(self.calls, [])
+
+    def test_duplicate_square_link_id_cannot_leave_partial_order(self):
+        self.prepare()
+        self.intent.begin_attempt(order_id=ORDER)
+        self.bind()
+        self.intent.prepare(order_id=OTHER, location_id=LOCATION, cart=self.cart)
+        self.intent.begin_attempt(order_id=OTHER)
+        other_square_order = "SECONDSYNTHETICORDER12345"
+        other_link = {**LINK, "order_id": other_square_order}
+        def other_get(req, timeout):
+            self.assertEqual(req.get_method(), "GET")
+            self.assertEqual(req.full_url,
+                             ENDPOINT + "/orders/" + other_square_order)
+            return FakeResponse({"order": {
+                "id": other_square_order, "location_id": LOCATION, "state": "OPEN",
+                "total_money": {"amount": self.price, "currency": "JPY"},
+            }})
+        with self.assertRaises(LiveOrderBlocked):
+            self.intent.bind_square_result(
+                order_id=OTHER, link=other_link, api_key=API_KEY,
+                opener=other_get,
+            )
+        self.assertEqual(self.intent.status(OTHER)["state"], "attempt_unknown")
+        self.assertEqual(self.ledger.status(OTHER), {"state": "not_found"})
+
     def test_no_unknown_order_or_unsaved_cart_creates_payment(self):
         with self.assertRaises(LiveOrderBlocked):
             self.intent.begin_attempt(order_id=ORDER)
