@@ -344,3 +344,11 @@
 - Square Webhook Subscriptionsの読み取り `41133493643` は旧通知先のみ有効、新通知先は未登録と確認。新通知先をSquare Sandboxに `enabled=false` で登録 `41133935500` **SUCCESS**。
 - 事後の別の読み取り検証 `41134021794` **SUCCESS**：旧通知先有効、新通知先無効、既存サブスクリプション変更なし。Squareの署名鍵や注文個人情報をCIログへ表示しない。新RailwayのWebhookは503待機継続。
 - T03（専用署名鍵/Location/Tokenの設定と実Webhook着信）・P04（送料込みJPYの端末→配送住所→決済→実Webhook）・R02は未完了。進捗は**残り46ポイント、完了54%**。本番公開・実決済・発注・メール送信なし。
+
+## 2026-10-31：新Square Sandbox通知先の署名鍵確認と安全なRailway秘密値移送準備
+
+- 新Sandbox専用Square Webhook `enabled=false` 登録はActions `41133935500` SUCCESS。旧URLは未変更。
+- Actions `41134370968` SUCCESS：Square Sandboxの当該Webhook `GET /v2/webhooks/subscriptions/{id}`から本物の署名鍵を取得可能と確認。ローカルHMAC検証・誤URL検証成功。署名鍵は一切ログ・保存していない。
+- SquareからRailwayへ認証情報を直接送るGitHub Actionsのコードを作成：`scripts/sync-shop-staging-sandbox-secrets.py`／`scripts/test-shop-staging-sandbox-secret-sync.py`／`.github/workflows/shop-staging-sandbox-secret-sync.yml`。既存Square Sandbox Token＋Location IDと、当該無効通知先の専用署名鍵のみを、新`BIG PAW App Staging`の`staging`環境・Webhook専用Serviceに書き込む。Railway Project Tokenが別途GitHub Secretに設定されない限り実行不可。書込後も`skipDeploys=true`で公開/配信開始はしない。
+- Actions `41134714141` **SUCCESS**：5ケースの秘密値移送安全ガード、Python、Square Sandbox単体、独立Docker・本体Docker、Chromium・iPhone Safari/WebKitの総合CI合格。
+- 新RailwayサービスへのSquare機密値の設定、新URLの有効化、Square→Railway本物Webhook受信・配送先実入力は**未実施**。T03/P04は未完了、**残り46ポイント（完了54%）**で変更なし。ユーザーがトークンをチャットに貼る必要はない。詳細：`SHOP_SQUARE_SANDBOX_MIGRATION.md`。
