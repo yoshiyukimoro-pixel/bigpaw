@@ -40,3 +40,13 @@ PYTHONPATH=. python3 scripts/audit-shop-stop-readiness.py --db /path/to/explicit
 - 決済画面を開いた時点で`OPEN`へ変化する場合があり、**OPENも入金の証拠ではない**。正確なSquare Payments APIの`COMPLETED`、注文ID・店舗・金額・通貨と返金状態の再取得を必須とする。
 - 開発ブランチは発行直後の`DRAFT`注文を、サーバー側の固定済み商品・数量・税込単価と照合し、一致した場合のみ「リンク発行済み」として保持する。`DRAFT`で受注入金確定にしてはならない。
 - Square公式資料：https://developer.squareup.com/reference/square/checkout/create-payment-link ・ https://developer.squareup.com/docs/checkout-api/common-pitfalls ・ https://developer.squareup.com/docs/checkout-api/quick-pay-checkout
+
+## 2026-10-31：実Railway staging停止・旧版復旧訓練（本番は変更しない）
+
+- 隔離済み `BIG PAW App Staging / bigpaw-app-staging` のみで、購入受付フラグ `BIGPAW_SHOP_PUBLIC_LIVE_ENABLED` を一時的に `1` へ変更。起動時の別ガード `BIGPAW_ENV=staging` と、コード内の未承認チェック `retail_launch_status.json` は販売開始を許さない。**実購入は一件も作らない**。
+- Railwayは変数変更により、元々固定していた古いコミットでなく開発ブランチ最新版 `4efd67db9d6c15541ef85869b166fdcb7be035f9` の新規ビルド `b64233f3-98a9-4206-9fc9-83ee5fddb925` を作成した。このため**環境変数変更は単なるフラグ操作ではなく新コードを自動ビルドし得る**という運用リスクが実際に判明。
+- 検証中にフラグを `0` へ復元（`skipDeploys=true`）、先の安定版 `3bb941c3-7f20-451e-9f50-77ea2e92ef56` を指定して `redeploy`。復旧デプロイ `8bf0a601-ee0e-4d50-9d22-1299dfb7e01d` はRailway **SUCCESS**。先行ビルドは `REMOVED`、復旧後の動作コミットは `361ff926b8834ef099b85046610c61fb4a29eed7`。新アプリ・新Sandbox受信機ともOnline、警告0件。
+- 元のフルアプリ保存ボリュームID `929f1017-f474-45af-9fe1-c40e11d72801` は変わらない。旧 `BigPaw/bigpaw-site`、`bigpaw-test`、`bigpaw-web` のサービスは引き続きOnline。mainのコード変更、Square Production API、実メール送信、顧客への請求なし。
+- **確認できたこと**：Railwayサービスを再デプロイし、既知の安定版へ復旧して安全フラグをOFFに戻す運用。
+- **未確認**：実際に購入可能な状態からの停止応答、発行済みSquareリンクの個別無効化、以前の支払いイベントを処理するWebhookとの協調、保管した実注文の復旧可否。したがってP06（3）は完了扱いにせず、引き続き残り46ポイントを維持。
+- 本番緊急停止時は、`BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0` のみで安心せず、**デプロイ済みコミットID・保護されたサイト・注文台帳・既発行Squareリンク・Webhook経路**をそれぞれ点検。新コードで再デプロイされ得るため、正常ビルドIDを固定してロールバックする。本番運用の前に別途購入有効状態の隔離E2Eが必要。
