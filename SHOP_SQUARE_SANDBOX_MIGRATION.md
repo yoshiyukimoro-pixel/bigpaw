@@ -45,3 +45,10 @@ T03（Square実Webhook鍵とURL移行、受信検証）、P04（決済JPY・配�
 - 新Webhook専用サービスだけに `d653d7244ecd5a929db68c67cbd6ffede70cb77e` をデプロイ。`958fa8f1-71e0-4cba-badb-3bd1a722890b` SUCCESS／Online、警告0。
 - 外部GitHub Actions `41130100145` がSUCCESS：旧Sandbox `/healthz=200`、新フルアプリ `/healthz=200` /匿名`401`、新Webhook `/healthz=200`・署名無しPOST`503`。JSONの`status=sandbox_webhook_standby`を検証し、**Square Sandbox鍵未設定で必ず停止中**であることを確認。
 - T03の本当の完了にはSquare Developer ConsoleでSandbox専用サブスクリプションを登録し、Square署名鍵・Sandboxトークン・Location IDを新Railwayサービスへ秘密値として直接登録し、実際のSquare送信/署名/Payment照合に成功する必要がある。**残り46ポイント維持。**
+
+## 2026-10-31：Square新Webhookの無効サブスクリプション事前登録
+
+- Square公式 `GET /v2/webhooks/subscriptions` をGitHub Actions `41133493643` で検証。結果：**古いBIG PAW Sandbox URLは有効（payment.updated購読済み）、新URLは未登録**。秘密鍵、通知先ID、他事業者のURLはログに出していない。
+- 新しい開発用 `https://bigpaw-square-sandbox-staging-staging.up.railway.app/api/shop/sandbox/webhook` だけを、Square **Sandbox** の `enabled=false` サブスクリプションとして1件登録する。既存のURL・イベント購読設定には一切触れない。
+- GitHub Actionsの既存Sandboxトークンのみ利用。先にGETで重複防止、1件だけPOST（再試行なし）、固定冪等キー、POST失敗・タイムアウト時は再送禁止。作成応答に含まれるSquare `signature_key` はログやリポジトリに保存しない。
+- 作成できても**通知は無効状態**であり、Square鍵を新Railway受信サービスに安全登録し、実署名Webhookのエンドツーエンド確認が済むまでは有効にしない。T03は未達で残り46ポイントのまま。
