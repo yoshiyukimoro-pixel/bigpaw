@@ -548,7 +548,7 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertTrue(SandboxCustomerReview(store).reviewed(ORDER,"customer_order_confirmed"))
             self.assertEqual(approve(data,cookie=cookie)[0],303,"review action idempotent")
             done=request(srv,path)
-            self.assertIn("送信前チェック済み（テスト記録）".encode(),done[2])
+            self.assertIn("送信前チェック済み・未送信".encode(),done[2])
             self.assertIn("未送信".encode(),done[2])
             self.assertNotIn("buyer-test@example.invalid".encode(),done[2])
             with sqlite3.connect(store.db_file) as conn:
