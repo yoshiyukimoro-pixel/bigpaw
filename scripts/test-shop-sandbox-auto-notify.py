@@ -24,6 +24,7 @@ SECRET = "sandbox-local-test-hmac"
 URL = "https://sandbox.example.invalid/api/shop/sandbox/webhook"
 ENABLED = {
     "BIGPAW_ENV": "sandbox",
+    "BIGPAW_SHOP_STAGING_ISOLATED": "1",
     "BIGPAW_SHOP_SANDBOX_AUTO_NOTIFY_ENABLED": "1",
     "BIGPAW_SHOP_SANDBOX_OPERATOR_EMAIL_ENABLED": "1",
     "RESEND_API_KEY": "re_NOT_REAL_12345678901234567890",
