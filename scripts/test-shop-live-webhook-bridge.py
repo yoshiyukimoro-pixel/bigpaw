@@ -177,7 +177,7 @@ class WebhookAdapterTests(unittest.TestCase):
         # A correctly signed webhook must NOT bootstrap a new private DB.
         h2 = self.handler()
         self.assertEqual(self.invoke(h2, launch_status=None), 503)
-        self.assertEqual(h2.rfile.tell(), 0)
+        self.assertEqual(h2.rfile.tell(), len(self.sign()[0]))
         self.assertFalse(self.ledger_path.exists())
         self.assertEqual(self.gets, [])
 
@@ -203,7 +203,7 @@ class WebhookAdapterTests(unittest.TestCase):
         not_approved["launch_checks"]["proprietor_approval"] = False
         h = self.handler()
         self.assertEqual(self.invoke(h, launch_status=not_approved), 503)
-        self.assertEqual(h.rfile.tell(), 0)
+        self.assertEqual(h.rfile.tell(), len(self.sign()[0]))
         self.assertEqual(self.gets, [])
         self.assertFalse(self.ledger_path.exists())
 
