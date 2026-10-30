@@ -73,6 +73,8 @@ class CheckoutBoundaryTests(unittest.TestCase):
             "terms_sha256": TERMS,
         }).encode()
         self.square_total = self.product.sale_price_yen
+        self.square_order = SQUARE_ORDER
+        self.square_link_id = LINK_ID
 
     def fake_post(self, request, timeout):
         self.assertEqual(request.get_method(), "POST")
@@ -85,19 +87,19 @@ class CheckoutBoundaryTests(unittest.TestCase):
                          ["base_price_money"]["amount"], self.product.sale_price_yen)
         self.calls.append(("POST", POST_ENDPOINT))
         return SquareResponse({
-            "payment_link": {"id": LINK_ID, "order_id": SQUARE_ORDER,
+            "payment_link": {"id": self.square_link_id, "order_id": self.square_order,
                              "url": LINK_URL},
         }, 201)
 
     def fake_get(self, request, timeout):
         self.assertEqual(request.get_method(), "GET")
         self.assertEqual(request.full_url,
-                         GET_ENDPOINT + "/orders/" + SQUARE_ORDER)
+                         GET_ENDPOINT + "/orders/" + self.square_order)
         self.assertEqual(request.headers["Authorization"], "Bearer " + TOKEN)
         self.assertEqual(timeout, 10)
-        self.calls.append(("GET", GET_ENDPOINT + "/orders/" + SQUARE_ORDER))
+        self.calls.append(("GET", GET_ENDPOINT + "/orders/" + self.square_order))
         return SquareResponse({"order": {
-            "id": SQUARE_ORDER,
+            "id": self.square_order,
             "state": "OPEN",
             "location_id": LOCATION,
             "total_money": {"amount": self.square_total, "currency": "JPY"},
@@ -212,6 +214,8 @@ class CheckoutBoundaryTests(unittest.TestCase):
         # disclose or re-use the other session's checkout order number.
         # Use an independent synthetic Square response to avoid conflict.
         self.calls.clear()
+        self.square_order = "SECONDSESSIONORDER123456"
+        self.square_link_id = "SECONDSESSIONLINK123456"
         other = self.send(
             trusted_session_id="another_session_opaque_1234567890"
         )
