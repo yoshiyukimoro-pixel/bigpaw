@@ -74,7 +74,10 @@
             "railway_service": "BigPaw/bigpaw-test is live from Dockerfile.shop-staging with command shop_payments.staging_https_webhook and /healthz healthcheck; Sandbox variables are present by name only.",
             "observed_blocker": "The shop preview path returns an HTTP Basic Auth challenge in the browser; credentials are not available to this read-only session. No Square API request or Sandbox payment was made.",
             "workflow_observation": "GitHub Actions run 41119928985 deployed-test-browser failed because this webhook-only service returned 404 for /api/health. This shows the current regression target is not the full app service.",
-            "result": "pending_isolated_app_preview_auth_and_valid_shop_service_target; no point deduction"
+            "result": "pending_safe_full_app_sandbox_origin_and_owner-approved_environment; no point deduction",
+            "railway_inventory_at": "2026-10-31",
+            "inventory": "Read-only Railway review found BigPaw/bigpaw-test is the only Sandbox shop service and runs Dockerfile.shop-staging webhook-only with /healthz in its production environment. BigPaw/bigpaw-site deploys main and owns www.bigpaw.site; the separate bigpaw-web image has no domain. No isolated full-app Sandbox service or separate Railway nonproduction environment is available.",
+            "safety_decision": "Did not target public www.bigpaw.site or the production app for test payments/browser mutation. No service/config/variable/deployment was changed."
           }
         },
         {
