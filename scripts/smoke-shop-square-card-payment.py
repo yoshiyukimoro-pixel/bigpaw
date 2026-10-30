@@ -84,7 +84,15 @@ def create_fake_card_payment(
                 code = candidate
         except (ValueError, TypeError, KeyError, IndexError):
             pass
-        print("SQUARE_SANDBOX_PAYMENTS_HTTP_STATUS=%d CODE=%s" % (exc.code, code))
+        field = ""
+        try:
+            detail = json.loads(exc.read(4096))
+            candidate = detail.get("errors", [{}])[0].get("field", "")
+            if isinstance(candidate, str) and re.fullmatch(r"[A-Za-z0-9_.\[\]-]{1,80}", candidate):
+                field = candidate
+        except (ValueError, TypeError, KeyError, IndexError):
+            pass
+        print("SQUARE_SANDBOX_PAYMENTS_HTTP_STATUS=%d CODE=%s FIELD=%s" % (exc.code, code, field or "UNSPECIFIED"))
         raise SquareSandboxError("Square Sandbox CreatePayment HTTP error") from None
     except (URLError, OSError, ValueError, TimeoutError):
         raise SquareSandboxError("Square Sandbox CreatePayment connection unavailable") from None
