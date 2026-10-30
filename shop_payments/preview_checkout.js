@@ -134,8 +134,29 @@
     if (!Object.keys(cart).length) return;
     pending = true;
     refresh();
-    notice.textContent = '注文金額をBIG PAWで再計算してSquare Sandboxに接続しています。';
+    notice.textContent = '注文金額をBIG PAWサーバーで再計算しています。';
     try {
+      const quoteResponse = await fetch('/api/shop/sandbox/quote', {
+        method:'POST',credentials:'same-origin',cache:'no-store',
+        headers:{'Content-Type':'application/json','X-Shop-CSRF':config.csrf_token},
+        body:JSON.stringify({cart}),
+      });
+      if (!quoteResponse.ok) throw new Error('sandbox quote unavailable');
+      const quote = await quoteResponse.json();
+      if(quote.sandbox!==true || quote.real_payments!==false ||
+         quote.verified!==true || quote.shipping_yen!==0 ||
+         !Number.isInteger(quote.amount_yen) || quote.amount_yen<1 ||
+         quote.amount_yen>2000000){
+        throw new Error('sandbox quote mismatch');
+      }
+      // Cart must remain unchanged while the server confirms the quote.
+      const stable = x=>Object.entries(x).sort(([a],[b])=>a.localeCompare(b))
+        .map(([id,qty])=>id+':'+qty).join('|');
+      if(stable(currentCart())!==stable(cart)) {
+        notice.textContent='カートが変更されました。もう一度金額を確認してください。';
+        return;
+      }
+      notice.textContent='サーバー確認済み：税込・送料込み'+quote.amount_yen.toLocaleString('ja-JP')+'円。Square Sandboxへ接続します…';
       const res = await fetch('/api/shop/sandbox/checkout', {
         method: 'POST',
         credentials: 'same-origin',
