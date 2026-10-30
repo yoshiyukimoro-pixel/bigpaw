@@ -144,7 +144,15 @@ class LiveLedgerTests(unittest.TestCase):
         self.calls.clear()
         self.assertEqual(self.pay(),
                          {"state": "paid_verified", "new_transition": False})
-        self.assertEqual(self.calls, [])
+        self.assertEqual(self.calls, [
+            ("GET", ENDPOINT + "/payments/" + PAYMENT),
+            ("GET", ENDPOINT + "/orders/" + SQUARE_ORDER),
+        ], "replayed paid event requires fresh independent Square GET")
+        self.payment["refunded_money"] = {"amount": 1, "currency": "JPY"}
+        with self.assertRaises(LiveSquareNotVerified):
+            self.pay()
+        self.assertEqual(self.ledger.status(ORDER_ID)["state"], "paid_verified")
+        self.payment["refunded_money"] = {"amount": 0, "currency": "JPY"}
         with self.assertRaises(LiveOrderBlocked):
             self.pay(payment_id="ANOTHERFAKEPAYMENT12")
         raw = self.path.read_bytes()
