@@ -41,6 +41,7 @@ FILES = {
     "/shop-order-review.js": ROOT / "app/shop-order-review.js",
     "/shop-order-review.css": ROOT / "app/shop-order-review.css",
     "/shop-commerce.html": ROOT / "app/shop-commerce.html",
+    "/shop-returns.html": ROOT / "app/shop-returns.html",
     "/shop-sandbox-checkout.js": ROOT / "shop_payments/preview_checkout.js",
     "/shop-sandbox-review.js": ROOT / "shop_payments/review_sandbox_checkout.js",
 }
