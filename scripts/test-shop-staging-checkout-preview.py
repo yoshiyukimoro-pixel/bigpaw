@@ -21,8 +21,8 @@ from shop_payments.sandbox_runtime_guard import (
 HOST = "bigpaw-test-production.up.railway.app"
 ORIGIN = "https://" + HOST
 PASSWORD = "not-a-production-password-32-characters"
-ORDER = "FOOD" + ATTEMPT.replace("-", "")
 ATTEMPT = "12345678-1234-4234-8234-123456789abc"
+ORDER = "FOOD" + ATTEMPT.replace("-", "")
 BASE = {
     "RAILWAY_PROJECT_ID": LEGACY_BIGPAW_PROJECT,
     "RAILWAY_ENVIRONMENT_ID": EXISTING_TEST_ENVIRONMENT,
