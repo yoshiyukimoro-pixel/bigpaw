@@ -37,3 +37,11 @@
 T04（既存ボリューム保全とオフライン／HTTP両環境回帰）はGitHub Actions `41129261203` 成功により完了。**残り46ポイント（完了54%）**。
 
 T03（Square実Webhook鍵とURL移行、受信検証）、P04（決済JPY・配送情報の実E2E）、R02は**未完了**。新サービスが稼働しただけでポイントを減算しない。PR #175はDraft維持、本番未変更。
+
+## 新Webhook接続先制限の実デプロイ検証
+
+- `shop_payments/sandbox_runtime_guard.py` と `staging_https_webhook.py` で新しいRailway Project/Environment/Service IDと通知URLの完全一致を必須化。新フルアプリと旧サービスの取り違え、誤URLは拒否。
+- GitHub Actions `41129531895`（ショップ総合CI）、`41129531984`（非破壊両環境CI）はSUCCESS。Squareテストカード実決済・本番アクセスなし。
+- 新Webhook専用サービスだけに `d653d7244ecd5a929db68c67cbd6ffede70cb77e` をデプロイ。`958fa8f1-71e0-4cba-badb-3bd1a722890b` SUCCESS／Online、警告0。
+- 外部GitHub Actions `41130100145` がSUCCESS：旧Sandbox `/healthz=200`、新フルアプリ `/healthz=200` /匿名`401`、新Webhook `/healthz=200`・署名無しPOST`503`。JSONの`status=sandbox_webhook_standby`を検証し、**Square Sandbox鍵未設定で必ず停止中**であることを確認。
+- T03の本当の完了にはSquare Developer ConsoleでSandbox専用サブスクリプションを登録し、Square署名鍵・Sandboxトークン・Location IDを新Railwayサービスへ秘密値として直接登録し、実際のSquare送信/署名/Payment照合に成功する必要がある。**残り46ポイント維持。**
