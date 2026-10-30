@@ -4,6 +4,9 @@ The public BIG PAW site is never mounted to this module. No network, email,
 real customer data, credit-card charges or production Square credentials.
 """
 from copy import deepcopy
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, Lock
+import time
 import hashlib
 import json
 from pathlib import Path
@@ -234,6 +237,84 @@ class CheckoutBoundaryTests(unittest.TestCase):
             self.send()
         self.assertEqual(len(attempts), 1)
         self.assertEqual(self.calls, [])
+
+    def test_parallel_same_checkout_attempt_one_square_post_only(self):
+        """12 simultaneous shopper requests: only one irreversible POST claim."""
+        n = 12
+        barrier = Barrier(n)
+        lock = Lock()
+        post_count = []
+        def delayed_square_post(request, timeout):
+            with lock:
+                post_count.append(request.data)
+            time.sleep(0.09)
+            return SquareResponse({
+                "payment_link": {
+                    "id": LINK_ID, "order_id": SQUARE_ORDER, "url": LINK_URL
+                }
+            }, 201)
+        def caller(_):
+            barrier.wait(timeout=5)
+            try:
+                return ("ok", self.send(post_opener=delayed_square_post))
+            except LiveOrderBlocked:
+                return ("blocked", None)
+        with ThreadPoolExecutor(max_workers=n) as pool:
+            results = list(pool.map(caller, range(n)))
+        self.assertEqual(sum(x[0] == "ok" for x in results), 1)
+        self.assertEqual(sum(x[0] == "blocked" for x in results), n-1)
+        self.assertEqual(len(post_count), 1,
+                         "parallel double click must never issue multiple links")
+        self.assertEqual(self.calls, [
+            ("GET", GET_ENDPOINT + "/orders/" + SQUARE_ORDER),
+        ])
+        order_id = next(x[1]["order_id"] for x in results if x[0] == "ok")
+        self.assertEqual(self.ledger.status(order_id)["state"], "checkout_recorded")
+        self.assertEqual(self.intent.status(order_id)["state"], "link_bound")
+        before = len(post_count)
+        for _ in range(3):
+            with self.assertRaises(LiveOrderBlocked):
+                self.send(post_opener=delayed_square_post)
+        self.assertEqual(len(post_count), before)
+
+    def test_get_connection_drop_after_one_post_requires_manual_binding(self):
+        """POST may succeed while GET fails; automated retries remain blocked."""
+        calls = []
+        def fake_post(req, timeout):
+            calls.append("POST")
+            return SquareResponse({"payment_link": {
+                "id": LINK_ID, "order_id": SQUARE_ORDER, "url": LINK_URL,
+            }}, 201)
+        def get_disconnect(req, timeout):
+            calls.append("GET_LOST")
+            raise TimeoutError("synthetic Square GET interrupted")
+        with self.assertRaises(LiveOrderBlocked):
+            self.send(post_opener=fake_post, get_opener=get_disconnect)
+        self.assertEqual(calls, ["POST", "GET_LOST"])
+        with self.assertRaises(LiveOrderBlocked):
+            self.send(post_opener=fake_post)
+        self.assertEqual(calls, ["POST", "GET_LOST"],
+                         "retry never creates another Square link")
+        import sqlite3
+        with sqlite3.connect(self.path) as db:
+            order_id = db.execute(
+                "SELECT order_id FROM food_live_checkout_intent"
+            ).fetchone()[0]
+        self.assertEqual(self.intent.status(order_id)["state"], "attempt_unknown")
+        self.assertEqual(self.ledger.status(order_id)["state"], "not_found")
+        # Only a deliberate admin investigation of the EXISTING Square result
+        # is allowed; the recovery performs Square GET, never another POST.
+        result = self.intent.bind_square_result(
+            order_id=order_id,
+            link={"id": LINK_ID, "order_id": SQUARE_ORDER, "url": LINK_URL},
+            api_key=TOKEN, opener=self.fake_get,
+        )
+        self.assertEqual(result, {"state":"link_bound","new_binding":True})
+        self.assertEqual(self.intent.status(order_id)["state"], "link_bound")
+        self.assertEqual(self.ledger.status(order_id)["state"], "checkout_recorded")
+        with self.assertRaises(LiveOrderBlocked):
+            self.send(post_opener=fake_post)
+        self.assertEqual(calls, ["POST", "GET_LOST"])
 
     def test_square_get_price_mismatch_is_not_committed_to_order_ledger(self):
         self.square_total += 1
