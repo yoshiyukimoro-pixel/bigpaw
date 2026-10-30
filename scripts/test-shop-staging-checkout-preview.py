@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from http.client import HTTPConnection
 import json
 import sqlite3
+from urllib.parse import urlencode
 from pathlib import Path
 import tempfile
 from threading import Thread
@@ -22,6 +23,7 @@ from shop_payments.sandbox_runtime_guard import (
 HOST = "bigpaw-test-production.up.railway.app"
 ORIGIN = "https://" + HOST
 PASSWORD = "not-a-production-password-32-characters"
+OPERATOR_PASSWORD = "not-a-real-operator-password-long-enough"
 ATTEMPT = "12345678-1234-4234-8234-123456789abc"
 ORDER = "FOOD" + ATTEMPT.replace("-", "")
 BASE = {
@@ -39,6 +41,9 @@ BASE = {
     "BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "1",
     "BIGPAW_SHOP_STAGE_PREVIEW_USER": "shoptester",
     "BIGPAW_SHOP_STAGE_PREVIEW_PASSWORD": PASSWORD,
+    "BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "1",
+    "BIGPAW_SHOP_STAGE_OPERATOR_USER": "operationstest",
+    "BIGPAW_SHOP_STAGE_OPERATOR_PASSWORD": OPERATOR_PASSWORD,
 }
 
 
@@ -75,8 +80,12 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
     conn = HTTPConnection("127.0.0.1", srv.server_port, timeout=4)
     h = {"Host": HOST, **(headers or {})}
     if auth and "Authorization" not in h:
+        admin = (path.startswith("/shop-test-orders.html") or
+                 path == "/api/shop/sandbox/operator/transition")
+        credentials = (("operationstest:" + OPERATOR_PASSWORD) if admin
+                       else ("shoptester:" + PASSWORD))
         h["Authorization"] = "Basic " + base64.b64encode(
-            ("shoptester:" + PASSWORD).encode()
+            credentials.encode()
         ).decode()
     try:
         conn.request(method, path, body=data, headers=h)
@@ -102,6 +111,11 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertIn(b"shop-sandbox-checkout.js", r[2])
             self.assertIn("【Sandbox専用】".encode(), r[2])
             self.assertIn(b"stageOrdersDashboardLink", r[2])
+            shopper_authorization = "Basic " + base64.b64encode(
+                ("shoptester:" + PASSWORD).encode()).decode()
+            self.assertEqual(request(srv, "/shop-test-orders.html",
+                                     headers={"Authorization": shopper_authorization})[0], 401,
+                             "checkout login must never grant operator access")
             self.assertIn("noindex", r[1]["X-Robots-Tag"])
             review = request(srv, "/shop.html?order=review")
             self.assertEqual(review[0], 200)
@@ -110,7 +124,7 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(request(srv, "/shop-test-orders.html", auth=False)[0], 401)
             empty_dashboard = request(srv, "/shop-test-orders.html")
             self.assertEqual(empty_dashboard[0], 200)
-            self.assertIn("閲覧専用".encode(), empty_dashboard[2])
+            self.assertIn("手動進捗テスト".encode(), empty_dashboard[2])
             self.assertIn("注文の記録はありません".encode(), empty_dashboard[2])
             self.assertNotIn(b"RESEND_API_KEY", empty_dashboard[2])
             self.assertNotIn(b"square_payment_id", empty_dashboard[2])
@@ -225,11 +239,84 @@ class CheckoutPreviewTests(unittest.TestCase):
                 ).fetchone()[0]
             self.assertEqual(count, 3, "dashboard must not send or change drafts")
 
+    def test_operator_post_requires_verified_paid_state_origin_csrf_and_confirmation(self):
+        from shop_payments.retail_catalog import load_sale_catalog
+        with server_with_env() as (srv, store, calls):
+            store.add_pending_order(order_id=ORDER, cart={"A02": 1},
+                                    verified_prices=load_sale_catalog(), shipping_yen=0,
+                                    location_id=BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"])
+            dashboard = request(srv, "/shop-test-orders.html")
+            self.assertEqual(dashboard[0], 200)
+            header = dashboard[1]["Set-Cookie"]
+            self.assertIn("__Host-bigpaw_shop_operator_csrf=", header)
+            cookie_pair = header.split(";", 1)[0]
+            token = cookie_pair.split("=", 1)[1]
+            action = "/api/shop/sandbox/operator/transition"
+            data = {"order_id": ORDER, "stage": "supplier_ordered",
+                    "expected": "awaiting_supplier_order", "csrf": token,
+                    "confirm": "record_only"}
+            def send(values=data, *, auth=True, origin=ORIGIN, cookie=cookie_pair):
+                return request(srv, action, method="POST", auth=auth,
+                    data=urlencode(values).encode(), headers={
+                        "Origin": origin, "Cookie": cookie,
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    })
+            self.assertEqual(send(auth=False)[0], 401)
+            self.assertEqual(send(origin="https://untrusted.invalid")[0], 403)
+            self.assertEqual(send(cookie="invalid=x")[0], 403)
+            self.assertEqual(send({**data, "confirm": "not_confirmed"})[0], 400)
+            self.assertEqual(send()[0], 409, "unpaid orders cannot advance")
+            self.assertEqual(calls, [])
+            with sqlite3.connect(store.db_file) as conn:
+                conn.execute(
+                    "UPDATE orders SET state='paid',paid_at=1761780000,"
+                    "square_payment_id='MOCK_PAID_ID',square_order_id='MOCK_ORDER_ID' "
+                    "WHERE order_id=?", (ORDER,)
+                )
+            paid_dashboard = request(srv, "/shop-test-orders.html")
+            self.assertEqual(paid_dashboard[0], 200)
+            html = paid_dashboard[2].decode()
+            self.assertIn("手動の進捗記録", html)
+            self.assertIn("supplier_ordered", html)
+            self.assertNotIn('name="stage" value="shipped"', html)
+            csrf = paid_dashboard[1]["Set-Cookie"].split(";",1)[0]
+            form = dict(data, csrf=csrf.split("=",1)[1])
+            def record(values):
+                return send(values, cookie=csrf)
+            first = record(form)
+            self.assertEqual(first[0], 303)
+            self.assertEqual(first[1]["Location"], "/shop-test-orders.html?updated=1")
+            self.assertEqual(record(form)[0], 409, "stale form must fail")
+            with sqlite3.connect(store.db_file) as conn:
+                n = conn.execute("SELECT COUNT(*) FROM food_procurement_events "
+                                 "WHERE order_id=?", (ORDER,)).fetchone()[0]
+            self.assertEqual(n, 1, "stale retries never append duplicate events")
+            self.assertEqual(record({**form,"stage":"shipped"})[0], 400)
+            self.assertEqual(record({**form,"stage":"refunded"})[0], 400)
+            self.assertEqual(record({**form,"stage":"received_at_shop"})[0], 409)
+            next_page = request(srv, "/shop-test-orders.html")
+            self.assertIn("発注済み（テスト記録）".encode(), next_page[2])
+            self.assertIn("入荷・検品をテスト記録".encode(), next_page[2])
+            new_cookie = next_page[1]["Set-Cookie"].split(";",1)[0]
+            step2 = dict(form, stage="received_at_shop", expected="supplier_ordered",
+                         csrf=new_cookie.split("=",1)[1])
+            self.assertEqual(send(step2,cookie=new_cookie)[0], 303)
+            final = request(srv, "/shop-test-orders.html")
+            self.assertIn("入荷検品済み（テスト記録）".encode(), final[2])
+            self.assertNotIn("MOCK_PAID_ID".encode(), final[2])
+            self.assertEqual(calls, [], "recording never creates Square checkout links")
+            with sqlite3.connect(store.db_file) as conn:
+                states = [x[0] for x in conn.execute(
+                    "SELECT stage FROM food_procurement_events WHERE order_id=? ORDER BY id",
+                    (ORDER,))]
+            self.assertEqual(states, ["supplier_ordered", "received_at_shop"])
+
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
         for config in (
             {"BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0"},
             {"BIGPAW_SHOP_STAGE_PREVIEW_PASSWORD": ""},
             {"BIGPAW_SHOP_STAGE_PREVIEW_PASSWORD": "short"},
+            {"BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"},
             {"BIGPAW_ENV": "production"},
             {"RAILWAY_SERVICE_ID": "32e31163-1049-41d3-84f8-dd61a0a7019e"},
             {"RAILWAY_SERVICE_ID": "1ad6d952-c284-4886-9237-a30c364132fd"},
