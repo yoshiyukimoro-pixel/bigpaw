@@ -398,3 +398,10 @@
 - GitHub Actions `41140899019` **SUCCESS**：Sandbox各系統、Python、2つのDocker、PC Chromium、iPhone Safari/WebKitの総合テスト通過。新しい独立したSquare Sandbox受信サービス**だけ**、固定コミット`c5d508e3db3c61014ada614f90284b804f928032`をRailwayに反映し、Deployment `649b122d-354c-4870-a8f4-e0993deabd76` **SUCCESS**。
 - GitHub Actions `41141218188` **SUCCESS**：追加した最新Square支払い/発送テストと、新旧RailwayのHTTPSヘルスチェック・認証付画面・署名無しWebhook拒否・新Webhookの`sandbox_webhook_standby`を再検証した。
 - 重要：これはSquareの過去に決済済みの**テスト**注文を手動で「発送記録」へ変更する直前の瞬時の再確認であり、本番での実配送・在庫確保・決済返金保証ではない。新WebhookのSquare Sandbox資格情報3件はまだ未設定、Square新通知サブスクリプションはdisabled。**T03/P04/R02等は未完、完了54%／残り46ポイントで維持**。PR #175はDraft。既存の本番サイト、実決済、顧客メール、Square本番は変更していない。
+
+## 2026-10-31：新Webhook単独の管理画面公開防止・最新再デプロイ確認
+
+- GitHub Actions `41141218188` **SUCCESS**：Square Sandboxの最新GET支払い・未返金・配送先照合を、仕入れ／発送記録直前に必須化した合成テストおよび、旧・新Railwayの公開エンドポイントが健康であることを確認。
+- 新しいRailwayプロジェクトの隔離Webhook受信機 `bigpaw-square-sandbox-staging` だけをテスト済み固定コミット`541e1a0ae2f1ede49424d30e8e2c8a9ff1080ac9`に更新。Deployment `962422e5-0afe-4d6b-a55b-12a94284b176` **SUCCESS**、Online、重大警告0。通常の`bigpaw-site`と旧`bigpaw-test`、新フルアプリ`bigpaw-app-staging`のソースは変更せず正常稼働。
+- 防御の追加：`.github/workflows/shop-staging-dual-env-regression.yml`の公開面チェックに、新Webhook`/shop-test-orders.html`と`/api/shop/sandbox/operator/draft`が双方HTTP **404**となる検査を追加。外部実測のGitHub Actions `41141496893` **SUCCESS**。同時に旧Sandbox`/healthz`=200、新Webhook`/healthz`=200/`sandbox_webhook_standby`、未署名Webhook POST=503、新フルアプリの非認証購入画面=401を再確認。
+- 新WebhookはSquareの秘密情報3件が未設定、Square新通知購読も無効のため、今回も実通知の受信はしていない。コード・HTTP動作はテスト済みでもT03/P04/R02等の完了条件を代替しない。**進捗54%・残46ポイント**、PR #175 Draft、本番販売・実Square決済・実メールは停止したまま。
