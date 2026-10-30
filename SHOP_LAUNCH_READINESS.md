@@ -86,6 +86,13 @@
 - `scripts/test-shop-live-checkout-controller.py`は完全に偽の環境とSquare POST/GETだけで、通常は遮断され、**人工的な承認テスト時だけ**注文固定→Squareリンク照合→台帳への原子的登録に至ることを確認。実商用カード請求・Square実API・実メールはゼロ。
 - さらに必要：実際の本番HTTPSハンドラーの適切な認証/セッション管理/レート制限、決済条件の法務確認、Square実商用E2E、ショップ専用テスト環境分離、オーナーの最終承認。**現段階で本番購入ボタンは有効化しない。**
 
+## 2026-10-30：Square決済後の注文監査と注文一覧（未公開部品）
+
+- `live_order_ledger.py`：重複する「決済完了」通知でも古い`paid_verified`の履歴をそのまま通さず、**Square Production Payments/Ordersの最新GETを再照合**する。後日返金された場合、再通知の独立確認は失敗し、現在も入金済みと表示しない。過去の台帳履歴自体は監査用として保持する。
+- `live_payment_intake.py`：署名検証済み通知のイベントIDと原本文のSHA-256を照合し、Square GETで入金・未返金を確認してから`food_live_signed_payment_events`に監査履歴を記録。同一通知IDは1件だけ、本文が違う同一IDは拒否。DB内にお客様のメール/住所・通知原文・トークンを保存しない。クラッシュ時は同じ通知を新たなSquare GETで再確認した後に再記録できる。
+- `live_order_overview.py`：将来の運営専用注文管理のための**SQLite完全読取専用、最大100件**の一覧データ。注文SKU・数量・税込額・過去の入金記録・署名付き通知数を出せる。`paid_verified`は過去の確認履歴であり、**現在の返金状況は必ず`not_checked`と表示**する。顧客PII・Squareトークンは含めない。
+- `test-shop-live-payment-intake.py`、`test-shop-live-order-ledger.py`、`test-shop-live-order-overview.py`をGitHub CIで無通信検証。現在のサイト・運営画面・Square本番・購入者へのメール送信へはまだ**未接続**。正式販売承認が完了するまで有効化しない。
+
 ## 今の運用上の注意
 
 - ショップ公開用の `app/shop.html` は「販売準備中」で、決済ボタンが無効。現行の `bigpaw-test` は専用Sandbox Dockerサービスであり、公開用BIG PAW全体の変更を試すサービスではない。
