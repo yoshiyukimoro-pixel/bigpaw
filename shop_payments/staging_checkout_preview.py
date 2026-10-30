@@ -130,6 +130,20 @@ def handle_get(handler):
     allowed = path in ("/shop.html", "/shop-test-orders.html") or path in FILES or path == "/api/shop/sandbox/config" or ORDER.fullmatch(path) or ASSETS.fullmatch(path)
     if not allowed:
         return False
+    if path == "/shop-test-orders.html":
+        from .staging_operator_actions import authenticate, new_csrf_cookie
+        if not authenticate(handler):
+            return True
+        from .staging_orders_dashboard import render
+        csrf, cookie = new_csrf_cookie()
+        try:
+            html = render(handler.server.store, csrf=csrf)
+        except (OSError, ValueError, sqlite3.Error):
+            _send(handler, 503, {"error": "test_dashboard_unavailable"})
+            return True
+        _send(handler, 200, html.encode("utf-8"), "text/html; charset=utf-8",
+              extra={"Set-Cookie": cookie})
+        return True
     if not _authenticated(handler):
         return True
     if path == "/api/shop/sandbox/config":
@@ -145,18 +159,6 @@ def handle_get(handler):
         state = handler.server.store.status(match.group(1))
         _send(handler, 404 if state == "not_found" else 200,
               {"order_status": state} if state != "not_found" else {"error": "not_found"})
-        return True
-    if path == "/shop-test-orders.html":
-        from .staging_orders_dashboard import render
-        try:
-            html = render(handler.server.store)
-        except (OSError, ValueError):
-            _send(handler, 503, {"error": "test_dashboard_unavailable"})
-            return True
-        except sqlite3.Error:
-            _send(handler, 503, {"error": "test_dashboard_unavailable"})
-            return True
-        _send(handler, 200, html.encode("utf-8"), "text/html; charset=utf-8")
         return True
     if path == "/shop.html":
         html = (ROOT / "app/shop.html").read_text(encoding="utf-8")
@@ -191,6 +193,9 @@ def handle_get(handler):
 
 def handle_post(handler):
     path = urlsplit(handler.path).path
+    if path == "/api/shop/sandbox/operator/transition":
+        from .staging_operator_actions import handle_post as operator_post
+        return operator_post(handler)
     if path != "/api/shop/sandbox/checkout":
         return False
     if not _authenticated(handler):
