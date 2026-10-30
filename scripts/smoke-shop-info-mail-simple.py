@@ -3,7 +3,8 @@
 No Square fixture or actual order. The single test is triggered ONLY by an
 explicit tagged commit on the private staging branch; never in production.
 The script POSTs once and never retries. A provider receipt ('accepted') is
-not proof of delivered email. Never prints API key, email ID or payload.
+not proof of delivered email. Sending-access API keys cannot read GET /emails/:id.
+Never prints API key, email ID or payload.
 """
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ BODY = (
     "トランペッツへの発注は不要です。\n"
     "このメールが info@bigpaw.site で受信できればテスト受信の確認になります。\n"
 )
-KEY = "bigpaw-shop-owner-info-test-20261030-v2"
+KEY = "bigpaw-shop-owner-info-test-20261030-v3"
 REF = "refs/heads/feature/dogfood-shop-staging-20261028"
 
 
@@ -100,32 +101,10 @@ def once(*, env=None, opener=urlopen, delay=time.sleep):
         print("BIGPAW_REAL_MAIL_TEST=UNCERTAIN: do NOT retry, provider may have accepted")
         return 4
 
-    # Pure read requests: no additional sending on failure or ambiguous state.
-    for attempt in range(5):
-        if attempt:delay(3)
-        req=Request(HOST+"/emails/"+email_id,method="GET",headers={
-            "Authorization":"Bearer "+key,
-            "Accept":"application/json",
-            "User-Agent":"BIGPAW-Shop-Single-Mail-Check/1.0",
-        })
-        try:
-            with opener(req,timeout=12) as response:
-                if response.status!=200:continue
-                info=json.loads(response.read(8192))
-            if info.get("id")!=email_id or info.get("to")!=[TO]:
-                print("BIGPAW_REAL_MAIL_TEST=RECEIPT_MISMATCH")
-                return 4
-            event=str(info.get("last_event") or "unknown").lower()
-            if event=="delivered":
-                print("BIGPAW_REAL_MAIL_TEST=DELIVERED: recipient mail server accepted; inbox view not checked")
-                return 0
-            if event in ("bounced","complained","failed","canceled"):
-                print("BIGPAW_REAL_MAIL_TEST=DELIVERY_FAILED event="+event)
-                return 5
-        except (HTTPError,URLError,OSError,TimeoutError,ValueError,TypeError):
-            continue
-    print("BIGPAW_REAL_MAIL_TEST=ACCEPTED_DELIVERY_UNVERIFIED: do NOT resend automatically")
-    return 4
+    # Sending-access keys cannot read GET /emails/:id. Check delivery in the
+    # Resend dashboard and the recipient mailbox. Do not retry automatically.
+    print("BIGPAW_REAL_MAIL_TEST=ACCEPTED_DELIVERY_NOT_VERIFIED; check Resend dashboard")
+    return 0
 
 
 if __name__=="__main__":
