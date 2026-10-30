@@ -85,7 +85,8 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
         admin = (path.startswith("/shop-test-orders.html") or
                  path.startswith("/api/shop/sandbox/operator/draft?") or
                  path in ("/api/shop/sandbox/operator/transition",
-                          "/api/shop/sandbox/operator/tracking"))
+                          "/api/shop/sandbox/operator/tracking",
+                          "/api/shop/sandbox/operator/review-customer"))
         credentials = (("operationstest:" + OPERATOR_PASSWORD) if admin
                        else ("shoptester:" + PASSWORD))
         h["Authorization"] = "Basic " + base64.b64encode(
@@ -467,6 +468,95 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(entries, [("yamato", "1234-5678-9012")])
             self.assertEqual(notice_count, 1, "shipment notice is draft only, never resent")
 
+    def test_customer_review_checks_square_email_and_records_without_sending(self):
+        # Fake Square Sandbox response: no real buyer email is used or contacted.
+        from shop_payments.retail_catalog import load_sale_catalog
+        from shop_payments.sandbox_notifications import SandboxNotificationDrafts
+        from shop_payments.sandbox_customer_review import SandboxCustomerReview
+        square_order = "SQUAREORDEREMAIL12345"
+        state = {"address": "buyer-test@example.invalid", "calls": 0}
+        class FakeResponse:
+            status = 200
+            def __init__(self, address):
+                self.body = json.dumps({"order": {"id": square_order,
+                    "fulfillments": [{"type": "SHIPMENT", "shipment_details": {
+                        "recipient": {
+                            "display_name": "PRIVATE NAME",
+                            "email_address": address,
+                            "address": {"country": "JP", "postal_code": "123-4567",
+                                        "address_line_1": "PRIVATE ADDRESS"}
+                        }
+                    }}]}}).encode()
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, n): return self.body[:n]
+        def square_get(request, timeout):
+            self.assertEqual(request.get_method(), "GET", "read-only Square API")
+            self.assertEqual(request.full_url,
+                "https://connect.squareupsandbox.com/v2/orders/" + square_order)
+            state["calls"] += 1
+            return FakeResponse(state["address"])
+        with server_with_env(shipping_opener=square_get) as (srv,store,calls):
+            store.add_pending_order(order_id=ORDER, cart={"A02": 1},
+                                    verified_prices=load_sale_catalog(), shipping_yen=0,
+                                    location_id=BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"])
+            with sqlite3.connect(store.db_file) as conn:
+                conn.execute(
+                    "UPDATE orders SET state='paid', paid_at=1761780000,"
+                    "square_payment_id='SQUAREPAYMENTEMAIL12345',"
+                    "square_order_id=? WHERE order_id=?", (square_order, ORDER)
+                )
+            notices=SandboxNotificationDrafts(store)
+            self.assertEqual(notices.sync_paid(ORDER), 3)
+            path="/api/shop/sandbox/operator/draft?" + urlencode({
+                "order_id": ORDER, "kind": "customer_order_confirmed"})
+            self.assertEqual(request(srv,path,auth=False)[0],401)
+            state["address"]=""
+            no_contact=request(srv,path)
+            self.assertEqual(no_contact[0],200)
+            self.assertIn("連絡先または配送情報が不十分".encode(),no_contact[2])
+            self.assertNotIn(b'name="confirm" value="review_only"',no_contact[2])
+            review_path="/api/shop/sandbox/operator/review-customer"
+            invalid_body={"order_id":ORDER,"kind":"customer_order_confirmed",
+                          "csrf":"x"*43,"confirm":"review_only"}
+            def approve(values, *, cookie="", origin=ORIGIN, auth=True):
+                return request(srv,review_path,method="POST",
+                    data=urlencode(values).encode(),auth=auth,headers={
+                    "Origin":origin,"Cookie":cookie,
+                    "Content-Type":"application/x-www-form-urlencoded"})
+            self.assertEqual(approve(invalid_body,auth=False)[0],401)
+            self.assertEqual(approve(invalid_body)[0],403)
+            state["address"]="buyer-test@example.invalid"
+            preview=request(srv,path)
+            self.assertEqual(preview[0],200)
+            html=preview[2].decode("utf-8")
+            self.assertIn("送信前の確認",html)
+            self.assertIn("b***@e***",html)
+            self.assertNotIn("buyer-test@example.invalid",html)
+            self.assertIn("送信しない",html)
+            cookie=preview[1]["Set-Cookie"].split(";",1)[0]
+            data=dict(invalid_body,csrf=cookie.split("=",1)[1])
+            self.assertEqual(approve(data,cookie=cookie,origin="https://evil.invalid")[0],403)
+            self.assertEqual(approve({**data,"confirm":"yes"},cookie=cookie)[0],400)
+            self.assertEqual(approve({**data,"kind":"supplier_purchase_request"},cookie=cookie)[0],400)
+            state["address"]="invalid.address.example"
+            self.assertEqual(approve(data,cookie=cookie)[0],409)
+            self.assertFalse(SandboxCustomerReview(store).reviewed(ORDER,"customer_order_confirmed"))
+            state["address"]="buyer-test@example.invalid"
+            self.assertEqual(approve(data,cookie=cookie)[0],303)
+            self.assertTrue(SandboxCustomerReview(store).reviewed(ORDER,"customer_order_confirmed"))
+            self.assertEqual(approve(data,cookie=cookie)[0],303,"review action idempotent")
+            done=request(srv,path)
+            self.assertIn("送信前チェック済み（テスト記録）".encode(),done[2])
+            self.assertIn("未送信".encode(),done[2])
+            self.assertNotIn("buyer-test@example.invalid".encode(),done[2])
+            with sqlite3.connect(store.db_file) as conn:
+                rows=conn.execute("SELECT * FROM food_sandbox_customer_reviews").fetchall()
+            self.assertEqual(len(rows),1)
+            self.assertEqual(len(rows[0]),3,"DB stores no recipient PII")
+            self.assertEqual(calls,[],"No Square checkout POST allowed")
+            self.assertGreaterEqual(state["calls"],4,"Read-only Square checks occurred")
+
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
         with server_with_env({"BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"}) as (srv, _, _):
             self.assertEqual(request(srv, "/shop.html")[0], 200)
@@ -474,6 +564,8 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/transition",
                                      method="POST", data=b"{}")[0], 404)
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/tracking",
+                                     method="POST", data=b"{}")[0], 404)
+            self.assertEqual(request(srv, "/api/shop/sandbox/operator/review-customer",
                                      method="POST", data=b"{}")[0], 404)
         for config in (
             {"BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0"},
