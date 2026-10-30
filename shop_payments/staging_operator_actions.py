@@ -26,6 +26,7 @@ REVIEW_PATH = "/api/shop/sandbox/operator/review-customer"
 DRYRUN_PATH = "/api/shop/sandbox/operator/simulate-customer-notice"
 MAIL_MOCK_PATH = "/api/shop/sandbox/operator/mock-customer-mail"
 REFUND_VERIFY_PATH = "/api/shop/sandbox/operator/verify-full-refund"
+SERVICE_CASE_PATH = "/api/shop/sandbox/operator/service-case"
 STAGES = frozenset(("supplier_ordered", "supplier_backorder",
                     "received_at_shop", "refund_review", "shipped"))
 ORDER = re.compile(r"^FOOD[0-9a-f]{32}$")
@@ -393,6 +394,74 @@ def handle_dryrun_post(handler) -> bool:
     return True
 
 
+def handle_service_case_post(handler) -> bool:
+    """Create/update a support case rehearsal, never a real customer contact."""
+    from .staging_checkout_preview import _send
+    from .sandbox_service_cases import SandboxServiceCases, CASE_TYPES, NEXT, CASE_STATUSES
+    from .sandbox_runtime_guard import is_allowed_sandbox_runtime
+    if handler.path != SERVICE_CASE_PATH:
+        return False
+    if not authenticate(handler):
+        return True
+    if not is_allowed_sandbox_runtime(handler.server.env):
+        _send(handler, 404, {"error": "operator_unavailable"})
+        return True
+    if handler.headers.get("Transfer-Encoding"):
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    if handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
+        _send(handler, 415, {"error": "invalid_type"})
+        return True
+    try:
+        size = int(handler.headers.get("Content-Length", ""))
+    except ValueError:
+        size = 0
+    if not 1 <= size <= 600:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    raw = handler.rfile.read(size)
+    if len(raw) != size:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    try:
+        values = parse_qs(raw.decode("ascii"), keep_blank_values=True,
+                          strict_parsing=True, max_num_fields=6)
+        if set(values) != {"order_id", "kind", "expected", "status", "csrf", "confirm"} or any(
+            len(v) != 1 for v in values.values()
+        ):
+            raise ValueError("invalid_form")
+        fields = {k: v[0] for k, v in values.items()}
+    except (ValueError, UnicodeError):
+        _send(handler, 400, {"error": "invalid_form"})
+        return True
+    if not _csrf_ok(handler, fields["csrf"]):
+        _send(handler, 403, {"error": "invalid_origin_or_csrf"})
+        return True
+    if (not ORDER.fullmatch(fields["order_id"]) or
+        fields["kind"] not in CASE_TYPES or
+        fields["expected"] not in NEXT or
+        fields["status"] not in CASE_STATUSES or
+        fields["status"] not in NEXT[fields["expected"]] or
+        fields["confirm"] != "record_only"):
+        _send(handler, 400, {"error": "invalid_case_record"})
+        return True
+    try:
+        SandboxServiceCases(handler.server.store).record(
+            fields["order_id"], fields["kind"],
+            fields["expected"], fields["status"]
+        )
+    except ValueError:
+        _send(handler, 409, {"error": "paid_test_order_or_current_case_required"})
+        return True
+    handler.send_response(303)
+    handler.send_header("Location", "/shop-test-orders.html?case_updated=1")
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Referrer-Policy", "no-referrer")
+    handler.send_header("Content-Length", "0")
+    handler.end_headers()
+    return True
+
+
 def handle_refund_verify_post(handler) -> bool:
     """Verify an existing full Square Sandbox refund; NEVER initiate one."""
     from .staging_checkout_preview import _send
@@ -600,6 +669,8 @@ def handle_post(handler) -> bool:
         return handle_mock_mail_post(handler)
     if handler.path == REFUND_VERIFY_PATH:
         return handle_refund_verify_post(handler)
+    if handler.path == SERVICE_CASE_PATH:
+        return handle_service_case_post(handler)
     from .staging_checkout_preview import _send
     from .sandbox_runtime_guard import is_allowed_sandbox_runtime
     if handler.path != PATH:
