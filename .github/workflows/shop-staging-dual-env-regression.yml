@@ -1,0 +1,67 @@
+name: BIG PAW dual Railway staging non-destructive regression
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-staging-dual-env-regression.yml'
+      - 'scripts/test-shop-https-webhook.py'
+      - 'shop_payments/staging_https_webhook.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dual-staging-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Checkout testing branch
+        uses: actions/checkout@v4
+      - name: Test synthetic signed webhook and staging identity locally
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-https-webhook.py
+          PYTHONPATH=. python3 scripts/test-shop-stop-readiness.py
+      - name: Verify existing and new Railway endpoints without writing persistent data
+        shell: bash
+        env:
+          ORIGINAL: https://bigpaw-test-production.up.railway.app
+          APP: https://bigpaw-app-staging-staging.up.railway.app
+          NEW_WEBHOOK: https://bigpaw-square-sandbox-staging-staging.up.railway.app
+        run: |
+          set -euo pipefail
+          for url in "$ORIGINAL" "$APP" "$NEW_WEBHOOK"; do
+            case "$url" in
+              https://*.up.railway.app) ;;
+              *) echo "STAGING_SCOPE_REJECTED"; exit 1 ;;
+            esac
+          done
+          probe() {
+            local scope="$1" method="$2" url="$3" expected="$4"
+            local status
+            if [ "$method" = "POST" ]; then
+              # Only NEW standby endpoint; no signed event, no customer data.
+              test "$scope" = "new_webhook_standby"
+              status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 --retry 2 \
+                -X POST -H 'Content-Type: application/json' \
+                -H 'Square-Environment: Sandbox' \
+                --data '{}' "$url")
+            else
+              status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 --retry 2 "$url")
+            fi
+            echo "SHOP_DUAL_STAGING|scope=$scope|method=$method|status=$status"
+            test "$status" = "$expected"
+          }
+          # Existing Sandbox service remains healthy. Never POST to its webhook.
+          probe original_sandbox GET "$ORIGINAL/healthz" 200
+          # Full app accepts no anonymous reads beyond its health endpoint.
+          probe protected_full_app GET "$APP/healthz" 200
+          probe protected_full_app GET "$APP/shop.html" 401
+          probe protected_full_app GET "$APP/api/shop/checkout/config" 401
+          # New Webhook exists but no Square tokens/keys: explicit standby.
+          probe new_webhook_standby GET "$NEW_WEBHOOK/healthz" 200
+          probe new_webhook_standby GET "$NEW_WEBHOOK/" 404
+          probe new_webhook_standby POST "$NEW_WEBHOOK/api/shop/sandbox/webhook" 503
+          echo "SHOP_DUAL_STAGING_OK|old_untouched|new_standby|app_protected|no_payment"
