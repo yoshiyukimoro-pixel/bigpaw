@@ -100,6 +100,7 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(r[0], 200)
             self.assertIn(b"shop-sandbox-checkout.js", r[2])
             self.assertIn("【Sandbox専用】".encode(), r[2])
+            self.assertIn(b"stageOrdersDashboardLink", r[2])
             self.assertIn("noindex", r[1]["X-Robots-Tag"])
             review = request(srv, "/shop.html?order=review")
             self.assertEqual(review[0], 200)
