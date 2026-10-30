@@ -27,6 +27,7 @@ REVOKE_REVIEW_PATH = "/api/shop/sandbox/operator/revoke-customer-review"
 DRYRUN_PATH = "/api/shop/sandbox/operator/simulate-customer-notice"
 MAIL_MOCK_PATH = "/api/shop/sandbox/operator/mock-customer-mail"
 REFUND_VERIFY_PATH = "/api/shop/sandbox/operator/verify-full-refund"
+CURRENT_PAYMENT_PATH = "/api/shop/sandbox/operator/check-current-payment"
 SERVICE_CASE_PATH = "/api/shop/sandbox/operator/service-case"
 STAGES = frozenset(("supplier_ordered", "supplier_backorder",
                     "received_at_shop", "refund_review", "shipped"))
@@ -739,6 +740,102 @@ def handle_tracking_post(handler) -> bool:
     return True
 
 
+def handle_current_payment_check_post(handler) -> bool:
+    """Operator-only fresh Square Sandbox GET of paid order and payment.
+
+    This is a moment-in-time READ ONLY check, never a durable state change,
+    email, supplier order, stock reservation, shipment or refund.
+    """
+    from .staging_checkout_preview import _send
+    from .sandbox_reconcile import verify_current_sandbox_payment
+    from .sandbox_runtime_guard import is_allowed_sandbox_runtime
+    if handler.path != CURRENT_PAYMENT_PATH:
+        return False
+    if not authenticate(handler):
+        return True
+    if not is_allowed_sandbox_runtime(handler.server.env):
+        _send(handler, 404, {"error": "operator_unavailable"})
+        return True
+    if handler.headers.get("Transfer-Encoding"):
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    if handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
+        _send(handler, 415, {"error": "invalid_type"})
+        return True
+    try:
+        length = int(handler.headers.get("Content-Length", ""))
+    except ValueError:
+        length = 0
+    if not 1 <= length <= 500:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    raw = handler.rfile.read(length)
+    if len(raw) != length:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    try:
+        parts = parse_qs(raw.decode("ascii"), keep_blank_values=True,
+                         strict_parsing=True, max_num_fields=3)
+        if set(parts) != {"order_id", "csrf", "confirm"} or any(
+            len(v) != 1 for v in parts.values()
+        ):
+            raise ValueError("invalid form")
+        values = {k: v[0] for k, v in parts.items()}
+    except (ValueError, UnicodeError):
+        _send(handler, 400, {"error": "invalid_form"})
+        return True
+    if not _csrf_ok(handler, values["csrf"]):
+        _send(handler, 403, {"error": "invalid_origin_or_csrf"})
+        return True
+    if not ORDER.fullmatch(values["order_id"]) or values["confirm"] != "read_only":
+        _send(handler, 400, {"error": "invalid_payment_check"})
+        return True
+    # Always resolve from the private journal, never trust IDs or prices
+    # received from the browser.
+    try:
+        paid = handler.server.store.paid_order_snapshot(values["order_id"])
+    except (ValueError, OSError):
+        _send(handler, 503, {"error": "private_order_read_unavailable"})
+        return True
+    if paid is None:
+        _send(handler, 409, {"error": "verified_paid_order_required"})
+        return True
+    options = {"token": handler.server.env["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"]}
+    if handler.server.shipping_opener is not None:
+        options["opener"] = handler.server.shipping_opener
+    try:
+        current = verify_current_sandbox_payment(snapshot=paid, **options)
+    except (SquareSandboxError, ValueError, KeyError):
+        # Do not claim that a failed read proves a refund; it may be an outage.
+        _send(handler, 503, {"error": "current_square_payment_not_verified"})
+        return True
+    html = (
+        '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="robots" content="noindex,nofollow,noarchive">'
+        '<title>BIG PAW｜Sandbox決済再確認</title>'
+        '<style>body{font:16px/1.7 -apple-system,BlinkMacSystemFont,'
+        'sans-serif;max-width:720px;margin:28px auto;padding:0 17px;'
+        'color:#23354c;background:#f6f8fb}main{background:white;'
+        'padding:22px;border-radius:12px}a{color:#165c88}'
+        'code{overflow-wrap:anywhere}</style></head><body><main>'
+        '<h1>Square Sandboxの現在の入金状態</h1>'
+        '<p><strong>テスト環境・読み取り専用</strong>です。'
+        'SquareのPaymentsとOrdersの最新情報から、'
+        '同一店舗・同一注文・同一金額の入金済み／未返金を確認しました。</p>'
+        '<p>注文ID：<code>' + escape(current["order_id"], quote=True) +
+        '</code></p><p>現在の確認額（税込・送料込み）：'
+        + f'{current["amount_yen"]:,}' + '円</p>'
+        '<p>これは確認した時点のSandbox情報です。'
+        '実際の販売・本番入金・在庫確保・発送を承認するものではありません。'
+        'ここから返金・注文変更・メール送信はできません。</p>'
+        '<a href="/shop-test-orders.html">テスト注文管理へ戻る</a>'
+        '</main></body></html>'
+    )
+    _send(handler, 200, html.encode("utf-8"), "text/html; charset=utf-8")
+    return True
+
+
 def handle_post(handler) -> bool:
     """Operator-only Sandbox stage update, or independent tracking record."""
     if handler.path == TRACKING_PATH:
@@ -753,6 +850,8 @@ def handle_post(handler) -> bool:
         return handle_mock_mail_post(handler)
     if handler.path == REFUND_VERIFY_PATH:
         return handle_refund_verify_post(handler)
+    if handler.path == CURRENT_PAYMENT_PATH:
+        return handle_current_payment_check_post(handler)
     if handler.path == SERVICE_CASE_PATH:
         return handle_service_case_post(handler)
     from .staging_checkout_preview import _send
