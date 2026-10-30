@@ -360,3 +360,12 @@
 - `scripts/test-shop-square-live-readonly.py` と `scripts/test-shop-square-reconcile.py` に、返品情報の不正値・正しい0JPY・欄省略・配送先複数の合成回帰テストを追加。**本番Squareネットワーク呼び出しなし**。
 - Python/署名・一括Docker・Chromium・iPhone WebKitの最新総合CIが完了するまで新stagingサービスへのデプロイはしない。旧stagingと既存BigPawサイトは変更しない。
 - 署名付きSquare→Railway実Webhook配送、店舗の正式条件・返金規約・配送先入力の実E2Eは未確認で、**残り46ポイント／完了54%のまま**。
+
+## 2026-10-31：返金・配送先の再検証合格、新Webhookの隔離デプロイ成功
+
+- `shop_payments/square_live_readonly.py` と `shop_payments/sandbox_reconcile.py` に、Squareが返す`refunded_money`が**省略**された場合と**存在するが`null`等の不完全値**である場合の厳格な差別化を反映。検証不能・一部返金は入金確定/自動発送へ進めない。追加した合成テストはPython単体検証に合格。
+- 同モジュールの住所照合は、複数のSHIPMENT/PICKUPなどが混在する場合に1つを勝手に選ばず、手動住所確認へ回す。正常な1宛先は従来どおり。氏名/住所はログやSQLiteへ保存しない。
+- GitHub Actions `41137084724` **SUCCESS**（返金情報の合成テスト）、`41137262567` **SUCCESS**（複数配送先テストを含むPython/Docker/Chromium/iPhone WebKit総合CI）。
+- 新Railway独立Webhook受信サービス**だけ**を開発ブランチの固定コミット`9a58e198b29e9563d3ecc6fd35610cc9ef3b290f`へ更新。Deployment `f0edaf24-eb72-4d50-8c9c-803bec4e7f2c` **SUCCESS**。新Square鍵・Sandboxトークンは未設定でサービスは`sandbox_webhook_standby`を維持。
+- GitHub Actions `41137889413` **SUCCESS**。旧Sandbox HTTP`200`、保護付き新フルアプリ HTTP`200/401`、新Webhook`200`/署名無しPOST`503`、`sandbox_webhook_standby` JSONを外部確認。安全なオフライン返品・配送先テストも同時通過。旧本番/旧Sandboxの設定やVolumesには触れていない。
+- 本物のSquare署名イベントと新RailwayへのSquare機密値設定はまだ未完。Square Sandbox公式Testing Panelの架空カードは配送先が不完全なので発送承認はしない。**T03/P04/R02などの残り46ポイントは未減算（完了54%）**。PR #175はDraft、main・実決済・実メールに変更なし。
