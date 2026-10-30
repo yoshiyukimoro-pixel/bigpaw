@@ -16,6 +16,7 @@ async function run() {
   let ready = false;
   let orderState = 'payment_pending';
   const submitted = [];
+  const quotes = [];
   const server = http.createServer(async (req, res) => {
     const route = req.url.split('?')[0];
     const json = data => {res.writeHead(200, {'Content-Type':'application/json', 'Cache-Control':'no-store'});res.end(JSON.stringify(data));};
@@ -33,6 +34,12 @@ async function run() {
     }
     if (req.method === 'GET' && route === '/api/shop/sandbox/order/FOOD12345678901234567890123456789012') {
       json({order_status:orderState});return;
+    }
+    if (req.method === 'POST' && route === '/api/shop/sandbox/quote') {
+      let body = '';for await (const chunk of req) body += chunk;
+      const order=JSON.parse(body);quotes.push(order);
+      json({sandbox:true,real_payments:false,verified:true,
+        amount_yen:21450,shipping_yen:0});return;
     }
     if (req.method === 'POST' && route === '/api/shop/sandbox/checkout') {
       let body = '';for await (const chunk of req) body += chunk;
@@ -72,6 +79,8 @@ async function run() {
         await page.locator('#squareSandboxCheckout').click();
         await page.waitForURL('https://sandbox.square.link/u/BIGPAW_TEST_ONLY');
         assert.match(await page.locator('h1').innerText(), /Square Sandbox mock/);
+        assert(quotes.length > 0,'read-only server quote must be requested first');
+        assert.deepEqual(quotes.at(-1),{cart:{A02:1}});
         assert(submitted.length > 0, 'checkout API receives selected cart');
         assert.deepEqual(Object.keys(submitted.at(-1)).sort(), ['attempt_id','cart']);
         assert.deepEqual(submitted.at(-1).cart, {A02:1});
