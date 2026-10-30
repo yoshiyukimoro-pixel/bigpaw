@@ -2,7 +2,7 @@
 import importlib.util
 import json
 from pathlib import Path
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 import unittest
 
 spec=importlib.util.spec_from_file_location(
@@ -79,6 +79,22 @@ class Tests(unittest.TestCase):
         calls=[]
         self.assertEqual(m.sync(ENV,opener=provider(calls=calls,fail_write=True))[1],2)
         self.assertEqual(len(calls),4)
+    def test_railway_project_token_http_error_is_safe_and_specific(self):
+        for status in (401, 403, 400, 422, 503):
+            calls = []
+            def fake_railway(request, timeout):
+                calls.append(request.full_url)
+                raise HTTPError(m.RAILWAY, status, "synthetic error", None, None)
+            result, code = m.sync(ENV, opener=fake_railway)
+            self.assertEqual(code, 2)
+            self.assertEqual(calls, [m.RAILWAY])
+            self.assertTrue(result.startswith("railway_project_token_"))
+            for private in ("FAKE_SQUARE_TOKEN", "FAKE_RAILWAY_PROJECT"):
+                self.assertNotIn(private, result)
+            if status in (401, 403):
+                self.assertEqual(result,
+                                 "railway_project_token_auth_rejected_http_" + str(status))
+
     def test_no_optin_no_network(self):
         self.assertEqual(m.sync({},opener=lambda *_:self.fail("network"))[1],3)
 
