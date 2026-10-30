@@ -120,6 +120,8 @@ class PaidNoticePreviewTests(unittest.TestCase):
         self.assertIn(self.product.size, result["body"])
         self.assertIn(f"{self.total:,}円", result["body"])
         self.assertIn("4〜7日程度", result["body"])
+        self.assertIn("\nご注文番号：", result["body"])
+        self.assertNotIn("\\n", result["body"])
         self.assertIn("送信されていません", result["body"])
         self.assertTrue(result["review_only"])
         self.assertFalse(result["send_enabled"])
