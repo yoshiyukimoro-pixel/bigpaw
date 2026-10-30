@@ -26,6 +26,12 @@
 - Sandboxのカート/注文確認画面に「二重作成を防止するため運営確認が必要」と表示。HTTP失敗→同一注文の再POST拒否→手動照合後再開、並列8操作で発行枠が1つだけ等をテストに追加。
 - **まだ工程①は進行中**：本番の法定販売条件、正式販売者情報と実Square接続の承認が未完なので**残り6工程を維持**。テストだけでカウントを減らさない。
 
+### 同日のテスト・適用結果
+
+- GitHub Actions [41036895743](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41036895743)：PythonのSandbox/注文テスト、Dockerビルド、Chromium・iPhone Safari/WebKit相当のブラウザーテストが全て **SUCCESS**。
+- Railwayの既存`bigpaw-test`サービスのみ、コミット`aac77bc6e0c3811bfc90bf54008b1fe034e3176e`をデプロイ。デプロイID`869fbf67-c309-489d-a717-64a4a27bef03`は**SUCCESS**。Sandbox DB用`bigpaw-shop-test-data`ボリュームは`/data`で接続を維持。
+- 本番`bigpaw-site`/`bigpaw-live`は変更なし・オンライン・警告0。Square本番接続と実メール送信は無効。**工程①は継続中、完成まで残り6工程。**
+
 ## 報告の書式
 作業開始：「**完成まで残り6工程。今回は①を進める**」
 作業終了：「**今回実装・テストできたこと。工程①は継続中／完了。残り6→5（実際に完了したときだけ）**」
