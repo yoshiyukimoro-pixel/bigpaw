@@ -89,7 +89,8 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
                           "/api/shop/sandbox/operator/review-customer",
                           "/api/shop/sandbox/operator/simulate-customer-notice",
                           "/api/shop/sandbox/operator/mock-customer-mail",
-                          "/api/shop/sandbox/operator/verify-full-refund"))
+                          "/api/shop/sandbox/operator/verify-full-refund",
+                          "/api/shop/sandbox/operator/service-case"))
         credentials = (("operationstest:" + OPERATOR_PASSWORD) if admin
                        else ("shoptester:" + PASSWORD))
         h["Authorization"] = "Basic " + base64.b64encode(
@@ -766,6 +767,97 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(state["reads"], 4)
             self.assertNotIn("MOCKSQUAREPAYMENTFULL12345".encode(), completed[2])
 
+    def test_service_case_workflow_is_paid_only_authorized_and_never_contacts_buyers(self):
+        from shop_payments.retail_catalog import load_sale_catalog
+        from shop_payments.sandbox_service_cases import SandboxServiceCases
+        with server_with_env() as (srv, store, calls):
+            store.add_pending_order(
+                order_id=ORDER, cart={"A02": 1},
+                verified_prices=load_sale_catalog(), shipping_yen=0,
+                location_id=BASE["BIGPAW_SQUARE_SANDBOX_LOCATION_ID"],
+            )
+            path = "/api/shop/sandbox/operator/service-case"
+            self.assertEqual(request(srv, path, method="POST", auth=False,
+                                     data=b"{}")[0], 401)
+            not_paid = request(srv, "/shop-test-orders.html")
+            self.assertNotIn("問い合わせ対応（テスト記録）".encode(), not_paid[2])
+            # Obtain fresh per-page, operator-only CSRF cookie.
+            cookie = not_paid[1]["Set-Cookie"].split(";",1)[0]
+            base = {
+                "order_id": ORDER,
+                "kind": "out_of_stock",
+                "expected": "none",
+                "status": "open",
+                "csrf": cookie.split("=",1)[1],
+                "confirm": "record_only",
+            }
+            def action(data=base, *, auth=True, origin=ORIGIN, cook=cookie):
+                return request(srv, path, method="POST", auth=auth,
+                               data=urlencode(data).encode(),
+                               headers={"Origin": origin, "Cookie": cook,
+                               "Content-Type": "application/x-www-form-urlencoded"})
+            self.assertEqual(action(auth=False)[0], 401)
+            self.assertEqual(action(origin="https://attacker.invalid")[0], 403)
+            self.assertEqual(action(cook="fake=x")[0], 403)
+            self.assertEqual(action({**base, "kind":"other_unknown"})[0], 400)
+            self.assertEqual(action({**base, "status":"resolved"})[0], 400)
+            self.assertEqual(action({**base, "confirm":"really_refund"})[0], 400)
+            self.assertEqual(action()[0], 409, "unpaid orders cannot create service cases")
+            self.assertEqual(SandboxServiceCases(store).snapshot(ORDER), [])
+            with sqlite3.connect(store.db_file) as db:
+                db.execute(
+                    "UPDATE orders SET state='paid',paid_at=1761780000,"
+                    "square_payment_id='MOCKPAID_CASES123',"
+                    "square_order_id='MOCKORDER_CASES123' WHERE order_id=?", (ORDER,)
+                )
+            page = request(srv, "/shop-test-orders.html")
+            self.assertEqual(page[0], 200)
+            self.assertIn("問い合わせ対応（テスト記録）".encode(), page[2])
+            self.assertIn("模擬問い合わせの種類".encode(), page[2])
+            cookie = page[1]["Set-Cookie"].split(";",1)[0]
+            first = {**base,"csrf":cookie.split("=",1)[1]}
+            self.assertEqual(action(first,cook=cookie)[0], 303)
+            self.assertEqual(action(first,cook=cookie)[0], 409,
+                             "duplicate stale case must not create a second case")
+            self.assertEqual(SandboxServiceCases(store).snapshot(ORDER)[0]["status"],"open")
+            page = request(srv, "/shop-test-orders.html")
+            self.assertIn("仕入先欠品の対応".encode(), page[2])
+            self.assertIn("対応待ち（テスト）".encode(), page[2])
+            second_cookie = page[1]["Set-Cookie"].split(";",1)[0]
+            next_action={**first,"status":"awaiting_customer","expected":"open",
+                         "csrf":second_cookie.split("=",1)[1]}
+            self.assertEqual(action(next_action,cook=second_cookie)[0],303)
+            self.assertEqual(action(next_action,cook=second_cookie)[0],409)
+            self.assertEqual(SandboxServiceCases(store).snapshot(ORDER)[0]["status"],
+                             "awaiting_customer")
+            next_page = request(srv, "/shop-test-orders.html")
+            self.assertIn("お客様への確認待ち（連絡はしていません）".encode(),next_page[2])
+            third_cookie=next_page[1]["Set-Cookie"].split(";",1)[0]
+            done={**next_action,"expected":"awaiting_customer","status":"resolved",
+                  "csrf":third_cookie.split("=",1)[1]}
+            self.assertEqual(action(done,cook=third_cookie)[0],303)
+            self.assertEqual(action(done,cook=third_cookie)[0],409)
+            self.assertEqual(SandboxServiceCases(store).snapshot(ORDER)[0]["status"],"resolved")
+            # An unrelated category has a completely independent state history.
+            fourth_page=request(srv,"/shop-test-orders.html")
+            fourth_cookie=fourth_page[1]["Set-Cookie"].split(";",1)[0]
+            another={**first,"kind":"damaged_or_wrong",
+                     "csrf":fourth_cookie.split("=",1)[1]}
+            self.assertEqual(action(another,cook=fourth_cookie)[0],303)
+            with sqlite3.connect(store.db_file) as db:
+                events=db.execute(
+                    "SELECT kind,status FROM food_sandbox_service_case_events "
+                    "WHERE order_id=? ORDER BY event_id",(ORDER,)
+                ).fetchall()
+            self.assertEqual(events,[
+                ("out_of_stock","open"),
+                ("out_of_stock","awaiting_customer"),
+                ("out_of_stock","resolved"),
+                ("damaged_or_wrong","open"),
+            ])
+            self.assertEqual(calls,[], "recording must not create Square links or contacts")
+            self.assertNotIn("MOCKPAID_CASES123".encode(),fourth_page[2])
+
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
         with server_with_env({"BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"}) as (srv, _, _):
             self.assertEqual(request(srv, "/shop.html")[0], 200)
@@ -781,6 +873,8 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/mock-customer-mail",
                                      method="POST", data=b"{}")[0], 404)
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/verify-full-refund",
+                                     method="POST", data=b"{}")[0], 404)
+            self.assertEqual(request(srv, "/api/shop/sandbox/operator/service-case",
                                      method="POST", data=b"{}")[0], 404)
         for config in (
             {"BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0"},
