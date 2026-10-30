@@ -172,8 +172,30 @@
     const cart=readCart();
     const amount=totalFor(cart);
     pending=true;refresh();
-    notice.textContent='35商品の販売価格表をサーバーで再確認し、Square Sandboxへ接続しています。';
+    notice.textContent='BIG PAWサーバーの販売価格表で、合計金額を確認しています…';
     try{
+      const quoteResponse=await fetch('/api/shop/sandbox/quote',{
+        method:'POST',credentials:'same-origin',cache:'no-store',
+        headers:{'Content-Type':'application/json','X-Shop-CSRF':config.csrf_token},
+        body:JSON.stringify({cart}),
+      });
+      if(!quoteResponse.ok) throw new Error('server quote unavailable');
+      const quote=await quoteResponse.json();
+      if(quote.sandbox!==true || quote.real_payments!==false ||
+         quote.verified!==true || quote.shipping_yen!==0 ||
+         quote.amount_yen!==amount){
+        notice.textContent='販売価格に変更または不一致があります。決済テストは開始しません。カートの商品・金額を確認してください。';
+        agreedFingerprint=null;
+        return;
+      }
+      // A parallel quantity edit may have happened while fetching quote.
+      if(!isReviewed() || fingerprint(readCart()||{})!==fingerprint(cart) ||
+         !checkbox.checked || !config?.ready){
+        notice.textContent='注文内容が変更されたため、金額の確認をやり直してください。';
+        agreedFingerprint=null;
+        return;
+      }
+      notice.textContent='サーバー確認済み：税込・送料込み'+quote.amount_yen.toLocaleString('ja-JP')+'円。Square Sandboxに進みます…';
       const attempt_id=checkoutAttempt(cart);
       const r=await fetch('/api/shop/sandbox/checkout',{
         method:'POST',credentials:'same-origin',cache:'no-store',
