@@ -128,6 +128,28 @@ class TestStageWebhook(unittest.TestCase):
                     "RAILWAY_SERVICE_ID": "webhook-only",
                     "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID": "isolated-sandbox-project"}
         self.assertTrue(stage_ready(isolated))
+        existing_test = {**STAGING,
+            "RAILWAY_PROJECT_ID": "d70f7165-f5eb-41e8-95a0-62f85ff90478",
+            "RAILWAY_ENVIRONMENT_ID": "ecc9fcbf-496f-4b51-a651-65a46a971588",
+            "RAILWAY_SERVICE_ID": "1a1a32bd-e885-4848-a6b5-fde5ef9ac902",
+            "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID":
+                "d70f7165-f5eb-41e8-95a0-62f85ff90478",
+        }
+        self.assertTrue(stage_ready(existing_test))
+        for service_id in (
+            "32e31163-1049-41d3-84f8-dd61a0a7019e",  # bigpaw-site
+            "1ad6d952-c284-4886-9237-a30c364132fd",  # bigpaw-web
+            "wrong-service-id",
+        ):
+            self.assertFalse(stage_ready({
+                **existing_test, "RAILWAY_SERVICE_ID": service_id
+            }))
+        self.assertFalse(stage_ready({
+            **existing_test, "RAILWAY_ENVIRONMENT_ID": "wrong-environment"
+        }))
+        self.assertFalse(stage_ready({
+            **existing_test, "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID": ""
+        }))
 
     def test_only_health_and_signed_webhook_are_exposed(self):
         with stage_server() as (server, store):
