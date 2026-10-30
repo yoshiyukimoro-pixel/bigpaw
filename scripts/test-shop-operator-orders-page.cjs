@@ -25,6 +25,10 @@ const server = http.createServer((req,res)=>{
     res.writeHead(authorized?200:401,{'content-type':'application/json','cache-control':'no-store'});
     res.end(authorized?JSON.stringify(sample):JSON.stringify({error:'unauthorized'}));return;
   }
+  if(req.url==='/api/operator/shop-orders/audit'){
+    res.writeHead(authorized?200:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(authorized?JSON.stringify({events:[]}):JSON.stringify({error:'unauthorized'}));return;
+  }
   res.writeHead(404).end();
 });
 
@@ -45,6 +49,9 @@ const server = http.createServer((req,res)=>{
       await page.getByText(/表示中 1件/).waitFor();
       assert.match(await page.locator('main').innerText(),/過去にSquare入金確認あり/);
       assert.match(await page.locator('main').innerText(),/現在の決済・返金状況はSquareで個別確認が必要/);
+      assert.equal(await page.locator('form.reconcile').count(),1);
+      assert.match(await page.locator('form.reconcile').innerText(),/返金・発送・メール送信はしません/);
+      assert.match(await page.locator('#audit').innerText(),/手動照合の記録はありません/);
       await page.getByText(/注文商品を表示/).click();
       assert.match(await page.locator('main').innerText(),/ACANA アダルトラージ/);
       assert.equal(await page.locator('main').innerText().then(t=>/東京都|〒[0-9]{3}-[0-9]{4}|090-[0-9-]{8,}|buyer@example\.com|4111[ -]?1111/.test(t)),false);

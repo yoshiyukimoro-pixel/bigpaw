@@ -161,6 +161,29 @@ class LiveLedgerTests(unittest.TestCase):
             self.assertNotIn(forbidden.encode("utf-8"), raw)
         self.assertNotIn("recipient_email", str(result))
 
+    def test_operator_reconciliation_audits_atomically_without_payment_reference(self):
+        self.register()
+        result = self.pay(audit_actor_id="operator_123")
+        self.assertTrue(result["new_transition"])
+        events = self.ledger.operator_audit_events()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["order_id"], ORDER_ID)
+        self.assertEqual(events[0]["actor_id"], "operator_123")
+        self.assertEqual(events[0]["action"], "payment_reconciled")
+        self.assertEqual(events[0]["outcome"], "newly_paid")
+        self.assertNotIn("payment_id", events[0])
+        self.calls.clear()
+        self.pay(audit_actor_id="operator_123")
+        events = self.ledger.operator_audit_events()
+        self.assertEqual(len(events), 2)
+        self.assertEqual(events[0]["outcome"], "already_paid")
+        self.assertEqual(len(self.calls), 2)
+        self.ledger.record_operator_reconciliation_failure(
+            order_id=ORDER_ID, actor_id="operator_123")
+        events = self.ledger.operator_audit_events()
+        self.assertEqual(events[0]["outcome"], "verification_failed")
+        self.assertNotIn("payment_id", events[0])
+
     def test_payment_mismatch_refund_or_bad_shipping_never_marks_paid(self):
         self.register()
         original_payment = deepcopy(self.payment)

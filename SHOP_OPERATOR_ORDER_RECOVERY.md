@@ -55,11 +55,25 @@ separate launch and legal approvals are complete.
 
 ## Current implementation limits
 
-- The operator page is read-only and omits customer personal information.
-- The production API and webhook remain behind launch gates. No production
-  Square credentials, outbound messages, supplier orders, shipping, or refunds
-  are activated by this page.
-- Manual Square reconciliation is not yet available as an operator button.
-  Until that separately authenticated action is implemented and verified,
-  use the Square dashboard for investigation and do not manually mark an order
-  paid in BIG PAW.
+- The operator page omits customer personal information. Manual reconciliation
+  is a separate, operator-authenticated action that accepts only an existing
+  local order ID and the Square payment ID copied from the official dashboard.
+- Reconciliation is disabled unless production explicitly sets
+  `BIGPAW_SHOP_LIVE_OPERATOR_RECONCILIATION_ENABLED=1` and configures the
+  dedicated `BIGPAW_SQUARE_LIVE_ACCESS_TOKEN`. It uses exact configured HTTPS
+  Origin/Host checks, an HttpOnly SameSite=Strict double-submit CSRF token, and
+  the operator session. Sandbox credentials cannot enable this route.
+- The server derives amount, Square order, and location only from the private
+  saved checkout record, then performs fresh Production Payments and Orders
+  GETs before changing local state. The actor, local order ID, outcome, and
+  time are recorded atomically for successful checks; failed authorized
+  attempts also receive a PII-free audit entry. No submitted payment ID,
+  provider payload, recipient data, or token is persisted in the audit log.
+- This action only reads Square and updates the private local payment ledger.
+  It never charges, refunds, sends email, places supplier orders, or ships.
+  The feature flag remains off unless a production operator deliberately
+  enables it. Checkout and webhook launch gates remain separate.
+- Offline tests use synthetic identifiers and fake Square GET responses.
+  They do not verify live credentials, a production merchant, or an actual
+  payment. When Square cannot confirm an exact completed, unrefunded payment,
+  keep the order unresolved and do not issue another link.

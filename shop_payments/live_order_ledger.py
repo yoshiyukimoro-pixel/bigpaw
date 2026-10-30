@@ -57,6 +57,17 @@ class LiveOrderLedger:
                 paid_at INTEGER
             )
         """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS food_live_operator_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                action TEXT NOT NULL CHECK(action IN ('payment_reconciled')),
+                outcome TEXT NOT NULL CHECK(outcome IN (
+                    'newly_paid','already_paid','verification_failed')),
+                created_at INTEGER NOT NULL
+            )
+        """)
 
     @staticmethod
     def _snapshot(cart):
@@ -350,7 +361,7 @@ class LiveOrderLedger:
         }
 
     def reconcile_payment(self, *, order_id, payment_id, api_key, opener=None,
-                          verifier=None):
+                          verifier=None, audit_actor_id=None):
         """Verify with Square GET before a durable, once-only paid transition.
 
         A future authenticated webhook/controller supplies payment_id, but the
@@ -364,6 +375,10 @@ class LiveOrderLedger:
             raise LiveOrderBlocked("Invalid Square payment reference")
         if not isinstance(api_key, str) or not api_key.strip():
             raise LiveOrderBlocked("Missing live Square credential")
+        if audit_actor_id is not None and (
+                not isinstance(audit_actor_id, str)
+                or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", audit_actor_id)):
+            raise LiveOrderBlocked("Invalid operator identity")
         with closing(self._open()) as db:
             exists = db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' "
@@ -430,6 +445,14 @@ class LiveOrderLedger:
                     new = True
                 else:
                     raise LiveOrderBlocked("Invalid payment transition")
+                if audit_actor_id is not None:
+                    db.execute(
+                        "INSERT INTO food_live_operator_audit "
+                        "(order_id,actor_id,action,outcome,created_at) "
+                        "VALUES(?,?,'payment_reconciled',?,?)",
+                        (order_id, audit_actor_id,
+                         "newly_paid" if new else "already_paid", int(time.time())),
+                    )
                 db.execute("COMMIT")
             except sqlite3.IntegrityError:
                 if db.in_transaction:
@@ -440,3 +463,44 @@ class LiveOrderLedger:
                     db.execute("ROLLBACK")
                 raise
         return {"state": "paid_verified", "new_transition": new}
+
+    def operator_audit_events(self, *, limit=100):
+        """Return bounded, PII-free operator reconciliation audit events."""
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise LiveOrderBlocked("Invalid audit limit")
+        path = Path(self.db_file)
+        if not path.is_file():
+            return []
+        from urllib.parse import quote
+        uri = "file:" + quote(str(path.resolve())) + "?mode=ro"
+        with closing(sqlite3.connect(uri, timeout=5, uri=True)) as db:
+            db.row_factory = sqlite3.Row
+            db.execute("PRAGMA query_only=ON")
+            exists = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_operator_audit'"
+            ).fetchone()
+            if not exists:
+                return []
+            rows = db.execute(
+                "SELECT order_id,actor_id,action,outcome,created_at "
+                "FROM food_live_operator_audit ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def record_operator_reconciliation_failure(self, *, order_id, actor_id):
+        """Record a failed authorized attempt without its payment reference."""
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid order reference")
+        if (not isinstance(actor_id, str)
+                or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", actor_id)):
+            raise LiveOrderBlocked("Invalid operator identity")
+        with closing(self._open()) as db:
+            self._install(db)
+            db.execute(
+                "INSERT INTO food_live_operator_audit "
+                "(order_id,actor_id,action,outcome,created_at) "
+                "VALUES(?,?,'payment_reconciled','verification_failed',?)",
+                (order_id, actor_id, int(time.time())),
+            )

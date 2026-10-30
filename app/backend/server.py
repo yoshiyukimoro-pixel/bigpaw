@@ -1240,6 +1240,21 @@ class Handler(SimpleHTTPRequestHandler):
                 # Keep filesystem and journal details out of the response.
                 return self.send_json({'error':'shop_orders_unavailable'},503)
             return self.send_json(snapshot,extra={'Cache-Control':'private, no-store'})
+        if path=='/api/operator/shop-orders/audit':
+            u=self.require(['operator'])
+            if not u:return
+            from shop_payments.live_order_ledger import LiveOrderLedger
+            try:
+                ledger = LiveOrderLedger(DATA_DIR / 'bigpaw-shop-live-orders.sqlite3')
+                return self.send_json({'events':ledger.operator_audit_events(limit=100)},
+                                      extra={'Cache-Control':'private, no-store'})
+            except Exception:
+                return self.send_json({'error':'shop_audit_unavailable'},503)
+        import shop_payments.live_operator_reconciliation as bp_live_reconcile
+        if bp_live_reconcile.issue_csrf(self, env=dict(os.environ),
+                                        is_production=IS_PRODUCTION,
+                                        base_url=PUBLIC_BASE_URL):
+            return
         if path=='/api/operator/support':
             u=self.require(['operator'])
             if not u:return
@@ -1377,6 +1392,11 @@ https://www.bigpaw.site/'''
     def do_POST(self):
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
         path=urlparse(self.path).path
+        import shop_payments.live_operator_reconciliation as bp_live_reconcile
+        if bp_live_reconcile.handle_post(
+                self, env=dict(os.environ), is_production=IS_PRODUCTION,
+                base_url=PUBLIC_BASE_URL, data_dir=DATA_DIR):
+            return
         m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
         if m:
             u=self.require();
