@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 from .sandbox_connector import SandboxOrderStore, SquareSandboxError, create_square_sandbox_payment_link
 from .sandbox_reconcile import retrieve_verified_sandbox_payment
 from .sandbox_auto_notify import maybe_notify_verified_payment
-from .sandbox_runtime_guard import is_allowed_sandbox_runtime
+from .sandbox_runtime_guard import is_allowed_sandbox_runtime, NEW_SANDBOX_WEBHOOK_SERVICE
 
 WEBHOOK_PATH = "/api/shop/sandbox/webhook"
 MAX_EVENT_BYTES = 256_000
@@ -56,6 +56,9 @@ def stage_identity_ok(env: dict) -> bool:
     # Existing bigpaw-test must use only its already-owned domain.
     if env.get("RAILWAY_SERVICE_ID") == "1a1a32bd-e885-4848-a6b5-fde5ef9ac902":
         if url.hostname != "bigpaw-test-production.up.railway.app":
+            return False
+    if env.get("RAILWAY_SERVICE_ID") == NEW_SANDBOX_WEBHOOK_SERVICE:
+        if url.hostname != "bigpaw-square-sandbox-staging-staging.up.railway.app":
             return False
     return True
 
