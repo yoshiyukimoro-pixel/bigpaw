@@ -73,6 +73,29 @@ def render_order_overview_preview(ledger: LiveOrderLedger) -> str:
             str(order["verified_signed_event_count"]) +
             '件（現在の入金状態の保証ではありません）</p></article>'
         )
+    demo = (
+        '<section class="sample" aria-label="架空の画面サンプル">'
+        '<h2>画面の見本（架空の注文・本物ではありません）</h2>'
+        '<p class="warning">以下はデザインを確認するための架空データです。'
+        '注文・決済・仕入れ・発送・通知記録ではありません。'
+        '上に表示する注文件数にも含まれません。</p>'
+        '<article class="order"><div class="top"><strong>入金確認記録なし（見本）'
+        '</strong><span class="money">12,000円（仮の金額）</span></div>'
+        '<code>DEMO-ORDER-001（実在しない注文）</code>'
+        '<p class="date">注文日時：サンプル</p>'
+        '<ul><li>サンプルのドッグフード ×1袋</li></ul>'
+        '<p class="notice">まだ入金を確認していません。'
+        '仕入れ・発送はできません。</p></article>'
+        '<article class="order"><div class="top">'
+        '<strong>過去の入金確認記録あり（見本）</strong>'
+        '<span class="money">24,000円（仮の金額）</span></div>'
+        '<code>DEMO-ORDER-002（実在しない注文）</code>'
+        '<p class="date">入金確認日時：サンプル</p>'
+        '<ul><li>サンプルのドッグフード ×2袋</li></ul>'
+        '<p class="notice">現在の返金・入金状態は未確認です。'
+        '最新のSquare情報を再照合する必要があります。</p>'
+        '</article></section>'
+    ) if not rows else ""
     return """<!doctype html><html lang="ja"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -114,7 +137,7 @@ border-radius:9px}@media(max-width:500px){header h1{font-size:19px}}
         "".join(cards) if cards else
         '<p class="empty">この表示テスト用の注文記録はまだありません。'
         '既存のSquare Sandboxの注文は別画面で確認してください。</p>'
-    ) + """</section>
+    ) + """</section>""" + demo + """
 <p class="warning">このページで現在の決済/返金照会は実行しません。
 実際のSquare本番API・実注文データや顧客の氏名、メール、住所にはアクセスしません。</p>
 </main></body></html>"""
