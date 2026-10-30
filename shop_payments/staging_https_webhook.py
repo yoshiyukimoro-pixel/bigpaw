@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 from .sandbox_connector import SandboxOrderStore, SquareSandboxError
 from .sandbox_reconcile import retrieve_verified_sandbox_payment
 from .sandbox_auto_notify import maybe_notify_verified_payment
+from .sandbox_runtime_guard import is_allowed_sandbox_runtime
 
 WEBHOOK_PATH = "/api/shop/sandbox/webhook"
 MAX_EVENT_BYTES = 256_000
@@ -49,17 +50,8 @@ def stage_ready(env: dict) -> bool:
             or url.password or url.query or url.fragment
             or url.path != WEBHOOK_PATH):
         return False
-    # The primary BIG PAW production Railway projects must NEVER host this.
-    if env.get("RAILWAY_PROJECT_ID") in {
-        "afb79723-1a2d-4c43-b498-f166e501760c",
-        "d70f7165-f5eb-41e8-95a0-62f85ff90478",
-    }:
+    if not is_allowed_sandbox_runtime(env):
         return False
-    if env.get("RAILWAY_PROJECT_ID"):
-        if (env.get("RAILWAY_PROJECT_ID") != env.get("BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID")
-                or not env.get("RAILWAY_ENVIRONMENT_ID")
-                or not env.get("RAILWAY_SERVICE_ID")):
-            return False
     return True
 
 
