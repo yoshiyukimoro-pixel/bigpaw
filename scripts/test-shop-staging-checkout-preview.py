@@ -192,6 +192,23 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertIn("パピーラージ".encode(), dashboard[2])
             self.assertIn("決済確定前".encode(), dashboard[2])
 
+    def test_shop_commerce_disclosures_are_private_and_never_enable_sales(self):
+        with server_with_env() as (srv, store, calls):
+            self.assertEqual(request(srv, "/shop-commerce.html", auth=False)[0], 401)
+            response = request(srv, "/shop-commerce.html")
+            self.assertEqual(response[0], 200)
+            self.assertIn("text/html", response[1]["Content-Type"])
+            html = response[2].decode("utf-8")
+            self.assertIn("販売条件（準備中）", html)
+            self.assertIn("返品・キャンセル", html)
+            self.assertIn("販売業者・所在地・電話番号", html)
+            self.assertIn("受け付けていません", html)
+            shop = request(srv, "/shop.html")
+            self.assertEqual(shop[0], 200)
+            self.assertIn('href="shop-commerce.html"', shop[2].decode())
+            self.assertIn('id="previewCheckout" disabled', shop[2].decode())
+            self.assertEqual(calls, [], "reading terms must not create Square payment")
+
     def test_dashboard_paid_order_shows_next_action_and_drafts_without_sending(self):
         # Test DB only: synthetic 'paid' fixture. This is NOT evidence of a real
         # Square payment. The route must remain read-only and never notify anyone.
