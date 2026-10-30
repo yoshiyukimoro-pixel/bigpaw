@@ -127,7 +127,7 @@ class TestStageWebhook(unittest.TestCase):
                     "RAILWAY_ENVIRONMENT_ID": "staging-only",
                     "RAILWAY_SERVICE_ID": "webhook-only",
                     "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID": "isolated-sandbox-project"}
-        self.assertTrue(stage_ready(isolated))
+        self.assertFalse(stage_ready(isolated), "Unrecognized Railway project must fail closed")
         existing_test = {**STAGING,
             "BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL":
                 "https://bigpaw-test-production.up.railway.app" + WEBHOOK_PATH,
