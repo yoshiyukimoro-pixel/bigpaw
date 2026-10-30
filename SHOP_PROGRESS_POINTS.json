@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 93,
-  "completed_points_since_baseline": 7,
+  "remaining_points": 90,
+  "completed_points_since_baseline": 10,
   "groups": [
     {
       "key": "purchase",
@@ -97,9 +97,14 @@
           "id": "O03",
           "weight": 3,
           "title": "重複通知・返金後・金額不一致・処理断の復旧を結合テスト",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41053562985",
+            "commit": "6bd8461284bf40f48166df777f48571dd510b8dd",
+            "scope": "オフライン結合：署名付きSquare Webhook→既存台帳→Square Payments+Ordersの2GET→入金履歴・監査記録。8通の同時同一イベントで入金遷移1件/監査1件、入金コミット後監査記録前クラッシュの再送復旧、後日返金・金額不一致・異なるイベント本文/署名の拒否を検証。全CI成功。",
+            "limits": "Square本番実Webhook/実決済接続は未実施。O01/O02/P04/R02等で今後実環境検証する。"
+          }
         },
         {
           "id": "O04",
