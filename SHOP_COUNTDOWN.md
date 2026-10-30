@@ -62,6 +62,13 @@
 - 過去の入金確認履歴は表示可能だが「現在の返金状態は未確認」と目立つ文言で区別。実Squareへの通信や発注/発送/メール送信機能は一切持たない。テストでHTML注入をエスケープ、GETによりSQLiteが変わらないことを確認。
 - **残り6個のまま**。これはテスト用の運営画面であり、本番注文管理の認証・公開・運用体制は未完成。テスト合格後に既存`bigpaw-test`へだけ反映する。
 
+### テスト実行・適用結果
+
+- GitHub Actions [41045709986](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41045709986)：Python・Dockerビルド・Chromium・iPhone Safari/WebKit相当のブラウザーテストすべて**SUCCESS**。
+- Railway既存`bigpaw-test`だけへ、テスト済みコミット`c37cc46c32490914d3ce9b22d5708cb65bcd3d9a`を反映。デプロイID`b3e7e5c4-d217-41d7-b708-7a57a4e0226f`は**SUCCESS**。サービスオンライン・警告0、データボリューム`/data`維持。
+- 表示確認URL：`https://bigpaw-test-production.up.railway.app/shop-live-orders-preview.html`。購入者用のプレビュー認証とは別に`BIGPAW_SHOP_STAGE_OPERATOR_USER`/`BIGPAW_SHOP_STAGE_OPERATOR_PASSWORD`を要求。
+- 本番`bigpaw-site`、`bigpaw-live`はオンラインで変更なし。開発PR #175はDraft・main未マージ、Square本番販売・実顧客送信なし。**残り6個**。
+
 ## 今後の報告書式
 作業開始：「**完成まで残り6個。購入・決済の続きを進めます。**」
 作業終了：「**今回完成した機能とテスト結果。残り6個。**」
