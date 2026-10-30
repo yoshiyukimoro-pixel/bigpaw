@@ -35,7 +35,7 @@ def shipping_opener(*,complete=True):
     def get(req,timeout):
         assert req.get_method()=="GET"
         assert req.full_url=="https://connect.squareupsandbox.com/v2/orders/"+SQUARE
-        recipient={"display_name":"PRIVATE PERSON","address":{
+        recipient={"display_name":"PRIVATE PERSON","phone_number":"09012345678","address":{
             "country":"JP","address_line_1":"PRIVATE STREET" if complete else "",
             "postal_code":"100-0001"}}
         return Response({"order":{"id":SQUARE,"fulfillments":[{
