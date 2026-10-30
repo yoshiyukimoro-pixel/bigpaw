@@ -56,8 +56,18 @@ def sync(env=None, opener=urlopen):
         if (not isinstance(t,dict) or t.get("projectId")!=PROJECT
                 or t.get("environmentId")!=ENVIRONMENT):
             return "railway_project_token_wrong_scope",2
-    except (HTTPError,URLError,OSError,TimeoutError,TypeError,ValueError):
-        return "railway_token_validation_failed",2
+    except HTTPError as exc:
+        # Report only the HTTP category. Never print the response, headers,
+        # the supplied token, Railway account data, or secret material.
+        if exc.code in (401, 403):
+            return "railway_project_token_auth_rejected_http_" + str(exc.code),2
+        if exc.code in (400, 422):
+            return "railway_project_token_query_rejected_http_" + str(exc.code),2
+        return "railway_project_token_http_failure",2
+    except (URLError, OSError, TimeoutError):
+        return "railway_project_token_network_failure",2
+    except (TypeError, ValueError):
+        return "railway_project_token_invalid_response",2
     sqheaders={"Authorization":"Bearer "+square,"Square-Version":"2026-09-16",
                "Accept":"application/json"}
     try:
