@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 100,
-  "completed_points_since_baseline": 0,
+  "remaining_points": 97,
+  "completed_points_since_baseline": 3,
   "groups": [
     {
       "key": "purchase",
@@ -49,9 +49,13 @@
           "id": "P05",
           "weight": 3,
           "title": "通信断・二重クリック・再試行の重複決済防止を確認",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41049980115",
+            "verified_commit": "458d81e70ba29c9f37b67d8b98fa2c9bd3ae128c",
+            "scope": "Pythonの架空Square POST/GET・12件の並列購入・通信断・再試行・手動確認復旧と、Chromium/WebKitの12連打ブラウザーテストがすべて合格。Square本番実決済は未実施でP04/R02に残す。"
+          }
         },
         {
           "id": "P06",
