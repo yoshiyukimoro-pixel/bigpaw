@@ -75,6 +75,12 @@ const srv=http.createServer(async(req,res)=>{
         await page.locator('#previewReviewOrder').click();
         await page.waitForURL('**/shop.html?order=review');
         await page.waitForSelector('#squareReviewSandboxCheckout');
+        assert.match(await page.locator('#orderCommerceTerms').innerText(),
+          /返品・キャンセル・販売事業者/);
+        assert.equal(await page.locator('a[href="shop-commerce.html"]').count(), 2,
+          'shop footer and final review must both link to retail disclosures');
+        assert.equal(await page.locator('#previewCheckout').isDisabled(),true,
+          'public live checkout must stay disabled');
         assert.equal(await page.locator('#squareReviewSandboxCheckout').isDisabled(),true);
         assert.match(await page.locator('#squareReviewSandboxNotice').innerText(),/未完了/);
         const before=posted.length;
