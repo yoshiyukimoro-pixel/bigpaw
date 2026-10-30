@@ -34,6 +34,8 @@ on:
       - 'scripts/test-shop-live-checkout-flow.py'
       - 'scripts/test-shop-live-checkout-controller.py'
       - 'scripts/test-shop-live-http-bridge.py'
+      - 'scripts/test-shop-live-webhook-bridge.py'
+      - 'app/backend/shop_live_webhook_bridge.py'
       - 'app/backend/shop_live_checkout_bridge.py'
       - 'app/backend/server.py'
       - 'Dockerfile'
@@ -141,7 +143,8 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-live-checkout-flow.py
           PYTHONPATH=. python3 scripts/test-shop-live-checkout-controller.py
           PYTHONPATH=. python3 scripts/test-shop-live-http-bridge.py
-          python3 -m py_compile app/backend/shop_live_checkout_bridge.py app/backend/server.py
+          PYTHONPATH=. python3 scripts/test-shop-live-webhook-bridge.py
+          python3 -m py_compile app/backend/shop_live_checkout_bridge.py app/backend/shop_live_webhook_bridge.py app/backend/server.py
           PYTHONPATH=. python3 scripts/test-shop-live-customer-notice-preview.py
           PYTHONPATH=. python3 scripts/test-shop-live-notice-approval.py
           PYTHONPATH=. python3 scripts/test-shop-staging-seed-order.py
