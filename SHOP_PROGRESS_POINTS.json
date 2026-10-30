@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 86,
-  "completed_points_since_baseline": 14,
+  "remaining_points": 82,
+  "completed_points_since_baseline": 18,
   "groups": [
     {
       "key": "purchase",
@@ -94,9 +94,14 @@
           "id": "O02",
           "weight": 4,
           "title": "Square Payments/Ordersの最新照合と実注文台帳を接続",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41056307267",
+            "validated_commit": "302531ca9a1e8f2dda1e69a437cc9f1a1a80fce2",
+            "scope": "開発ブランチの購入者セッション/CSRF購入API→架空Square Payment Link POST→架空Orders GET→同一非公開SQLite注文台帳記録→署名付きPayment通知→架空Payments+Orders独立再照合→paid_verified 1件/監査イベント1件までの全工程を統合テスト。購入停止後も以前発行したリンクの有効な通知を受信し、再通知を冪等処理。返金/改ざん署名は拒否。Python/両Docker/Chromium/WebKit CI全成功。",
+            "limits": "Square本番API/実商用注文/Webhookアカウントの実接続は未実施でP02/P04/R02/R05に残す。P06本番購入停止スイッチの実機切り戻しも未実施。"
+          }
         },
         {
           "id": "O03",
