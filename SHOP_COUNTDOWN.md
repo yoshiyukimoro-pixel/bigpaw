@@ -69,6 +69,15 @@
 - 表示確認URL：`https://bigpaw-test-production.up.railway.app/shop-live-orders-preview.html`。購入者用のプレビュー認証とは別に`BIGPAW_SHOP_STAGE_OPERATOR_USER`/`BIGPAW_SHOP_STAGE_OPERATOR_PASSWORD`を要求。
 - 本番`bigpaw-site`、`bigpaw-live`はオンラインで変更なし。開発PR #175はDraft・main未マージ、Square本番販売・実顧客送信なし。**残り6個**。
 
+## 2026-10-30：運営者の最新入金確認機能
+
+- Sandbox注文管理に、Square Sandboxの最新入金・未返金を読み取り確認するボタンを追加。
+- 運営認証・CSRF付きのテスト専用操作。保存済み注文ID・金額とSquare側の決済・注文を照合。
+- 返金・金額差・未完了・通信エラーなら入金確認成功とせず、運営者へ手動確認を案内する。
+- 注文DB、Square決済、発送、メール送信は変更しない。顧客情報は表示しない。
+- GitHub Actions 41046971266 は全テスト成功。既存のbigpaw-testのみ反映。本番ショップ未公開。
+- 完成まで残り6個。
+
 ## 今後の報告書式
 作業開始：「**完成まで残り6個。購入・決済の続きを進めます。**」
 作業終了：「**今回完成した機能とテスト結果。残り6個。**」
