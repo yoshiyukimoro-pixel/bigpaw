@@ -20,6 +20,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .retail_catalog import load_sale_catalog
+from .square_checkout import build_square_link_payload
 from .sandbox_connector import SquareSandboxError, create_square_sandbox_payment_link
 from .staging_https_webhook import stage_ready
 
@@ -197,6 +198,15 @@ def handle_get(handler):
     _send(handler, 200, file.read_bytes(), mime)
     return True
 
+def _no_duplicate_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] = value
+    return result
+
+
 def handle_post(handler):
     path = urlsplit(handler.path).path
     if path in ("/api/shop/sandbox/operator/transition",
@@ -209,7 +219,7 @@ def handle_post(handler):
                 "/api/shop/sandbox/operator/service-case"):
         from .staging_operator_actions import handle_post as operator_post
         return operator_post(handler)
-    if path != "/api/shop/sandbox/checkout":
+    if path not in ("/api/shop/sandbox/checkout", "/api/shop/sandbox/quote"):
         return False
     if not _authenticated(handler):
         return True
@@ -228,8 +238,28 @@ def handle_post(handler):
         return True
     body = handler.rfile.read(size)
     try:
-        obj = json.loads(body)
-        if not isinstance(obj, dict) or set(obj) != {"cart", "attempt_id"}:
+        obj = json.loads(body, object_pairs_hook=_no_duplicate_keys)
+        if not isinstance(obj, dict):
+            raise ValueError("invalid payload")
+        if path == "/api/shop/sandbox/quote":
+            if set(obj) != {"cart"}:
+                raise ValueError("invalid quote payload")
+            # Read-only authoritative quote: no SQLite transaction, payment,
+            # fake order reservation, email or payment-link request.
+            _, amount = build_square_link_payload(
+                cart=obj["cart"], verified_prices=load_sale_catalog(),
+                shipping_yen=0,
+                square_location_id=handler.server.env[
+                    "BIGPAW_SQUARE_SANDBOX_LOCATION_ID"
+                ], local_order_id="FOOD" + "0" * 32,
+                shipping_confirmed=True,
+            )
+            _send(handler, 200, {
+                "sandbox": True, "real_payments": False,
+                "verified": True, "amount_yen": amount, "shipping_yen": 0,
+            })
+            return True
+        if set(obj) != {"cart", "attempt_id"}:
             raise ValueError("invalid payload")
         cart = obj["cart"]
         if not isinstance(cart, dict) or not 1 <= len(cart) <= 35:
