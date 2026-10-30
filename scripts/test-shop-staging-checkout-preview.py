@@ -84,7 +84,8 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
     if auth and "Authorization" not in h:
         admin = (path.startswith("/shop-test-orders.html") or
                  path.startswith("/api/shop/sandbox/operator/draft?") or
-                 path == "/api/shop/sandbox/operator/transition")
+                 path in ("/api/shop/sandbox/operator/transition",
+                          "/api/shop/sandbox/operator/tracking"))
         credentials = (("operationstest:" + OPERATOR_PASSWORD) if admin
                        else ("shoptester:" + PASSWORD))
         h["Authorization"] = "Basic " + base64.b64encode(
@@ -414,11 +415,65 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(n, 1, "shipping must enqueue exactly one unsent draft")
             self.assertEqual(events, ["supplier_ordered", "received_at_shop", "shipped"])
 
+            # Delivery references are not sent: only an operator can record one.
+            track_page = request(srv, "/shop-test-orders.html")
+            self.assertIn("配送会社・追跡番号（テスト記録）".encode(), track_page[2])
+            tcookie = track_page[1]["Set-Cookie"].split(";", 1)[0]
+            track_path = "/api/shop/sandbox/operator/tracking"
+            payload = {
+                "order_id": ORDER, "carrier_code": "yamato",
+                "tracking_number": "1234-5678-9012",
+                "csrf": tcookie.split("=", 1)[1],
+                "confirm": "record_only",
+            }
+            def track(params=payload, *, auth=True, cookie=tcookie, origin=ORIGIN):
+                return request(srv, track_path, method="POST", auth=auth,
+                               data=urlencode(params).encode(), headers={
+                                    "Origin": origin, "Cookie": cookie,
+                                    "Content-Type": "application/x-www-form-urlencoded",
+                               })
+            self.assertEqual(track(auth=False)[0], 401)
+            self.assertEqual(track(cookie="missing=x")[0], 403)
+            self.assertEqual(track(origin="https://attacker.invalid")[0], 403)
+            self.assertEqual(track({**payload,"confirm":"wrong"})[0], 400)
+            self.assertEqual(track({**payload,"tracking_number":"bad"})[0], 409)
+            self.assertEqual(track({**payload,"carrier_code":"not_real"})[0], 409)
+            self.assertEqual(track()[0], 303)
+            self.assertEqual(track()[0], 303, "exact retry is idempotent")
+            self.assertEqual(track({**payload,"tracking_number":"9999-0000-1111"})[0], 409)
+            updated = request(srv, "/shop-test-orders.html")
+            self.assertEqual(updated[0], 200)
+            self.assertIn("配送情報（テスト記録）".encode(), updated[2])
+            self.assertIn("ヤマト運輸".encode(), updated[2])
+            self.assertIn(b"1234-5678-9012", updated[2])
+            self.assertNotIn(b'form method="post" action="/api/shop/sandbox/operator/tracking"', updated[2])
+            draft = request(srv, link)
+            self.assertEqual(draft[0], 200)
+            self.assertIn("配送会社：ヤマト運輸".encode(), draft[2])
+            self.assertIn(b"1234-5678-9012", draft[2])
+            self.assertNotIn("配送会社：【運営が確認して入力】".encode(), draft[2])
+            self.assertIn("メールは送れません".encode(), draft[2])
+            self.assertNotIn("PRIVATE STREET".encode(), draft[2])
+            self.assertEqual(calls, [], "registering tracking must never issue Square payments")
+            with sqlite3.connect(store.db_file) as conn:
+                entries = conn.execute(
+                    "SELECT carrier_code,tracking_number FROM food_sandbox_tracking WHERE order_id=?",
+                    (ORDER,)
+                ).fetchall()
+                notice_count = conn.execute(
+                    "SELECT COUNT(*) FROM food_notification_drafts WHERE order_id=? "
+                    "AND kind='customer_shipment_notice'", (ORDER,)
+                ).fetchone()[0]
+            self.assertEqual(entries, [("yamato", "1234-5678-9012")])
+            self.assertEqual(notice_count, 1, "shipment notice is draft only, never resent")
+
     def test_preview_is_off_by_default_and_wrong_railway_services_rejected(self):
         with server_with_env({"BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"}) as (srv, _, _):
             self.assertEqual(request(srv, "/shop.html")[0], 200)
             self.assertEqual(request(srv, "/shop-test-orders.html")[0], 404)
             self.assertEqual(request(srv, "/api/shop/sandbox/operator/transition",
+                                     method="POST", data=b"{}")[0], 404)
+            self.assertEqual(request(srv, "/api/shop/sandbox/operator/tracking",
                                      method="POST", data=b"{}")[0], 404)
         for config in (
             {"BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0"},
