@@ -59,3 +59,13 @@ T03（Square実Webhook鍵とURL移行、受信検証）、P04（決済JPY・配�
 - テストコードを修正し、ショップ総合CIへ合成テストを常設。**新通知先が未登録なら無効状態で1件だけ登録**し、有効な既存Webhookは絶対に変更しない。登録リクエストのタイムアウトや結果不明時は自動再送しない。
 - Squareから返る署名鍵とサブスクリプションIDはCI出力・GitHub保存・チャットへ出さない。Square本番APIには接続しない。
 - 今回は別の明示的なSandboxテスト開始であり、**T03やP04の完了宣言にはしない**。
+
+## 2026-10-31：新Square Sandbox通知先を無効で登録・独立照合
+
+- GitHub Actions `41133493643`（Sandbox Webhook Subscriptions APIへの**GETのみ**）で、既存 `bigpaw-test-production.up.railway.app` は有効かつ `payment.updated` 登録済み、新 `bigpaw-square-sandbox-staging-staging.up.railway.app` は未登録と判明。
+- Square公式のWebhook Subscriptions APIで新しい受信URLだけを `enabled=false` として事前登録。登録ワークフロー `41133935500` **SUCCESS**、結果 `new_target_created_disabled_no_delivery`。Square本番APIは一切使用せず、旧Webhookの設定変更なし。
+- 作成前の安全テストは一度 `41133725838` で引数指定の不具合により失敗したが、API書込前に止まった。テスト修正後に登録実施。既存通知先に副作用なし。
+- 登録後の独立した読み取り専用チェック `41134021794` **SUCCESS**：`old_enabled_payment_updated__new_disabled_payment_updated__read_only`、外部API書込0回。
+- 新WebhookサービスはSquare認証情報・**新通知先専用署名鍵が未設定**であり、HTTP 503 `sandbox_webhook_standby` を維持。未登録注文のWebhook受信や本番販売を有効化していない。
+- 次に必要：Square Developer Console等から新サブスクリプションの`signature_key`を確認し、新Railwayサービスの`BIGPAW_SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY`、`BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN`、`BIGPAW_SQUARE_SANDBOX_LOCATION_ID`を**安全な秘密変数**として設定する。秘密値をGitHub・チャット・CIログに貼らない。実署名通知と最新Square Payment照合に成功した後だけT03達成とする。
+- 本作業でT03/P04/R02はまだ完了していないため、**残り46ポイント・完了54%維持**。
