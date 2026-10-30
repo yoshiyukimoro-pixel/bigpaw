@@ -200,6 +200,94 @@ class LiveOrderLedger:
             raise LiveOrderBlocked("No valid trusted checkout")
         return {"amount_yen": row["amount_yen"], "state": row["state"]}
 
+    @staticmethod
+    def _install_signed_events(db):
+        """No webhook JSON, shipping addresses or recipient details stored."""
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS food_live_signed_payment_events (
+                event_id TEXT PRIMARY KEY,
+                body_sha256 TEXT NOT NULL,
+                order_id TEXT NOT NULL,
+                payment_id TEXT NOT NULL,
+                verified_at INTEGER NOT NULL
+            )
+        """)
+
+    @staticmethod
+    def _check_event_params(event_id, fingerprint):
+        if not isinstance(event_id, str) or not _SQUARE_ID.fullmatch(event_id):
+            raise LiveOrderBlocked("Invalid Square event id")
+        if not isinstance(fingerprint, str) or not re.fullmatch(
+                r"[0-9a-f]{64}", fingerprint):
+            raise LiveOrderBlocked("Invalid signed event digest")
+
+    def assert_signed_event_identity(self, *, event_id, fingerprint):
+        """Reject reuse of an event ID with different signed raw content.
+
+        An identical replay still MUST run fresh Square Payments/Orders GET.
+        This check cannot by itself indicate a current unrefunded payment.
+        """
+        self._check_event_params(event_id, fingerprint)
+        with closing(self._open()) as db:
+            self._install_signed_events(db)
+            previous = db.execute(
+                "SELECT body_sha256 FROM food_live_signed_payment_events "
+                "WHERE event_id=?", (event_id,),
+            ).fetchone()
+        if previous is not None and previous["body_sha256"] != fingerprint:
+            raise LiveOrderBlocked("Square event ID reused with conflicting content")
+
+    def record_signed_payment_event(self, *, event_id, fingerprint,
+                                    order_id, payment_id):
+        """Durably record an event ONLY after a fresh, verified paid result.
+
+        An independent Square GET must already have succeeded. Inserts are
+        idempotent across concurrent arrivals. This is not proof of the
+        payment's CURRENT status at a later time.
+        """
+        self._check_event_params(event_id, fingerprint)
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid event checkout reference")
+        if not _valid_id(payment_id):
+            raise LiveOrderBlocked("Invalid event payment reference")
+        with closing(self._open()) as db:
+            try:
+                db.execute("BEGIN IMMEDIATE")
+                self._install_signed_events(db)
+                row = db.execute(
+                    "SELECT payment_id,state FROM food_live_order_ledger "
+                    "WHERE order_id=?", (order_id,),
+                ).fetchone()
+                if (row is None or row["state"] != "paid_verified"
+                        or row["payment_id"] != payment_id):
+                    raise LiveOrderBlocked("No verified paid order for signed event")
+                old = db.execute(
+                    "SELECT body_sha256,order_id,payment_id "
+                    "FROM food_live_signed_payment_events WHERE event_id=?",
+                    (event_id,),
+                ).fetchone()
+                if old is not None:
+                    if (old["body_sha256"], old["order_id"],
+                            old["payment_id"]) != (
+                                fingerprint, order_id, payment_id):
+                        raise LiveOrderBlocked("Conflicting signed Square event")
+                    created = False
+                else:
+                    db.execute(
+                        "INSERT INTO food_live_signed_payment_events "
+                        "(event_id,body_sha256,order_id,payment_id,verified_at) "
+                        "VALUES (?,?,?,?,?)",
+                        (event_id, fingerprint, order_id, payment_id,
+                         int(time.time())),
+                    )
+                    created = True
+                db.execute("COMMIT")
+            except Exception:
+                if db.in_transaction:
+                    db.execute("ROLLBACK")
+                raise
+        return {"recorded_new_event": created}
+
     def paid_notice_snapshot(self, order_id):
         """Internal-only paid-order snapshot for a later *review*, not sending.
 
