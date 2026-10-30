@@ -41,7 +41,7 @@ class ReadOnlyRefundAuditTests(unittest.TestCase):
         self.assertNotIn("PRIVATE_ID",result)
 
     def test_none_is_unverified(self):
-        result,code=mod.audit(env=ENV,opener=lambda *_:FakeResp({}))
+        result,code=mod.audit(env=ENV,opener=lambda req, timeout:FakeResp({}))
         self.assertEqual(code,1)
         self.assertIn("no_matching",result)
 
