@@ -166,10 +166,18 @@ class WebhookAdapterTests(unittest.TestCase):
         )
         return ledger
 
-    def test_real_manifest_rejects_before_body_db_or_square(self):
+    def test_unconfigured_webhook_rejects_before_body_db_or_square(self):
         h = self.handler()
-        self.assertEqual(self.invoke(h, launch_status=None), 404)
+        self.assertEqual(self.invoke(h, launch_status=None, env={
+            **self.env, "BIGPAW_SHOP_SQUARE_LIVE_WEBHOOK_ENABLED": "0"
+        }), 404)
         self.assertEqual(h.rfile.tell(), 0)
+        self.assertFalse(self.ledger_path.exists())
+        self.assertEqual(self.gets, [])
+        # A correctly signed webhook must NOT bootstrap a new private DB.
+        h2 = self.handler()
+        self.assertEqual(self.invoke(h2, launch_status=None), 503)
+        self.assertEqual(h2.rfile.tell(), 0)
         self.assertFalse(self.ledger_path.exists())
         self.assertEqual(self.gets, [])
 
@@ -189,11 +197,61 @@ class WebhookAdapterTests(unittest.TestCase):
                 self.assertEqual(h.rfile.tell(), 0)
                 self.assertEqual(self.gets, [])
                 self.assertFalse(self.ledger_path.exists())
+        # Checkout terms/state are intentionally not required for signed
+        # reconciliation: preexisting links may be paid after shop closure.
         not_approved = deepcopy(self.approved)
         not_approved["launch_checks"]["proprietor_approval"] = False
         h = self.handler()
-        self.assertEqual(self.invoke(h, launch_status=not_approved), 404)
+        self.assertEqual(self.invoke(h, launch_status=not_approved), 503)
         self.assertEqual(h.rfile.tell(), 0)
+        self.assertEqual(self.gets, [])
+        self.assertFalse(self.ledger_path.exists())
+
+    def test_signed_payment_stays_verifiable_after_checkout_is_suspended(self):
+        """Kill new purchases; honor already-issued link via Square GET only."""
+        import shop_live_checkout_bridge as checkout
+        from shop_payments.retail_launch_guard import REQUIRED
+        ledger = self.seed()
+        env = {**self.env, "BIGPAW_SHOP_PUBLIC_LIVE_ENABLED": "0"}
+        # New checkout is blocked even if owner approval remains in place.
+        gated_status = {
+            **self.approved,
+            "launch_checks": {
+                **self.approved["launch_checks"],
+                "square_live_readiness": False,
+            },
+        }
+        self.assertFalse(checkout._gate(env, SITE, gated_status))
+        # The webhook's independent signature + exact URL + existing order
+        # + Square independent GET allow a pending payment to be accounted for.
+        h = self.handler()
+        self.assertEqual(self.invoke(h, env=env,
+                                     launch_status=gated_status), 200)
+        self.assertEqual(ledger.status(ORDER)["state"], "paid_verified")
+        self.assertEqual(len(self.gets), 2)
+        self.assertEqual(self.invoke(self.handler(), env=env,
+                                     launch_status=gated_status), 200)
+        self.assertEqual(len(self.gets), 4)
+        self.assertEqual(ledger.status(ORDER)["state"], "paid_verified")
+
+        # Signing-key loss is different: no reliable authentication,
+        # so incoming notifications must be rejected without reading.
+        bad = self.handler()
+        self.assertEqual(self.invoke(
+            bad, env={**env,"BIGPAW_SQUARE_LIVE_WEBHOOK_SIGNATURE_KEY":""},
+            launch_status=gated_status
+        ), 404)
+        self.assertEqual(bad.rfile.tell(), 0)
+        self.assertEqual(len(self.gets), 4)
+
+    def test_refunded_payment_not_accepted_after_checkout_suspension(self):
+        ledger = self.seed()
+        self.payment["refunded_money"]["amount"] = 1
+        env = {**self.env, "BIGPAW_SHOP_PUBLIC_LIVE_ENABLED": "0"}
+        h = self.handler()
+        self.assertEqual(self.invoke(h, env=env, launch_status=None), 503)
+        self.assertEqual(ledger.status(ORDER)["state"], "checkout_recorded")
+        self.assertEqual(len(self.gets), 1)
 
     def test_invalid_signature_host_origin_and_length_cannot_reach_ledger(self):
         mutations = (
