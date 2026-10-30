@@ -12,6 +12,7 @@ and use durable/off-site storage appropriate to the hosting environment.
 from __future__ import annotations
 import planned_litters as bp_planned_litters
 import shop_live_checkout_bridge as bp_shop_checkout
+import shop_live_webhook_bridge as bp_shop_webhook
 
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote, urlencode
@@ -1159,6 +1160,10 @@ class Handler(SimpleHTTPRequestHandler):
             return bp_shop_checkout.handle_post(
                 self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
                 data_dir=DATA_DIR, rate_limited=rate_limited)
+        if path == '/api/shop/square-webhook':
+            return bp_shop_webhook.handle_post(
+                self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
+                data_dir=DATA_DIR)
         m=re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)
         if m:
             u=self.require();
