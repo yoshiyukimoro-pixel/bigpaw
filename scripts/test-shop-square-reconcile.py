@@ -111,6 +111,7 @@ class TestSandboxVerification(unittest.TestCase):
                     "type": "SHIPMENT",
                     "shipment_details": {"recipient": {
                         "display_name": "PRIVATE_TEST_CUSTOMER",
+                        "phone_number": "09012345678",
                         "address": {"country": "JP", "postal_code": "111-2222",
                                     "address_line_1": "PRIVATE_TEST_ADDRESS"}
                     }}
@@ -154,6 +155,7 @@ class TestSandboxVerification(unittest.TestCase):
                 "id": ORDER_ID, "fulfillments": [{
                     "type": "SHIPMENT", "shipment_details": {"recipient": {
                         "display_name": "PRIVATE",
+                        "phone_number": "09012345678",
                         "address": {"country": "US", "postal_code": "99999",
                                     "address_line_1": "PRIVATE"}
                     }}
