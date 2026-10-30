@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 90,
-  "completed_points_since_baseline": 10,
+  "remaining_points": 86,
+  "completed_points_since_baseline": 14,
   "groups": [
     {
       "key": "purchase",
@@ -81,9 +81,14 @@
           "id": "O01",
           "weight": 4,
           "title": "正式Webhookの署名/URL/権限を保護した入口に接続",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41054761005",
+            "commit": "dc97aefd62384e17780d74fdc7dba0d18b26a4b0",
+            "scope": "Draft branch: app/backend/server.py safely routes future POST /api/shop/square-webhook via shop_live_webhook_bridge. Before body/DB/Square, entire merchant launch status and exact canonical HTTPS URL, live webhook enabled, signing key checked; no buyer cookies/Origin accepted. Raw body HMAC verified; unknown or refunded payment rejected; verified signed event always independently GETs Square Payments/Orders and updates idempotent private ledger. Fake HTTP positive and negative tests plus real BIG PAW Docker and Chromium/WebKit CI all passed.",
+            "limits": "Square production signing key, actual webhook URL registration, live merchant permissions and production deployment NOT configured or verified. O02/P02/P04/R02/R05 remain pending. This completion is the protected code-route integration, not production receipt of real webhook."
+          }
         },
         {
           "id": "O02",
