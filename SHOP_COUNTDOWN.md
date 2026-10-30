@@ -380,3 +380,12 @@
 - 独立した新Railway`bigpaw-square-sandbox-staging`に固定コミット`af741f6d07fa35f11ac2f7dc4b75b6d5a1fc563e`をデプロイ。最新稼働Deployment `0de6aafb-96d1-4070-9719-740977b41a3f` **SUCCESS**。旧版はREMOVED。今回変更した実稼働サービスは**新Webhookだけ**。
 - GitHub Actions `41139792667` **SUCCESS**: 旧Sandbox`/healthz` 200、新フルアプリ`/healthz` 200、未ログイン`/shop.html`と`/api/shop/checkout/config` 401、新Webhook`/healthz` 200・root 404・署名無しPOST 503・状態`sandbox_webhook_standby`を実URLから確認。仕入れ・発送の合成回帰も合格。
 - **未完**：新RailwayへSandbox専用の署名鍵・トークン・店舗IDを安全登録（GitHub ActionsのRailway Project Tokenが未設定）、無効WebhookのSquare実配信テスト、Sandboxの実際の配送先入力のE2E、オーナー承認済み法定表示/配送返品条件、本番決済/本番公開。Square Sandboxテストパネルの成功は配送先入力を証明しない。**残り46ポイント・完了54%維持**、PR #175はDraft、mainは未変更。
+
+## 2026-10-31：日本国内発送の電話・7桁郵便番号と配送先確認
+
+- Square Checkout APIの`checkout_options.ask_for_shipping_address=true`は既に実装されている。公式仕様では通常の購入画面で氏名・電話番号・配送先を収集し、`Order.fulfillments.shipment_details`へ保存される。一方、Square Sandboxの「Testing Panel」は通常の購入フォームと同一ではなく、模擬決済に配送情報が含まれないことがある。ドキュメント：https://developer.squareup.com/docs/checkout-api/optional-checkout-configurations 、https://developer.squareup.com/reference/square/objects/OrderFulfillmentRecipient
+- `shop_payments/sandbox_reconcile.py`、`square_live_readonly.py` に共通した、JP宛先の氏名・空欄でない住所・数字7桁の郵便番号・正規化した国内電話番号（10/11桁、`+81`も可）の検証を追加。電話に制御文字や不正な桁数があれば不合格。金額一致・入金完了だけで、個別の発送準備可能とはみなさない。既存の複数配送先拒否ルールも維持。
+- Sandbox受注/運営者CLI/仕入れ/注文台帳/顧客通知の**合成テストデータ**のみ必要な架空電話番号を補い、実購入者の情報をログ・GitHub・SQLiteに書き出さない。
+- GitHub Actions `41139507070` **SUCCESS**：Python全テスト・Square Sandbox照合・Dockerイメージ二種類・PC Chromium・iPhone WebKit。新隔離Webhook専用Railwayだけをコミット `af741f6d07fa35f11ac2f7dc4b75b6d5a1fc563e`へデプロイし、`0de6aafb-96d1-4070-9719-740977b41a3f` **SUCCESS**。
+- GitHub Actions `41139792667` **SUCCESS**：Sandbox/Liveの返金・配送先・仕入れテストと、新旧RailwayのGET/保護401/未署名POST503/`sandbox_webhook_standby`を外部から再確認。
+- 新受信機にはSquare Sandbox Token/Location/署名鍵は依然として未設定、Square側の新サブスクリプションも無効。本物の署名付きSquare→新Railway配信や本番サイト販売は未実施。旧BigPaw運営サイト・本番決済・顧客メール・PR #175 Draft・mainは未変更。**完了54%／残り46ポイントを維持。**
