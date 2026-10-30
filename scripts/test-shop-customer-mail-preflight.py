@@ -10,6 +10,7 @@ import tempfile
 import unittest
 
 from shop_payments.customer_mail_preflight import prepare_customer_email
+from shop_payments.sandbox_customer_mail_attempts import SandboxCustomerMailAttempts
 from shop_payments.retail_catalog import load_sale_catalog
 from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxError
 from shop_payments.sandbox_customer_dispatch import SandboxDryRunOutbox
@@ -149,6 +150,92 @@ class CustomerMailPreflightTests(unittest.TestCase):
         }
         with self.assertRaises(ValueError):
             self.prep()
+
+    def test_accepted_mock_status_stored_without_any_delivery(self):
+        attempts = SandboxCustomerMailAttempts(self.store)
+        self.assertIsNone(attempts.status(ORDER, "customer_order_confirmed"))
+        with self.assertRaisesRegex(ValueError, "Fresh operator approval"):
+            attempts.simulate_attempt_once(
+                ORDER, "customer_order_confirmed", sandbox_token=TOKEN,
+                outcome="simulated_accepted", opener=self.square_get
+            )
+        self.approve()
+        self.simulate()
+        result = attempts.simulate_attempt_once(
+            ORDER, "customer_order_confirmed", sandbox_token=TOKEN,
+            outcome="simulated_accepted", opener=self.square_get
+        )
+        self.assertEqual(result, {"status": "simulated_accepted",
+                                  "first_attempt": True, "sent": False})
+        retry = attempts.simulate_attempt_once(
+            ORDER, "customer_order_confirmed", sandbox_token=TOKEN,
+            outcome="simulated_unknown", opener=self.square_get
+        )
+        self.assertEqual(retry, {"status": "simulated_accepted",
+                                 "first_attempt": False, "sent": False})
+        self.assertEqual(attempts.status(ORDER, "customer_order_confirmed"),
+                         "simulated_accepted")
+        self.assertEqual(self.outbound, [])
+        raw = self.file.read_bytes()
+        self.assertNotIn(SAFE_EMAIL.encode(), raw)
+        self.assertNotIn(TOKEN.encode(), raw)
+        with sqlite3.connect(self.file) as db:
+            rows = db.execute(
+                "SELECT status,snapshot_digest FROM food_sandbox_customer_mail_attempts"
+            ).fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], "simulated_accepted")
+        self.assertEqual(len(rows[0][1]), 64)
+
+    def test_uncertain_result_never_retries_or_changes_outcome(self):
+        self.approve()
+        self.simulate()
+        attempts = SandboxCustomerMailAttempts(self.store)
+        first = attempts.simulate_attempt_once(
+            ORDER, "customer_order_confirmed", sandbox_token=TOKEN,
+            outcome="simulated_unknown", opener=self.square_get
+        )
+        self.assertEqual(first["status"], "simulated_unknown")
+        again = attempts.simulate_attempt_once(
+            ORDER, "customer_order_confirmed", sandbox_token=TOKEN,
+            outcome="simulated_accepted", opener=self.square_get
+        )
+        self.assertFalse(again["first_attempt"])
+        self.assertEqual(again["status"], "simulated_unknown")
+        self.assertFalse(again["sent"])
+        self.email = "changed@example.invalid"
+        with self.assertRaisesRegex(ValueError, "Fresh operator approval"):
+            attempts.simulate_attempt_once(
+                ORDER, "customer_order_confirmed", sandbox_token=TOKEN,
+                outcome="simulated_accepted", opener=self.square_get
+            )
+        self.email = SAFE_EMAIL
+        self.assertEqual(attempts.status(ORDER, "customer_order_confirmed"),
+                         "simulated_unknown")
+
+    def test_refused_result_and_invalid_outcomes_fail_closed(self):
+        self.approve()
+        self.simulate()
+        attempts = SandboxCustomerMailAttempts(self.store)
+        with self.assertRaisesRegex(ValueError, "Invalid no-network"):
+            attempts.simulate_attempt_once(
+                ORDER, "customer_order_confirmed", sandbox_token=TOKEN,
+                outcome="actually_send", opener=self.square_get
+            )
+        self.assertIsNone(attempts.status(ORDER, "customer_order_confirmed"))
+        result = attempts.simulate_attempt_once(
+            ORDER, "customer_order_confirmed", sandbox_token=TOKEN,
+            outcome="simulated_refused", opener=self.square_get
+        )
+        self.assertEqual(result["status"], "simulated_refused")
+        self.assertFalse(result["sent"])
+        retry = attempts.simulate_attempt_once(
+            ORDER, "customer_order_confirmed", sandbox_token=TOKEN,
+            outcome="simulated_refused", opener=self.square_get
+        )
+        self.assertFalse(retry["first_attempt"])
+        self.assertEqual(attempts.status(ORDER, "customer_order_confirmed"),
+                         "simulated_refused")
 
     def test_never_accept_unapproved_kind_or_order(self):
         self.approve()
