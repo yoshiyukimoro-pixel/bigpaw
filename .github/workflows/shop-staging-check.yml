@@ -30,6 +30,8 @@ on:
       - 'scripts/test-shop-sandbox-auto-notify.py'
       - 'shop_payments/staging_https_webhook.py'
       - 'scripts/test-shop-https-webhook.py'
+      - 'shop_payments/staging_seed_order.py'
+      - 'scripts/test-shop-staging-seed-order.py'
       - 'Dockerfile.shop-staging'
       - 'scripts/smoke-shop-operator-resend-once.py'
       - 'scripts/test-shop-operator-resend-once.py'
@@ -92,6 +94,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-email.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-auto-notify.py
           PYTHONPATH=. python3 scripts/test-shop-https-webhook.py
+          PYTHONPATH=. python3 scripts/test-shop-staging-seed-order.py
           PYTHONPATH=. python3 scripts/test-shop-operator-resend-once.py
           PYTHONPATH=. python3 scripts/test-shop-operator-resend-audit.py
           PYTHONPATH=. python3 scripts/test-shop-info-mail-simple.py
