@@ -15,6 +15,7 @@ from contextlib import closing
 from .retail_catalog import load_sale_catalog
 from .sandbox_procurement import TRANSITIONS
 from .sandbox_tracking import SandboxTrackingJournal, CARRIERS
+from .sandbox_service_cases import CASE_TYPES, CASE_STATUSES, NEXT
 from urllib.parse import urlencode
 
 JP = timezone(timedelta(hours=9))
@@ -137,6 +138,19 @@ def render(store, *, csrf: str = "") -> str:
                     "FROM food_sandbox_customer_mail_attempts"
                 ).fetchall()
             }
+        service_cases_by_order = {}
+        if db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='food_sandbox_service_cases'"
+        ).fetchone():
+            for c in db.execute(
+                "SELECT order_id,kind,status FROM food_sandbox_service_cases "
+                "ORDER BY created_at,kind"
+            ).fetchall():
+                if c["kind"] in CASE_TYPES and c["status"] in CASE_STATUSES:
+                    service_cases_by_order.setdefault(c["order_id"], []).append(
+                        (c["kind"], c["status"])
+                    )
         items_by_order = {}
         for row in records:
             items_by_order[row["order_id"]] = [
@@ -269,6 +283,55 @@ def render(store, *, csrf: str = "") -> str:
                 '<button type="submit">Square全額返金済みを照合する（テスト）</button>'
                 '</form></section>'
             )
+        case_html = ""
+        if order["state"] == "paid" and csrf:
+            existing_cases = service_cases_by_order.get(order_id, [])
+            existing_kinds = {k for k, _ in existing_cases}
+            available = [(key, label) for key, label in CASE_TYPES.items()
+                         if key not in existing_kinds]
+            case_forms = []
+            if available:
+                options = "".join(
+                    '<option value="' + _safe(k) + '">' + _safe(v) + '</option>'
+                    for k, v in available
+                )
+                case_forms.append(
+                    '<form method="post" action="/api/shop/sandbox/operator/service-case" class="stage-form">'
+                    '<input type="hidden" name="order_id" value="' + _safe(order_id) + '">'
+                    '<input type="hidden" name="expected" value="none">'
+                    '<input type="hidden" name="status" value="open">'
+                    '<input type="hidden" name="csrf" value="' + _safe(csrf) + '">'
+                    '<label>模擬問い合わせの種類<select name="kind" required>'
+                    '<option value="">選択してください</option>' + options + '</select></label>'
+                    '<label><input type="checkbox" name="confirm" value="record_only" required>'
+                    'これはテスト用の問い合わせ管理記録のみ。実際の返品受付・返金・顧客連絡はしない</label>'
+                    '<button type="submit">対応記録を作成（テスト）</button></form>'
+                )
+            for kind, current_status in existing_cases:
+                case_forms.append(
+                    '<p><strong>' + _safe(CASE_TYPES[kind]) + '</strong>：' +
+                    _safe(CASE_STATUSES[current_status]) + '</p>'
+                )
+                for next_status in sorted(NEXT[current_status]):
+                    label = CASE_STATUSES[next_status]
+                    case_forms.append(
+                        '<form method="post" action="/api/shop/sandbox/operator/service-case" class="stage-form">'
+                        '<input type="hidden" name="order_id" value="' + _safe(order_id) + '">'
+                        '<input type="hidden" name="kind" value="' + _safe(kind) + '">'
+                        '<input type="hidden" name="expected" value="' + _safe(current_status) + '">'
+                        '<input type="hidden" name="status" value="' + _safe(next_status) + '">'
+                        '<input type="hidden" name="csrf" value="' + _safe(csrf) + '">'
+                        '<label><input type="checkbox" name="confirm" value="record_only" required>'
+                        '画面上の状況を記録するだけで、実際の連絡や返金は行わない</label>'
+                        '<button type="submit">' + _safe(label) + 'として記録</button></form>'
+                    )
+            case_html = (
+                '<details class="service-cases"><summary>問い合わせ対応（テスト記録）：' +
+                str(len(existing_cases)) + '件</summary>'
+                '<p>未承認の返品・キャンセル条件を適用しません。'
+                'お客様や仕入先への連絡、Square返金は実行されません。</p>' +
+                "".join(case_forms) + '</details>'
+            )
         cards.append(
             '<article class="order"><div class="order-top"><strong>' +
             _safe(PAYMENT_LABELS.get(order["state"], "状態確認が必要")) +
@@ -281,7 +344,7 @@ def render(store, *, csrf: str = "") -> str:
             '<p class="status">仕入れ：' + _safe(procurement_text) +
             "<br>運営メール：" + _safe(mail_text) + "</p>" +
             '<div class="next-action"><strong>次の確認作業</strong><p>' +
-            _safe(action) + "</p></div>" + drafts_html + controls + tracking_html + refund_html + "</article>"
+            _safe(action) + "</p></div>" + drafts_html + controls + tracking_html + refund_html + case_html + "</article>"
         )
     paid = sum(row["state"] == "paid" for row in records)
     pending = len(records) - paid
@@ -310,6 +373,12 @@ ul{padding-left:21px;margin:8px 0}.status{font-size:13px;background:#f1f6fa;bord
 .drafts{margin-top:12px;border:1px solid #d9e3ef;border-radius:8px;padding:9px 11px;font-size:13px}
 .drafts summary{cursor:pointer;font-weight:800;color:#285681}
 .drafts li{padding:3px 0}
+.service-cases{margin-top:14px;border:1px solid #d2d5df;border-radius:10px;background:#fcfcff;padding:12px}
+.service-cases summary{font-weight:800;cursor:pointer;color:#2e567f}
+.service-cases p{font-size:13px;margin:9px 0}
+.service-cases select{width:100%;background:white;border:1px solid #aabfce;border-radius:7px;padding:10px}
+.service-cases .stage-form label:has(input[type=checkbox]){display:flex}
+
 .draft-empty{color:#718197;font-size:12px}
 .stage-controls{margin-top:14px;padding:12px;border:1px solid #bfd9e9;border-radius:9px;background:#f6faff}
 .stage-controls h3{margin:0 0 5px;font-size:15px}.stage-controls p{font-size:12px;margin:0 0 10px}
