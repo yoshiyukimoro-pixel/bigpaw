@@ -72,7 +72,8 @@ class StageWebhookServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, *, env: dict, store: SandboxOrderStore, host="127.0.0.1", port=0,
-                 payment_lookup=None, notify=None, checkout_creator=None):
+                 payment_lookup=None, notify=None, checkout_creator=None,
+                 shipping_opener=None):
         if not stage_identity_ok(env):
             raise ValueError("Dedicated Square Sandbox staging identity required")
         self.env = dict(env)
@@ -84,6 +85,8 @@ class StageWebhookServer(ThreadingHTTPServer):
         )
         self.notify = notify or maybe_notify_verified_payment
         self.checkout_creator = checkout_creator or create_square_sandbox_payment_link
+        # Optional offline injection for shipping verification tests only.
+        self.shipping_opener = shipping_opener
         super().__init__((host, port), StageWebhookHandler)
 
 
