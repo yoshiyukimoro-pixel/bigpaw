@@ -38,6 +38,7 @@ jobs:
     if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && github.event_name == 'push' && contains(github.event.head_commit.message, '[single-info-mail-send]')
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # One approved test recipient only; no Square, no real orders, no production deploy.
     steps:
       - uses: actions/checkout@v4
       - name: Validate tests (NO network, NO email)
