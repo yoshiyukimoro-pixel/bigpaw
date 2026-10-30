@@ -199,7 +199,7 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(response[0], 200)
             self.assertIn("text/html", response[1]["Content-Type"])
             html = response[2].decode("utf-8")
-            self.assertIn("販売条件（準備中）", html)
+            self.assertIn("特定商取引法に基づく表記（下書き）", html)
             self.assertIn("返品・キャンセル", html)
             self.assertIn("販売業者の氏名", html)
             self.assertIn("事業者の所在地・電話番号", html)
