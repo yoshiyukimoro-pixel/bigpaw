@@ -21,6 +21,7 @@ HOST = "bigpaw-test-production.up.railway.app"
 ORIGIN = "https://" + HOST
 COOKIE = "__Host-bigpaw_shop_operator_csrf"
 PATH = "/api/shop/sandbox/operator/transition"
+TRACKING_PATH = "/api/shop/sandbox/operator/tracking"
 STAGES = frozenset(("supplier_ordered", "supplier_backorder",
                     "received_at_shop", "refund_review", "shipped"))
 ORDER = re.compile(r"^FOOD[0-9a-f]{32}$")
@@ -112,6 +113,22 @@ def handle_draft_get(handler) -> bool:
     except ValueError:
         _send(handler, 404, {"error": "draft_unavailable"})
         return True
+    if kind == "customer_shipment_notice":
+        from .sandbox_tracking import SandboxTrackingJournal
+        recorded = SandboxTrackingJournal(handler.server.store).read(order_id)
+        if recorded:
+            draft["body"] = draft["body"].replace(
+                "配送会社：【運営が確認して入力】",
+                "配送会社：" + recorded["carrier_label"]
+            ).replace(
+                "追跡番号：【運営が確認して入力】",
+                "追跡番号：" + recorded["tracking_number"]
+            )
+        else:
+            draft["body"] += (
+                "\\n\\n【未完成】配送会社と追跡番号はまだ登録されていません。"
+                "実運送・お客様への送信は行わないでください。"
+            )
     html = (
         '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -134,8 +151,68 @@ def handle_draft_get(handler) -> bool:
     return True
 
 
+def handle_tracking_post(handler) -> bool:
+    """Manually record a shipping reference; NEVER send it to a recipient."""
+    from .staging_checkout_preview import _send
+    from .sandbox_tracking import SandboxTrackingJournal
+    if handler.path != TRACKING_PATH:
+        return False
+    if not authenticate(handler):
+        return True
+    if handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
+        _send(handler, 415, {"error": "invalid_type"})
+        return True
+    if handler.headers.get("Transfer-Encoding"):
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    try:
+        length = int(handler.headers.get("Content-Length", ""))
+    except ValueError:
+        length = 0
+    if not 1 <= length <= 600:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    raw = handler.rfile.read(length)
+    if len(raw) != length:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    try:
+        form = parse_qs(raw.decode("ascii"), strict_parsing=True,
+                        keep_blank_values=True, max_num_fields=5)
+        if set(form) != {"order_id", "carrier_code", "tracking_number", "csrf", "confirm"} or any(
+            len(v) != 1 for v in form.values()
+        ):
+            raise ValueError("invalid_form")
+        fields = {k: v[0] for k, v in form.items()}
+    except (UnicodeError, ValueError):
+        _send(handler, 400, {"error": "invalid_form"})
+        return True
+    if not _csrf_ok(handler, fields["csrf"]):
+        _send(handler, 403, {"error": "invalid_origin_or_csrf"})
+        return True
+    if fields["confirm"] != "record_only" or not ORDER.fullmatch(fields["order_id"]):
+        _send(handler, 400, {"error": "invalid_operator_action"})
+        return True
+    try:
+        SandboxTrackingJournal(handler.server.store).record_once(
+            fields["order_id"], fields["carrier_code"], fields["tracking_number"]
+        )
+    except ValueError:
+        _send(handler, 409, {"error": "paid_shipped_order_or_reference_required"})
+        return True
+    handler.send_response(303)
+    handler.send_header("Location", "/shop-test-orders.html?tracking=1")
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Referrer-Policy", "no-referrer")
+    handler.send_header("Content-Length", "0")
+    handler.end_headers()
+    return True
+
+
 def handle_post(handler) -> bool:
-    """POST /api/shop/sandbox/operator/transition; false for other routes."""
+    """Operator-only Sandbox stage update, or independent tracking record."""
+    if handler.path == TRACKING_PATH:
+        return handle_tracking_post(handler)
     from .staging_checkout_preview import _send
     from .sandbox_runtime_guard import is_allowed_sandbox_runtime
     if handler.path != PATH:
