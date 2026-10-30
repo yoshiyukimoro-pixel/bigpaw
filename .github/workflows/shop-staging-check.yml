@@ -23,6 +23,7 @@ on:
       - 'app/assets/shop-details/**'
       - 'shop_payments/**'
       - 'scripts/test-shop-customer-email-transport.py'
+      - 'scripts/test-shop-square-live-readonly.py'
       - 'scripts/test-shop-square.py'
       - 'scripts/test-shop-square-sandbox.py'
       - 'scripts/test-shop-retail-pricebook.py'
@@ -115,6 +116,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-staging-checkout-preview.py
           PYTHONPATH=. python3 scripts/test-shop-customer-mail-preflight.py
           PYTHONPATH=. python3 scripts/test-shop-customer-email-transport.py
+          PYTHONPATH=. python3 scripts/test-shop-square-live-readonly.py
           PYTHONPATH=. python3 scripts/test-shop-staging-seed-order.py
           PYTHONPATH=. python3 scripts/test-shop-staging-seed-boot.py
           PYTHONPATH=. python3 scripts/test-shop-staging-paid-mail-once.py
