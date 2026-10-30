@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 58,
-  "completed_points_since_baseline": 42,
+  "remaining_points": 56,
+  "completed_points_since_baseline": 44,
   "groups": [
     {
       "key": "purchase",
@@ -363,12 +363,14 @@
           "id": "R01",
           "weight": 2,
           "title": "公開前バックアップとロールバック手順を確認",
-          "status": "pending",
-          "completed_at": null,
+          "status": "done",
+          "completed_at": "2026-10-31",
           "evidence": {
-            "reviewed_at": "2026-10-31",
-            "scope": "Read-only Railway production inventory. The current successful app deployments for BIG PAW/bigpaw-live and BigPaw/bigpaw-site report canRollback=true; both services have separate attached persistent volumes. No backup/snapshot inventory or restore rehearsal was available through the connected read tools.",
-            "result": "app rollback capability observed; data backup and restore remain unverified; pending; no point deduction"
+            "verified_at_jst": "2026-10-31",
+            "drive_backup": "BIG PAW Backups / bigpaw-weekly-2026-W44.sqlite3; created 2026-10-26T06:05:45Z; 1,249,280 bytes",
+            "integrity_check": "SQLite PRAGMA integrity_check returned ok; 55 tables; opened read-only copy; no row contents inspected or printed",
+            "railway_rollback": "Latest successful production deployments for BIG PAW/bigpaw-live and BigPaw/bigpaw-site both reported canRollback=true; each has its own persistent volume",
+            "limits": "No restore rehearsal performed. App rollback does not revert or restore volume data; backup integrity was verified separately."
           }
         },
         {
