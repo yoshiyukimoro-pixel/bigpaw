@@ -1,0 +1,44 @@
+name: BIG PAW Square Sandbox fake refund E2E (explicit opt-in)
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+
+permissions:
+  contents: read
+
+jobs:
+  hosted-checkout-then-refund:
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && github.event_name == 'push' && contains(github.event.head_commit.message, '[square-refund-smoke]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Offline fake-refund safety and existing Square checks
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-square-sandbox-refund.py
+          PYTHONPATH=. python3 scripts/test-shop-square-hosted-panel.py
+      - name: Create isolated hosted Checkout Sandbox payment link
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-hosted-panel.py setup
+      - name: Execute Square Sandbox Testing Panel fake card
+        run: |
+          timeout 180s docker run --rm \
+            -v "$PWD:/work" -v "$RUNNER_TEMP:/sandbox-tmp" \
+            -e SHOP_PANEL_JSON=/sandbox-tmp/bigpaw-panel.json \
+            -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/smoke-shop-square-hosted-panel.cjs'
+      - name: Verify payment and ledger before any refund
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-hosted-panel.py verify
+      - name: Issue exactly one fake Sandbox refund and GET its status
+        env:
+          GITHUB_REF: refs/heads/feature/dogfood-shop-staging-20261028
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-sandbox-refund.py
