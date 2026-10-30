@@ -84,6 +84,7 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
     if auth and "Authorization" not in h:
         admin = (path.startswith("/shop-test-orders.html") or
                  path.startswith("/shop-live-orders-preview.html") or
+                 path == "/api/shop/sandbox/operator/check-current-payment" or
                  path.startswith("/api/shop/sandbox/operator/draft?") or
                  path in ("/api/shop/sandbox/operator/transition",
                           "/api/shop/sandbox/operator/tracking",
@@ -112,6 +113,134 @@ def json_data(response):
 
 
 class CheckoutPreviewTests(unittest.TestCase):
+    def test_operator_current_square_payment_read_only_recheck(self):
+        """Only operator CSRF can verify current Sandbox GET without DB changes."""
+        from shop_payments.retail_catalog import load_sale_catalog
+        payment_id = "MOCK_SQUARE_PAYMENT_123456"
+        square_order_id = "MOCK_SQUARE_ORDER_123456"
+        current = {"status": "COMPLETED", "refund": 0, "amount": 21450}
+        queries = []
+        class Reply:
+            status = 200
+            def __init__(self, obj):
+                self.obj = json.dumps(obj).encode()
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, size=None):
+                return self.obj if size is None else self.obj[:size]
+        def fake_square(req, timeout):
+            self.assertEqual(timeout, 10)
+            self.assertEqual(req.get_method(), "GET")
+            self.assertEqual(req.headers["Authorization"],
+                             "Bearer NOT_A_REAL_SANDBOX_TOKEN")
+            queries.append(req.full_url)
+            if req.full_url.endswith("/payments/" + payment_id):
+                return Reply({"payment": {
+                    "id": payment_id,
+                    "order_id": square_order_id,
+                    "location_id": "SANDBOX_LOCATION_12345",
+                    "status": current["status"],
+                    "amount_money": {
+                        "amount": current["amount"], "currency": "JPY"},
+                    "refunded_money": {
+                        "amount": current["refund"], "currency": "JPY"},
+                    "buyer_email_address": "fake.buyer@example.invalid",
+                }})
+            if req.full_url.endswith("/orders/" + square_order_id):
+                return Reply({"order": {
+                    "id": square_order_id,
+                    "location_id": "SANDBOX_LOCATION_12345",
+                    "state": "OPEN",
+                    "total_money": {
+                        "amount": current["amount"], "currency": "JPY"},
+                    "fulfillments": [{
+                        "type": "SHIPMENT",
+                        "shipment_details": {"recipient": {
+                            "display_name": "SECRET DEMO BUYER",
+                            "email_address": "fake.buyer@example.invalid",
+                        }},
+                    }],
+                }})
+            self.fail("unexpected Square endpoint or credentials")
+
+        with server_with_env(shipping_opener=fake_square) as (srv, db, calls):
+            path = "/api/shop/sandbox/operator/check-current-payment"
+            db.add_pending_order(
+                order_id=ORDER, cart={"A02": 1},
+                verified_prices=load_sale_catalog(), shipping_yen=0,
+                location_id="SANDBOX_LOCATION_12345",
+            )
+            db.save_link(ORDER, {
+                "url": "https://sandbox.square.link/u/NO_REAL_CHARGE",
+                "square_order_id": square_order_id,
+                "square_link_id": "MOCK_SQUARE_LINK_123456",
+            })
+            def mark_paid():
+                with sqlite3.connect(db.db_file) as conn:
+                    conn.execute(
+                        "UPDATE orders SET state='paid',square_payment_id=? "
+                        "WHERE order_id=?",
+                        (payment_id, ORDER),
+                    )
+            dashboard = request(srv, "/shop-test-orders.html")
+            self.assertEqual(dashboard[0], 200)
+            self.assertNotIn(b"/api/shop/sandbox/operator/check-current-payment",
+                             dashboard[2])
+            cookie = dashboard[1]["Set-Cookie"].split(";", 1)[0]
+            csrf = cookie.split("=", 1)[1]
+            body = urlencode({"order_id": ORDER,
+                              "csrf": csrf, "confirm": "read_only"}).encode()
+            headers = {"Origin": ORIGIN,
+                       "Content-Type": "application/x-www-form-urlencoded",
+                       "Cookie": cookie}
+            def send(data=body, h=headers, auth=True):
+                return request(srv, path, method="POST",
+                               data=data, headers=h, auth=auth)
+            self.assertEqual(send(auth=False)[0], 401)
+            shopper = "Basic " + base64.b64encode(
+                ("shoptester:" + PASSWORD).encode()).decode()
+            self.assertEqual(send(h={**headers, "Authorization": shopper})[0],
+                             401)
+            self.assertEqual(send(h={**headers, "Origin": "https://bad.invalid"})[0],
+                             403)
+            self.assertEqual(send(h={**headers, "Cookie": "invalid=token"})[0], 403)
+            self.assertEqual(send(data=urlencode({
+                "order_id": ORDER, "csrf": csrf, "confirm": "issue_refund",
+            }).encode())[0], 400)
+            self.assertEqual(send()[0], 409,
+                             "unpaid journal must not reach Square")
+            self.assertEqual(queries, [])
+            mark_paid()
+            visible = request(srv, "/shop-test-orders.html")
+            self.assertIn(b"/api/shop/sandbox/operator/check-current-payment",
+                          visible[2])
+            before = Path(db.db_file).read_bytes()
+            ok = send()
+            self.assertEqual(ok[0], 200)
+            self.assertIn("最新情報".encode(), ok[2])
+            self.assertIn("未返金".encode(), ok[2])
+            self.assertIn(b"21,450", ok[2])
+            self.assertNotIn(b"fake.buyer@example.invalid", ok[2])
+            self.assertNotIn(b"SECRET DEMO BUYER", ok[2])
+            self.assertNotIn(payment_id.encode(), ok[2])
+            self.assertEqual(len(queries), 2)
+            self.assertEqual(Path(db.db_file).read_bytes(), before)
+            self.assertEqual(calls, [])
+            current["refund"] = 1
+            self.assertEqual(send()[0], 503,
+                             "refunded payment must never appear verified")
+            current["refund"] = 0
+            current["amount"] += 1
+            self.assertEqual(send()[0], 503, "price mismatch fails closed")
+            current["amount"] = 21450
+            current["status"] = "PENDING"
+            self.assertEqual(send()[0], 503, "payment pending fails closed")
+            self.assertEqual(Path(db.db_file).read_bytes(), before)
+            self.assertEqual(calls, [])
+            self.assertEqual(db.status(ORDER), "paid")
+
     def test_operator_only_future_order_display_is_readonly_and_private(self):
         """The new future-ledger view never grants shopper login admin powers."""
         from shop_payments.live_order_ledger import LiveOrderLedger
