@@ -33,6 +33,8 @@ on:
       - 'shop_payments/sandbox_runtime_guard.py'
       - 'scripts/test-shop-https-webhook.py'
       - 'scripts/test-shop-staging-checkout-preview.py'
+      - 'shop_payments/customer_mail_preflight.py'
+      - 'scripts/test-shop-customer-mail-preflight.py'
       - 'shop_payments/staging_seed_order.py'
       - 'shop_payments/staging_seed_boot.py'
       - 'shop_payments/staging_paid_mail_once.py'
@@ -102,6 +104,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-sandbox-auto-notify.py
           PYTHONPATH=. python3 scripts/test-shop-https-webhook.py
           PYTHONPATH=. python3 scripts/test-shop-staging-checkout-preview.py
+          PYTHONPATH=. python3 scripts/test-shop-customer-mail-preflight.py
           PYTHONPATH=. python3 scripts/test-shop-staging-seed-order.py
           PYTHONPATH=. python3 scripts/test-shop-staging-seed-boot.py
           PYTHONPATH=. python3 scripts/test-shop-staging-paid-mail-once.py
