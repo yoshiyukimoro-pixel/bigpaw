@@ -29,6 +29,7 @@ on:
       - 'scripts/test-shop-sandbox-operator-email.py'
       - 'scripts/test-shop-sandbox-auto-notify.py'
       - 'shop_payments/staging_https_webhook.py'
+      - 'shop_payments/sandbox_runtime_guard.py'
       - 'scripts/test-shop-https-webhook.py'
       - 'shop_payments/staging_seed_order.py'
       - 'scripts/test-shop-staging-seed-order.py'
