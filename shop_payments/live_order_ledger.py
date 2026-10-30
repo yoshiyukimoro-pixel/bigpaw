@@ -57,6 +57,10 @@ class LiveOrderLedger:
                 paid_at INTEGER
             )
         """)
+        LiveOrderLedger._install_operator_audit(db)
+
+    @staticmethod
+    def _install_operator_audit(db):
         db.execute("""
             CREATE TABLE IF NOT EXISTS food_live_operator_audit (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -446,6 +450,7 @@ class LiveOrderLedger:
                 else:
                     raise LiveOrderBlocked("Invalid payment transition")
                 if audit_actor_id is not None:
+                    self._install_operator_audit(db)
                     db.execute(
                         "INSERT INTO food_live_operator_audit "
                         "(order_id,actor_id,action,outcome,created_at) "
@@ -496,8 +501,10 @@ class LiveOrderLedger:
         if (not isinstance(actor_id, str)
                 or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", actor_id)):
             raise LiveOrderBlocked("Invalid operator identity")
+        if not Path(self.db_file).is_file():
+            raise LiveOrderBlocked("No private order journal")
         with closing(self._open()) as db:
-            self._install(db)
+            self._install_operator_audit(db)
             db.execute(
                 "INSERT INTO food_live_operator_audit "
                 "(order_id,actor_id,action,outcome,created_at) "

@@ -102,8 +102,12 @@ def handle_post(handler, *, env: dict, is_production: bool,
             or not PAYMENT.fullmatch(body["payment_id"])):
         handler.send_json({"error": "invalid_reconciliation_request"}, 400)
         return True
+    journal_path = data_dir / "bigpaw-shop-live-orders.sqlite3"
+    if not journal_path.is_file():
+        handler.send_json({"error": "square_verification_failed_or_order_unavailable"}, 409)
+        return True
     try:
-        ledger = LiveOrderLedger(data_dir / "bigpaw-shop-live-orders.sqlite3")
+        ledger = LiveOrderLedger(journal_path)
         try:
             result = ledger.reconcile_payment(
                 order_id=body["order_id"], payment_id=body["payment_id"],

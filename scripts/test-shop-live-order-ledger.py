@@ -6,6 +6,7 @@ refunds, or live checkout. The production application does not import ledger.
 from copy import deepcopy
 import json
 from pathlib import Path
+import sqlite3
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -163,6 +164,9 @@ class LiveLedgerTests(unittest.TestCase):
 
     def test_operator_reconciliation_audits_atomically_without_payment_reference(self):
         self.register()
+        # Upgrade a journal created before the operator audit table existed.
+        with sqlite3.connect(self.path) as db:
+            db.execute("DROP TABLE food_live_operator_audit")
         result = self.pay(audit_actor_id="operator_123")
         self.assertTrue(result["new_transition"])
         events = self.ledger.operator_audit_events()
