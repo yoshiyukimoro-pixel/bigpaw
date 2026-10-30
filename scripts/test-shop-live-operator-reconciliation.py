@@ -1,5 +1,7 @@
 """Offline guard tests for the dormant operator live-Square reconciliation."""
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from shop_payments import live_operator_reconciliation as route
 
@@ -63,6 +65,19 @@ class OperatorReconciliationGuardTests(unittest.TestCase):
         self.assertTrue(handled)
         self.assertEqual(handler.responses[0][0], 403)
         self.assertEqual(handler.responses[0][1]["error"], "invalid_origin_or_csrf")
+
+    def test_missing_private_journal_does_not_create_an_empty_database(self):
+        token = "A" * 43
+        handler = DummyHandler(cookie=f"{route.COOKIE}={token}", body={
+            "order_id": "FOOD" + "a" * 32,
+            "payment_id": "SYNTHETICPAYMENT123",
+            "csrf_token": token,
+        })
+        with TemporaryDirectory() as temp:
+            route.handle_post(handler, env=self.env, is_production=True,
+                              base_url="https://bigpaw.site", data_dir=Path(temp))
+            self.assertEqual(handler.responses[0][0], 409)
+            self.assertEqual(list(Path(temp).iterdir()), [])
 
 
 if __name__ == "__main__":
