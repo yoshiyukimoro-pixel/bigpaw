@@ -197,7 +197,7 @@ class LiveOrderLedger:
                         or not 1 <= len(line["name"]) <= 200
                         or not isinstance(line["size"], str)
                         or not 1 <= len(line["size"]) <= 60
-                        or any(x in line["name"] + line["size"] for x in ("\\r", "\\n"))):
+                        or any(x in line["name"] + line["size"] for x in ("\r", "\n"))):
                     raise ValueError()
                 seen.add(sku)
                 amount += qty * unit
