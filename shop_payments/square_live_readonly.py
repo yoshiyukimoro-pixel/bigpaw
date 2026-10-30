@@ -17,6 +17,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .sandbox_connector import SQUARE_VERSION
+from .sandbox_reconcile import _valid_japanese_shipping_recipient
 
 ENDPOINT = "https://connect.squareup.com/v2"
 ID = re.compile(r"^[A-Za-z0-9_-]{8,192}$")
@@ -124,19 +125,11 @@ def verify_paid_live_shipment(*, payment_id, square_order_id, location_id,
         person = details.get("recipient") if isinstance(details, dict) else None
         if not isinstance(person, dict):
             continue
-        addr = person.get("address")
-        if not isinstance(addr, dict):
-            continue
         email = person.get("email_address")
-        if (addr.get("country") != "JP" or
-            not isinstance(addr.get("address_line_1"), str)
-            or not addr["address_line_1"].strip()
-            or not isinstance(addr.get("postal_code"), str)
-            or not addr["postal_code"].strip()
-            or not isinstance(person.get("display_name"), str)
-            or not person["display_name"].strip()
-            or not isinstance(email,str) or len(email)>254
-            or not EMAIL.fullmatch(email) or ".." in email or email.startswith(".")):
+        if (not _valid_japanese_shipping_recipient(person)
+                or not isinstance(email, str) or len(email) > 254
+                or not EMAIL.fullmatch(email) or ".." in email
+                or email.startswith(".")):
             continue
         found_complete = True
         emails.add(email.lower())
