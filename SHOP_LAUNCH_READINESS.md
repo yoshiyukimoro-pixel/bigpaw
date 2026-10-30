@@ -118,6 +118,14 @@
 - [CI 41054761005](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41054761005)はPython、BIG PAW本体Docker、Sandbox Docker、Chromium、iPhone Safari/WebKitすべて合格。テストは偽Square通知・通信のみ。本番SquareへのAPIアクセスはしていない。
 - `SHOP_PROGRESS_POINTS.json`のO01（本体への保護されたWebhookルート配線）を4ポイント完了、**残り86ポイント**。実Square本番接続・実Webhook受信・運営管理等はまだ未完了。
 
+## 2026-10-30：購入停止と入金確認の独立・注文台帳の全結合検証
+
+- **販売停止中も、停止前に作られた決済リンクの入金通知は必要**。新規購入は`BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0`で即時停止し、入金確認用Webhookは独立して`BIGPAW_SHOP_SQUARE_LIVE_WEBHOOK_ENABLED=1`、正しいSquare本番署名鍵/URL、店舗・トークン、運営承認が揃った場合だけ継続可能にする修正。
+- `shop_live_webhook_bridge.py`の署名認証を**注文台帳確認より前**に実行。署名が間違っていれば401、正しい署名でも既存の注文台帳がなければ503で停止。Webhooks経由で新規DBや注文、リンク、返金、メール、配送を作成しない。
+- `scripts/test-shop-live-order-full-pipeline.py`に、新規購入認証→架空SquareのLink POST/Orders GET→同一私有SQLite注文記録→販売停止→署名付きSquare入金通知→Payments/Orders GET→入金記録→重複通知の冪等な再処理までを追加。返金・偽署名・未登録通知は入金としない。
+- [CI 41056307267](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41056307267)：Python・両Dockerビルド・Chromium・iPhone WebKitの全チェックSUCCESS。**実際のSquare API/販売・実顧客情報は一切使っていない。**
+- O02「Square Payments/Ordersと私有注文台帳の配線・結合検証」を開発ブランチで完了して4ポイント減算、**残り82ポイント**。実Square本番・法定条件・実送信・実デプロイ・緊急停止の運用実機確認は引き続き未完了。
+
 ## 今の運用上の注意
 
 - ショップ公開用の `app/shop.html` は「販売準備中」で、決済ボタンが無効。現行の `bigpaw-test` は専用Sandbox Dockerサービスであり、公開用BIG PAW全体の変更を試すサービスではない。
