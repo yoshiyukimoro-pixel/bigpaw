@@ -121,6 +121,29 @@ class TestSandboxVerification(unittest.TestCase):
         self.assertNotIn("PRIVATE_TEST_CUSTOMER", json.dumps(result))
         self.assertNotIn("PRIVATE_TEST_ADDRESS", json.dumps(result))
 
+    def test_multiple_square_shipments_require_manual_address_review(self):
+        recipient = {
+            "display_name": "SYNTHETIC",
+            "address": {"country": "JP", "postal_code": "111-2222",
+                        "address_line_1": "TEST ONLY"},
+        }
+        one = {"type": "SHIPMENT", "shipment_details": {
+            "recipient": recipient}}
+        for fulfillments in ([one, one], [one, {"type": "PICKUP"}],
+                             [one, {"type": "SHIPMENT"}]):
+            with self.subTest(count=len(fulfillments)):
+                def fake(req,timeout):
+                    self.assertEqual(req.get_method(),"GET")
+                    return FakeResponse({"order": {
+                        "id": ORDER_ID,"fulfillments": fulfillments}})
+                outcome=retrieve_sandbox_shipment_status(
+                    ORDER_ID,token="FAKE",opener=fake)
+                self.assertEqual(outcome,{
+                    "square_order_id": ORDER_ID,
+                    "shipment_details_complete": False,
+                })
+                self.assertNotIn("SYNTHETIC", str(outcome))
+
     def test_empty_or_overseas_shipment_is_not_complete(self):
         def missing(req, timeout):
             return FakeResponse({"order": {"id": ORDER_ID, "fulfillments": []}})
