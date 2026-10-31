@@ -187,6 +187,15 @@
               "deployment_result": "Railway environment_status: isolated Square Sandbox and app staging both Online, 0 criticals, 0 warnings after isolated Sandbox service redeploy",
               "limitations": "Only Rails/Railway deployment health and variable-name existence verified; HTTP login + request of true Square recipient fields from real paid shipment not independently executed. Historical fake-paid Square order still lacks complete shipping details. Do not mark P04 complete or charge/refund/send.",
               "point_change": 0
+            },
+            "sandbox_shipping_label_auto_return_20261031": {
+              "result": "SUCCESS",
+              "commit": "0155c3eda9d90458d34c5e0783c5ab7c221b8b72",
+              "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162990049",
+              "scope": "Sandbox operator-only transient delivery label HTML now provides HTTP Refresh after 60 seconds to return to the authenticated test order page; no-store, no-referrer and restrictive CSP maintained. Dedicated HTTP regression asserts Refresh header and notice.",
+              "tests": "GitHub Actions SUCCESS: Square/Python safety tests, sandbox and app Docker builds, PC Chromium and Safari/WebKit browser regressions.",
+              "limits": "Browser-specific real-time refresh reliability not independently tested. Real Square Checkout shipment address entry, real consumer receipt, production dispatch and final P04 E2E remain unverified.",
+              "point_change": 0
             }
           }
         },
