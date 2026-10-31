@@ -60,6 +60,9 @@ def setup() -> None:
         shipping_yen=0,location_id=location)
     if amount!=PRICE:
         raise ValueError("Pricebook mismatch")
+    # Reserve this attempt durably before contacting Square. Unknown
+    # transport outcomes must never trigger an implicit second link.
+    store.claim_checkout_link_attempt(order_id)
     link=create_square_sandbox_payment_link(payload,token=token)
     if not link["url"].startswith("https://sandbox.square.link/"):
         raise ValueError("Unsafe Square link")
