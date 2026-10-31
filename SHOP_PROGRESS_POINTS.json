@@ -138,6 +138,20 @@
               "behavior": "Order-specific operator-only POST CSRF action retrieves in-memory recipient shipping name, phone, JP zip, prefecture, city, street and optional building/address lines from Square GET after independent current completed unrefunded Square Payment and matched Square Order. Separate auth credentials from shopper, exact staging host, explicit consent checkbox, HTML escaped PII, no-cache/no-store and no-referrer frame denial. No PII in order list, SQLite journal or logs. No shipping/real mail/charge/refund.",
               "remaining": "Actual Square Sandbox paid test order has an incomplete recipient. Real ordinary checkout shipping-entry -> square order -> operator UI -> eventual shipping paperwork not verified end-to-end, P04 pending (4 points). Full production legal conditions and owner approval outstanding.",
               "points_change": 0
+            },
+            "operator_delivery_label_private_preview_20261031": {
+              "date": "2026-10-31",
+              "scope": "Feature branch only, PR #175 draft/unmerged. No production checkout or production shipping API called. Both new isolated Railway services remain as before.",
+              "sandbox_private_view": "Per-paid-order CSRF-protected POST /api/shop/sandbox/operator/view-shipping-address in existing operator-only Sandbox. Always rechecks Square Payments/Orders; label only displayed with exact one valid JP recipient, name/phone/postal/prefecture/city/street; no PII in order list or SQLite. Refund or missing address refused.",
+              "sandbox_test": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41161519770",
+              "sandbox_test_result": "SUCCESS: compile, Square offline read-only validation, operator auth, CSRF/Origin, name HTML escaping, PII no-store and no DB-write tests.",
+              "dormant_production_backend": "shop_payments/live_shipping_address_view.py and live_operator_reconciliation.py, POST /api/operator/shop-orders/shipping-address. Requires production operator session, production reconciliation switch AND separate BIGPAW_SHOP_LIVE_ADDRESS_VIEW_ENABLED=1 (OFF by default), exact HTTPS Origin and CSRF. Uses immutable paid snapshot from private LiveOrderLedger, independent Square Production GET of Payments and Orders plus latest single JP destination. Never creates payment, refunds, shipment, supplier order, mail or DB PII.",
+              "dormant_production_ui": "app/operator-shop-orders.html button shown for paid-history entries; on explicit click fetches current verified recipient to DOM using textContent, no localStorage, automatically clears after 60 seconds; no shipping action.",
+              "integration_fast_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162046381",
+              "integration_full_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162012735",
+              "test_result": "SUCCESS: isolated fake provider, operator route auth/CSRF/default OFF, syntax validation, comprehensive Python tests, both Docker builds, Chromium and iPhone Safari/WebKit; no Square Production traffic",
+              "acceptance_gap": "P04 remains pending: real customer's shipping address capture through actual Square checkout + provider shipment return and seller-approved shipping/returns/conditions have NOT been demonstrated, no production go-live. Zero points deducted.",
+              "point_change": 0
             }
           }
         },
