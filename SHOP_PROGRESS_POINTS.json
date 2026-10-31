@@ -100,6 +100,18 @@
               "post_test_status": "SUCCESS: private preview OFF, /shop.html 404, /healthz ready, both isolated services Online, issues 0",
               "must_not_claim": "Square-originated automatic payment webhook delivery NOT tested (disabled new subscriber). Shipping details NOT verified, no customer email/fulfillment/refund, no production E2E.",
               "point_change": 0
+            },
+            "real_square_sandbox_shipping_readonly_20261031": {
+              "result": "SUCCESS API safety audit, but actual prior fake-paid Square Sandbox order shipping is INCOMPLETE_BLOCK_DISPATCH.",
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41155860279",
+              "inspected": "Previously paid A02 1x JPY 21450 Square Sandbox order. Square Orders GET only; new/old subscription reads only; no payment/refund/shipment/customer email or personal data logged.",
+              "external_provider_docs": "https://developer.squareup.com/docs/checkout-api/optional-checkout-configurations",
+              "interpretation": "The official Sandbox Testing Panel payment succeeded but the corresponding Order recipient did NOT contain a complete Japanese shipping destination. Checkout ask_for_shipping_address=true exists, but Square Sandbox Testing Panel simulation did not prove real buyer shipping capture. Provider's Preview Link cannot complete a payment.",
+              "operator_ui_fix": "shop_payments/staging_orders_dashboard.py always shows '入金済みと配送先確認済みは別です' in private Sandbox order admin view. Existing backend refuses shipped status unless it GET-verifies Square delivery recipient and currently nonrefunded paid status.",
+              "full_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41156026965",
+              "full_ci_result": "SUCCESS Python+Docker+Chromium+WebKit regression on development branch",
+              "gap": "P04 not completed: actual buyer shipping fields and customer fulfillment delivery/return end-to-end not verified. No owner-approved commercial shipping SLA/terms and no production checkout.",
+              "point_change": 0
             }
           }
         },
