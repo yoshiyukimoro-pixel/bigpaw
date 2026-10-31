@@ -50,8 +50,8 @@
         '</section>' +
         '<section class="order-panel" id="orderCommerceTerms" aria-labelledby="orderCommerceTitle">' +
           '<h2 id="orderCommerceTitle">返品・キャンセル・販売事業者のご案内</h2>' +
-          '<p>返品の可否・期限・送料負担、事業者情報などの正式な条件は販売開始前に確定します。' +
-          '条件が未確定のため、この画面からお申し込み・決済はできません。</p>' +
+          '<p>お客様都合による返品・交換は未開封でもお受けしない方針です。不良品・誤配送や法令上の権利は除きます。' +
+          'キャンセル・返金期限・事業者表示など残る条件が未確定のため、この画面からお申し込み・決済はできません。</p>' +
           '<p><a href="shop-commerce.html">ドッグフードショップの販売条件（準備中）を確認する</a></p>' +
           '<p><a href="shop-returns.html">返品・キャンセル・不良品・欠品時の対応案（未承認）</a></p>' +
         '</section>' +
@@ -64,7 +64,7 @@
         '<p class="order-data-note">メーカー希望小売価格を税込・送料込みの販売価格として表示しています。</p>' +
         '<p id="orderReviewLimit" class="order-preview-warning" hidden role="alert"></p>' +
         '<label class="order-checked"><input id="orderConfirmChecked" type="checkbox">' +
-          '<span>商品・数量・合計金額・追加送料0円と、お取り寄せによる通常4〜7日程度のお届け目安、欠品時のご案内・返金対応を確認しました。正式な返品・キャンセル条件は販売開始前にご案内します。</span></label>' +
+          '<span>商品・数量・合計金額・追加送料0円、お取り寄せによる通常4〜7日程度のお届け目安、お客様都合の返品・交換不可（未開封含む）、不良品・誤配送への対応、欠品時のご案内を確認しました。正式なキャンセル・返金条件は販売開始前にご案内します。</span></label>' +
         '<button type="button" class="order-submit-test" id="orderConfirmPreview" disabled>' +
           '注文内容を確認する（テスト）</button>' +
         '<p class="order-data-note">このボタンを押しても注文や決済は行われません。' +
