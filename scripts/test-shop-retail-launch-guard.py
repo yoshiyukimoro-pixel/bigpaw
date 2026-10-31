@@ -53,13 +53,19 @@ class RetailLaunchGuardTests(unittest.TestCase):
 
     def test_individual_proprietor_not_falsely_claimed_as_fully_disclosed(self):
         self.assertIn("個人事業", PAGE)
-        self.assertIn("屋号だけでは代用できません", PAGE)
-        self.assertIn("請求があれば電子メール等で遅滞なく提供", PAGE)
-        self.assertIn("販売業者情報の開示請求", PAGE)
+        self.assertIn("BIG PAWは屋号であり、法定の販売業者氏名を兼ねるものではありません", PAGE)
+        self.assertIn("<strong>茂呂義之</strong>", PAGE)
+        self.assertIn("住所および確実に連絡が取れる電話番号", PAGE)
+        self.assertIn("ご請求があれば電子メール等により遅滞なく提供", PAGE)
+        import re
+        self.assertIsNone(re.search(r"\b0[789]0[- ]?\d{4}[- ]?\d{4}\b", PAGE))
+        self.assertIsNone(re.search(r"\b\d{3}-\d{4}\b", PAGE))
+        self.assertIn("フードショップ販売者情報の開示請求フォーム", PAGE)
         self.assertIn("info@bigpaw.site", PAGE)
         self.assertIn("受付・個別回答をテスト", PAGE)
         self.assertIn("事業者の所在地・電話番号", PAGE)
-        self.assertIn("省略が認められる状態とは扱いません", PAGE)
+        self.assertIn("実際の請求対応体制の確認を終えるまで", PAGE)
+        self.assertIn("販売開始前に、実際の請求受付・個別回答をテスト", PAGE)
         self.assertIn("返品・キャンセル", PAGE)
         self.assertIn('name="robots" content="noindex,nofollow"', PAGE)
         self.assertIn("受け付けていません", PAGE)

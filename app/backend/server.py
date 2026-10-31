@@ -1609,7 +1609,15 @@ https://www.bigpaw.site/'''
             ops=con.execute("SELECT id,email FROM users WHERE role='operator'").fetchall()
             for op in ops: con.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',(make_id('n_'),op['id'],'support','運営への問い合わせが届きました',f'{category} / {subject}',0,t))
             con.commit(); con.close()
-            for op in ops: send_mail(op['email'],'BIG PAW 運営問い合わせ',f"受付番号: {tid}\nカテゴリ: {category}\n件名: {subject}\n送信者: {name} <{email}>\n\n{message}\n\n{PUBLIC_BASE_URL}/operator-support.html")
+            # A food-shop statutory disclosure request must also alert the
+            # shop's contact mailbox if there are no operator accounts.
+            # This is a REQUEST notification only: NEVER automatically send
+            # the proprietor's private address or phone to the requester.
+            notify_targets={str(op['email']).strip().lower() for op in ops if str(op['email']).strip()}
+            if category=='ドッグフードショップ販売者情報の開示請求':
+                notify_targets.add('info@bigpaw.site')
+            for notify_to in sorted(notify_targets):
+                send_mail(notify_to,'BIG PAW 運営問い合わせ',f"受付番号: {tid}\nカテゴリ: {category}\n件名: {subject}\n送信者: {name} <{email}>\n\n{message}\n\n{PUBLIC_BASE_URL}/operator-support.html")
             return self.send_json({'id':tid,'status':'open'},201)
         if path=='/api/reports':
             u=self.require();

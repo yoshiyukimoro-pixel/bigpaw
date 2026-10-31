@@ -16,6 +16,18 @@ new = """            support_targets={str(op['email']).strip().lower() for op in
 
 if old in server:
     server = server.replace(old, new, 1)
+elif "notify_targets={str(op['email']).strip().lower() for op in ops" in server:
+    # A separate food-shop patch may already deduplicate operator recipients
+    # and alert the shop inbox. Keep that change but ensure ALL site support
+    # requests still reach the configured support mailbox as before.
+    original = """            if category=='ドッグフードショップ販売者情報の開示請求':
+                notify_targets.add('info@bigpaw.site')"""
+    replacement = """            support_email=os.environ.get('BIGPAW_SUPPORT_EMAIL','info@bigpaw.site').strip().lower()
+            if support_email: notify_targets.add(support_email)"""
+    if original in server:
+        server = server.replace(original, replacement, 1)
+    elif replacement not in server:
+        raise RuntimeError('SUPPORT_CONTACT_FIX_FAIL|new_notify_block_missing')
 elif new not in server:
     raise RuntimeError('SUPPORT_CONTACT_FIX_FAIL|support_mail_marker_missing')
 

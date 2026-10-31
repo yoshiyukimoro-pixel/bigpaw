@@ -11,7 +11,7 @@ class ApprovalPackTests(unittest.TestCase):
         pack = (ROOT / "SHOP_SELLER_APPROVAL_PACK_20261031.md").read_text(encoding="utf-8")
         notices = (ROOT / "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md").read_text(encoding="utf-8")
         owner = (ROOT / "SHOP_OWNER_DECISIONS.md").read_text(encoding="utf-8")
-        for item in ("販売業者", "所在地", "電話番号", "事業者", "返品", "キャンセル",
+        for item in ("販売業者", "住所", "電話番号", "事業者", "返品", "キャンセル",
                      "送料", "欠品", "返金", "注文", "Square", "4〜7日"):
             self.assertIn(item, pack, item)
         for item in ("ご注文", "欠品", "配送遅延", "発送完了", "返金完了",
@@ -27,6 +27,8 @@ class ApprovalPackTests(unittest.TestCase):
         self.assertIn("送信は禁止したまま", notices)
 
     def test_draft_docs_do_not_mutate_approval_or_go_live(self):
+        owner = (ROOT / "SHOP_OWNER_DECISIONS.md").read_text(encoding="utf-8")
+        pack = (ROOT / "SHOP_SELLER_APPROVAL_PACK_20261031.md").read_text(encoding="utf-8")
         status = json.loads(
             (ROOT / "shop_payments/retail_launch_status.json").read_text(encoding="utf-8")
         )

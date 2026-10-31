@@ -7,6 +7,9 @@ on:
     paths:
       - 'app/shop.html'
       - 'app/shop-commerce.html'
+      - 'app/contact.html'
+      - 'app/operator-support.html'
+      - 'scripts/test-shop-legal-disclosure-form.cjs'
       - 'app/shop-returns.html'
       - 'shop_payments/returns_policy_review.json'
       - 'scripts/test-shop-returns-policy.py'
@@ -57,6 +60,7 @@ on:
       - 'scripts/test-shop-staging-auth-gateway.py'
       - 'app/backend/shop_live_checkout_bridge.py'
       - 'app/backend/server.py'
+      - 'app/backend/support_contact_runtime_patch.py'
       - 'Dockerfile'
       - 'scripts/test-shop-live-customer-notice-preview.py'
       - 'scripts/test-shop-live-notice-approval.py'
@@ -193,6 +197,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-info-mail-simple.py
           PYTHONPATH=. python3 scripts/test-shop-delivery-terms.py
           PYTHONPATH=. python3 scripts/test-shop-retail-launch-guard.py
+          python3 -m py_compile app/backend/support_contact_runtime_patch.py
           PYTHONPATH=. python3 scripts/test-shop-owner-approval-pack.py
           PYTHONPATH=. python3 scripts/test-shop-returns-policy.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-report.py
@@ -223,4 +228,4 @@ jobs:
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
-            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs && node scripts/test-shop-detail-gallery.cjs && node scripts/test-shop-order-review.cjs && node scripts/test-shop-review-quote-check.cjs && node scripts/test-shop-review-square-browser.cjs && node scripts/test-shop-live-order-preview-browser.cjs && node scripts/test-shop-operator-orders-page.cjs'
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs && node scripts/test-shop-detail-gallery.cjs && node scripts/test-shop-order-review.cjs && node scripts/test-shop-review-quote-check.cjs && node scripts/test-shop-legal-disclosure-form.cjs && node scripts/test-shop-review-square-browser.cjs && node scripts/test-shop-live-order-preview-browser.cjs && node scripts/test-shop-operator-orders-page.cjs'

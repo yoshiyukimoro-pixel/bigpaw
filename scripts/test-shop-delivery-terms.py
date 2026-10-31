@@ -63,6 +63,8 @@ class DeliveryTermsTests(unittest.TestCase):
         self.assertIn("販売者負担", RETURNS)
         self.assertIn('name="robots" content="noindex,nofollow"', RETURNS)
         self.assertIn("販売業者の氏名", COMMERCE)
+        self.assertIn("<strong>茂呂義之</strong>", COMMERCE)
+        self.assertIn("住所・電話番号の開示請求", COMMERCE)
         self.assertIn("事業者の所在地・電話番号", COMMERCE)
         self.assertIn("個人事業", COMMERCE)
         self.assertIn("ご請求に応じて遅滞なく個別に提供", COMMERCE)
