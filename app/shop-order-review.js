@@ -84,6 +84,37 @@
   const button = root.querySelector('#orderConfirmPreview');
   const confirmed = root.querySelector('#orderPreviewConfirmation');
   const byId = new Map(catalog.map(p => [p.id,p]));
+  const quote = window.BigPawShopQuote;
+  if (!quote || typeof quote.snapshot !== 'function') {
+    throw Error('Read-only review price verifier unavailable');
+  }
+
+  // A user must confirm the prices actually rendered on screen, not merely
+  // a stale sessionStorage cart. This preview does not contact an API.
+  function displayedCartMatches(rows) {
+    const amount = rows.reduce((sum,{qty,unit}) => sum + qty*unit,0);
+    if (subtotal.textContent !== YEN(amount) ||
+        totalEl.textContent !== YEN(amount)) return false;
+    const elements = Array.from(list.querySelectorAll('.order-line'));
+    if (elements.length !== rows.length) return false;
+    for (let i=0; i<rows.length; i++) {
+      const {p,qty,unit} = rows[i];
+      const el = elements[i];
+      if (el.querySelector('strong')?.textContent !== p.brand+' '+p.name ||
+          el.querySelector('small')?.textContent !==
+            p.weight+' / '+YEN(unit)+' × '+qty+'点' ||
+          el.querySelector('.order-line-price')?.textContent !== YEN(unit*qty)) {
+        return false;
+      }
+    }
+    try {
+      quote.snapshot(rows.map(({p,qty,unit}) => ({
+        sku:p.id, name:p.name, size:p.weight, quantity:qty,
+        unitYen:unit, lineYen:unit*qty
+      })), amount);
+      return true;
+    } catch (_) { return false; }
+  }
 
   // Never silently discard malformed/unknown products: a stale or tampered
   // cart must be corrected before its amount can be confirmed.
@@ -139,7 +170,7 @@
     document.getElementById('previewCartOpen').click();
   });
   agreement.addEventListener('change', () => {
-    button.disabled = !(agreement.checked && button.dataset.hasItems === 'true');
+    button.disabled = !(agreement.checked && button.dataset.hasItems === 'true' && displayedCartMatches(readCart().rows));
     confirmed.hidden = true;
   });
   button.addEventListener('click', () => {
@@ -148,10 +179,11 @@
     const fingerprint = JSON.stringify(rows.map(({p,qty})=>[p.id,qty]));
     const amount = rows.reduce((sum,{qty,unit})=>sum+qty*unit,0);
     if (invalid || !rows.length || amount > limit ||
-        fingerprint !== button.dataset.cartFingerprint) {
+        fingerprint !== button.dataset.cartFingerprint ||
+        !displayedCartMatches(rows)) {
       refresh();
       warning.hidden = false;
-      warning.textContent = 'カートの内容が変更されました。商品・数量・合計金額をもう一度確認してください。';
+      warning.textContent = 'カートまたは画面の表示内容が変更されました。商品・数量・合計金額をもう一度確認してください。';
       return;
     }
     confirmed.hidden = false;
