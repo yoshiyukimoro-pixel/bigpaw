@@ -206,7 +206,40 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(complete[0], 200)
             self.assertIn("配送先の必須項目を確認しました".encode(), complete[2])
             self.assertNotIn(b"PRIVATE TEST PERSON", complete[2])
+            # The operator may explicitly view the verified delivery label,
+            # but it is never shown in the order list or stored in SQLite.
+            address_path = "/api/shop/sandbox/operator/view-shipping-address"
+            address_data = urlencode({"order_id": ORDER, "csrf": csrf,
+                                      "confirm": "view_address_once"}).encode()
+            def show_address(payload=address_data, override=None, auth=True):
+                return request(srv, address_path, method="POST", data=payload,
+                               auth=auth, headers={**headers, **(override or {})})
+            self.assertEqual(show_address(auth=False)[0], 401)
+            self.assertEqual(show_address(override={"Origin": "https://evil.invalid"})[0], 403)
+            self.assertEqual(show_address(override={"Cookie": "other=wrong"})[0], 403)
+            self.assertEqual(show_address(urlencode({
+                "order_id": ORDER, "csrf": csrf, "confirm": "ship_now"
+            }).encode())[0], 400)
+            displayed = show_address()
+            self.assertEqual(displayed[0], 200)
+            self.assertIn("PRIVATE TEST PERSON".encode(), displayed[2])
+            self.assertIn("PRIVATE MOCK ADDRESS".encode(), displayed[2])
+            self.assertIn("千代田区".encode(), displayed[2])
+            self.assertEqual(displayed[1]["Cache-Control"], "no-store")
+            self.assertEqual(displayed[1]["Referrer-Policy"], "no-referrer")
+            self.assertIn("frame-ancestors 'none'", displayed[1]["Content-Security-Policy"])
+            self.assertNotIn(b"PRIVATE TEST PERSON", page[2])
+            self.assertNotIn(b"PRIVATE MOCK ADDRESS", page[2])
+            self.assertNotIn(b"PRIVATE TEST PERSON", db.db_file.read_bytes())
+            state["recipient_complete"] = False
+            blocked = show_address()
+            self.assertEqual(blocked[0], 409)
+            self.assertNotIn(b"PRIVATE TEST PERSON", blocked[2])
+            state["recipient_complete"] = True
             state["refund"] = 21450
+            refunded = show_address()
+            self.assertEqual(refunded[0], 409)
+            self.assertNotIn(b"PRIVATE TEST PERSON", refunded[2])
             rejected = audit()
             self.assertEqual(rejected[0], 503)
             self.assertIn("発送禁止".encode(), rejected[2])
