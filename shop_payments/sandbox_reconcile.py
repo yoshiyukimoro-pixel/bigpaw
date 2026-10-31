@@ -79,8 +79,18 @@ def _valid_japanese_shipping_recipient(recipient: dict) -> bool:
         return False
     line = address.get("address_line_1")
     post = address.get("postal_code")
+    # A zip code and street alone do not identify a dispatchable Japanese
+    # destination. Require Square's prefecture and city/ward address fields.
+    prefecture = address.get("administrative_district_level_1")
+    city = address.get("locality")
     if (not isinstance(line, str) or not 1 <= len(line.strip()) <= 200
-            or any(ch in line for ch in ("\r", "\n"))
+            or any(ord(ch) < 32 or ord(ch) == 127 for ch in line)
+            or not isinstance(prefecture, str)
+            or not 1 <= len(prefecture.strip()) <= 100
+            or any(ord(ch) < 32 or ord(ch) == 127 for ch in prefecture)
+            or not isinstance(city, str)
+            or not 1 <= len(city.strip()) <= 100
+            or any(ord(ch) < 32 or ord(ch) == 127 for ch in city)
             or not isinstance(post, str)
             or not re.fullmatch(r"[0-9]{3}-?[0-9]{4}", post)):
         return False
