@@ -1156,14 +1156,6 @@ class Handler(SimpleHTTPRequestHandler):
             import hashlib
             room='BIGPAW-'+hashlib.sha256((m.group(1)+'|online-visit').encode()).hexdigest()[:32]
             con.close(); return self.send_json({'room':room,'inquiryId':m.group(1),'role':u['role']})
-        if path in ('/api/shop/checkout', '/api/shop/checkout/quote'):
-            return bp_shop_checkout.handle_post(
-                self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
-                data_dir=DATA_DIR, rate_limited=rate_limited)
-        if path == '/api/shop/square-webhook':
-            return bp_shop_webhook.handle_post(
-                self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
-                data_dir=DATA_DIR)
         m=re.fullmatch(r'/api/inquiries/([^/]+)/visit',path)
         if m:
             u=self.require();
@@ -1392,6 +1384,14 @@ https://www.bigpaw.site/'''
     def do_POST(self):
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
         path=urlparse(self.path).path
+        if path in ('/api/shop/checkout', '/api/shop/checkout/quote'):
+            return bp_shop_checkout.handle_post(
+                self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
+                data_dir=DATA_DIR, rate_limited=rate_limited)
+        if path == '/api/shop/square-webhook':
+            return bp_shop_webhook.handle_post(
+                self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
+                data_dir=DATA_DIR)
         m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
         import shop_payments.live_operator_reconciliation as bp_live_reconcile
         if bp_live_reconcile.handle_post(
