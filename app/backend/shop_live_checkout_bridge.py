@@ -168,9 +168,100 @@ def handle_get(handler, *, env=None, base_url="",
         return _fail(handler)
 
 
+def handle_quote_post(handler, *, env=None, base_url="",
+                      rate_limited=None, launch_status=None):
+    """Read-only, buyer-authenticated server-authoritative final-price quote.
+
+    This route is OFF with the actual checked-in launch manifest. Even when
+    expressly approved in a future release, it will never make a Square
+    request, initialize SQLite, reserve stock or send an email. Exact approved
+    seller terms must match the version the buyer is confirming.
+    """
+    if urlsplit(handler.path).path != "/api/shop/checkout/quote":
+        return False
+    env = dict(os.environ if env is None else env)
+    try:
+        status = _load_manifest() if launch_status is None else launch_status
+        if not _gate(env, base_url, status):
+            return _fail(handler)
+        if not _origin_ok(handler, base_url, mutation=True):
+            return _fail(handler, "invalid_origin", 403)
+        session = _session(handler)
+        if session is None:
+            return _fail(handler, "auth_required", 401)
+        if (handler.headers.get("Transfer-Encoding")
+                or handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+                   != "application/json"):
+            return _fail(handler, "invalid_quote", 400)
+        try:
+            size = int(handler.headers.get("Content-Length", ""))
+        except (TypeError, ValueError):
+            return _fail(handler, "invalid_quote", 400)
+        if not 1 <= size <= 4096 or not callable(rate_limited):
+            return _fail(handler, "invalid_quote", 400)
+        cookie, user_id = session
+        if rate_limited("shop_quote:" + hashlib.sha256(cookie.encode()).hexdigest(),
+                        12, 300):
+            return _fail(handler, "rate_limited", 429)
+        expected = _csrf(env["BIGPAW_SHOP_ORDER_HMAC_SECRET"], cookie, user_id)
+        csrf = handler.headers.get("X-Shop-CSRF", "")
+        if not isinstance(csrf, str) or not hmac.compare_digest(csrf, expected):
+            return _fail(handler, "invalid_csrf", 403)
+        raw = handler.rfile.read(size)
+        if len(raw) != size:
+            return _fail(handler, "invalid_quote", 400)
+        from shop_payments.live_checkout_controller import _no_duplicate_keys
+        body = json.loads(raw.decode("utf-8"), object_pairs_hook=_no_duplicate_keys)
+        if not isinstance(body, dict) or set(body) != {"cart", "terms_sha256"}:
+            return _fail(handler, "invalid_quote", 400)
+        terms = body["terms_sha256"]
+        if (not isinstance(terms, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", terms)
+                or not hmac.compare_digest(
+                    terms, env["BIGPAW_SHOP_APPROVED_TERMS_SHA256"])):
+            return _fail(handler, "outdated_terms", 409)
+        from shop_payments.retail_catalog import load_sale_catalog
+        from shop_payments.square_checkout import build_square_link_payload
+        catalog = load_sale_catalog()
+        cart = body["cart"]
+        # The price and item names come entirely from this server's 35-SKU
+        # pricebook, NEVER from browser-supplied unit/total fields.
+        payload, total = build_square_link_payload(
+            cart=cart, verified_prices=catalog, shipping_yen=0,
+            square_location_id=env["BIGPAW_SQUARE_LIVE_LOCATION_ID"],
+            local_order_id="FOOD" + "0" * 32,
+            shipping_confirmed=True,
+        )
+        items = []
+        for sku in sorted(cart):
+            item = catalog[sku]
+            qty = cart[sku]
+            items.append({
+                "sku": sku, "name": item.name, "size": item.size,
+                "quantity": qty, "unit_yen": item.sale_price_yen,
+                "line_yen": qty * item.sale_price_yen,
+            })
+        if not items or sum(item["line_yen"] for item in items) != total:
+            return _fail(handler, "quote_mismatch", 409)
+        handler.send_json({
+            "currency": "JPY", "server_verified": True,
+            "terms_sha256": terms, "line_items": items,
+            "subtotal_yen": total, "shipping_yen": 0, "amount_yen": total,
+            "payment_link_created": False,
+        }, 200)
+        return True
+    except (OSError, ImportError, UnicodeError, ValueError, KeyError, TypeError):
+        # No PII, credential, card data or private business information.
+        return _fail(handler, "quote_unavailable", 400)
+
+
 def handle_post(handler, *, env=None, base_url="",
                 data_dir=None, rate_limited=None, launch_status=None,
                 post_opener=None, get_opener=None):
+    if urlsplit(handler.path).path == "/api/shop/checkout/quote":
+        return handle_quote_post(
+            handler, env=env, base_url=base_url,
+            rate_limited=rate_limited, launch_status=launch_status)
     if urlsplit(handler.path).path != "/api/shop/checkout":
         return False
     env = dict(os.environ if env is None else env)
