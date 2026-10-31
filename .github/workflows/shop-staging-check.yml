@@ -20,6 +20,7 @@ on:
       - 'scripts/test-shop-retail-launch-guard.py'
       - 'app/shop-cart-preview.js'
       - 'app/shop-order-review.js'
+      - 'scripts/test-shop-order-review.cjs'
       - 'app/shop-order-review.css'
       - 'app/shop-detail-images.js'
       - 'app/shop-detail-gallery.js'
