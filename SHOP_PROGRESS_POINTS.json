@@ -665,10 +665,12 @@
             "development_auto_disclosure_bridge_20261031": {
               "scope": "Draft branch: source app/backend/shop_seller_disclosure_bridge.py, existing /api/support post-commit challenge and POST /api/shop/seller-disclosure/confirm implemented. Merchant name/address/phone remain runtime-only; no private seller data embedded in source.",
               "request_safety": "Recipient must verify a one-time challenge token first. Strict browser Host/Origin/Content-Type/body limits/rate limiting on confirm; provider-accepted is not delivery-confirmed; support ticket stays open for operator review.",
-              "tests": "scripts/test-shop-seller-disclosure-bridge.py added to shop-staging-check.yml. Some unrelated PR CI checks succeeded after preserving legacy Docker patch anchor; shop-specific integration CI and actual email delivery not yet independently verified.",
+              "tests": "GitHub Actions 41210953380 SUCCESS, tested code commit 45c7a000ffdc78156c5846606115c42ee3ed47d0. Offline security/unit integration, independent Sandbox Docker image, dormant production-equivalent Docker image, Chromium and WebKit/iPhone equivalent browser tests all succeeded; no external mail sent.",
               "disabled": "No private BIGPAW_SHOP_SELLER_* settings or public live deploy provisioned. Default OFF, no live emails or legal disclosure sent.",
               "remaining": "Complete isolated integration CI, domain sender authorization, private secret setup, verified real email delivery, support ticket operator workflow and direct info@ mailbox fallback before L01 can be completed.",
-              "progress_points_deducted": 0
+              "progress_points_deducted": 0,
+              "ci_url": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41210953380",
+              "point_change": 0
             }
           }
         },
