@@ -134,6 +134,10 @@ class LiveLedgerTests(unittest.TestCase):
         self.assertEqual(self.calls, [])
 
     def test_real_verifier_with_fake_square_payment_and_idempotency(self):
+        from shop_payments.sandbox_reconcile import _valid_japanese_shipping_recipient
+        self.assertTrue(_valid_japanese_shipping_recipient(
+            self.square_order['fulfillments'][0]['shipment_details']['recipient']),
+            'synthetic completed Japanese destination must be valid')
         self.register()
         result = self.pay()
         self.assertEqual(result, {"state": "paid_verified", "new_transition": True})
