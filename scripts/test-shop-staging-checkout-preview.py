@@ -143,6 +143,34 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertEqual(request(srv, "/shop-test-orders.html", headers={
                 "Host": host})[0], 404)
 
+        # Only the NEW isolated service can opt in to private operator
+        # order work while new customer checkout is stopped.
+        with server_with_env({**config,
+                              "BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0",
+                              "BIGPAW_SHOP_STAGE_OPERATOR_AFTER_STOP_ENABLED": "1"}) as (srv, db, calls):
+            self.assertEqual(request(srv, "/shop.html", headers={
+                "Host": host})[0], 404)
+            self.assertEqual(request(srv, "/shop-test-orders.html", headers={
+                "Host": host}, auth=False)[0], 401)
+            self.assertEqual(request(srv, "/shop-test-orders.html", headers={
+                "Host": host})[0], 200)
+            self.assertEqual(request(srv, "/shop-test-orders.html", headers={
+                "Host": HOST})[0], 400)
+            self.assertEqual(calls, [], "operator order inspection must not create checkout")
+        with server_with_env({**config,
+                              "BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0",
+                              "BIGPAW_SHOP_STAGE_OPERATOR_AFTER_STOP_ENABLED": "1",
+                              "BIGPAW_SHOP_STAGE_OPERATOR_PASSWORD": ""}) as (srv, db, calls):
+            self.assertEqual(request(srv, "/shop-test-orders.html", headers={
+                "Host": host})[0], 404)
+        # Explicit flag on ORIGINAL bigpaw-test never unlocks its operator
+        # area after preview OFF; only exact NEW project/service identity may.
+        with server_with_env({
+            "BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0",
+            "BIGPAW_SHOP_STAGE_OPERATOR_AFTER_STOP_ENABLED": "1",
+        }) as (srv, db, calls):
+            self.assertEqual(request(srv, "/shop-test-orders.html")[0], 404)
+
     def test_operator_readonly_shipping_status_with_payment_and_csrf(self):
         """Shipping is a fresh Square GET only; paid alone never permits shipment."""
         from shop_payments.retail_catalog import load_sale_catalog
