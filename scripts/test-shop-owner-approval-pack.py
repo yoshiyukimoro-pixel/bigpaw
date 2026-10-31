@@ -47,14 +47,18 @@ class ApprovalPackTests(unittest.TestCase):
         disclosure = returns["partial_owner_approvals"]["seller_identity_contact"]
         self.assertTrue(disclosure["method_owner_approved"])
         self.assertEqual(disclosure["statutory_publication_method"],
-                         "on_request_without_delay_before_purchase")
+                         "public_legal_name_address_phone_on_request")
+        self.assertTrue(disclosure["legal_name_publication_owner_approved"])
+        self.assertTrue(disclosure["legal_name_in_draft_public_page"])
+        self.assertFalse(disclosure["private_postal_address_phone_committed"])
         self.assertEqual(disclosure["request_contact"], "info@bigpaw.site")
         self.assertFalse(disclosure["request_response_operational_tested"])
         self.assertFalse(disclosure["legal_disclosure_final_approved"])
         self.assertFalse(status["launch_checks"]["statutory_contact"])
         self.assertFalse(status["launch_checks"]["seller_identity"])
         self.assertIn("請求に応じて遅滞なく提供", owner)
-        self.assertIn("請求に応じ遅滞なく個別開示", pack)
+        self.assertIn("住所と確実につながる電話番号は請求に応じ遅滞なく個別開示", pack)
+        self.assertIn("正式氏名は公開", owner)
         from shop_payments.retail_launch_guard import check
         ready, missing = check(status)
         self.assertFalse(ready)
