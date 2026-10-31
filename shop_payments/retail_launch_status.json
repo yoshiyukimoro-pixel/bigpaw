@@ -14,5 +14,5 @@
     "production_e2e_tests": false,
     "proprietor_approval": false
   },
-  "notes": "Individual proprietor confirmed by owner. Merchant legal full name/contact, on-request disclosure arrangements, returns, live payments, delivery and real email remain unapproved. Never save personal details/secrets in Git."
+  "notes": "Individual proprietor confirmed, legal identity/postal address/phone supplied privately. On 2026-10-31 owner chose lawful on-request disclosure, with info@bigpaw.site as public request intake. Actual prompt pre-purchase response, safe private disclosure workflow, full mandatory legal terms, provider delivery and live checkout are NOT verified; all launch checks remain false. Never commit private address/phone/legal name into Git."
 }
