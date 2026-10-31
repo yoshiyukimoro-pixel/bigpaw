@@ -48,7 +48,13 @@
               "BIGPAW_SQUARE_LIVE_WEBHOOK_URL",
               "BIGPAW_SQUARE_LIVE_WEBHOOK_SIGNATURE_KEY"
             ],
-            "result": "blocked_pending_owner_configuration; production location access and OAuth permissions not verified; no point deduction"
+            "result": "blocked_pending_owner_configuration; production location access and OAuth permissions not verified; no point deduction",
+            "latest_variable_names_20261031": {
+              "result": "Railway connected read-only production name inventory; RESEND_API_KEY exists by name on BIG PAW/bigpaw-live and BigPaw/bigpaw-site. No BIGPAW_SQUARE_LIVE_ACCESS_TOKEN, BIGPAW_SQUARE_LIVE_LOCATION_ID, shop live approval, HMAC or live webhook variable names on those two production web services.",
+              "values_redacted": true,
+              "permissions_not_verified": true,
+              "point_change": 0
+            }
           }
         },
         {
@@ -66,6 +72,15 @@
               "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152234708",
               "result": "SUCCESS, no checkout started or payment link created",
               "remaining": "Formal seller-approved returns/shipping/consumer terms and final checkout confirmation page terms digest unapproved; P03 remains pending."
+            },
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Must bind approved terms digest and exact server-priced cart at final checkout"
             }
           }
         },
@@ -408,7 +423,17 @@
           "title": "お客様への注文確認と必要な連絡文面を承認",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Merchant must review exact five customer notices and send timing"
+            }
+          }
         },
         {
           "id": "F03",
@@ -493,7 +518,17 @@
           "title": "販売者の正式情報と連絡手段の確定・承認",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Merchant must confirm legal name and real contact method without exposing secrets on GitHub"
+            }
+          }
         },
         {
           "id": "L02",
@@ -501,7 +536,17 @@
           "title": "特定商取引法の表示を最終確認して確定",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Publish-ready statutory disclosure needs merchant-confirmed identity/contact, returns and legally correct display"
+            }
+          }
         },
         {
           "id": "L03",
@@ -509,7 +554,17 @@
           "title": "返品送料/不良品/欠品/配送目安の条件を承認",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Cancellation after supplier order, return eligibility, refund timing and seller-paid defects require explicit choices"
+            }
+          }
         },
         {
           "id": "L04",
@@ -517,7 +572,17 @@
           "title": "最終購入確認画面に承認済み条件を反映・検証",
           "status": "pending",
           "completed_at": null,
-          "evidence": null
+          "evidence": {
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Final checkout page must display approved terms with accurate totals and be verified"
+            }
+          }
         }
       ]
     },
