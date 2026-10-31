@@ -1,0 +1,36 @@
+name: BIG PAW isolated paid Sandbox order persistence after checkout STOP
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-real-paid-after-stop.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: No-network order snapshot, refund, old/new isolation tests
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-real-paid-after-stop.py
+          python3 -m py_compile scripts/check-shop-real-sandbox-paid-after-stop.py
+  verify-durable:
+    needs: offline
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && contains(github.event.head_commit.message, '[shop-post-stop-paid-recheck-opt-in]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Square GET only + HMAC signed idempotent recheck to NEW staging webhook after STOP
+        env:
+          BIGPAW_POST_STOP_DURABILITY_PROOF_OPT_IN: '1'
+          BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN: ${{ secrets.BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/check-shop-real-sandbox-paid-after-stop.py
