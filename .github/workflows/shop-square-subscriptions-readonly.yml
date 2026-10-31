@@ -29,3 +29,4 @@ jobs:
           grep -Fqx 'SHOP_SQUARE_SANDBOX_SUBSCRIPTIONS=old_enabled_payment_updated__new_disabled_payment_updated__read_only' /tmp/bigpaw-square-sandbox-subscription-check.txt
           grep -Fqx 'SHOP_SQUARE_WEBHOOK_MUTATIONS=ZERO' /tmp/bigpaw-square-sandbox-subscription-check.txt
 # One-shot delivery follow-up 2026-10-31: confirm existing enabled and new disabled without writes.
+# Square-originated fake paid event complete: after-job audit old enabled and new disabled, GET-only.
