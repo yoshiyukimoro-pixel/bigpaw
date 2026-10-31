@@ -166,6 +166,14 @@
               "public_result": "SUCCESS: NEW staging /healthz 200 ready; /shop.html, /shop-test-orders.html and /api/shop/sandbox/operator/view-shipping-address all HTTP 404 without auth.",
               "pending": "Operator credentials not yet provisioned; admin PII display remains intentionally disabled. Earlier real fake-paid Square Sandbox test Order lacked shipping recipient; full actual buyer shipping input-to-fulfillment E2E still unverified. P04 4 points remain pending.",
               "points_changed": 0
+            },
+            "shipping_label_browser_privacy_20261031": {
+              "commit": "b3a8c1951957e2f3ad38b9b7bf0ffde9d402fe19",
+              "result": "SUCCESS",
+              "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162476351",
+              "scope": "Feature branch only. Operator delivery-label view now cancels stale 60-second expiry on manual hide/reveal, immediately purges visible recipient PII on pagehide or hidden tab and before list refresh, and rejects delayed responses after page navigation or list removal.",
+              "tests": "Automated Chromium and WebKit/iPhone-equivalent tests, Python Square safety regressions and 2 Docker builds all succeeded. Synthetic recipient only, no real provider PII, payment, shipment, email or deploy.",
+              "remains": "Actual Square Sandbox buyer-entered shipment and fulfillment full E2E remain unverified; P04 not done, 0 points deducted."
             }
           }
         },
