@@ -50,3 +50,19 @@ PYTHONPATH=. python3 scripts/audit-shop-stop-readiness.py --db /path/to/explicit
 - **確認できたこと**：Railwayサービスを再デプロイし、既知の安定版へ復旧して安全フラグをOFFに戻す運用。
 - **未確認**：実際に購入可能な状態からの停止応答、発行済みSquareリンクの個別無効化、以前の支払いイベントを処理するWebhookとの協調、保管した実注文の復旧可否。したがってP06（3）は完了扱いにせず、引き続き残り46ポイントを維持。
 - 本番緊急停止時は、`BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0` のみで安心せず、**デプロイ済みコミットID・保護されたサイト・注文台帳・既発行Squareリンク・Webhook経路**をそれぞれ点検。新コードで再デプロイされ得るため、正常ビルドIDを固定してロールバックする。本番運用の前に別途購入有効状態の隔離E2Eが必要。
+
+
+## 2026-10-31：実Square Sandbox入金と購入停止後の保全を確認（P06完了）
+
+この節は上の **P06未完了** と記された古い訓練記録より新しい正式な判定である。**本番公開やSquare Productionの許可ではない。**
+
+- 隔離済み`BIG PAW App Staging` のフルアプリ：購入停止フラグ `BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0` のもとで別コード版へデプロイしてHTTPアクセス制御を確認し、既知安定版コミット`361ff926...`に戻してRailway `acba6bd1-ad8c-432c-8f04-eaa5c5bf41c7` がSUCCESS。Private Volume維持。
+- 隔離済み`bigpaw-square-sandbox-staging`：パスワード保護されたSandbox購入画面をONにして、Square公式Testing Panelで **税込21,450円・送料0円のテスト決済** を確認。Square自身から届く `payment.updated` により隔離SQLiteの同一注文が `payment_pending→paid`。Square Payments/Ordersの最新再取得、店舗・注文・通貨JPY・金額が一致。GitHub [41154207823](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154207823) SUCCESS。
+- 独立したRailway HTTPログ：`2026-10-31T01:13:51Z`および`01:13:54Z`に、送信者`Square Connect v2`、新Webhookパス、HTTP200の2件。
+- Square新テスト購読だけを一時ONにして上の本物のSquare通知を確認した後、常にOFFへ戻す処理が成功。追加のSquare読み取り監査 [41154464365](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154464365) は旧購読`enabled=true`・新購読`enabled=false`を確認。旧購読設定には変更なし。
+- テスト購入画面も`BIGPAW_SHOP_STAGE_PREVIEW_ENABLED=0`へ復元。Railway新Webhookサービス再デプロイ`5afc9929-645b-475d-a005-dcbd6f749e09` SUCCESS。
+- 既発行の実Sandboxテストリンクを**決済の再試行なし**で読み取り、Square元のCOMPLETED支払いと21,450円を確認。停止・再デプロイ後にも既存の有効な署名鍵で同じ支払いの人工的な再照合を新Webhookへ送り、HTTP200で既存の入金済み台帳を正常に認識できることを確認。[41154781086](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154781086) SUCCESS。
+- 今回の **P06（3ポイント）は隔離stagingでの実機停止、戻し、既発行リンクの読み取り、既存入金確認と台帳保全の範囲として完了**。ただし実Shop本番の購入可能状態からの事故対応、発行済リンクの個別取消、返金、出荷済み注文対応まで行ったという意味ではない。後続P04/R02/R04/R05の承認と運用リハーサルは引き続き必要。
+- **厳守**：購入停止は新規Checkout API受付を拒否するだけで、既発行のSquare Checkoutリンク自体は取り消さない。購入者がその既存リンクで入金する可能性があるため、Webhookは維持し、Square側の決済状態と残件を独立して確認する。顧客への実メール、仕入先への発注、Square Production決済は引き続き禁止。
+
+2026-10-31時点の正本：`SHOP_PROGRESS_POINTS.json` は **59ポイント完了／残り41ポイント**。
