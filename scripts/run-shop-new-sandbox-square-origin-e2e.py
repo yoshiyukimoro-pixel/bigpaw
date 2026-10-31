@@ -120,7 +120,7 @@ def turn_off():
     if not _enabled(token,False,strict_old=False):
         raise ValueError("New notification subscription remains active")
     print("SHOP_SQUARE_NEW_SANDBOX_SUBSCRIPTION=DISABLED_CONFIRMED")
-    print("SHOP_SQUARE_OLD_SUBSCRIPTION=UNCHANGED_ACTIVE")
+    print("SHOP_SQUARE_OLD_SUBSCRIPTION=NOT_MUTATED")
 
 def verify_origin():
     token=_allowed()
