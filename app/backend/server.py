@@ -1384,6 +1384,7 @@ https://www.bigpaw.site/'''
     def do_POST(self):
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
         path=urlparse(self.path).path
+        m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
         if path == '/api/shop/seller-disclosure/confirm':
             from shop_seller_disclosure_bridge import handle_confirm
             return handle_confirm(
@@ -1397,7 +1398,6 @@ https://www.bigpaw.site/'''
             return bp_shop_webhook.handle_post(
                 self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
                 data_dir=DATA_DIR)
-        m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
         # Import retail-only dependencies only for retail operator POST routes.
         # Regular login and breeder inquiry requests must work without the
         # shop_payments package on the legacy unpatched standalone server.
