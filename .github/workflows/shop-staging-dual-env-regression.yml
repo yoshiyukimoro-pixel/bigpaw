@@ -64,7 +64,7 @@ jobs:
             local scope="$1" method="$2" url="$3" expected="$4"
             local status
             if [ "$method" = "POST" ]; then
-              # Only NEW standby endpoint; no signed event, no customer data.
+              # Only NEW isolated endpoint; no signed event, no customer data.
               test "$scope" = "new_webhook_standby"
               status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 --retry 2 \
                 -X POST -H 'Content-Type: application/json' \
@@ -82,7 +82,7 @@ jobs:
           probe protected_full_app GET "$APP/healthz" 200
           probe protected_full_app GET "$APP/shop.html" 401
           probe protected_full_app GET "$APP/api/shop/checkout/config" 401
-          # New Webhook exists but no Square tokens/keys: explicit standby.
+          # New Webhook may be ready with secrets; Square subscription is separately disabled.
           probe new_webhook_standby GET "$NEW_WEBHOOK/healthz" 200
           probe new_webhook_standby GET "$NEW_WEBHOOK/" 404
           # Isolated webhook should expose NO shopper or operator views.
@@ -106,7 +106,7 @@ jobs:
           except urllib.error.HTTPError as error:
               status = error.code
           print("SHOP_DUAL_STAGING|scope=new_webhook_standby|method=POST|status=" + str(status))
-          assert status == 503, "new Sandbox webhook must remain disabled without signing key"
+          assert status in (403, 503), "unsigned Sandbox webhook request must never be accepted"
           PY
           python3 - <<'PY'
           import json
@@ -114,8 +114,8 @@ jobs:
           url = "https://bigpaw-square-sandbox-staging-staging.up.railway.app/healthz"
           with urllib.request.urlopen(url, timeout=15) as response:
               payload = json.loads(response.read(1024))
-          assert payload == {"status": "sandbox_webhook_standby"}, (
-              "new Square Sandbox webhook unexpectedly became live")
-          print("SHOP_SANDBOX_SECRETS_ABSENT|standby_confirmed|no_real_payment")
+          assert payload in ({"status": "sandbox_webhook_standby"}, {"status": "sandbox_webhook_ready"}), (
+              "new Square Sandbox webhook health state is invalid")
+          print("SHOP_SANDBOX_HEALTH_VALID|isolated|no_real_payment")
           PY
-          echo "SHOP_DUAL_STAGING_OK|old_untouched|new_standby|app_protected|no_payment"
+          echo "SHOP_DUAL_STAGING_OK|old_untouched|new_isolated|app_protected|no_payment"
