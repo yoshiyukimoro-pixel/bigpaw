@@ -98,6 +98,15 @@
               "protections": "Actual merchant launch manifest remains off, so endpoint returns 404 in current deployment. Does not create Square link, payment, order, SQLite, email, fulfillment, or refund.",
               "still_missing": "Actual future checkout page must compare this server quote against displayed amount and enforce approved final seller terms/receipt before Square. Merchant policy confirmation and production-equivalent E2E remain unverified.",
               "point_change": 0
+            },
+            "preview_cart_integrity_ci_20261031": {
+              "date": "2026-10-31",
+              "code_commit": "92d2af836d0c20a64a30ce624e544c6d0eaf4271",
+              "actions_run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41175402368",
+              "result": "SUCCESS: offline Python safety; both Docker builds; Chromium and iPhone Safari/WebKit equivalent browser regressions.",
+              "scope": "Preview-only review page now fails closed on unknown/invalid SKU or quantity; a silent cart mutation after agreement forces reconfirmation. Browser test verifies invalid JSON and values, stale approval, price and shipping display. No payment/API POST.",
+              "remaining": "P03 still pending seller-approved terms and final browser-to-server authoritative quote match before actual Square checkout. No real iPhone purchase, live payment or production deployment.",
+              "point_change": 0
             }
           }
         },
