@@ -174,6 +174,19 @@
               "scope": "Feature branch only. Operator delivery-label view now cancels stale 60-second expiry on manual hide/reveal, immediately purges visible recipient PII on pagehide or hidden tab and before list refresh, and rejects delayed responses after page navigation or list removal.",
               "tests": "Automated Chromium and WebKit/iPhone-equivalent tests, Python Square safety regressions and 2 Docker builds all succeeded. Synthetic recipient only, no real provider PII, payment, shipment, email or deploy.",
               "remains": "Actual Square Sandbox buyer-entered shipment and fulfillment full E2E remain unverified; P04 not done, 0 points deducted."
+            },
+            "operator_live_sandbox_login_20261031": {
+              "environment": "BIG PAW App Staging / staging; bigpaw-square-sandbox-staging only",
+              "change": "Dedicated operator Basic Auth user/password configured via Railway variables (secret value never committed) and post-purchase administrative operator view remains available while shopper preview OFF. Public/live checkout owner approval explicitly 0.",
+              "railway_variable_names": [
+                "BIGPAW_SHOP_STAGE_OPERATOR_USER",
+                "BIGPAW_SHOP_STAGE_OPERATOR_PASSWORD",
+                "BIGPAW_SHOP_STAGE_OPERATOR_ENABLED",
+                "BIGPAW_SHOP_STAGE_OPERATOR_AFTER_STOP_ENABLED"
+              ],
+              "deployment_result": "Railway environment_status: isolated Square Sandbox and app staging both Online, 0 criticals, 0 warnings after isolated Sandbox service redeploy",
+              "limitations": "Only Rails/Railway deployment health and variable-name existence verified; HTTP login + request of true Square recipient fields from real paid shipment not independently executed. Historical fake-paid Square order still lacks complete shipping details. Do not mark P04 complete or charge/refund/send.",
+              "point_change": 0
             }
           }
         },
