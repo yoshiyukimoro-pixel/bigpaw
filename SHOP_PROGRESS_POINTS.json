@@ -139,6 +139,14 @@
               "publication": "Draft PR #175 only; no real buyer checkout, Square payment, order creation, customer email or Railway deployment.",
               "still_missing": "Formal seller-approved and actually displayed return/consumer terms, authentic binding to final order screen and production-equivalent purchase/fulfillment E2E. P03 remains pending.",
               "points_deducted": 0
+            },
+            "actual_preview_dom_shared_quote_validator_20261031": {
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41176879636",
+              "tested_commit": "c39fe42caf4d5940804f4c52762c838fa0ba9eac",
+              "result": "SUCCESS",
+              "scope": "The real preview order review UI now uses BigPawShopQuote.snapshot (same validation module as future authenticated read-only server quote) to compare currently rendered product name, package size, unit/line prices, quantity, subtotal and total against session cart. Browser tests reject tampered customer-visible total and item title; original preview remains enabled only for nonpayment confirmation. Python unit safety, two Docker builds, Chromium and iPhone Safari/WebKit regressions all passed.",
+              "limitations": "This is a local nonpayment preview integrity binding, not actual approved seller terms nor actual authenticated server quote on the final commerce page. Real payment, customer shipping and owner legal terms approvals remain pending. No production release.",
+              "points_deducted": 0
             }
           }
         },
