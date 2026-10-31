@@ -49,3 +49,4 @@ jobs:
           print("SHOP_REAL_SANDBOX_PAID_TEST_AFTER_OFF=PREVIEW_CLOSED_CHECKED")
           print("SHOP_SQUARE_ORIGIN_E2E_AFTER_OFF=PREVIEW_404_HEALTH_READY")
           PY
+# Read-only final check after isolated Sandbox fake-card trial and preview shutdown 2026-10-31.
