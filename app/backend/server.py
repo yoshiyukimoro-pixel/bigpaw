@@ -1393,11 +1393,16 @@ https://www.bigpaw.site/'''
                 self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
                 data_dir=DATA_DIR)
         m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
-        import shop_payments.live_operator_reconciliation as bp_live_reconcile
-        if bp_live_reconcile.handle_post(
-                self, env=dict(os.environ), is_production=IS_PRODUCTION,
-                base_url=PUBLIC_BASE_URL, data_dir=DATA_DIR):
-            return
+        # Import retail-only dependencies only for retail operator POST routes.
+        # Regular login and breeder inquiry requests must work without the
+        # shop_payments package on the legacy unpatched standalone server.
+        if path in ('/api/operator/shop-orders/reconcile',
+                    '/api/operator/shop-orders/shipping-address'):
+            import shop_payments.live_operator_reconciliation as bp_live_reconcile
+            if bp_live_reconcile.handle_post(
+                    self, env=dict(os.environ), is_production=IS_PRODUCTION,
+                    base_url=PUBLIC_BASE_URL, data_dir=DATA_DIR):
+                return
         if m:
             u=self.require();
             if not u:return
