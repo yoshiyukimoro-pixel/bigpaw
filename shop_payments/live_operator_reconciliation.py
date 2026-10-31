@@ -61,8 +61,94 @@ def issue_csrf(handler, *, env: dict, is_production: bool,
     return True
 
 
+def handle_shipping_address_post(handler, *, env: dict,
+                                 is_production: bool, base_url: str,
+                                 data_dir) -> bool:
+    """OFF by default: operator gets one verified live shipping destination.
+
+    POST requires production-only launch switches, operator session, strict
+    HTTPS Origin and double-submit CSRF. This does not dispatch, email,
+    update the journal, or store recipient PII.
+    """
+    if handler.path.split("?", 1)[0] != "/api/operator/shop-orders/shipping-address":
+        return False
+    if not (enabled(env, is_production=is_production)
+            and env.get("BIGPAW_SHOP_LIVE_ADDRESS_VIEW_ENABLED") == "1"):
+        handler.send_json({"error": "shipping_address_unavailable"}, 404)
+        return True
+    if not _same_origin(handler, base_url):
+        handler.send_json({"error": "invalid_origin_or_csrf"}, 403)
+        return True
+    if (handler.headers.get("Transfer-Encoding")
+            or handler.headers.get("Content-Type","").split(";",1)[0].strip().lower()
+                != "application/json"):
+        handler.send_json({"error": "invalid_shipping_request"}, 400)
+        return True
+    try:
+        size = int(handler.headers.get("Content-Length","0"))
+    except ValueError:
+        size = 0
+    if not 1 <= size <= 1024:
+        handler.send_json({"error": "invalid_shipping_request"}, 400)
+        return True
+    user = handler.require(["operator"])
+    if not user:
+        return True
+    try:
+        cookies = SimpleCookie()
+        cookies.load(handler.headers.get("Cookie", ""))
+        cookie_token = cookies[COOKIE].value
+    except (KeyError, ValueError):
+        cookie_token = ""
+    body = handler.json_body()
+    token = body.get("csrf_token") if isinstance(body,dict) else None
+    if (not isinstance(token,str) or not TOKEN.fullmatch(token)
+            or not TOKEN.fullmatch(cookie_token)
+            or not secrets.compare_digest(token,cookie_token)):
+        handler.send_json({"error":"invalid_origin_or_csrf"},403)
+        return True
+    if (not isinstance(body,dict)
+            or set(body) != {"order_id","csrf_token","confirmation"}
+            or not isinstance(body["order_id"],str)
+            or not ORDER.fullmatch(body["order_id"])
+            or body["confirmation"] != "view_delivery_label_once"):
+        handler.send_json({"error":"invalid_shipping_request"},400)
+        return True
+    path = data_dir / "bigpaw-shop-live-orders.sqlite3"
+    if not path.is_file():
+        handler.send_json({"error":"verified_paid_order_required"},409)
+        return True
+    try:
+        from .live_shipping_address_view import read_live_recipient_for_dispatch
+        ledger = LiveOrderLedger(path)
+        trusted = ledger.paid_notice_snapshot(body["order_id"])
+        label = read_live_recipient_for_dispatch(
+            snapshot=trusted, api_key=env["BIGPAW_SQUARE_LIVE_ACCESS_TOKEN"]
+        )
+    except LiveOrderBlocked:
+        handler.send_json({"error":"verified_paid_order_required"},409)
+        return True
+    except Exception:
+        # The provider or PII must never leak into HTTP errors or logs.
+        handler.send_json({"error":"current_paid_shipping_not_verified"},409)
+        return True
+    handler.send_json(
+        {"recipient":label,"temporary_view_only":True,
+         "message":"購入者が指定した配送先です。発送伝票への転記前にご確認ください。"},
+        extra={"Cache-Control":"private, no-store, max-age=0",
+               "Pragma":"no-cache","Referrer-Policy":"no-referrer",
+               "X-Robots-Tag":"noindex, nofollow, noarchive",
+               "X-Content-Type-Options":"nosniff"}
+    )
+    return True
+
+
 def handle_post(handler, *, env: dict, is_production: bool,
                 base_url: str, data_dir) -> bool:
+    if handle_shipping_address_post(
+            handler,env=env,is_production=is_production,
+            base_url=base_url,data_dir=data_dir):
+        return True
     if handler.path.split("?", 1)[0] != "/api/operator/shop-orders/reconcile":
         return False
     if not enabled(env, is_production=is_production):
