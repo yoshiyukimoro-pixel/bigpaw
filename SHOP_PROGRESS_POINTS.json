@@ -60,7 +60,13 @@
           "evidence": {
             "reviewed_at": "2026-10-31",
             "scope": "Source review only. Public preview explicitly says sales are not open and returns/cancellation terms remain unapproved. Live controller requires approved terms digest and owner launch gate, and derives the charge from server-side SKU/quantity pricebook rather than browser totals.",
-            "result": "pending_final_seller_terms_and_end_to_end_price_match; no point deduction"
+            "result": "pending_final_seller_terms_and_end_to_end_price_match; no point deduction",
+            "isolated_real_https_quote": {
+              "outcome": "A02 price JPY 21450 incl tax; shipping 0; server price authority and rejection of tampered client price proven in one authenticated isolated HTTPS quote",
+              "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152234708",
+              "result": "SUCCESS, no checkout started or payment link created",
+              "remaining": "Formal seller-approved returns/shipping/consumer terms and final checkout confirmation page terms digest unapproved; P03 remains pending."
+            }
           }
         },
         {
@@ -138,7 +144,24 @@
             },
             "payment_safety": "No Square Production, no real charge, no mail, no public launch, no production deployment. Existing Square links are NOT cancelled merely by switching off purchases; separate manual Square review required at live launch.",
             "completion_scope": "PARTIAL staging operational OFF and version rollback proven. P06 acceptance still needs enabled Sandbox checkout to OFF verification, checks for pre-existing payment links, receipt processing despite stop, and retained order journal across the rollback. Never imply previously issued Square links were cancelled.",
-            "point_decision": "NOT COMPLETED. Zero points deducted; other P06 gates unverified."
+            "point_decision": "NOT COMPLETED. Zero points deducted; other P06 gates unverified.",
+            "isolated_checkout_preview_on_off_real_https": {
+              "date": "2026-10-31",
+              "scope": "NEW isolated bigpaw-square-sandbox-staging ONLY; old Sandbox and BIG PAW production untouched",
+              "private_credentials_setup": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41151822093",
+              "env_secret_setup": "SUCCESS; strong random HTTP Basic Auth preview username/password written to NEW staging webhook service with flag OFF and no deployment",
+              "new_preview_code": "037cbe2d8638e14fd70210781a40fee0c6fba8f1",
+              "offline_integration": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41151682864",
+              "offline_result": "SUCCESS; authenticated sandbox checkout -> mock Square link/order -> toggle preview OFF -> new checkout HTTP 404 -> existing signed synthetic paid event verified -> duplicate idempotent",
+              "full_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41151652189",
+              "full_ci_result": "SUCCESS; Python unit and integration, both Docker builds, Chromium and WebKit UI",
+              "actual_preview_quote": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152234708",
+              "quote_result": "SUCCESS; real HTTPS: anonymous 401, private authenticated 200, GET Sandbox config with CSRF, A02 x1 JPY 21450 shipping 0 authoritative quote, extra browser-supplied price 400 and no-CSRF checkout 403; no real checkout/payment link",
+              "off_redeploy": "809bfbf3-3c8e-4c2c-87f8-eb07337ad3bd",
+              "off_https_probe": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152335282",
+              "off_result": "SUCCESS; new webhook health ready but preview /shop.html 404 and private routes remain closed; both services online, zero warnings",
+              "gaps": "No real Square checkout link or matching completed Sandbox JPY Payment in isolated durable order DB; no real transaction after pause; no verified existing link/paid event in same deployment; no proof of payment journal surviving rollback. Keep P06 pending."
+            }
           }
         }
       ]
@@ -446,6 +469,10 @@
               "evidence": "Private signature key retrieved in ephemeral GitHub job from exact disabled Square Sandbox subscription. No secret logged. Exactly 3 controlled synthetic POSTs to new isolated Railway webhook: correct HMAC with unmatched fake order yields HTTP 503 awaiting_square_confirmation, wrong notification URL HMAC yields HTTP 403 invalid_signature_or_event, wrong Square environment yields HTTP 403 invalid_environment. Independent Railway HTTP log at 2026-10-31T00:22:16Z confirms [503,403,403].",
               "no_payment": "No Square payment, test card checkout, refund, mail, subscription activation or mutation.",
               "scoring": "T03 remains pending. Genuine completed Square Sandbox JPY payment, matching isolated persisted order, provider Payments/Orders verification and deduplication not yet shown."
+            },
+            "preview_retained_webhook": {
+              "status": "No Square subscription changed, and webhook health ready after preview toggles; no genuine completed Square Payment event in NEW durable store; T03 pending.",
+              "new_service_deploy": "809bfbf3-3c8e-4c2c-87f8-eb07337ad3bd"
             }
           }
         },
