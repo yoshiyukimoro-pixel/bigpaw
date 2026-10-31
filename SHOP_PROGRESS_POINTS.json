@@ -123,6 +123,21 @@
               "actual_square_shipping": "The earlier genuine hosted Square Sandbox test has incomplete shipping. This new path is offline-integrated only; has NOT made a true Square GET from authenticated operator UI or resolved that test recipient.",
               "deployment": "Branch-only. No changes to existing bigpaw-test or main/live service.",
               "point_change": 0
+            },
+            "operator_transient_delivery_label_20261031": {
+              "stage": "Feature branch only, not deployed to BIG PAW production or old sandbox",
+              "commit_family": [
+                "64d02ccecf9f0fb0e06944fd96cf0b7adb7530d0",
+                "df3764b58bdfbd84f8468527faf1da3a21bbf49f",
+                "653557a5d80e4fc0a8a2fe77718849443975bedf",
+                "997b7fa1fff622193eacdab46f944cbe7755f844"
+              ],
+              "latest_verified_head": "26e7af5a195ae70abc17292878d18beb8e299d58",
+              "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41160951509",
+              "result": "SUCCESS: offline Square mock integration Python tests, both Docker builds, Chromium and WebKit/Safari equivalent checks.",
+              "behavior": "Order-specific operator-only POST CSRF action retrieves in-memory recipient shipping name, phone, JP zip, prefecture, city, street and optional building/address lines from Square GET after independent current completed unrefunded Square Payment and matched Square Order. Separate auth credentials from shopper, exact staging host, explicit consent checkbox, HTML escaped PII, no-cache/no-store and no-referrer frame denial. No PII in order list, SQLite journal or logs. No shipping/real mail/charge/refund.",
+              "remaining": "Actual Square Sandbox paid test order has an incomplete recipient. Real ordinary checkout shipping-entry -> square order -> operator UI -> eventual shipping paperwork not verified end-to-end, P04 pending (4 points). Full production legal conditions and owner approval outstanding.",
+              "points_change": 0
             }
           }
         },
