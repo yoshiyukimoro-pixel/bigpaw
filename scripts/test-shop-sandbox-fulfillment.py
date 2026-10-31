@@ -83,6 +83,7 @@ class TestFulfillment(unittest.TestCase):
                 "phone_number": "09012345678",
                 "address": {
                     "country": "JP" if complete else "US",
+                    "administrative_district_level_1": "東京都", "locality": "千代田区",
                     "postal_code": "100-0001",
                     "address_line_1": "PRIVATE ADDRESS",
                 },
@@ -126,6 +127,7 @@ class TestFulfillment(unittest.TestCase):
                             "phone_number": "09012345678",
                             "address": {
                                 "country": "JP" if complete else "US",
+                    "administrative_district_level_1": "東京都", "locality": "千代田区",
                                 "postal_code": "100-0001",
                                 "address_line_1": "PRIVATE ADDRESS",
                             },
