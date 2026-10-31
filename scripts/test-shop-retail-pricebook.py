@@ -25,6 +25,19 @@ class TestApprovedRetailPricebook(unittest.TestCase):
         for pid, product in catalog.items():
             self.assertIn(pid, values)
             self.assertEqual(product.sale_price_yen, round(values[pid] * 1.1))
+        # Prevent a title or pack-size drift between the actual catalog
+        # shown to buyers and the authoritative Square checkout pricebook.
+        displayed = re.findall(
+            r"^'([A-Z]\\d{2})\\|([A-Z]+)\\|([^|]+)\\|([^|]+)\\|",
+            html, re.M)
+        self.assertEqual(len(displayed), 35)
+        by_id = {row[0]: row for row in displayed}
+        self.assertEqual(set(by_id), set(catalog))
+        pricebook = {p["id"]: p for p in data["products"]}
+        for pid, displayed_item in by_id.items():
+            self.assertEqual(displayed_item[1], pricebook[pid]["brand"])
+            self.assertEqual(displayed_item[2], catalog[pid].name)
+            self.assertEqual(displayed_item[3], catalog[pid].size)
         self.assertNotIn("小売店卸価格", html)
         self.assertNotIn("仕入価格", html)
         self.assertNotIn("卸価格", html)
