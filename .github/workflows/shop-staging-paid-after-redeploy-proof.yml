@@ -5,6 +5,7 @@ on:
       - feature/dogfood-shop-staging-20261028
     paths:
       - '.github/workflows/shop-staging-paid-after-redeploy-proof.yml'
+      - 'scripts/audit-shop-new-isolated-paid-durability.py'
 permissions:
   contents: read
 jobs:
