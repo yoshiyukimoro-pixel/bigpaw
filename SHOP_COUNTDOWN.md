@@ -55,7 +55,10 @@
 ## 現在の公開ゲート
 - GitHub Draft PR #175：未マージ、main・本番サイトへの反映なし。
 - Square Sandboxの新Webhook受信環境は分離済みで、秘密変数3点の移送、実HTTPS署名照合、Square発のテスト通知到達まで検証済み。Square自身による自動通知で隔離台帳の入金済み反映まで完了（T03完了）。
-- P06（完了・隔離staging実機）：購入画面のON→OFF、独立HTTPSでOFF確認、既知安定版へのRailwayロールバックSUCCESS、Square公式Sandboxテスト決済後の既発行リンク・Square入金状態を再取得。停止後の再デプロイを経ても隔離SQLite注文が保持され、署名付き既存入金通知の再照合をHTTP200で確認。<https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154781086>。**本番での実販売停止、発行済リンクの個別無効化、返金対応が自動で完了するという意味ではない。**\n- 2026-10-31：T03はSquare Sandbox公式Testing Panelのテスト決済（21,450円、実金銭移動なし）から、Square Connect v2が自動送信した署名付き通知2件（Railway HTTP 200）、隔離SQLiteの注文入金済み反映、Square Payments/Ordersの金額/店舗照合、旧通知先有効・新通知先無効への復帰監査まで実証。<https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154207823>、<https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154464365>。\n- テストやコード追加だけでは本番決済の完了を意味しない。
+- P06（完了・隔離staging実機）：購入画面のON→OFF、独立HTTPSでOFF確認、既知安定版へのRailwayロールバックSUCCESS、Square公式Sandboxテスト決済後の既発行リンク・Square入金状態を再取得。停止後の再デプロイを経ても隔離SQLite注文が保持され、署名付き既存入金通知の再照合をHTTP200で確認。<https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154781086>。**本番での実販売停止、発行済リンクの個別無効化、返金対応が自動で完了するという意味ではない。**
+- 2026-10-31：T03はSquare Sandbox公式Testing Panelのテスト決済（21,450円、実金銭移動なし）から、Square Connect v2が自動送信した署名付き通知2件（Railway HTTP 200）、隔離SQLiteの注文入金済み反映、Square Payments/Ordersの金額/店舗照合、旧通知先有効・新通知先無効への復帰監査まで実証。<https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154207823>、<https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154464365>。
+- P04配送先：既にSquare Sandboxで入金確認された税込21,450円のテスト注文を読み取り専用で照合したところ、配送先不完全と判明。<https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41155860279>。この状態で発送できないのが正しい挙動。管理画面に「入金済みと配送先確認済みは別です」の警告を追加し、回帰テスト<https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41156026965>がSUCCESS。実際のSquareでの配送先入力・発送までのE2Eは未実証のため、P04は未完了（4ポイント残す）。詳しくは [配送先検証の残課題](SHOP_SQUARE_SANDBOX_SHIPPING_GAP_20261031.md)。
+- テストやコード追加だけでは本番決済の完了を意味しない。
 - 事業者の正式表示・返品条件・購入者への案内が承認されるまで実販売禁止。Square Production、実メール、PRマージ、本番公開は適切な承認と最終テスト後のみ。
 - 開始・終了時に「完了xx％／残りxxポイント」を表示。進行中の作業を完了にしない。
 
