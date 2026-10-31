@@ -55,6 +55,12 @@ def prepare_test_checkout(*, env: dict, db_path: str, order_id: str,
     if prior:
         return {"order_id": order_id, "url": prior["url"],
                 "amount_yen": total, "reused": True, "sandbox": True}
+    # Durable, atomic one-shot claim BEFORE any Square request. When the
+    # provider times out or the process crashes, the same order stays
+    # attempt_unknown for operator reconciliation; never create a second
+    # link automatically. This also prevents concurrent CLI invocations
+    # racing to produce distinct links for one order.
+    store.claim_checkout_link_attempt(order_id)
     link = creator(
         payload, token=env["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"],
     )
