@@ -96,7 +96,21 @@
           "evidence": {
             "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41049980115",
             "verified_commit": "458d81e70ba29c9f37b67d8b98fa2c9bd3ae128c",
-            "scope": "Pythonの架空Square POST/GET・12件の並列購入・通信断・再試行・手動確認復旧と、Chromium/WebKitの12連打ブラウザーテストがすべて合格。Square本番実決済は未実施でP04/R02に残す。"
+            "scope": "Pythonの架空Square POST/GET・12件の並列購入・通信断・再試行・手動確認復旧と、Chromium/WebKitの12連打ブラウザーテストがすべて合格。Square本番実決済は未実施でP04/R02に残す。",
+            "additional_manual_sandbox_double_link_guard": {
+              "verified_at_jst": "2026-10-31",
+              "scope": "Sandbox-only test-order CLI and hosted Sandbox Testing Panel. No production checkout, Square credential update, user mail, or service deployment.",
+              "changes": [
+                "shop_payments/staging_seed_order.py: durable atomic one-shot checkout claim before external CreatePaymentLink",
+                "scripts/smoke-shop-square-hosted-panel.py: same claim before hosted panel link issuance",
+                "scripts/test-shop-staging-seed-order.py: uncertain provider result and concurrent same-order requests",
+                "scripts/test-shop-square-hosted-panel.py: ensures claim precedes Square POST"
+              ],
+              "verified_head_commit": "9ee42c1e3c819a59ba628f1bcb29b337eafbb22d",
+              "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41150167282",
+              "result": "SUCCESS: all Python Sandbox integration tests, both Docker builds, Chromium and WebKit/iPhone-equivalent browser checks",
+              "point_decision": "P05 already done, so no additional points subtracted; T03/P04 remain pending real isolated Sandbox paid order and fulfillment proof."
+            }
           }
         },
         {
