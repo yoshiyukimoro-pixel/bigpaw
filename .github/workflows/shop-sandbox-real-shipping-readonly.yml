@@ -5,6 +5,7 @@ on:
       - feature/dogfood-shop-staging-20261028
     paths:
       - '.github/workflows/shop-sandbox-real-shipping-readonly.yml'
+# Only GET of the one prior real Sandbox test order; never exposes recipient or creates payment.
 permissions:
   contents: read
 jobs:
