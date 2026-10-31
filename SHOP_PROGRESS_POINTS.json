@@ -161,6 +161,13 @@
               "off_https_probe": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152335282",
               "off_result": "SUCCESS; new webhook health ready but preview /shop.html 404 and private routes remain closed; both services online, zero warnings",
               "gaps": "No real Square checkout link or matching completed Sandbox JPY Payment in isolated durable order DB; no real transaction after pause; no verified existing link/paid event in same deployment; no proof of payment journal surviving rollback. Keep P06 pending."
+            },
+            "webhook_after_stop_live_https": {
+              "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152404532",
+              "result": "SUCCESS: after preview flag OFF/redeploy, NEW webhook HMAC operates over public HTTPS: correct signed synthetic unknown order HTTP 503 awaiting confirmation; wrong URL HMAC HTTP 403; wrong environment HTTP 403. Synthetic unknown order, not actual paid Square Payment.",
+              "closed_preview_audit": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152335282",
+              "no_money": "No hosted real checkout, real payment, subscription mutation, actual customer email or production change",
+              "gap": "Full P06 needs real preexisting Square link/paid event with durable order across stop and rollback; point stays pending."
             }
           }
         }
