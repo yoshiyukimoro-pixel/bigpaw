@@ -364,6 +364,24 @@ def render(store, *, csrf: str = "") -> str:
                 '<button type="submit">配送先が揃っているか確認する（Sandbox）</button>'
                 '</form></section>'
             )
+        address_view = ""
+        if order["state"] == "paid" and csrf:
+            address_view = (
+                '<section class="tracking-box"><h3>📝 お届け先を表示（運営者専用・Sandbox）</h3>'
+                '<p>配送伝票を作るため、お客様が指定した配送先をSquareから'
+                'この注文についてだけ一時的に取得します。'
+                '事前に入金と未返金状態・配送先の必須項目を確認します。'
+                '注文一覧やSQLiteには住所を保存しません。</p>'
+                '<form method="post" action="/api/shop/sandbox/operator/view-shipping-address" '
+                'class="stage-form">'
+                '<input type="hidden" name="order_id" value="' + _safe(order_id) + '">'
+                '<input type="hidden" name="csrf" value="' + _safe(csrf) + '">'
+                '<label><input type="checkbox" name="confirm" value="view_address_once" required>'
+                '配送伝票の作成目的だけで、この注文の宛名・住所・電話番号を一時表示する。'
+                '第三者に共有しない</label>'
+                '<button type="submit">この注文のお届け先を表示する（Sandbox）</button>'
+                '</form></section>'
+            )
         cards.append(
             '<article class="order"><div class="order-top"><strong>' +
             _safe(PAYMENT_LABELS.get(order["state"], "状態確認が必要")) +
@@ -376,7 +394,7 @@ def render(store, *, csrf: str = "") -> str:
             '<p class="status">仕入れ：' + _safe(procurement_text) +
             "<br>運営メール：" + _safe(mail_text) + "</p>" +
             '<div class="next-action"><strong>次の確認作業</strong><p>' +
-            _safe(action) + "</p></div>" + payment_recheck + shipping_recheck + drafts_html + controls + tracking_html + refund_html + case_html + "</article>"
+            _safe(action) + "</p></div>" + payment_recheck + shipping_recheck + address_view + drafts_html + controls + tracking_html + refund_html + case_html + "</article>"
         )
     paid = sum(row["state"] == "paid" for row in records)
     pending = len(records) - paid
