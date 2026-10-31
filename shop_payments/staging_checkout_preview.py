@@ -241,6 +241,7 @@ def handle_post(handler):
                 "/api/shop/sandbox/operator/mock-customer-mail",
                 "/api/shop/sandbox/operator/verify-full-refund",
                 "/api/shop/sandbox/operator/check-current-payment",
+                "/api/shop/sandbox/operator/check-current-shipping",
                 "/api/shop/sandbox/operator/service-case"):
         from .staging_operator_actions import handle_post as operator_post
         return operator_post(handler)
