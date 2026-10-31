@@ -636,6 +636,17 @@
               "confirmed": "Owner supplied legal seller name, postal code, address and phone in conversation; no values committed publicly.",
               "limits": "Publication choice, real contact operation, compliant statutory notice, store display and verification remain incomplete.",
               "points_deducted": 0
+            },
+            "shop_seller_disclosure_intake_20261031": {
+              "date_jst": "2026-10-31",
+              "proprietor_decision": "Legal proprietor name is approved for publication. Private postal address and phone must be disclosed without delay on request; never embed address or phone in public Git or customer-facing assets.",
+              "workflow": "app/shop-commerce.html links to contact.html?topic=shop-legal-disclosure. Existing /api/support records numbered ticket, operator notifications and store support email alert; admin page highlights legal requests; manually approved operator reply remains necessary.",
+              "validation": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41205448474",
+              "validation_result": "SUCCESS: static policy and privacy checks, Square safety checks, two Docker images, real mocked-PC/Chromium and iPhone Safari/WebKit form submission, number display, no external POST/customer payment, non-disclosure of private phone/address.",
+              "gmail_readonly": "Connected Gmail has past received test email examples addressed to info@bigpaw.site; no new live disclosure message was sent.",
+              "ops": "SHOP_SELLER_DISCLOSURE_OPERATION.md",
+              "blockers": "Draft PR has not been merged or deployed. Real inbound public form, provider alert delivery, administrator reply to real test address and reply audit not yet verified. No automatic release of private details. Square payment OFF.",
+              "points_deducted": 0
             }
           }
         },
@@ -661,6 +672,18 @@
                 "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
                 "point_change": 0
               }
+            },
+            "shop_statutory_disclosure_link_20261031": {
+              "date_jst": "2026-10-31",
+              "proprietor_decision": "Legal proprietor name is approved for publication. Private postal address and phone must be disclosed without delay on request; never embed address or phone in public Git or customer-facing assets.",
+              "workflow": "app/shop-commerce.html links to contact.html?topic=shop-legal-disclosure. Existing /api/support records numbered ticket, operator notifications and store support email alert; admin page highlights legal requests; manually approved operator reply remains necessary.",
+              "validation": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41205448474",
+              "validation_result": "SUCCESS: static policy and privacy checks, Square safety checks, two Docker images, real mocked-PC/Chromium and iPhone Safari/WebKit form submission, number display, no external POST/customer payment, non-disclosure of private phone/address.",
+              "gmail_readonly": "Connected Gmail has past received test email examples addressed to info@bigpaw.site; no new live disclosure message was sent.",
+              "ops": "SHOP_SELLER_DISCLOSURE_OPERATION.md",
+              "blockers": "Draft PR has not been merged or deployed. Real inbound public form, provider alert delivery, administrator reply to real test address and reply audit not yet verified. No automatic release of private details. Square payment OFF.",
+              "points_deducted": 0,
+              "legal_disclosure_final_confirmed": false
             }
           }
         },
