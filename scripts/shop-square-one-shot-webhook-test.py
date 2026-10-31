@@ -16,7 +16,7 @@ API = "https://connect.squareupsandbox.com/v2/webhooks/subscriptions"
 NEW = "https://bigpaw-square-sandbox-staging-staging.up.railway.app/api/shop/sandbox/webhook"
 OLD = "https://bigpaw-test-production.up.railway.app/api/shop/sandbox/webhook"
 REF = "refs/heads/feature/dogfood-shop-staging-20261028"
-ID = re.compile(r"[A-Za-z0-9_-]{8,96}\\Z")
+ID = re.compile("[A-Za-z0-9_-]{8,96}")
 HEADER = {"Square-Version": "2026-09-16", "Accept": "application/json",
           "User-Agent": "BIGPAW-Isolated-Square-Test/1.0"}
 
