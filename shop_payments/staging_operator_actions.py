@@ -29,6 +29,7 @@ MAIL_MOCK_PATH = "/api/shop/sandbox/operator/mock-customer-mail"
 REFUND_VERIFY_PATH = "/api/shop/sandbox/operator/verify-full-refund"
 CURRENT_PAYMENT_PATH = "/api/shop/sandbox/operator/check-current-payment"
 CURRENT_SHIPPING_PATH = "/api/shop/sandbox/operator/check-current-shipping"
+VIEW_SHIPPING_PATH = "/api/shop/sandbox/operator/view-shipping-address"
 SERVICE_CASE_PATH = "/api/shop/sandbox/operator/service-case"
 STAGES = frozenset(("supplier_ordered", "supplier_backorder",
                     "received_at_shop", "refund_review", "shipped"))
@@ -965,6 +966,135 @@ def handle_current_shipping_check_post(handler) -> bool:
     return True
 
 
+def handle_shipping_address_view_post(handler) -> bool:
+    """Operator-initiated, one-order, transient dispatch label read.
+
+    The address is fetched only after latest independent provider payment and
+    shipping checks. Never put PII in the order list, logs, durable SQLite,
+    redirected URLs, a customer response, email, or cache. No shipment is
+    created and no automatic carrier/supplier interaction is performed.
+    """
+    from .staging_checkout_preview import _send
+    from .sandbox_runtime_guard import is_allowed_sandbox_runtime
+    from .sandbox_reconcile import (
+        verify_current_sandbox_payment, retrieve_sandbox_shipping_recipient,
+    )
+    if handler.path != VIEW_SHIPPING_PATH:
+        return False
+    if not authenticate(handler):
+        return True
+    if not is_allowed_sandbox_runtime(handler.server.env):
+        _send(handler, 404, {"error": "operator_unavailable"})
+        return True
+    if handler.headers.get("Transfer-Encoding"):
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    if handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
+        _send(handler, 415, {"error": "invalid_type"})
+        return True
+    try:
+        length = int(handler.headers.get("Content-Length", ""))
+    except ValueError:
+        length = 0
+    if not 1 <= length <= 500:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    body = handler.rfile.read(length)
+    if len(body) != length:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    try:
+        query = parse_qs(body.decode("ascii"), strict_parsing=True,
+                         keep_blank_values=True, max_num_fields=3)
+        if set(query) != {"order_id", "csrf", "confirm"} or any(
+            len(v) != 1 for v in query.values()
+        ):
+            raise ValueError("invalid input")
+        fields = {name: vals[0] for name, vals in query.items()}
+    except (ValueError, UnicodeError):
+        _send(handler, 400, {"error": "invalid_form"})
+        return True
+    if not _csrf_ok(handler, fields["csrf"]):
+        _send(handler, 403, {"error": "invalid_origin_or_csrf"})
+        return True
+    if (not ORDER.fullmatch(fields["order_id"])
+            or fields["confirm"] != "view_address_once"):
+        _send(handler, 400, {"error": "invalid_address_request"})
+        return True
+    try:
+        paid = handler.server.store.paid_order_snapshot(fields["order_id"])
+    except (ValueError, OSError):
+        _send(handler, 503, {"error": "private_order_unavailable"})
+        return True
+    if paid is None:
+        _send(handler, 409, {"error": "paid_order_required"})
+        return True
+    opts = {"token": handler.server.env["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"]}
+    if handler.server.shipping_opener is not None:
+        opts["opener"] = handler.server.shipping_opener
+    try:
+        verified = verify_current_sandbox_payment(snapshot=paid, **opts)
+        if verified.get("current_payment_verified") is not True:
+            raise SquareSandboxError("No current completed Square payment")
+        destination = retrieve_sandbox_shipping_recipient(
+            paid["square_order_id"], **opts
+        )
+    except (SquareSandboxError, ValueError, TypeError, KeyError, OSError):
+        # NEVER include PII or provider response in failure pages or logs.
+        _send(handler, 409, {
+            "error": "shipping_address_unavailable_or_payment_unverified",
+            "message": "配送先または未返金の入金が確認できません。発送前に手動確認してください。",
+        })
+        return True
+    # Escape all untrusted PII, and display only user-entered shipping fields.
+    # No customer email/card data, no Square token, no persistence.
+    fields_html = "".join(
+        '<dt>' + escape(label) + '</dt><dd>' +
+        escape(destination[field], quote=True) + '</dd>'
+        for label, field in (
+            ("宛名", "name"),
+            ("電話番号", "phone"),
+            ("郵便番号", "postal"),
+            ("都道府県", "prefecture"),
+            ("市区町村", "city"),
+            ("町名・番地", "line1"),
+        )
+    )
+    for name, label in (("address_line_2", "建物名・部屋番号"),
+                        ("address_line_3", "住所補足")):
+        if destination[name]:
+            fields_html += (
+                '<dt>' + escape(label) + '</dt><dd>' +
+                escape(destination[name], quote=True) + '</dd>'
+            )
+    html = (
+        '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="robots" content="noindex,nofollow,noarchive">'
+        '<title>BIG PAW｜お届け先の一時表示（Sandbox）</title>'
+        '<style>body{font:16px/1.6 -apple-system,sans-serif;'
+        'max-width:720px;margin:2rem auto;padding:0 1rem}'
+        'dt{font-weight:bold;margin-top:1rem}dd{margin:0;word-break:break-word}'
+        '.warning{padding:1rem;border:1px solid #777;border-radius:8px}'
+        '</style></head><body><main><h1>配送伝票用のお届け先（Sandbox）</h1>'
+        '<p class="warning">これは購入者が指定した配送先です。'
+        '表示された情報を発送伝票に転記する前に本人確認・郵便番号・'
+        '住所の整合性を確認してください。Squareは発送をしません。'
+        'この画面は発送を確定するものではありません。</p>'
+        '<dl>' + fields_html + '</dl>'
+        '<p>個人情報を注文一覧・SQLiteに追加保存しません。'
+        '共有端末・スクリーンショット・印刷物の取扱いに注意してください。</p>'
+        '<p><a href="/shop-test-orders.html">注文管理に戻る</a></p>'
+        '</main></body></html>'
+    )
+    _send(handler, 200, html.encode("utf-8"), "text/html; charset=utf-8",
+          extra={"Content-Security-Policy":
+                 "default-src 'none'; style-src 'unsafe-inline'; "
+                 "form-action 'none'; frame-ancestors 'none'; base-uri 'none'",
+                 "Expires": "0"})
+    return True
+
+
 def handle_post(handler) -> bool:
     """Operator-only Sandbox stage update, or independent tracking record."""
     if handler.path == TRACKING_PATH:
@@ -983,6 +1113,8 @@ def handle_post(handler) -> bool:
         return handle_current_payment_check_post(handler)
     if handler.path == CURRENT_SHIPPING_PATH:
         return handle_current_shipping_check_post(handler)
+    if handler.path == VIEW_SHIPPING_PATH:
+        return handle_shipping_address_view_post(handler)
     if handler.path == SERVICE_CASE_PATH:
         return handle_service_case_post(handler)
     from .staging_checkout_preview import _send
