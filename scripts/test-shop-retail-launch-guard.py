@@ -54,7 +54,10 @@ class RetailLaunchGuardTests(unittest.TestCase):
     def test_individual_proprietor_not_falsely_claimed_as_fully_disclosed(self):
         self.assertIn("個人事業", PAGE)
         self.assertIn("屋号だけでは代用できません", PAGE)
-        self.assertIn("個人事業者の正式な氏名は未入力", PAGE)
+        self.assertIn("請求があれば電子メール等で遅滞なく提供", PAGE)
+        self.assertIn("販売業者情報の開示請求", PAGE)
+        self.assertIn("info@bigpaw.site", PAGE)
+        self.assertIn("受付・個別回答をテスト", PAGE)
         self.assertIn("事業者の所在地・電話番号", PAGE)
         self.assertIn("省略が認められる状態とは扱いません", PAGE)
         self.assertIn("返品・キャンセル", PAGE)
