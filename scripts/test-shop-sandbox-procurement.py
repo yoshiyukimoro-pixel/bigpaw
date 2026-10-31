@@ -43,7 +43,7 @@ def shipping_opener(*,complete=True,refunded_yen=0):
             }})
         assert req.full_url=="https://connect.squareupsandbox.com/v2/orders/"+SQUARE
         recipient={"display_name":"PRIVATE PERSON","phone_number":"09012345678","address":{
-            "country":"JP","address_line_1":"PRIVATE STREET" if complete else "",
+            "country":"JP","administrative_district_level_1":"東京都","locality":"千代田区","address_line_1":"PRIVATE STREET" if complete else "",
             "postal_code":"100-0001"}}
         return Response({"order":{"id":SQUARE,"location_id":LOCATION,
             "state":"OPEN","total_money":{"amount":21450,"currency":"JPY"},
