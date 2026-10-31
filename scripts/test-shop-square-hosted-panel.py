@@ -14,6 +14,11 @@ class PanelSmokeSafety(unittest.TestCase):
         self.assertIn("sandbox.square.link", js)
         self.assertIn("Square Sandbox", py)
         self.assertIn("order_id", py)
+        # Hosted-panel test link creation is also a one-shot Square call.
+        # Persist the durable SQLite claim before issuing the POST.
+        self.assertIn("store.claim_checkout_link_attempt(order_id)", py)
+        self.assertLess(py.index("store.claim_checkout_link_attempt(order_id)"),
+                        py.index("link=create_square_sandbox_payment_link(payload,token=token)"))
         self.assertIn("payment_lookup=lambda pid:", py)
         self.assertIn("checkout", js.lower())
         self.assertNotIn("console.log(link.href)", js)
