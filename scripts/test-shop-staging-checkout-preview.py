@@ -171,6 +171,104 @@ class CheckoutPreviewTests(unittest.TestCase):
         }) as (srv, db, calls):
             self.assertEqual(request(srv, "/shop-test-orders.html")[0], 404)
 
+    def test_paid_recipient_read_during_checkout_stop_new_staging(self):
+        """Stopped new checkout does not hide an existing paid order's label."""
+        from shop_payments.sandbox_runtime_guard import (
+            NEW_STAGING_PROJECT, NEW_STAGING_ENVIRONMENT, NEW_SANDBOX_WEBHOOK_SERVICE,
+        )
+        from shop_payments.retail_catalog import load_sale_catalog
+        host = "bigpaw-square-sandbox-staging-staging.up.railway.app"
+        payment_id = "STAGE_TEST_PAYMENT_000001"
+        square_order = "STAGE_TEST_SQUARE_ORDER_000001"
+        sq_get_calls = []
+        class SquareResponse:
+            status = 200
+            def __init__(self, payload):
+                self.payload = json.dumps(payload).encode("utf-8")
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, n): return self.payload[:n]
+        def fake_square(req,timeout):
+            self.assertEqual(req.get_method(), "GET")
+            self.assertTrue(req.full_url.startswith(
+                "https://connect.squareupsandbox.com/v2/"))
+            sq_get_calls.append(req.full_url)
+            if req.full_url.endswith("/payments/"+payment_id):
+                return SquareResponse({"payment": {
+                    "id":payment_id,"order_id":square_order,
+                    "location_id":"SANDBOX_LOCATION_12345",
+                    "status":"COMPLETED",
+                    "amount_money":{"amount":21450,"currency":"JPY"},
+                    "refunded_money":{"amount":0,"currency":"JPY"},
+                }})
+            if req.full_url.endswith("/orders/"+square_order):
+                return SquareResponse({"order":{
+                    "id":square_order,
+                    "location_id":"SANDBOX_LOCATION_12345",
+                    "total_money":{"amount":21450,"currency":"JPY"},
+                    "state":"OPEN",
+                    "fulfillments":[{
+                        "type":"SHIPMENT",
+                        "shipment_details":{"recipient":{
+                            "display_name":"PRIVATE FICTIONAL RECIPIENT",
+                            "phone_number":"09012345678",
+                            "address":{
+                                "country":"JP","postal_code":"100-0001",
+                                "administrative_district_level_1":"東京都",
+                                "locality":"千代田区",
+                                "address_line_1":"架空住所1-1-1",
+                            },
+                        }},
+                    }],
+                }})
+            self.fail("Unexpected Sandbox Square fetch")
+        config={
+            "RAILWAY_PROJECT_ID":NEW_STAGING_PROJECT,
+            "RAILWAY_ENVIRONMENT_ID":NEW_STAGING_ENVIRONMENT,
+            "RAILWAY_SERVICE_ID":NEW_SANDBOX_WEBHOOK_SERVICE,
+            "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID":NEW_STAGING_PROJECT,
+            "BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL":"https://"+host+WEBHOOK_PATH,
+            "BIGPAW_SHOP_STAGE_PREVIEW_ENABLED":"0",
+            "BIGPAW_SHOP_STAGE_OPERATOR_AFTER_STOP_ENABLED":"1",
+        }
+        with server_with_env(config,shipping_opener=fake_square) as (srv,db,calls):
+            db.add_pending_order(order_id=ORDER,cart={"A02":1},
+                verified_prices=load_sale_catalog(),shipping_yen=0,
+                location_id="SANDBOX_LOCATION_12345")
+            db.save_link(ORDER,{
+                "url":"https://sandbox.square.link/u/FAKE_ONLY",
+                "square_order_id":square_order,
+                "square_link_id":"STAGE_FAKE_LINK_000001",
+            })
+            with sqlite3.connect(db.db_file) as conn:
+                conn.execute(
+                    "UPDATE orders SET state='paid', paid_at=1761780000, "
+                    "square_payment_id=? WHERE order_id=?",
+                    (payment_id,ORDER))
+            self.assertEqual(request(srv,"/shop.html",headers={"Host":host})[0],404)
+            self.assertEqual(request(srv,"/api/shop/sandbox/checkout",
+                                     method="POST",data=b"{}",headers={"Host":host})[0],404)
+            page=request(srv,"/shop-test-orders.html",headers={"Host":host})
+            self.assertEqual(page[0],200)
+            self.assertIn(b"/api/shop/sandbox/operator/view-shipping-address",page[2])
+            self.assertNotIn(b"PRIVATE FICTIONAL RECIPIENT",page[2])
+            cookie=page[1]["Set-Cookie"].split(";",1)[0]
+            csrf=cookie.split("=",1)[1]
+            body=urlencode({"order_id":ORDER,"csrf":csrf,
+                            "confirm":"view_address_once"}).encode()
+            response=request(srv,"/api/shop/sandbox/operator/view-shipping-address",
+                method="POST",data=body,headers={
+                    "Host":host,"Origin":"https://"+host,"Cookie":cookie,
+                    "Content-Type":"application/x-www-form-urlencoded",
+                })
+            self.assertEqual(response[0],200)
+            self.assertIn(b"PRIVATE FICTIONAL RECIPIENT",response[2])
+            self.assertIn("千代田区".encode(),response[2])
+            self.assertEqual(response[1]["Cache-Control"],"no-store")
+            self.assertEqual(db.status(ORDER),"paid")
+            self.assertEqual(len(sq_get_calls),3)
+            self.assertEqual(calls,[])
+
     def test_operator_readonly_shipping_status_with_payment_and_csrf(self):
         """Shipping is a fresh Square GET only; paid alone never permits shipment."""
         from shop_payments.retail_catalog import load_sale_catalog
