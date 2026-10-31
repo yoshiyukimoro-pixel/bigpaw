@@ -57,7 +57,13 @@
       "legal_disclosure_final_approved": false,
       "legal_name_publication_owner_approved": true,
       "legal_name_in_draft_public_page": true,
-      "private_postal_address_phone_committed": false
+      "private_postal_address_phone_committed": false,
+      "automatic_reply_without_operator_approval_approved": true,
+      "automatic_reply_approved_at_jst": "2026-10-31",
+      "confirm_email_ownership_first": true,
+      "auto_response_implemented_and_activated": false,
+      "auto_response_mailbox_inbound_implemented": false,
+      "automatic_reply_security_scope": "Only verified email holders; no private address/phone in repo; do not treat dev module or staging tests as live."
     }
   }
 }
