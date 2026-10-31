@@ -86,6 +86,8 @@ class SignedSquarePaymentIntakeTests(unittest.TestCase):
                     "phone_number": "09012345678",
                     "email_address": "fake-buyer@example.invalid",
                     "address": {"country": "JP", "address_line_1": "FAKE ADDRESS",
+                                "administrative_district_level_1": "東京都",
+                                "locality": "千代田区",
                                 "postal_code": "000-0000"},
                 }}}],
         }
