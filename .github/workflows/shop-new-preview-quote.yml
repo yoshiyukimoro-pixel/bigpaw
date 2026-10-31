@@ -1,0 +1,19 @@
+name: BIG PAW isolated Sandbox authenticated price/CSRF quote
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+permissions:
+  contents: read
+jobs:
+  scoped-private-quote-only:
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && contains(github.event.head_commit.message, '[shop-isolated-preview-quote-opt-in]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Private Sandbox HTTP quote and CSRF (NO checkout POST with valid credentials)
+        env:
+          BIGPAW_SANDBOX_PREVIEW_QUOTE_OPT_IN: '1'
+          BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN: ${{ secrets.BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN }}
+        run: PYTHONPATH=. python3 scripts/check-shop-new-staging-preview-quote.py
