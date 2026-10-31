@@ -5,9 +5,12 @@
   "accepted_by_proprietor": false,
   "policies": {
     "customer_change_of_mind": {
-      "approved": false,
-      "proposed": "Unopened and unused goods, contact within eight days of delivery; buyer-funded return postage",
-      "decision_needed": "Eligible products, timeline, whether returns allowed, exact shipping-cost allocation"
+      "approved": true,
+      "confirmed_at_jst": "2026-10-31",
+      "approved_scope": "After-delivery change-of-mind returns and exchanges only; separately decide cancellation before shipment.",
+      "policy_ja": "お客様都合による返品・交換は、未開封・未使用の場合も含めてお受けしておりません。商品不良・破損・誤配送その他法令上の権利がある場合は、この制限の対象外です。",
+      "exceptions_ja": "商品不良・破損・誤配送その他事業者側の責任や法令に基づく権利については別途対応します。",
+      "decision_needed": "No further decision on buyer change-of-mind return eligibility. Order cancellation, defective merchandise, stockouts, refunds and complete statutory disclosure remain pending."
     },
     "before_shipping_cancel": {
       "approved": false,
@@ -34,5 +37,19 @@
     "https://www.no-trouble.caa.go.jp/what/mailorder/",
     "https://www.no-trouble.caa.go.jp/qa/advertising.html"
   ],
-  "notes": "The 8-day legal fallback for no advertised return special terms is not itself an approved merchant policy. No return term is legally adopted or authorized to turn on checkout by this draft."
+  "notes": "Customer change-of-mind return exclusion has proprietor confirmation, but the complete returns/cancellation/refund policy is NOT yet approved or published, the production launch guard remains OFF, and mandatory statutory buyer rights are preserved. Seller identity/contact details were supplied privately and must not be committed to this repository.",
+  "partial_owner_approvals": {
+    "customer_change_of_mind_return": {
+      "confirmed": true,
+      "confirmed_at_jst": "2026-10-31",
+      "applies_to": "dog food customer change-of-mind return/exchange, including unopened goods",
+      "public_site_published": false
+    },
+    "seller_identity_contact": {
+      "confirmed_information_received_in_private_conversation": true,
+      "confidential_values_committed": false,
+      "statutory_publication_method": "pending owner choice: publish details or compliant timely disclosure on request",
+      "public_site_published": false
+    }
+  }
 }
