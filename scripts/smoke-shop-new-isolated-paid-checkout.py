@@ -156,6 +156,25 @@ def _square_get(url,token):
     if not isinstance(data,dict):raise ValueError("Bad Square JSON")
     return data
 
+def _assert_square_subscription_safety(token):
+    # Existing active Sandbox remains untouched. The NEW target must stay
+    # disabled, so this payment test will not turn on a new subscription.
+    url=SQUARE+"/webhooks/subscriptions?include_disabled=true&limit=100"
+    response=_square_get(url,token)
+    rows=response.get("subscriptions")
+    if not isinstance(rows,list) or response.get("cursor"):
+        raise ValueError("Square subscriptions not completely enumerated")
+    old="https://bigpaw-test-production.up.railway.app/api/shop/sandbox/webhook"
+    earlier=[s for s in rows if isinstance(s,dict) and s.get("notification_url")==old]
+    new=[s for s in rows if isinstance(s,dict) and s.get("notification_url")==WEBHOOK]
+    if (len(earlier)!=1 or earlier[0].get("enabled") is not True
+            or "payment.updated" not in earlier[0].get("event_types",[])
+            or len(new)!=1 or new[0].get("enabled") is not False
+            or "payment.updated" not in new[0].get("event_types",[])):
+        raise ValueError("Square Sandbox routing differs from approved isolated test")
+    return True
+
+
 def _file():
     tmp=os.environ.get("RUNNER_TEMP","")
     if not tmp or not Path(tmp).is_dir():
@@ -164,6 +183,7 @@ def _file():
 
 def prepare():
     conf=_scope(None)
+    _assert_square_subscription_safety(conf["square_token"])
     # Existing Square Sandbox subscription is not mutated. It is active;
     # Square may send the synthetic payment notice there as normal.
     _,_,_= _http("/shop.html",auth=conf,accept_status=200)
@@ -210,6 +230,7 @@ def prepare():
 
 def verify():
     conf=_scope(None)
+    _assert_square_subscription_safety(conf["square_token"])
     state=json.loads(_file().read_text())
     url=state.get("link_url")
     local=state.get("shop_order_id")
