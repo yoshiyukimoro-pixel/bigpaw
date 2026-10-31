@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 46,
-  "completed_points_since_baseline": 54,
+  "remaining_points": 43,
+  "completed_points_since_baseline": 57,
   "groups": [
     {
       "key": "purchase",
@@ -117,9 +117,28 @@
           "id": "P06",
           "weight": 3,
           "title": "購入停止スイッチと安全なロールバックの実機確認",
-          "status": "pending",
-          "completed_at": null,
-          "evidence": null
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "scope": "New BIG PAW App Staging / staging / bigpaw-app-staging ONLY. Does not apply or assert production checkout rollback.",
+            "live_test_window": "2026-10-31 JST",
+            "public_checkout_switch": "BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0 set explicitly on isolated staging app with skipDeploys=true before code deployment; confirmed by Railway scoped Project Token GET variables",
+            "scope_proof": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41151151683",
+            "authenticated_result": "SUCCESS: scoped project/environment matched; BIGPAW_ENV=staging, checkout public flag 0, owner launch not authorized; staging Basic Auth works, GET /shop.html=200, GET /api/shop/checkout/config=404, POST /api/shop/checkout=404; unauthenticated storefront=401",
+            "external_anonymous_probe": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41150983521",
+            "rehearsal_release": {
+              "tested_commit": "9ee42c1e3c819a59ba628f1bcb29b337eafbb22d",
+              "railway_deployment": "26e29e25-5501-41d3-8a17-0cad7b4eae58",
+              "result": "SUCCESS, healthy, still unauthenticated 401"
+            },
+            "verified_rollback": {
+              "original_stable_commit": "361ff926b8834ef099b85046610c61fb4a29eed7",
+              "railway_deployment": "acba6bd1-ad8c-432c-8f04-eaa5c5bf41c7",
+              "result": "SUCCESS; source commit restored; protected staging app and isolated webhook Online, warnings=0, criticals=0, pendingWork=0"
+            },
+            "payment_safety": "No Square Production, no real charge, no mail, no public launch, no production deployment. Existing Square links are NOT cancelled merely by switching off purchases; separate manual Square review required at live launch.",
+            "completion_scope": "P06 staging operational stop+rollback completed. Real production go-live/rollback observation and owner approval remain blocked under R04/R05."
+          }
         }
       ]
     },
