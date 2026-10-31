@@ -1,0 +1,20 @@
+name: BIG PAW isolated staging authenticated stop-switch READ ONLY
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-staging-authenticated-stop-proof.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  staging-stop-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect scoped Railway stop flag then verify Basic Auth and backend checkout are closed
+        env:
+          BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN: ${{ secrets.BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN }}
+        run: PYTHONPATH=. python3 scripts/audit-shop-isolated-staging-stop.py
