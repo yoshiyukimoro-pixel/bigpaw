@@ -6,6 +6,8 @@ on:
       - feature/dogfood-shop-staging-20261028
     paths:
       - '.github/workflows/shop-resend-domain-readonly.yml'
+      - 'scripts/audit-shop-resend-domain-readonly.py'
+      - 'scripts/test-shop-resend-domain-readonly.py'
   workflow_dispatch:
 
 permissions:
