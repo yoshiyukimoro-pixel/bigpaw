@@ -90,3 +90,14 @@ T03（Square実Webhook鍵とURL移行、受信検証）、P04（決済JPY・配�
 - 外部HTTPS読み取りだけの [Actions 41148046554](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148046554) が **SUCCESS**。`/healthz` が `sandbox_webhook_ready`、注文/運営などの非公開画面が404であることを確認。
 - 旧Sandbox・新アプリ・新Webhookの非破壊総回帰 [Actions 41148074669](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148074669) も **SUCCESS**。署名なしWebhook要求が受理されないことを確認。
 - **T03未完**：Square Sandbox側の新通知先購読は無効のまま。実Square署名付き `payment.updated` の配送、Webhook Logs、Square Payments/Ordersの最新再取得、店舗・JPY・注文ID・金額一致はまだ確認できていない。既存の有効なSandbox通知先を巻き込まない実イベント範囲と試験順序を確定してから実施。**残り46ポイント（完了54/100）を維持。**
+
+
+## 2026-10-31：Square公式1回テスト通知の到達と隔離監査
+
+- Square公式 `POST /v2/webhooks/subscriptions/{subscription_id}/test` は、指定した通知先にSquare自身がテストイベントを送るAPI（参照 https://developer.squareup.com/reference/square/webhook-subscriptions-api/test-webhook-subscription）。**Square本番は一切使用しない**。
+- 専用スクリプト `scripts/shop-square-one-shot-webhook-test.py` とオフライン模擬試験を追加。実行時に、既存BigPaw Sandbox通知先が `enabled=true`、新Square Sandbox専用通知先が `enabled=false`、`payment.updated` 登録済み、ID/URL完全一致をGETで確認。1回だけ新通知先にテストPOSTし、自動再送しない。秘密鍵・支払いID・イベント本文は出力しない。
+- [GitHub Actions 41148480314](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148480314)：模擬安全検査は**SUCCESS**、Squareへの1回のPOSTも実行。Square APIはHTTP 200を返したが、想定の `subscription_test_result` 形式が確認できなかったため、ジョブ全体は `square_test_api_response_unrecognized` として失敗扱い。**再送は実行していない。**
+- **独立したRailwayのHTTP受信ログ**に `2026-10-31T00:08:40.461552374Z`、新Webhookパスへの `POST`、送信者 `Square Connect v2`、受信HTTP `503` を1件確認。Square自身から新WebhookまでのHTTPS到達を実証。本文や個人情報は収集していない。
+- `503` はテスト用イベントが未登録・未検証の注文であるため、入金確定を拒む状態と整合。ただし、RailwayのHTTPログは処理分岐や署名検証結果の全情報を持たず、**実支払いの照合成功とは区別**する。SquareのWebhookログ画面で受信内容と試験イベント印を参照できる。
+- [読取専用の事後監査 41148632306](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148632306) **SUCCESS**：既存有効Sandboxはそのまま、新通知先は無効のまま。実決済・本番メール・返金・発送・本番公開なし。
+- 今後は**専用の隔離したSandboxアプリまたは既存購読への影響を防ぐ計画**を確定し、新DBの注文とSquare Sandboxの本物のJPY `COMPLETED` PaymentとOrdersを照合し、署名付き通知・重複/返金の安全処理を検証する。**T03の2ポイントは未完了、残り46ポイント維持。**
