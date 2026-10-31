@@ -1156,7 +1156,7 @@ class Handler(SimpleHTTPRequestHandler):
             import hashlib
             room='BIGPAW-'+hashlib.sha256((m.group(1)+'|online-visit').encode()).hexdigest()[:32]
             con.close(); return self.send_json({'room':room,'inquiryId':m.group(1),'role':u['role']})
-        if path == '/api/shop/checkout':
+        if path in ('/api/shop/checkout', '/api/shop/checkout/quote'):
             return bp_shop_checkout.handle_post(
                 self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
                 data_dir=DATA_DIR, rate_limited=rate_limited)
