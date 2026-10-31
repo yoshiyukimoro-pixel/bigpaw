@@ -145,6 +145,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-sandbox-auto-notify.py
           PYTHONPATH=. python3 scripts/test-shop-https-webhook.py
           PYTHONPATH=. python3 scripts/test-shop-staging-checkout-preview.py
+          PYTHONPATH=. python3 scripts/test-shop-new-staging-preview-stop.py
           PYTHONPATH=. python3 scripts/test-shop-customer-mail-preflight.py
           PYTHONPATH=. python3 scripts/test-shop-customer-email-transport.py
           PYTHONPATH=. python3 scripts/test-shop-square-live-readonly.py
