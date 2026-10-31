@@ -41,7 +41,7 @@ def _allowed():
     if len(t)<16:raise ValueError("missing_sandbox_only_access")
     return t
 
-def _subs(token):
+def _subs(token,strict_old=True):
     cursor=None
     rows=[]
     seen=set()
@@ -61,9 +61,10 @@ def _subs(token):
     else:raise ValueError("Incomplete subscription enumeration")
     previous=[s for s in rows if isinstance(s,dict) and s.get("notification_url")==OLD]
     current=[s for s in rows if isinstance(s,dict) and s.get("notification_url")==NEW]
-    if (len(previous)!=1 or previous[0].get("enabled") is not True
-            or "payment.updated" not in previous[0].get("event_types",[])
-            or len(current)!=1 or "payment.updated" not in current[0].get("event_types",[])):
+    if (strict_old and (len(previous)!=1 or previous[0].get("enabled") is not True
+                        or "payment.updated" not in previous[0].get("event_types",[]))):
+        raise ValueError("Existing Sandbox subscription was changed")
+    if len(current)!=1 or "payment.updated" not in current[0].get("event_types",[]):
         raise ValueError("Old/new Sandbox subscriptions do not match approved isolated plan")
     sid=current[0].get("id")
     if not isinstance(sid,str) or not re.fullmatch(r"[A-Za-z0-9_-]{8,96}",sid):
@@ -93,8 +94,8 @@ def _update(token,sid,enabled):
             or item.get("enabled") is not enabled):
         raise ValueError("Square subscription update response changed")
 
-def _enabled(token,should_be):
-    _,s=_subs(token)
+def _enabled(token,should_be,strict_old=True):
+    _,s=_subs(token,strict_old=strict_old)
     return s.get("enabled") is should_be
 
 def turn_on():
@@ -113,10 +114,10 @@ def turn_on():
 def turn_off():
     token=_allowed()
     # Safety cleanup must work even if preview got disabled externally.
-    sid,current=_subs(token)
+    sid,current=_subs(token,strict_old=False)
     if current.get("enabled") is not False:
         _update(token,sid,False)
-    if not _enabled(token,False):
+    if not _enabled(token,False,strict_old=False):
         raise ValueError("New notification subscription remains active")
     print("SHOP_SQUARE_NEW_SANDBOX_SUBSCRIPTION=DISABLED_CONFIRMED")
     print("SHOP_SQUARE_OLD_SUBSCRIPTION=UNCHANGED_ACTIVE")
