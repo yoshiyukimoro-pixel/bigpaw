@@ -90,6 +90,16 @@
               "shipping_gap": "No actual shopper shipping-address entry / recipient details confirmed",
               "webhook_gap": "No real Square-to-Railway signed HTTPS webhook delivered; new Sandbox receiver remains in 503 standby",
               "decision": "partial evidence, P04 remains pending"
+            },
+            "real_sandbox_fake_paid_order": {
+              "date": "2026-10-31",
+              "isolated_service": "bigpaw-square-sandbox-staging in NEW BIG PAW App Staging / staging only; no prod/main changes",
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153434759",
+              "result": "SUCCESS. Private authenticated NEW staging preview created one durable Square Sandbox hosted Checkout link for A02 x1 JPY 21,450 incl tax, shipping JPY 0. Square official Sandbox Testing Panel completed fake payment. Independently re-read Square Checkout PaymentLink, Orders and Payments: COMPLETED, Square order and location exact match, JPY 21450, no refund. HMAC-signed hint with real new staging subscription key posted by test (NOT Square-delivered). NEW isolated SQLite order status changed payment_pending to paid. Same signed event id replayed once, HTTP 200 and idempotent. No real card charge or mail.",
+              "post_test_preview_off": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153735766",
+              "post_test_status": "SUCCESS: private preview OFF, /shop.html 404, /healthz ready, both isolated services Online, issues 0",
+              "must_not_claim": "Square-originated automatic payment webhook delivery NOT tested (disabled new subscriber). Shipping details NOT verified, no customer email/fulfillment/refund, no production E2E.",
+              "point_change": 0
             }
           }
         },
@@ -168,6 +178,16 @@
               "closed_preview_audit": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152335282",
               "no_money": "No hosted real checkout, real payment, subscription mutation, actual customer email or production change",
               "gap": "Full P06 needs real preexisting Square link/paid event with durable order across stop and rollback; point stays pending."
+            },
+            "real_order_and_preview_shutdown": {
+              "date": "2026-10-31",
+              "isolated_service": "bigpaw-square-sandbox-staging in NEW BIG PAW App Staging / staging only; no prod/main changes",
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153434759",
+              "result": "SUCCESS. Private authenticated NEW staging preview created one durable Square Sandbox hosted Checkout link for A02 x1 JPY 21,450 incl tax, shipping JPY 0. Square official Sandbox Testing Panel completed fake payment. Independently re-read Square Checkout PaymentLink, Orders and Payments: COMPLETED, Square order and location exact match, JPY 21450, no refund. HMAC-signed hint with real new staging subscription key posted by test (NOT Square-delivered). NEW isolated SQLite order status changed payment_pending to paid. Same signed event id replayed once, HTTP 200 and idempotent. No real card charge or mail.",
+              "post_test_preview_off": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153735766",
+              "post_test_status": "SUCCESS: private preview OFF, /shop.html 404, /healthz ready, both isolated services Online, issues 0",
+              "must_not_claim": "Square-originated automatic payment webhook delivery NOT tested (disabled new subscriber). Shipping details NOT verified, no customer email/fulfillment/refund, no production E2E.",
+              "point_change": 0
             }
           }
         }
@@ -480,6 +500,16 @@
             "preview_retained_webhook": {
               "status": "No Square subscription changed, and webhook health ready after preview toggles; no genuine completed Square Payment event in NEW durable store; T03 pending.",
               "new_service_deploy": "809bfbf3-3c8e-4c2c-87f8-eb07337ad3bd"
+            },
+            "real_sandbox_paid_hmac_new_db": {
+              "date": "2026-10-31",
+              "isolated_service": "bigpaw-square-sandbox-staging in NEW BIG PAW App Staging / staging only; no prod/main changes",
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153434759",
+              "result": "SUCCESS. Private authenticated NEW staging preview created one durable Square Sandbox hosted Checkout link for A02 x1 JPY 21,450 incl tax, shipping JPY 0. Square official Sandbox Testing Panel completed fake payment. Independently re-read Square Checkout PaymentLink, Orders and Payments: COMPLETED, Square order and location exact match, JPY 21450, no refund. HMAC-signed hint with real new staging subscription key posted by test (NOT Square-delivered). NEW isolated SQLite order status changed payment_pending to paid. Same signed event id replayed once, HTTP 200 and idempotent. No real card charge or mail.",
+              "post_test_preview_off": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153735766",
+              "post_test_status": "SUCCESS: private preview OFF, /shop.html 404, /healthz ready, both isolated services Online, issues 0",
+              "must_not_claim": "Square-originated automatic payment webhook delivery NOT tested (disabled new subscriber). Shipping details NOT verified, no customer email/fulfillment/refund, no production E2E.",
+              "point_change": 0
             }
           }
         },
