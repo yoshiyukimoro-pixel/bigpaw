@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 46,
-  "completed_points_since_baseline": 54,
+  "remaining_points": 44,
+  "completed_points_since_baseline": 56,
   "groups": [
     {
       "key": "purchase",
@@ -456,8 +456,8 @@
           "id": "T03",
           "weight": 2,
           "title": "SandboxのWebhook署名URL/環境変数を安全に移行",
-          "status": "pending",
-          "completed_at": null,
+          "status": "completed",
+          "completed_at": "2026-10-31",
           "evidence": {
             "reviewed_at": "2026-10-31",
             "scope": "Read-only name-only inventory of the existing BigPaw/bigpaw-test Railway service. It contains Sandbox payment and webhook variable names and no live Square variable names. Values, including the webhook URL/key, were redacted and not requested.",
@@ -510,6 +510,18 @@
               "post_test_status": "SUCCESS: private preview OFF, /shop.html 404, /healthz ready, both isolated services Online, issues 0",
               "must_not_claim": "Square-originated automatic payment webhook delivery NOT tested (disabled new subscriber). Shipping details NOT verified, no customer email/fulfillment/refund, no production E2E.",
               "point_change": 0
+            },
+            "square_origin_live_sandbox_webhook_completion": {
+              "date": "2026-10-31",
+              "action": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154207823",
+              "action_result": "SUCCESS: exactly one Square Sandbox official hosted fake card payment under new isolated Railway order; NEW subscriber temporarily enabled only while event test ran, old active Sandbox subscriber left unchanged. Square-originated payment.updated validated by new live receiver; new private durable SQLite order transitioned pending=>paid by actual Square delivery, not manual HMAC; Square GET Payment/Orders independently verified same local order/store/location and JPY 21450 COMPLETED without refund. New subscriber disabled via always() and GET reconfirmed; no emails, no Square Production or real money.",
+              "independent_railway_http_log": "2026-10-31T01:13:51.579942568Z and 2026-10-31T01:13:54.489390990Z: POST /api/shop/sandbox/webhook, clientUa=Square Connect v2, HTTP 200 (new isolated service). No payment URL or customer data extracted.",
+              "independent_square_subscription_audit": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154464365",
+              "audit_result": "SUCCESS, old_enabled_payment_updated__new_disabled_payment_updated__read_only; mutations zero",
+              "close_preview_redeploy": "5afc9929-645b-475d-a005-dcbd6f749e09",
+              "close_preview_deployment_status": "SUCCESS, 2 isolated Railway services Online, warnings 0",
+              "completion": "T03 fulfilled: credentials, exact HMAC signing URL, real Square-origin delivery with new private store, and post-test restoration verified",
+              "does_not_complete": "P04 shipping/production-equivalent fulfilled customer details; P06 existing unpaid link while stopped and post-rollback ledger; R02 full fulfillment/refunds; P02 Square Live."
             }
           }
         },
