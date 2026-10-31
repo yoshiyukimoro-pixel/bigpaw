@@ -55,5 +55,5 @@
 返品特約を明確に表示していない場合の通信販売の返品ルールにも関係するため、空欄を「返品不可」と扱わず、確定するまで販売停止を維持します。具体的な適用や表示方法は販売者側で確認してください。
 
 - [消費者庁 特定商取引法ガイド：通信販売](https://www.no-trouble.caa.go.jp/what/mailorder/)
-- [消費者庁 特定商取引法ガイド：通信販売広告について](https://www.no-trouble.caa.go.jp/what/mailorder/advertising.htmljp)
+- [消費者庁 特定商取引法ガイド：通信販売広告について](https://www.no-trouble.caa.go.jp/what/mailorder/advertising.php)
 - [消費者庁 特定商取引法ガイド：広告Q&A](https://www.no-trouble.caa.go.jp/qa/advertising.html-2)
