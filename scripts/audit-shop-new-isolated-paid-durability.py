@@ -153,7 +153,21 @@ def run(phase):
         print("SHOP_STAGING_PAYMENT_CREATED=NO")
         print("SHOP_STAGING_CUSTOMER_DATA_LOGGED=NO")
         return 0
-    except (HTTPError,URLError,TimeoutError,OSError,ValueError,TypeError,KeyError):
+    except HTTPError as exc:
+        # Never expose any response headers or body, URI or secrets.
+        print("SHOP_STAGING_PAID_RECOVERY=PROTECTED_HTTP_" + str(exc.code))
+        return 2
+    except ValueError as exc:
+        # Strict whitelist, all other provider/credential details remain hidden.
+        diagnostic = {
+            "Private test preview must be temporarily enabled for status read": "STAGING_FLAG_NOT_ENABLED",
+            "Private staging authentication unavailable": "STAGING_AUTH_NOT_READY",
+            "Staging database not paid after rollback": "DURABLE_STATE_NOT_PAID",
+            "Wrong Railway scope": "WRONG_RAILWAY_SCOPE",
+        }.get(str(exc), "UNVERIFIED_VALUE_ERROR")
+        print("SHOP_STAGING_PAID_RECOVERY=" + diagnostic)
+        return 2
+    except (URLError,TimeoutError,OSError,TypeError,KeyError):
         print("SHOP_STAGING_PAID_RECOVERY=INCONCLUSIVE_FAIL_CLOSED")
         return 2
 
