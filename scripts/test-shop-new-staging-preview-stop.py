@@ -23,7 +23,8 @@ ORIGIN = "https://" + HOST
 USER = "isolatedonly"
 PASSWORD = "synthetic-not-production-32char-test-password"
 KEY = "synthetic-new-target-hmac-test-signing-key"
-ORDER_ID = "FOOD" + "a" * 32
+ATTEMPT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+ORDER_ID = "FOOD" + ATTEMPT.replace("-", "")
 PAYMENT_ID = "SYNTHETIC_LOCAL_PAYMENT_1234"
 SQUARE_ORDER = "SYNTHETIC_LOCAL_SQUARE_ORDER_1234"
 LOCATION = "SANDBOX_LOCATION_12345"
@@ -105,7 +106,7 @@ class NewSandboxPreviewStop(unittest.TestCase):
                    "X-Shop-CSRF":cfg["csrf_token"]}
                 self.assertEqual(call(svr,"/api/shop/sandbox/quote","POST",
                                       b'{"cart":{"A02":1}}',headers=h)[0],200)
-                attempt = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                attempt = ATTEMPT
                 status,_,raw=call(svr,"/api/shop/sandbox/checkout","POST",
                     json.dumps({"attempt_id":attempt,"cart":{"A02":1}}).encode(),headers=h)
                 self.assertEqual(status,200,raw)
