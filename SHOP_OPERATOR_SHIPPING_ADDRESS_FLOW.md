@@ -33,3 +33,12 @@
 - タブを非表示にしたとき、ページを離れたとき、注文一覧を更新する直前に表示中の宛名・電話番号・住所を即時消去。Squareの応答が遅れて届いても、すでに画面移動・一覧更新した場合は再表示しない。
 - GitHub [総合CI SUCCESS #41162476351](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162476351)：Python/決済安全性テスト、Sandboxと通常アプリのDockerビルド、Chromium・Safari WebKit相当の画面テスト合格。テストは架空の配送先のみを使用。
 - 今回はUIの安全対策のみであり、実際のSquare Checkout購入者による配送先入力・Square Ordersへの反映・本番発送は検証していない。**P04は未完了、残り41ポイント（59％）のまま。** mainマージ、実販売、配送先機能の本番ONは行わない。
+
+## 2026-10-31：Sandboxのお届け先表示を60秒で自動終了
+
+- 一時的なSandbox配送伝票用のHTML表示は、HTTP `Refresh: 60; url=/shop-test-orders.html` で**60秒後に認証付き注文管理画面へ戻す**ようにした。画面内にもその案内を表示する。
+- 元の住所表示は運営者の個別Basic認証、同一Origin/CSRF、Square Sandboxの最新入金・未返金照合、日本国内住所の完全性確認が必要。住所・宛名・電話を注文一覧/SQLite/ログに追加保存しない。
+- `Cache-Control: no-store`、`Referrer-Policy: no-referrer`、CSPの画面埋め込み禁止は維持。ブラウザーによる自動移動の正確なタイミングは端末次第のため、共有端末では運営者が手動でも画面を閉じる。
+- [GitHub Actions #41162990049](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162990049) **SUCCESS**：配送先のHTTP応答ヘッダーを含むPython回帰、2種類のDockerビルド、PC ChromiumとSafari/WebKit相当の既存UI回帰。実Square購入者配送先入力は行っていない。
+- **P04未完了・59％完了／残り41ポイント**。販売者承認、本番Square接続、実配送先確認が済むまでmainマージ・本番販売・実発送を禁止。
+
