@@ -217,6 +217,11 @@ class TestSandboxVerification(unittest.TestCase):
             retrieve_sandbox_shipping_recipient(
                 ORDER_ID, token="FAKE_SANDBOX_ONLY", opener=fake)
         original["address"]["address_line_2"] = "テストビル2F"
+        original["display_name"] = "Synthetic\\nBcc: recipient"
+        with self.assertRaises(SquareSandboxError):
+            retrieve_sandbox_shipping_recipient(
+                ORDER_ID, token="FAKE_SANDBOX_ONLY", opener=fake)
+        original["display_name"] = "SYNTHETIC <Recipient>"
         original["address"]["locality"] = "千代田区"
         for fulfills in ([], [{"type": "PICKUP"}], [
             {"type": "SHIPMENT", "shipment_details": {"recipient": original}}
