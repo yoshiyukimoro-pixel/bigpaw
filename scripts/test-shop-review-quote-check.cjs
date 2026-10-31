@@ -38,7 +38,7 @@ const server=http.createServer((req,res)=>{
 });
 
 const TERMS='a'.repeat(64), CSRF='b'.repeat(64);
-const rows=[{sku:'A02',quantity:1,unitYen:21450,lineYen:21450}];
+const rows=[{sku:'A02',name:'パピーラージブリードレシピ',size:'11.4kg',quantity:1,unitYen:21450,lineYen:21450}];
 const quote=()=>({
   server_verified:true,payment_link_created:false,
   currency:'JPY',terms_sha256:TERMS,
@@ -114,7 +114,9 @@ async function attempt(page,overrides={}){
         for(const invalid of [
           [{sku:'X99',quantity:0,unitYen:21450,lineYen:0}],
           [{sku:'A02',quantity:1,unitYen:21450,lineYen:1}],
-          [...rows,...rows]
+          [...rows,...rows],
+          [{...rows[0],size:''}],
+          [{...rows[0],name:''}]
         ]){
           result=await attempt(page,{rows:invalid});
           assert.equal(result.reason,'invalid_cart');
@@ -136,6 +138,8 @@ async function attempt(page,overrides={}){
           {...quote(),shipping_yen:999},
           {...quote(),payment_link_created:true},
           {...quote(),terms_sha256:'0'.repeat(64)},
+          {...quote(),line_items:[{...quote().line_items[0],name:'別の商品'}]},
+          {...quote(),line_items:[{...quote().line_items[0],size:'4kg'}]},
           {...quote(),line_items:[{...quote().line_items[0],unit_yen:1,line_yen:1}]},
           {...quote(),line_items:[...quote().line_items,...quote().line_items]}
         ]){
