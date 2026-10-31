@@ -67,6 +67,32 @@ const server = http.createServer((req,res) => {
         assert.equal(await page.locator('#orderConfirmPreview').isDisabled(),true);
         await page.locator('#orderConfirmChecked').check();
         assert.equal(await page.locator('#orderConfirmPreview').isEnabled(),true);
+
+        // Tampering with the amount actually displayed to the customer
+        // cannot leave an earlier confirmation valid.
+        await page.locator('#orderReviewTotal').evaluate(el => {
+          el.textContent='1円';
+        });
+        await page.locator('#orderConfirmPreview').click();
+        assert.equal(await page.locator('#orderConfirmPreview').isDisabled(),true);
+        assert.match(await page.locator('#orderReviewLimit').innerText(),/もう一度確認/);
+        assert.match(await page.locator('#orderReviewTotal').innerText(),/21,450円/);
+
+        // Even if the total remains correct, a displayed name or pack size
+        // mismatch must invalidate confirmation; no HTTP calls are made.
+        await page.locator('#orderConfirmChecked').check();
+        assert.equal(await page.locator('#orderConfirmPreview').isEnabled(),true);
+        await page.locator('#orderReviewItems .order-line strong').evaluate(el => {
+          el.textContent='違う商品';
+        });
+        await page.locator('#orderConfirmPreview').click();
+        assert.equal(await page.locator('#orderConfirmPreview').isDisabled(),true);
+        assert.match(await page.locator('#orderReviewItems').innerText(),/パピーラージ/);
+
+        // The same shared quote snapshot must accept a real, unchanged
+        // DOM+cart preview without posting orders or any personal data.
+        await page.locator('#orderConfirmChecked').check();
+        assert.equal(await page.locator('#orderConfirmPreview').isEnabled(),true);
         await page.locator('#orderConfirmPreview').click();
         assert.match(await page.locator('#orderPreviewConfirmation').innerText(),/注文・決済はまだ行われていません/);
         assert.equal(await page.locator('#previewCheckout').isDisabled(),true);
