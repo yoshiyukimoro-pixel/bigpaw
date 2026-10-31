@@ -523,9 +523,12 @@
                 "scripts/test-shop-live-customer-notice-preview.py"
               ],
               "manual_source_verification": "Five numbered notice headings, five explicit send conditions, delegated editorial approval, privacy and no live checkout flags verified on 2026-10-31.",
-              "caveat": "F02 completed for owner-delegated final copy only. F01 mail sender domain/delivery and R02 real end-to-end remain pending; full seller legal disclosure and cancellations pending. NO customer email has been sent. GitHub Actions comprehensive regression run queued at time of this progress record.",
               "verified_source_commit": "238ec3f765497898eb1b576c612154e947cd3e49",
-              "points_deducted": 3
+              "points_deducted": 3,
+              "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41199324978",
+              "github_actions_conclusion": "SUCCESS",
+              "verified_scope": "Offline policy/owner approval tests and live customer preview test passed; two Docker builds and Chromium/WebKit browser regressions passed; actual email never sent.",
+              "caveat": "Owner-delegated notification copy only. Return exclusion separately approved, cancellation/merchant identity publication still pending. F01 provider-domain permissions, real email delivery and R02 paid-order E2E remain pending. No emails sent, production checkout OFF."
             }
           }
         },
