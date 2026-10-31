@@ -1,0 +1,48 @@
+name: BIG PAW new isolated Square Sandbox webhook HTTPS readiness
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-staging-webhook-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  external-readonly-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read only the exact new Sandbox webhook host, never POST
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError
+          host = "https://bigpaw-square-sandbox-staging-staging.up.railway.app"
+          def get(path):
+              req = Request(host + path, method="GET",
+                            headers={"User-Agent": "BIGPAW-Shop-StagingReadiness/1.0"})
+              try:
+                  with urlopen(req, timeout=20) as response:
+                      return response.status, response.read(1024)
+              except HTTPError as error:
+                  return error.code, b""
+          code, data = get("/healthz")
+          assert code == 200, f"staging health HTTP {code}"
+          obj = json.loads(data)
+          assert obj == {"status": "sandbox_webhook_ready"}, (
+              "credential readiness not confirmed on isolated new Sandbox host")
+          print("SHOP_NEW_WEBHOOK_HEALTH=READY")
+          for path in ("/", "/shop.html", "/shop-test-orders.html", "/api/shop/sandbox/order/TEST"):
+              status, _ = get(path)
+              assert status == 404, f"unexpected public staging path status: {status}"
+          print("SHOP_NEW_WEBHOOK_PRIVATE_ROUTES=CLOSED")
+          print("SHOP_NEW_WEBHOOK_ACTUAL_SQUARE_DELIVERY=NOT_TESTED")
+          print("SHOP_NEW_WEBHOOK_SUBSCRIPTION_ACTIVATION=NOT_PERFORMED")
+          PY
