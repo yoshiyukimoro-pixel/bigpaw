@@ -112,6 +112,17 @@
               "full_ci_result": "SUCCESS Python+Docker+Chromium+WebKit regression on development branch",
               "gap": "P04 not completed: actual buyer shipping fields and customer fulfillment delivery/return end-to-end not verified. No owner-approved commercial shipping SLA/terms and no production checkout.",
               "point_change": 0
+            },
+            "staging_operator_shipping_recheck_20261031": {
+              "commit": "943bc3369c66cdf387e2406a0c49e157f6547690",
+              "private_dashboard_commit": "ffe402a70d75c577bf3c77d9772ae7a997f5ad1e",
+              "test_commit": "a19a84f6ce7f74571b6fcff76080f9d925a7c763",
+              "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41157419053",
+              "ci_result": "SUCCESS: 2 Docker images build, offline authenticated loopback Square mocks, Chromium & Safari WebKit UI regressions",
+              "safety": "Per-order POST /api/shop/sandbox/operator/check-current-shipping; operator Basic credentials, exact legacy Sandbox service, HTTPS Origin+CSRF, explicit read-only confirmation. Requires fresh Square Payments/Orders match and no refund. Japanese recipient missing -> shipping blocked. Personal recipient/address/phone not written or returned. Does not trigger real shipping, merchant email, Square write, or consumer payment.",
+              "actual_square_shipping": "The earlier genuine hosted Square Sandbox test has incomplete shipping. This new path is offline-integrated only; has NOT made a true Square GET from authenticated operator UI or resolved that test recipient.",
+              "deployment": "Branch-only. No changes to existing bigpaw-test or main/live service.",
+              "point_change": 0
             }
           }
         },
