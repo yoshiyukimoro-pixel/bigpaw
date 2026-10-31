@@ -118,7 +118,7 @@ class WebhookAdapterTests(unittest.TestCase):
                     "display_name": "SYNTHETIC NEVER REAL",
                     "phone_number": "09012345678",
                     "email_address": "buyer@example.invalid",
-                    "address": {"country": "JP", "postal_code": "000-0000",
+                    "address": {"country": "JP", "administrative_district_level_1": "東京都", "locality": "千代田区", "postal_code": "000-0000",
                                 "address_line_1": "NOT REAL"},
                 }},
             }],
