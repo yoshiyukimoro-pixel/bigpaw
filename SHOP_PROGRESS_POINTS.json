@@ -404,6 +404,14 @@
               "after_event_result": "SUCCESS read-only: old_enabled_payment_updated__new_disabled_payment_updated__read_only",
               "current_gap": "No isolated genuine completed Square Sandbox JPY order registered and independently matched in NEW DB. Do not score T03 until matching paid order and idempotency verified.",
               "points_change": 0
+            },
+            "real_https_hmac_boundary": {
+              "date": "2026-10-31",
+              "url": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41149733077",
+              "workflow": "SUCCESS; offline mock contract and real isolated HTTPS HMAC edge tests",
+              "evidence": "Private signature key retrieved in ephemeral GitHub job from exact disabled Square Sandbox subscription. No secret logged. Exactly 3 controlled synthetic POSTs to new isolated Railway webhook: correct HMAC with unmatched fake order yields HTTP 503 awaiting_square_confirmation, wrong notification URL HMAC yields HTTP 403 invalid_signature_or_event, wrong Square environment yields HTTP 403 invalid_environment. Independent Railway HTTP log at 2026-10-31T00:22:16Z confirms [503,403,403].",
+              "no_payment": "No Square payment, test card checkout, refund, mail, subscription activation or mutation.",
+              "scoring": "T03 remains pending. Genuine completed Square Sandbox JPY payment, matching isolated persisted order, provider Payments/Orders verification and deduplication not yet shown."
             }
           }
         },
