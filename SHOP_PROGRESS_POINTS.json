@@ -391,6 +391,19 @@
               "dual_non_destructive_regression": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148074669",
               "dual_result": "SUCCESS; old sandbox, full app and new webhook tested; unsigned event rejected",
               "remaining": "Square Sandbox subscription remains disabled; no real Square signed HTTPS event and independent Payments/Orders match yet. T03 pending and zero point reduction."
+            },
+            "square_generated_webhook_transport_test": {
+              "date_jst": "2026-10-31",
+              "scope": "Isolated disabled Square SANDBOX subscription alone. No production credentials, real payment, refund, customer email, or activation.",
+              "action": "Exactly one POST /v2/webhooks/subscriptions/{id}/test for payment.updated; no retry",
+              "github_job": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148480314",
+              "github_result": "Failure of response-format expectation: square_test_api_response_unrecognized (Square API returned HTTP 200). Offline destination/isolation/no-retry preflight succeeded.",
+              "railway_independent_evidence": "2026-10-31T00:08:40.461552374Z; POST /api/shop/sandbox/webhook; clientUa='Square Connect v2'; HTTP 503; isolated webhook service only",
+              "interpretation": "Real Square-issued synthetic test notification reached new HTTPS receiver; 503 is rejection of a synthetic nonmatching/unverified order, not successful verification of a paid transaction. Exact processing branch not independently confirmed from body.",
+              "after_event_square_subscription_check": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148632306",
+              "after_event_result": "SUCCESS read-only: old_enabled_payment_updated__new_disabled_payment_updated__read_only",
+              "current_gap": "No isolated genuine completed Square Sandbox JPY order registered and independently matched in NEW DB. Do not score T03 until matching paid order and idempotency verified.",
+              "points_change": 0
             }
           }
         },
