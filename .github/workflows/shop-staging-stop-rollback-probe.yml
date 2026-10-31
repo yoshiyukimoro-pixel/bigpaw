@@ -1,0 +1,64 @@
+name: BIG PAW isolated staging emergency stop and recovery HTTPS probe
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-staging-stop-rollback-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-stop-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Verify isolated app remains protected with the public checkout disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import time
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError, URLError
+          app = "https://bigpaw-app-staging-staging.up.railway.app"
+          hook = "https://bigpaw-square-sandbox-staging-staging.up.railway.app"
+          ua = {"User-Agent": "BIGPAW-Staging-Stop-Probe/1.0"}
+          def request(base, path, method="GET"):
+              req = Request(base + path, method=method, headers=ua)
+              try:
+                  with urlopen(req, timeout=12) as res:
+                      return res.status
+              except HTTPError as error:
+                  return error.code
+          checks = [
+              (app, "/healthz", "GET", 200),
+              (app, "/shop.html", "GET", 401),
+              (app, "/api/shop/checkout/config", "GET", 401),
+              (app, "/api/shop/checkout", "POST", 401),
+              (hook, "/healthz", "GET", 200),
+              (hook, "/shop.html", "GET", 404),
+          ]
+          for base, path, method, expected in checks:
+              code = None
+              for attempt in range(8):
+                  try:
+                      code = request(base, path, method)
+                  except (URLError, OSError, TimeoutError):
+                      code = None
+                  if code == expected:
+                      break
+                  if attempt < 7:
+                      time.sleep(5)
+              label = ("app" if base == app else "sandbox_webhook")
+              if code != expected:
+                  print("SHOP_STAGING_STOP_PROBE_FAIL scope=" + label + " path=" + path)
+                  raise SystemExit(2)
+              print("SHOP_STAGING_STOP_PROBE_OK scope=" + label +
+                    " path=" + path + " status=" + str(code))
+          print("SHOP_STAGING_ROLLBACK_GUARD=EXTERNAL_ANONYMOUS_ACCESS_DENIED")
+          print("SHOP_STAGING_REAL_CARD_CHARGE=NOT_ATTEMPTED")
+          PY
