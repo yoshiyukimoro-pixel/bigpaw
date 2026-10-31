@@ -34,6 +34,13 @@ const server = http.createServer((req,res)=>{
     res.writeHead(authorized?200:401,{'content-type':'application/json','cache-control':'no-store'});
     res.end(authorized?JSON.stringify({csrf_token:'A'.repeat(43)}):JSON.stringify({error:'unauthorized'}));return;
   }
+  if(req.url==='/api/operator/shop-orders/shipping-address'&&req.method==='POST'){
+    res.writeHead(authorized?200:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(authorized?JSON.stringify({temporary_view_only:true,recipient:{
+      name:'PRIVATE <Buyer>',phone:'09012345678',postal:'100-0001',
+      prefecture:'東京都',city:'千代田区',line1:'丸の内1-1-1',
+      line2:'',line3:''}}):JSON.stringify({error:'unauthorized'}));return;
+  }
   if(req.url==='/api/operator/shop-orders/reconcile'&&req.method==='POST'){
     auditEvents=[{order_id:sample.orders[0].order_id,actor_id:'operator_test',action:'payment_reconciled',outcome:'newly_paid',created_at:1793390100}];
     res.writeHead(authorized?200:401,{'content-type':'application/json','cache-control':'no-store'});
@@ -67,6 +74,17 @@ const server = http.createServer((req,res)=>{
       assert.match(await page.locator('main').innerText(),/ACANA アダルトラージ/);
       assert.equal(await page.locator('main').innerText().then(t=>/東京都|〒[0-9]{3}-[0-9]{4}|090-[0-9-]{8,}|buyer@example\.com|4111[ -]?1111/.test(t)),false);
       page.on('dialog',dialog=>dialog.accept());
+      const address=page.getByRole('button',{name:'お届け先を一時表示（運営者のみ）'});
+      assert.equal(await address.count(),1);
+      await address.click();
+      const delivery=page.locator('.delivery-label');
+      await delivery.getByText('PRIVATE <Buyer>').waitFor();
+      assert.match(await delivery.innerText(),/東京都|千代田区/);
+      assert.equal(await delivery.locator('script').count(),0,
+        'Untrusted buyer name must be text, not script markup');
+      await page.getByRole('button',{name:'配送先を隠す'}).click();
+      assert.equal(await delivery.innerText(),'');
+      assert.equal(await page.locator('.delivery-label:not([hidden])').count(),0);
       await page.locator('input[name="payment_id"]').fill('SYNTHETICPAYMENT123456');
       await page.getByRole('button',{name:'Squareと照合'}).click();
       await page.getByText('Squareで入金を新規確認し、監査記録を保存しました。').waitFor();
