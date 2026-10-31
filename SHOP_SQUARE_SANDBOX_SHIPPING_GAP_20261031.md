@@ -17,6 +17,14 @@
 - `shop_payments/sandbox_fulfillment.py` と `shop_payments/sandbox_procurement.py` の「発送済み（Sandboxテスト記録）」遷移では、**過去の入金済み履歴だけでなく**Square Payments/Ordersを最新GETし、未返金・配送先完備を再検証する。住所がないと拒否。
 - `shop_payments/staging_orders_dashboard.py` に「入金済みと配送先確認済みは別です」の常時警告を追加。画面の警告は**配送情報を照合済みにする処理ではない**。画面そのものはSandbox管理者向けで、実際の商品発送は行わない。
 
+## Square Sandboxの限界と最終確認計画
+
+Square公式の「Checkout API Sandbox Testing Panel」は、**実際の購入者が操作する決済ページではなく決済をシミュレートする画面**。公式説明：https://developer.squareup.com/docs/checkout-api （Sandbox Testing Panelの説明）。Square Sandboxの一般説明：https://developer.squareup.com/docs/devtools/sandbox/overview 。
+
+よって、テストパネルで「Test Payment」が成功した事実は、**住所入力画面の表示、購入者が入力した宛先のSquare Ordersへの反映、送り状への転記**が完成した証拠にはならない。架空の日本住所を埋め込んだSquare APIの**モックでテスト済み**の項目と、**本物のSquare Checkout購入画面で未検証**の項目を混同しない。
+
+本番相当の購入画面テストは、販売者情報・特商法・返品配送条件と本番Square接続の承認後に、実際のカード請求をせず「購入画面の表示→配送先入力仕様を確認→リンク停止」を隔離状態で行うこと。個人の本物の氏名・電話・住所をSandboxに送らないこと。未確認の配送先がある注文は、購入済み表示だけを根拠に発送・発送済み登録を行わない。
+
 ## P04を完了にするまでの不足
 
 1. 氏名・電話番号・日本住所・郵便番号を含む、個人情報を使わない**架空の住所データで**、Square Checkoutの実入力 → Square Ordersの `SHIPMENT` に反映される経路を確認する。通常のSandbox Testing Panelでは実入力ができない可能性があるため、代替手順の安全性を先に判断する。
