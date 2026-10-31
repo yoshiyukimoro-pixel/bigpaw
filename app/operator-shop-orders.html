@@ -24,7 +24,7 @@
 <body class="bp-account-page">
   <main class="wrap">
     <div class="top"><h1>フードショップ注文管理</h1><button id="refresh" type="button">再読み込み</button></div>
-    <p class="notice"><strong>運営ログイン専用</strong>。一覧は過去の記録を表示します。過去の入金確認だけでは現在の返金状況は分からないため、発注・発送前にSquareの最新状態を確認してください。住所・氏名・電話番号は表示しません。</p>
+    <p class="notice"><strong>運営ログイン専用</strong>。一覧は過去の記録を表示します。過去の入金確認だけでは現在の返金状況は分からないため、発注・発送前にSquareの最新状態を確認してください。お届け先は通常表示せず、運営者が入金・未返金の最新確認を行った該当注文だけ一時表示できます（機能は初期状態OFF）。</p>
     <p class="muted">手動照合は、本番で運営者が専用設定を有効にした場合のみ利用できます。Squareの最新情報を読み取ってBIG PAWの入金記録を更新します。決済・返金・発注・発送・メール送信は行いません。</p>
     <p id="message" role="status">注文情報を読み込んでいます…</p>
     <section id="orders" aria-label="ショップ注文一覧"></section>
@@ -38,6 +38,50 @@
     const date=s=>{if(!Number.isInteger(s)||s<0)return '—';try{return new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',dateStyle:'medium',timeStyle:'short'}).format(new Date(s*1000))}catch{return '—'}};
     async function loadAudit(){const el=document.getElementById('audit');try{const r=await fetch('/api/operator/shop-orders/audit',{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error();const d=await r.json();el.textContent=d.events.length?d.events.map(x=>`${date(x.created_at)}　${x.order_id}　${x.outcome==='newly_paid'?'新規入金確認':x.outcome==='already_paid'?'再照合成功':'照合不成立'}　運営ID ${x.actor_id}`).join(' / '):'手動照合の記録はありません。'}catch{el.textContent='操作記録を取得できませんでした。'}}
     async function reconcile(form){const fields=new FormData(form),orderId=fields.get('order_id'),paymentId=String(fields.get('payment_id')||'').trim();if(!/^[A-Za-z0-9_-]{8,192}$/.test(paymentId)){msg.textContent='Squareの決済IDを正しく入力してください。';return}if(!confirm('Squareの最新決済情報を照合します。新しい支払いや返金、発送は行いません。続けますか？'))return;msg.textContent='Squareの最新情報を照合しています…';try{const t=await fetch('/api/operator/shop-orders/reconcile-token',{credentials:'same-origin',cache:'no-store'});if(!t.ok)throw Error();const token=await t.json();const r=await fetch('/api/operator/shop-orders/reconcile',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({order_id:orderId,payment_id:paymentId,csrf_token:token.csrf_token})});const d=await r.json();if(!r.ok)throw Error();const successMessage=d.new_transition?'Squareで入金を新規確認し、監査記録を保存しました。':'Squareの最新状態を再確認し、監査記録を保存しました。';form.reset();await load();await loadAudit();msg.textContent=successMessage}catch{await loadAudit();msg.textContent='照合できませんでした。Square側の情報を確認し、同じ注文の状態が解決するまで新しい決済リンクを作らないでください。'}}
+    async function viewShippingLabel(button){
+      const box=button.closest('.order').querySelector('.delivery-label');
+      if(!box)return;
+      if(!box.hidden){box.replaceChildren();box.hidden=true;button.textContent='お届け先を一時表示（運営者のみ）';return}
+      const orderId=button.dataset.orderId;
+      if(!/^FOOD[0-9a-f]{32}$/.test(orderId))return;
+      if(!confirm('この注文の最新の入金・返金・配送先をSquareで再確認し、宛名・住所・電話番号をこの端末に一時表示します。伝票作成目的のみで利用しますか？'))return;
+      button.disabled=true;msg.textContent='Squareの最新配送先と支払いを確認中です…';
+      try{
+        const t=await fetch('/api/operator/shop-orders/reconcile-token',
+          {credentials:'same-origin',cache:'no-store'});
+        if(!t.ok)throw Error('token');
+        const tok=await t.json();
+        const r=await fetch('/api/operator/shop-orders/shipping-address',{
+          method:'POST',credentials:'same-origin',cache:'no-store',
+          headers:{'Content-Type':'application/json',Accept:'application/json'},
+          body:JSON.stringify({order_id:orderId,csrf_token:tok.csrf_token,
+                               confirmation:'view_delivery_label_once'})
+        });
+        if(!r.ok)throw Error('unavailable');
+        const data=await r.json(),rec=data.recipient;
+        if(!rec||!data.temporary_view_only)throw Error('format');
+        const fields=[['宛名','name'],['電話番号','phone'],['郵便番号','postal'],
+                      ['都道府県','prefecture'],['市区町村','city'],
+                      ['町名・番地','line1'],['建物名・部屋番号','line2'],
+                      ['住所補足','line3']];
+        const dl=document.createElement('dl');
+        for(const [label,key] of fields){
+          if(typeof rec[key]!=='string'||!rec[key])continue;
+          const dt=document.createElement('dt'),dd=document.createElement('dd');
+          dt.textContent=label;dd.textContent=rec[key];dl.append(dt,dd);
+        }
+        if(!dl.childElementCount)throw Error('empty');
+        box.replaceChildren(dl);box.hidden=false;
+        button.textContent='配送先を隠す';
+        msg.textContent='Squareの最新入金・配送先を確認しました。発送は自動実行されません。';
+        // Minimize shoulder surfing on shared devices; never keep PII in JS storage.
+        setTimeout(()=>{if(!box.hidden){box.replaceChildren();box.hidden=true;
+          button.textContent='お届け先を一時表示（運営者のみ）';}},60000);
+      }catch{
+        box.replaceChildren();box.hidden=true;
+        msg.textContent='配送先は表示できません。専用機能OFF、未入金、返金、住所不足、通信障害の可能性があります。発送しないでSquareで確認してください。';
+      }finally{button.disabled=false}
+    }
     async function load(){msg.textContent='注文情報を読み込んでいます…';list.replaceChildren();try{
       const r=await fetch('/api/operator/shop-orders',{credentials:'same-origin',headers:{Accept:'application/json'},cache:'no-store'});
       if(r.status===401||r.status===403){msg.textContent='運営アカウントでログインしてください。';return}
@@ -50,9 +94,10 @@
         <p><code>${esc(o.order_id)}</code></p><p class="muted">注文記録：${date(o.created_at)}　過去の入金確認：${date(o.paid_at)}</p>
         <details><summary>注文商品を表示（${o.items.length}品目）</summary><ul>${o.items.map(i=>`<li>${esc(i.name)}／${esc(i.size)} × ${esc(i.qty)}　${Number(i.unit_yen).toLocaleString('ja-JP')}円</li>`).join('')}</ul></details>
         <p class="muted">署名付き決済通知の検証記録：${esc(o.verified_signed_event_count)}件。現在の入金・返金状況を示すものではありません。</p>
-        <form class="reconcile"><label>Square決済IDを入力して最新状態を照合</label><input name="payment_id" autocomplete="off" maxlength="192" required placeholder="Squareの決済詳細にあるID"><input type="hidden" name="order_id" value="${esc(o.order_id)}"><button type="submit">Squareと照合</button><p class="muted">決済IDは正規のSquare管理画面から確認してください。照合はSquareへの読み取りと内部記録のみを行い、返金・発送・メール送信はしません。</p></form></article>`;
+        <form class="reconcile"><label>Square決済IDを入力して最新状態を照合</label><input name="payment_id" autocomplete="off" maxlength="192" required placeholder="Squareの決済詳細にあるID"><input type="hidden" name="order_id" value="${esc(o.order_id)}"><button type="submit">Squareと照合</button><p class="muted">決済IDは正規のSquare管理画面から確認してください。照合はSquareへの読み取りと内部記録のみを行い、返金・発送・メール送信はしません。</p></form>${o.payment_recorded_historically?`<section class="reconcile"><h3>配送伝票用お届け先</h3><p class="muted">運営者専用。Squareの最新入金・未返金・住所を確認した場合だけ一時表示。機能は初期状態OFFです。</p><button type="button" class="view-shipping-label" data-order-id="${esc(o.order_id)}">お届け先を一時表示（運営者のみ）</button><div class="delivery-label" hidden aria-live="polite"></div></section>`:''}</article>`;
       }).join('');
       list.querySelectorAll('.reconcile').forEach(form=>form.addEventListener('submit',ev=>{ev.preventDefault();reconcile(form)}));
+      list.querySelectorAll('.view-shipping-label').forEach(button=>button.addEventListener('click',()=>viewShippingLabel(button)));
     }catch{msg.textContent='注文一覧を取得できませんでした。時間をおいて再読み込みしてください。'}}
     document.getElementById('refresh').addEventListener('click',()=>{load();loadAudit()});load();loadAudit();
   })();
