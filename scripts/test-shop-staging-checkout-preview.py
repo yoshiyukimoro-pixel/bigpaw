@@ -231,7 +231,7 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertIn("frame-ancestors 'none'", displayed[1]["Content-Security-Policy"])
             self.assertNotIn(b"PRIVATE TEST PERSON", page[2])
             self.assertNotIn(b"PRIVATE MOCK ADDRESS", page[2])
-            self.assertNotIn(b"PRIVATE TEST PERSON", db.db_file.read_bytes())
+            self.assertNotIn(b"PRIVATE TEST PERSON", Path(db.db_file).read_bytes())
             state["recipient_complete"] = False
             blocked = show_address()
             self.assertEqual(blocked[0], 409)
