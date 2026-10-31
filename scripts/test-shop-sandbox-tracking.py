@@ -49,6 +49,8 @@ def shipping_opener(req, timeout):
         "type": "SHIPMENT", "shipment_details": {"recipient": {
             "display_name": PII[0],
             "address": {"country": "JP", "address_line_1": PII[1],
+                        "administrative_district_level_1": "東京都",
+                        "locality": "千代田区",
                         "postal_code": PII[2]},
             "phone_number": PII[3],
         }},
