@@ -148,7 +148,7 @@ class CheckoutPreviewTests(unittest.TestCase):
         from shop_payments.retail_catalog import load_sale_catalog
         payment_id = "MOCK_SHIP_PAYMENT_1234"
         square_order = "MOCK_SHIP_ORDER_1234"
-        state = {"recipient_complete": False, "refund": 0}
+        state = {"recipient_complete": False, "refund": 0, "recipient_name": "PRIVATE TEST PERSON"}
         seen = []
         class Reply:
             status = 200
@@ -172,7 +172,7 @@ class CheckoutPreviewTests(unittest.TestCase):
                 }})
             if req.full_url.endswith("/orders/" + square_order):
                 recipient = {
-                    "display_name": "PRIVATE TEST PERSON",
+                    "display_name": state["recipient_name"],
                     "phone_number": "09012345678",
                     "address": {
                         "country": "JP", "administrative_district_level_1": "東京都", "locality": "千代田区",
@@ -254,6 +254,12 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertIn("PRIVATE TEST PERSON".encode(), displayed[2])
             self.assertIn("PRIVATE MOCK ADDRESS".encode(), displayed[2])
             self.assertIn("千代田区".encode(), displayed[2])
+            state["recipient_name"] = 'PRIVATE <script>alert("x")</script>'
+            escaped_label = show_address()
+            self.assertEqual(escaped_label[0], 200)
+            self.assertIn(b"PRIVATE &lt;script&gt;", escaped_label[2])
+            self.assertNotIn(b"<script>alert", escaped_label[2])
+            state["recipient_name"] = "PRIVATE TEST PERSON"
             self.assertEqual(displayed[1]["Cache-Control"], "no-store")
             self.assertEqual(displayed[1]["Referrer-Policy"], "no-referrer")
             self.assertIn("frame-ancestors 'none'", displayed[1]["Content-Security-Policy"])
