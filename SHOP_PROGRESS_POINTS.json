@@ -487,6 +487,10 @@
               "scope": "Read-only Resend GET /domains audit with GitHub Actions secret. Synthetic domain checker unit tests passed; provider returned 401/403 for domains metadata. No email sent or secrets exposed.",
               "still_missing": "Domain verified and sending-enabled state cannot be confirmed with current read-permission scope. Actual noreply@bigpaw.site sender permission and delivery remain unverified.",
               "points_deducted": 0
+            },
+            "disclosure_sender_related_20261031": {
+              "note": "Even though offline verified-disclosure bridge exists, Resend sender/domain read scopes and real noreply@bigpaw.site deliverability remain unverified, so F01 is still pending.",
+              "points_deducted": 0
             }
           }
         },
@@ -656,6 +660,14 @@
               "mail_provider_prod_readonly": "Railway bigpaw-live has RESEND_API_KEY and BIGPAW_SUPPORT_EMAIL variable names, but NO dedicated seller legal address/phone env variable names found; values not accessed or published.",
               "safety_fix": "Provider accepted does not mean delivered: contact request status remains reviewing and no private details stored in support ticket/audit. New tests passed.",
               "major_blockers": "Automated module is not connected to production backend due to an explicit tool safety block; not deployed. Private seller envs and signed/delivered notification verification not configured; direct incoming info mailbox requests not auto processed. Owner approval of customer emails or contact disclosure does not equal authorization to activate live sales.",
+              "progress_points_deducted": 0
+            },
+            "development_auto_disclosure_bridge_20261031": {
+              "scope": "Draft branch: source app/backend/shop_seller_disclosure_bridge.py, existing /api/support post-commit challenge and POST /api/shop/seller-disclosure/confirm implemented. Merchant name/address/phone remain runtime-only; no private seller data embedded in source.",
+              "request_safety": "Recipient must verify a one-time challenge token first. Strict browser Host/Origin/Content-Type/body limits/rate limiting on confirm; provider-accepted is not delivery-confirmed; support ticket stays open for operator review.",
+              "tests": "scripts/test-shop-seller-disclosure-bridge.py added to shop-staging-check.yml. Some unrelated PR CI checks succeeded after preserving legacy Docker patch anchor; shop-specific integration CI and actual email delivery not yet independently verified.",
+              "disabled": "No private BIGPAW_SHOP_SELLER_* settings or public live deploy provisioned. Default OFF, no live emails or legal disclosure sent.",
+              "remaining": "Complete isolated integration CI, domain sender authorization, private secret setup, verified real email delivery, support ticket operator workflow and direct info@ mailbox fallback before L01 can be completed.",
               "progress_points_deducted": 0
             }
           }
