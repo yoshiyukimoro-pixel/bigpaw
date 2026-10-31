@@ -24,3 +24,4 @@ jobs:
           BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
           BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN: ${{ secrets.BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN }}
         run: PYTHONPATH=. python3 scripts/audit-shop-new-isolated-paid-durability.py paid
+# Verified stable-preview redeploy one-time read; no Square POST or payment creation.
