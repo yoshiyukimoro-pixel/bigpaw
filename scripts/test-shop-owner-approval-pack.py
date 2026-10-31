@@ -44,6 +44,17 @@ class ApprovalPackTests(unittest.TestCase):
                 self.assertIs(policy["approved"], False)
         self.assertIn("未開封・未使用", returns["policies"]["customer_change_of_mind"]["policy_ja"])
         self.assertFalse(returns["partial_owner_approvals"]["seller_identity_contact"]["confidential_values_committed"])
+        disclosure = returns["partial_owner_approvals"]["seller_identity_contact"]
+        self.assertTrue(disclosure["method_owner_approved"])
+        self.assertEqual(disclosure["statutory_publication_method"],
+                         "on_request_without_delay_before_purchase")
+        self.assertEqual(disclosure["request_contact"], "info@bigpaw.site")
+        self.assertFalse(disclosure["request_response_operational_tested"])
+        self.assertFalse(disclosure["legal_disclosure_final_approved"])
+        self.assertFalse(status["launch_checks"]["statutory_contact"])
+        self.assertFalse(status["launch_checks"]["seller_identity"])
+        self.assertIn("請求に応じて遅滞なく提供", owner)
+        self.assertIn("請求に応じ遅滞なく個別開示", pack)
         from shop_payments.retail_launch_guard import check
         ready, missing = check(status)
         self.assertFalse(ready)
