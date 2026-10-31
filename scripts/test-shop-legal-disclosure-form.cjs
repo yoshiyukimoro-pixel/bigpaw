@@ -29,7 +29,7 @@ const server=http.createServer((req,res)=>{
   try{
     const admin=fs.readFileSync(path.resolve(root,'operator-support.html'),'utf8');
     const backend=fs.readFileSync(path.resolve(root,'backend/server.py'),'utf8');
-    assert(admin.includes('特商法・販売者情報の開示請求'));
+    assert(admin.includes('【要対応・特商法】フードショップの住所・電話番号の開示請求'));
     assert(admin.includes("'/operator/support/'+encodeURIComponent(id)+'/reply'"));
     assert(backend.includes("if path=='/api/support':"));
     assert(backend.includes("'support_ticket_created'"));
