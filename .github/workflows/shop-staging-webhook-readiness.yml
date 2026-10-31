@@ -39,7 +39,7 @@ jobs:
           assert obj == {"status": "sandbox_webhook_ready"}, (
               "credential readiness not confirmed on isolated new Sandbox host")
           print("SHOP_NEW_WEBHOOK_HEALTH=READY")
-          for path in ("/", "/shop.html", "/shop-test-orders.html", "/api/shop/sandbox/order/TEST"):
+          for path in ("/", "/shop.html", "/shop-test-orders.html", "/api/shop/sandbox/operator/view-shipping-address", "/api/shop/sandbox/order/TEST"):
               status, _ = get(path)
               assert status == 404, f"unexpected public staging path status: {status}"
           print("SHOP_NEW_WEBHOOK_PRIVATE_ROUTES=CLOSED")
@@ -50,3 +50,5 @@ jobs:
           print("SHOP_SQUARE_ORIGIN_E2E_AFTER_OFF=PREVIEW_404_HEALTH_READY")
           PY
 # Read-only final check after isolated Sandbox fake-card trial and preview shutdown 2026-10-31.
+
+# Read-only public route check after exact CI-tested staging operator delivery-label deploy 2026-10-31.
