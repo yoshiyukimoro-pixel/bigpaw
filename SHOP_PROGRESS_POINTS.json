@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 44,
-  "completed_points_since_baseline": 56,
+  "remaining_points": 41,
+  "completed_points_since_baseline": 59,
   "groups": [
     {
       "key": "purchase",
@@ -133,8 +133,8 @@
           "id": "P06",
           "weight": 3,
           "title": "購入停止スイッチと安全なロールバックの実機確認",
-          "status": "pending",
-          "completed_at": null,
+          "status": "done",
+          "completed_at": "2026-10-31",
           "evidence": {
             "scope": "New BIG PAW App Staging / staging / bigpaw-app-staging ONLY. Does not apply or assert production checkout rollback.",
             "live_test_window": "2026-10-31 JST",
@@ -153,8 +153,8 @@
               "result": "SUCCESS; source commit restored; protected staging app and isolated webhook Online, warnings=0, criticals=0, pendingWork=0"
             },
             "payment_safety": "No Square Production, no real charge, no mail, no public launch, no production deployment. Existing Square links are NOT cancelled merely by switching off purchases; separate manual Square review required at live launch.",
-            "completion_scope": "PARTIAL staging operational OFF and version rollback proven. P06 acceptance still needs enabled Sandbox checkout to OFF verification, checks for pre-existing payment links, receipt processing despite stop, and retained order journal across the rollback. Never imply previously issued Square links were cancelled.",
-            "point_decision": "NOT COMPLETED. Zero points deducted; other P06 gates unverified.",
+            "completion_scope": "Completed for isolated staging operational drill only; public production checkout rollback still requires authorized go-live and is excluded.",
+            "point_decision": "Completed after full real fake-paid order preservation and post-off webhook verification, staged rollback; 3 points now deducted.",
             "isolated_checkout_preview_on_off_real_https": {
               "date": "2026-10-31",
               "scope": "NEW isolated bigpaw-square-sandbox-staging ONLY; old Sandbox and BIG PAW production untouched",
@@ -188,6 +188,19 @@
               "post_test_status": "SUCCESS: private preview OFF, /shop.html 404, /healthz ready, both isolated services Online, issues 0",
               "must_not_claim": "Square-originated automatic payment webhook delivery NOT tested (disabled new subscriber). Shipping details NOT verified, no customer email/fulfillment/refund, no production E2E.",
               "point_change": 0
+            },
+            "final_verified_staging_stop_rollback": {
+              "date": "2026-10-31",
+              "scope": "P06 completed ONLY for isolated staging control drill and runbook; not real public Square Production incident",
+              "purchase_stop": "New Sandbox password-gated checkout preview enabled for actual JPY 21450 Square Sandbox fake payment, then explicitly OFF and redeployed. Authenticated active checkout quote JPY 21450 shipping 0 and unsafe purchase rejected; after OFF /shop.html 404 independently; staging full app live checkout GET/POST 404 while BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0.",
+              "rollback": "Actual BIG PAW isolated app staged build 26e29e25-5501-41d3-8a17-0cad7b4eae58 SUCCESS then restored to original known commit 361ff926b8834ef099b85046610c61fb4a29eed7 via  acba6bd1-ad8c-432c-8f04-eaa5c5bf41c7 SUCCESS, underlying private volume retained.",
+              "real_square_origin": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154207823 (Square-authored payment.updated to NEW isolated staging, SQLite pending=>paid, Square Orders/Payments JPY 21450 matched, no customer/supplier mail, production charge zero).",
+              "after_pause_durability": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154781086",
+              "after_pause_result": "SUCCESS, same earlier Square Sandbox paid PaymentLink found by unique created-at and payment_note, independent Square GET Orders/Payments verifies original completed JPY payment and not refunded; exact NEW Railway staged flag OFF and original Square subscriber active/new disabled; signed artificial recheck to NEW webhook returned 200 received, meaning stored matching paid journal survived OFF and service redeploy. No new Square payment or Checkout link created; no additional mail/fulfillment.",
+              "independent_railway": "BIG PAW App Staging two services Online, zero warnings/critical; separate volumes 500 MB each; no staged changes.",
+              "operational_limits": "Stopping new checkouts does NOT cancel previously created Square links; manual link status/cancellation and pre-existing funds must be reviewed separately. True production incident recovery, legal conditions, refunds/shipment, and owner go-live remain under P04/R02/R04/R05, not implied by P06.",
+              "outcome": "P06 verified staging operational stop and safe version rollback with real Sandbox provider payment journal preservation",
+              "points_deducted": 3
             }
           }
         }
