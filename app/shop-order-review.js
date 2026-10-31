@@ -85,25 +85,34 @@
   const confirmed = root.querySelector('#orderPreviewConfirmation');
   const byId = new Map(catalog.map(p => [p.id,p]));
 
+  // Never silently discard malformed/unknown products: a stale or tampered
+  // cart must be corrected before its amount can be confirmed.
   function readCart() {
     try {
       const raw = JSON.parse(sessionStorage.getItem(CART_KEY) || '{}');
-      if (!raw || Array.isArray(raw) || typeof raw !== 'object') return [];
-      return Object.keys(raw).map(id => {
+      if (!raw || Array.isArray(raw) || typeof raw !== 'object') {
+        return {rows:[], invalid:true};
+      }
+      const entries = Object.entries(raw);
+      if (entries.length > byId.size) return {rows:[], invalid:true};
+      const rows = [];
+      for (const [id, qty] of entries) {
         const p = byId.get(id);
-        const qty = raw[id];
-        if (!p || !Number.isInteger(qty) || qty < 1 || qty > 10) return null;
-        return {p, qty, unit:Math.round(p.referenceMsrpExTax * 1.1)};
-      }).filter(Boolean);
-    } catch (_) { return []; }
+        if (!p || !Number.isInteger(qty) || qty < 1 || qty > 10) {
+          return {rows:[], invalid:true};
+        }
+        rows.push({p, qty, unit:Math.round(p.referenceMsrpExTax * 1.1)});
+      }
+      return {rows, invalid:false};
+    } catch (_) { return {rows:[], invalid:true}; }
   }
 
   function refresh() {
-    const rows = readCart();
+    const {rows, invalid} = readCart();
     const amount = rows.reduce((sum,{qty,unit})=>sum+qty*unit,0);
-    const valid = rows.length > 0 && amount <= limit;
-    empty.hidden = rows.length !== 0;
-    content.hidden = rows.length === 0;
+    const valid = !invalid && rows.length > 0 && amount <= limit;
+    empty.hidden = rows.length !== 0 || invalid;
+    content.hidden = rows.length === 0 && !invalid;
     list.innerHTML = rows.map(({p,qty,unit}) =>
       '<div class="order-line">' +
         '<img src="assets/shop-products/'+encodeURIComponent(p.slug)+'.webp" loading="lazy" alt="" onerror="this.hidden=true">' +
@@ -112,11 +121,17 @@
     ).join('');
     subtotal.textContent = YEN(amount);
     totalEl.textContent = YEN(amount);
-    warning.hidden = amount <= limit;
-    warning.textContent = amount > limit ? '注文の上限金額を超えています。カートの数量を減らしてください。' : '';
+    warning.hidden = !invalid && amount <= limit;
+    warning.textContent = invalid
+      ? 'カートの商品番号または数量に問題があります。商品を選び直してから確認してください。'
+      : amount > limit ? '注文の上限金額を超えています。カートの数量を減らしてください。' : '';
     agreement.checked = false;
     button.disabled = true;
     button.dataset.hasItems = String(valid);
+    // Snapshot the exact items/quantities being confirmed. Session storage
+    // can change in another script/tab without dispatching our cart event.
+    button.dataset.cartFingerprint = valid
+      ? JSON.stringify(rows.map(({p,qty})=>[p.id,qty])) : '';
     confirmed.hidden = true;
   }
 
@@ -129,6 +144,16 @@
   });
   button.addEventListener('click', () => {
     if (button.disabled) return;
+    const {rows, invalid} = readCart();
+    const fingerprint = JSON.stringify(rows.map(({p,qty})=>[p.id,qty]));
+    const amount = rows.reduce((sum,{qty,unit})=>sum+qty*unit,0);
+    if (invalid || !rows.length || amount > limit ||
+        fingerprint !== button.dataset.cartFingerprint) {
+      refresh();
+      warning.hidden = false;
+      warning.textContent = 'カートの内容が変更されました。商品・数量・合計金額をもう一度確認してください。';
+      return;
+    }
     confirmed.hidden = false;
     confirmed.scrollIntoView({block:'nearest',behavior:'smooth'});
   });
