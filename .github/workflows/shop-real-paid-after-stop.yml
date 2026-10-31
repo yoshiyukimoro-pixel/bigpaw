@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/shop-real-paid-after-stop.yml'
 
+# One read-only provider recheck after preview OFF, exactly one signed idempotent hint; no payment creation.
 permissions:
   contents: read
 
