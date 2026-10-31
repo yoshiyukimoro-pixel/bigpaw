@@ -45,6 +45,7 @@ on:
       - 'scripts/test-shop-live-checkout-flow.py'
       - 'scripts/test-shop-live-checkout-controller.py'
       - 'scripts/test-shop-live-http-bridge.py'
+      - 'scripts/test-shop-live-quote.py'
       - 'scripts/test-shop-live-webhook-bridge.py'
       - 'scripts/test-shop-live-order-full-pipeline.py'
       - 'app/backend/shop_live_webhook_bridge.py'
@@ -172,6 +173,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-live-checkout-flow.py
           PYTHONPATH=. python3 scripts/test-shop-live-checkout-controller.py
           PYTHONPATH=. python3 scripts/test-shop-live-http-bridge.py
+          PYTHONPATH=. python3 scripts/test-shop-live-quote.py
           PYTHONPATH=. python3 scripts/test-shop-staging-auth-gateway.py
           PYTHONPATH=. python3 scripts/test-shop-live-webhook-bridge.py
           PYTHONPATH=. python3 scripts/test-shop-live-order-full-pipeline.py
