@@ -338,6 +338,8 @@ class CheckoutPreviewTests(unittest.TestCase):
             empty_dashboard = request(srv, "/shop-test-orders.html")
             self.assertEqual(empty_dashboard[0], 200)
             self.assertIn("手動進捗テスト".encode(), empty_dashboard[2])
+            self.assertIn("入金済みと配送先確認済みは別です".encode(), empty_dashboard[2])
+            self.assertIn("Square Ordersから最新確認".encode(), empty_dashboard[2])
             self.assertIn("注文の記録はありません".encode(), empty_dashboard[2])
             self.assertNotIn(b"RESEND_API_KEY", empty_dashboard[2])
             self.assertNotIn(b"square_payment_id", empty_dashboard[2])
