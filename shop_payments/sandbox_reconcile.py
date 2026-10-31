@@ -74,6 +74,7 @@ def _valid_japanese_shipping_recipient(recipient: dict) -> bool:
     phone = recipient.get("phone_number")
     if (not isinstance(address, dict) or address.get("country") != "JP"
             or not isinstance(name, str) or not 1 <= len(name.strip()) <= 255
+            or any(ord(ch) < 32 or ord(ch) == 127 for ch in name)
             or not isinstance(phone, str) or not 10 <= len(phone) <= 24
             or any(ord(ch) < 32 or ord(ch) == 127 for ch in phone)):
         return False
