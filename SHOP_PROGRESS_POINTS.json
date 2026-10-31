@@ -122,6 +122,14 @@
               "guard": "Module does not run automatically and current preview checkout stays disabled; the actual launch manifest returns 404, and approval digest is not configured.",
               "still_missing": "Owner-approved legal seller/returns terms displayed in actual checkout; trustworthy binding of the approved text to the digest; production-equivalent checkout/server quote E2E before real Square; physical iPhone testing.",
               "points_deducted": 0
+            },
+            "client_quote_name_size_safety_20261031": {
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41176303265",
+              "tested_code_commit": "f8fdb9aea5eade4a90e596994939ea533e6332ec",
+              "result": "SUCCESS",
+              "scope": "35 storefront SKU, product name, package size and tax-included retail price equal server 35-SKU pricebook; dormant client quote checker compares server status, approved terms digest, exact SKU/name/size/quantity/unit/line/total, additional shipping JPY 0. Negative Chromium and WebKit cases for wrong name/pack size, unapproved terms, stale quote, manipulated totals; Python offline safety and two Docker images succeeded.",
+              "limits": "Verification is synthetically mocked browser quote and static full catalog parity. No merchant-approved legal terms; quote API launch guard remains OFF. No real Square Production, iPhone hardware, card payment, delivery address, customer mail, or deployment.",
+              "point_change": 0
             }
           }
         },
