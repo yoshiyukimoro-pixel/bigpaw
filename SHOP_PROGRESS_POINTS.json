@@ -152,6 +152,20 @@
               "test_result": "SUCCESS: isolated fake provider, operator route auth/CSRF/default OFF, syntax validation, comprehensive Python tests, both Docker builds, Chromium and iPhone Safari/WebKit; no Square Production traffic",
               "acceptance_gap": "P04 remains pending: real customer's shipping address capture through actual Square checkout + provider shipment return and seller-approved shipping/returns/conditions have NOT been demonstrated, no production go-live. Zero points deducted.",
               "point_change": 0
+            },
+            "isolated_shipping_label_after_checkout_off_20261031": {
+              "scope": "NEW isolated BIG PAW App Staging -> staging -> bigpaw-square-sandbox-staging only; old Sandbox and production unchanged",
+              "feature": "Private operator-only display of Square buyer-designated Japanese shipping recipient, only after fresh paid/unrefunded Square Payments+Orders validation, valid JP prefecture/city/postal/name/phone and explicit operator CSRF. PII only in one response; no journal persistence, no customer mail or automatic shipment.",
+              "checkout_off": "New isolated service may independently allow operator order review after customer checkout OFF only if BIGPAW_SHOP_STAGE_OPERATOR_AFTER_STOP_ENABLED=1 and distinct strong operator credentials/flag valid. Legacy service still requires purchase preview gate. New service explicit operator-after-stop flag configured 0; operator credentials absent; not publicly accessible.",
+              "tested_commit": "f6bf3b4e520b289f7c5d80dcd5ca015dcb9e1153",
+              "full_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162040264",
+              "ci_result": "SUCCESS Python mocked loopback paid/unrefunded, operator auth/CSRF, PII-safe label with HTML escaping and no-store; checkout OFF still allows authorized operator-only read; both Docker builds and Chromium/WebKit tests passed",
+              "isolated_deployment": "17344f36-e22d-4406-a8f0-e7d0f71752e8",
+              "deployment_status": "SUCCESS, new isolated Railway service Online, 0 warnings. Legacy main and production unaffected.",
+              "public_boundary": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162391828",
+              "public_result": "SUCCESS: NEW staging /healthz 200 ready; /shop.html, /shop-test-orders.html and /api/shop/sandbox/operator/view-shipping-address all HTTP 404 without auth.",
+              "pending": "Operator credentials not yet provisioned; admin PII display remains intentionally disabled. Earlier real fake-paid Square Sandbox test Order lacked shipping recipient; full actual buyer shipping input-to-fulfillment E2E still unverified. P04 4 points remain pending.",
+              "points_changed": 0
             }
           }
         },
