@@ -24,3 +24,11 @@
 3. 事業者の正式な返品/送料/配送時期が確定した後に、最終確認画面の表示と支払画面の内容を一致させる。本番Square・購入者への送信・実商品の出荷は別途正式承認が必要。
 
 P04は**4ポイント未完了のまま**。今回の検査結果を根拠なく「発送可能」に変えない。
+
+## 追加開発：運営者ごとの再確認ボタン（2026-10-31、未公開）
+
+- 新しいURL `POST /api/shop/sandbox/operator/check-current-shipping` は既存の `bigpaw-test` 専用運営認証、HTTPS Origin・SameSite/HttpOnly CookieとCSRF、明示的な「読み取りだけ」確認チェックを要求。公開側や購入者の認証では実行不可。
+- Square Sandboxの `Payments` と `Orders` を注文台帳にひも付けて**毎回再取得**し、現時点のCOMPLETED・JPY金額・店舗・未返金と、日本国内への `SHIPMENT` 配送先（氏名/電話番号/郵便番号/住所）の適合を区別する。
+- 「配送先の必須項目を確認しました（Sandbox）」「配送先情報が不足しています・発送禁止」「Squareの最新情報を確認できません」の3種類のみ表示。宛名/電話/住所はレスポンス、ログ、SQLiteに保存・表示しない。確認不能時は発送禁止。
+- 既存の `shop-test-orders.html` の入金済み注文ごとに「配送先が揃っているか確認する（Sandbox）」ボタンを用意。**ステージング管理画面の開発ブランチ上の実装で、まだユーザーに公開されていない**。実際の出荷登録では再度Square情報を確認するため、この画面の結果は発送の最終許可ではない。
+- ローカルHTTPの結合テスト（全外部通信はモック）で、運営未認証、CSRF・Origin不一致、配送先不備、正しいJP配送先、返金済み状態、個人情報非表示、SQLite非更新を確認。GitHub総合CIがSUCCESS後に回帰保証となる。Square公式の `ask_for_shipping_address=true` は通常の決済画面で配送情報を取得できる設計（公式：https://developer.squareup.com/docs/checkout-api/optional-checkout-configurations）だが、Square Sandbox Testing Panelが実入力を再現するという意味ではない。
