@@ -33,9 +33,16 @@ class ReturnsDraftTests(unittest.TestCase):
         )
         for case, value in DATA["policies"].items():
             with self.subTest(case=case):
-                self.assertIs(value["approved"], False)
-                self.assertTrue(value["proposed"].strip())
-                self.assertTrue(value["decision_needed"].strip())
+                if case == "customer_change_of_mind":
+                    self.assertIs(value["approved"], True)
+                    self.assertIn("未開封・未使用", value["policy_ja"])
+                    self.assertIn("不良", value["exceptions_ja"])
+                    self.assertIn("誤配送", value["exceptions_ja"])
+                    self.assertFalse(DATA["accepted_by_proprietor"])
+                else:
+                    self.assertIs(value["approved"], False)
+                    self.assertTrue(value["proposed"].strip())
+                    self.assertTrue(value["decision_needed"].strip())
         self.assertIn("https://www.no-trouble.caa.go.jp/what/mailorder/",
                       DATA["references"])
 
@@ -43,7 +50,7 @@ class ReturnsDraftTests(unittest.TestCase):
         for text in ("返品・キャンセル対応案（未承認）",
                      "正式な返品特約ではありません",
                      "特定商取引法",
-                     "返送料は購入者負担",
+                     "未開封・未使用の場合も含めてお受けしておりません",
                      "クーリング・オフ制度はありません",
                      "法令上の購入者の権利"):
             self.assertIn(text, PAGE)
