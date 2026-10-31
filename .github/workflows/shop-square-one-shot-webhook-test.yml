@@ -1,0 +1,27 @@
+name: BIG PAW isolated Square Sandbox one-shot webhook test
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-square-one-shot-webhook-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  exactly-one-square-test-event:
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && contains(github.event.head_commit.message, '[square-one-shot-test-opt-in]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify no wrong destination, subscription mutation, retries, or production calls
+        run: PYTHONPATH=. python3 scripts/test-shop-square-one-shot-webhook-test.py
+      - name: Send one Square-issued fake event to the NEW DISABLED Sandbox subscriber only
+        env:
+          GITHUB_ACTIONS: 'true'
+          BIGPAW_SQUARE_ONE_SHOT_DISABLED_TEST_OPT_IN: '1'
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+        run: PYTHONPATH=. python3 scripts/shop-square-one-shot-webhook-test.py

@@ -1,0 +1,21 @@
+name: BIG PAW new isolated Sandbox checkout mock safety
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-new-preview-offline.yml'
+      - 'scripts/test-shop-new-staging-preview-stop.py'
+      - 'scripts/test-shop-isolated-preview-credential-setup.py'
+permissions:
+  contents: read
+jobs:
+  no-external-network:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: New isolated preview, purchase OFF, signed payment verification and credentials offline
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-new-staging-preview-stop.py
+          PYTHONPATH=. python3 scripts/test-shop-isolated-preview-credential-setup.py

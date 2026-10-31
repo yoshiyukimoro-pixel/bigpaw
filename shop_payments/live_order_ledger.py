@@ -1,0 +1,513 @@
+"""Isolated future LIVE checkout order ledger. NOT connected to BIG PAW routes.
+
+Trust boundary: only an authenticated server may call register_checkout after it
+itself generated the cart, price and Square checkout IDs. Never pass a browser
+payload directly to this object. This module creates NO payment links, sends NO
+mail, and does NOT use a live Square key on its own.
+
+Keep an immutable, PII-free checkout snapshot before accepting a paid event.
+A webhook payment ID is only a hint: independent Square production GETs must
+confirm the exact order/location/JPY amount and shipment before marking paid.
+SQLite commits are idempotent and fail closed on conflicts or unknown outcomes.
+"""
+from __future__ import annotations
+
+from contextlib import closing
+import json
+from pathlib import Path
+import re
+import sqlite3
+import time
+
+_ORDER = re.compile(r"^FOOD[0-9a-f]{32}$")
+_SQUARE_ID = re.compile(r"^[A-Za-z0-9_-]{8,192}$")
+_MAX_TOTAL = 2_000_000
+
+
+class LiveOrderBlocked(ValueError):
+    """Never interpret this as permission to retry or create a new charge."""
+
+
+def _valid_id(value):
+    return isinstance(value, str) and _SQUARE_ID.fullmatch(value) is not None
+
+
+class LiveOrderLedger:
+    def __init__(self, db_file: str | Path):
+        self.db_file = str(db_file)
+
+    def _open(self):
+        conn = sqlite3.connect(self.db_file, timeout=10, isolation_level=None)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA busy_timeout=10000")
+        return conn
+
+    @staticmethod
+    def _install(db):
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS food_live_order_ledger (
+                order_id TEXT PRIMARY KEY,
+                square_order_id TEXT NOT NULL UNIQUE,
+                square_location_id TEXT NOT NULL,
+                cart_snapshot TEXT NOT NULL,
+                amount_yen INTEGER NOT NULL CHECK(amount_yen > 0),
+                state TEXT NOT NULL CHECK(state IN ('checkout_recorded','paid_verified')),
+                payment_id TEXT UNIQUE,
+                created_at INTEGER NOT NULL,
+                paid_at INTEGER
+            )
+        """)
+        LiveOrderLedger._install_operator_audit(db)
+
+    @staticmethod
+    def _install_operator_audit(db):
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS food_live_operator_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                action TEXT NOT NULL CHECK(action IN ('payment_reconciled')),
+                outcome TEXT NOT NULL CHECK(outcome IN (
+                    'newly_paid','already_paid','verification_failed')),
+                created_at INTEGER NOT NULL
+            )
+        """)
+
+    @staticmethod
+    def _snapshot(cart):
+        # The server's approved retail pricebook is the *only* price source.
+        from .retail_catalog import load_sale_catalog
+        catalog = load_sale_catalog()
+        if not isinstance(cart, dict) or not 1 <= len(cart) <= 35:
+            raise LiveOrderBlocked("Invalid trusted checkout cart")
+        lines = []
+        total = 0
+        count = 0
+        for sku, qty in sorted(cart.items()):
+            if (not isinstance(sku, str) or sku not in catalog
+                    or type(qty) is not int or not 1 <= qty <= 10):
+                raise LiveOrderBlocked("Unrecognized SKU or quantity")
+            count += qty
+            if count > 50:
+                raise LiveOrderBlocked("Item limit exceeded")
+            unit = catalog[sku].sale_price_yen
+            if type(unit) is not int or unit <= 0:
+                raise LiveOrderBlocked("Invalid approved unit price")
+            total += unit * qty
+            # Preserve display details at checkout time. Product names and
+            # today's pricebook may change before the customer is notified.
+            lines.append({"sku": sku, "qty": qty, "unit_yen": unit,
+                          "name": catalog[sku].name, "size": catalog[sku].size})
+        if total < 1 or total > _MAX_TOTAL:
+            raise LiveOrderBlocked("Checkout total outside safety limit")
+        return json.dumps(lines, sort_keys=True, separators=(",", ":")), total
+
+    def register_checkout(self, *, order_id, square_order_id, location_id, cart):
+        """Call only from trusted LIVE server immediately after Square link creation.
+
+        Identical retry is safe; any changed ID, price or cart is rejected.
+        Does not receive an email/address/name or perform a Square request.
+        """
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid server-generated order ID")
+        if not _valid_id(square_order_id) or not _valid_id(location_id):
+            raise LiveOrderBlocked("Invalid Square checkout references")
+        cart_json, amount = self._snapshot(cart)
+        with closing(self._open()) as db:
+            self._install(db)
+            try:
+                db.execute("BEGIN IMMEDIATE")
+                old = db.execute(
+                    "SELECT square_order_id,square_location_id,cart_snapshot,amount_yen,state "
+                    "FROM food_live_order_ledger WHERE order_id=?", (order_id,)
+                ).fetchone()
+                expected = (square_order_id, location_id, cart_json, amount)
+                if old is not None:
+                    if old["state"] == "paid_verified":
+                        raise LiveOrderBlocked("A paid checkout cannot be started again")
+                    actual = tuple(old[k] for k in (
+                        "square_order_id", "square_location_id", "cart_snapshot",
+                        "amount_yen"))
+                    if actual != expected:
+                        raise LiveOrderBlocked("Checkout identity or amount changed")
+                    inserted = False
+                else:
+                    db.execute(
+                        "INSERT INTO food_live_order_ledger "
+                        "(order_id,square_order_id,square_location_id,cart_snapshot,"
+                        "amount_yen,state,created_at) "
+                        "VALUES (?,?,?,?,?,'checkout_recorded',?)",
+                        (order_id, square_order_id, location_id, cart_json,
+                         amount, int(time.time())),
+                    )
+                    inserted = True
+                db.execute("COMMIT")
+            except sqlite3.IntegrityError:
+                if db.in_transaction:
+                    db.execute("ROLLBACK")
+                raise LiveOrderBlocked("Square order already registered") from None
+            except Exception:
+                if db.in_transaction:
+                    db.execute("ROLLBACK")
+                raise
+        return {"order_id": order_id, "amount_yen": amount,
+                "new_record": inserted}
+
+    def status(self, order_id):
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid order reference")
+        with closing(self._open()) as db:
+            try:
+                row = db.execute(
+                    "SELECT state,amount_yen FROM food_live_order_ledger "
+                    "WHERE order_id=?", (order_id,)
+                ).fetchone()
+            except sqlite3.OperationalError as exc:
+                if "no such table" in str(exc):
+                    return {"state": "not_found"}
+                raise
+        return dict(row) if row else {"state": "not_found"}
+
+    def order_id_for_square_order(self, square_order_id, location_id):
+        """Resolve a Square event against a *pre-existing* private checkout.
+
+        No browser-provided local order ID, amount, or customer PII is trusted.
+        This is an internal lookup only; it is not an HTTP endpoint.
+        """
+        if not _valid_id(square_order_id) or not _valid_id(location_id):
+            raise LiveOrderBlocked("Invalid Square event reference")
+        with closing(self._open()) as db:
+            if db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_order_ledger'"
+            ).fetchone() is None:
+                raise LiveOrderBlocked("No trusted Square checkout journal")
+            row = db.execute(
+                "SELECT order_id FROM food_live_order_ledger "
+                "WHERE square_order_id=? AND square_location_id=?",
+                (square_order_id, location_id),
+            ).fetchone()
+        if row is None:
+            raise LiveOrderBlocked("Square order not registered in live journal")
+        return row["order_id"]
+
+    def checkout_payment_match(self, order_id):
+        """Return only immutable total and state of an existing trusted checkout.
+
+        Event intake compares this private amount with the signed Square event.
+        It NEVER accepts a total provided by a caller's request body.
+        """
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid local checkout reference")
+        with closing(self._open()) as db:
+            if db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_order_ledger'"
+            ).fetchone() is None:
+                raise LiveOrderBlocked("No trusted checkout journal")
+            row = db.execute(
+                "SELECT amount_yen,state FROM food_live_order_ledger "
+                "WHERE order_id=?", (order_id,)
+            ).fetchone()
+        if (row is None or row["state"] not in ("checkout_recorded", "paid_verified")
+                or type(row["amount_yen"]) is not int
+                or not 1 <= row["amount_yen"] <= _MAX_TOTAL):
+            raise LiveOrderBlocked("No valid trusted checkout")
+        return {"amount_yen": row["amount_yen"], "state": row["state"]}
+
+    @staticmethod
+    def _install_signed_events(db):
+        """No webhook JSON, shipping addresses or recipient details stored."""
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS food_live_signed_payment_events (
+                event_id TEXT PRIMARY KEY,
+                body_sha256 TEXT NOT NULL,
+                order_id TEXT NOT NULL,
+                payment_id TEXT NOT NULL,
+                verified_at INTEGER NOT NULL
+            )
+        """)
+
+    @staticmethod
+    def _check_event_params(event_id, fingerprint):
+        if not isinstance(event_id, str) or not _SQUARE_ID.fullmatch(event_id):
+            raise LiveOrderBlocked("Invalid Square event id")
+        if not isinstance(fingerprint, str) or not re.fullmatch(
+                r"[0-9a-f]{64}", fingerprint):
+            raise LiveOrderBlocked("Invalid signed event digest")
+
+    def assert_signed_event_identity(self, *, event_id, fingerprint):
+        """Reject reuse of an event ID with different signed raw content.
+
+        An identical replay still MUST run fresh Square Payments/Orders GET.
+        This check cannot by itself indicate a current unrefunded payment.
+        """
+        self._check_event_params(event_id, fingerprint)
+        with closing(self._open()) as db:
+            self._install_signed_events(db)
+            previous = db.execute(
+                "SELECT body_sha256 FROM food_live_signed_payment_events "
+                "WHERE event_id=?", (event_id,),
+            ).fetchone()
+        if previous is not None and previous["body_sha256"] != fingerprint:
+            raise LiveOrderBlocked("Square event ID reused with conflicting content")
+
+    def record_signed_payment_event(self, *, event_id, fingerprint,
+                                    order_id, payment_id):
+        """Durably record an event ONLY after a fresh, verified paid result.
+
+        An independent Square GET must already have succeeded. Inserts are
+        idempotent across concurrent arrivals. This is not proof of the
+        payment's CURRENT status at a later time.
+        """
+        self._check_event_params(event_id, fingerprint)
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid event checkout reference")
+        if not _valid_id(payment_id):
+            raise LiveOrderBlocked("Invalid event payment reference")
+        with closing(self._open()) as db:
+            try:
+                db.execute("BEGIN IMMEDIATE")
+                self._install_signed_events(db)
+                row = db.execute(
+                    "SELECT payment_id,state FROM food_live_order_ledger "
+                    "WHERE order_id=?", (order_id,),
+                ).fetchone()
+                if (row is None or row["state"] != "paid_verified"
+                        or row["payment_id"] != payment_id):
+                    raise LiveOrderBlocked("No verified paid order for signed event")
+                old = db.execute(
+                    "SELECT body_sha256,order_id,payment_id "
+                    "FROM food_live_signed_payment_events WHERE event_id=?",
+                    (event_id,),
+                ).fetchone()
+                if old is not None:
+                    if (old["body_sha256"], old["order_id"],
+                            old["payment_id"]) != (
+                                fingerprint, order_id, payment_id):
+                        raise LiveOrderBlocked("Conflicting signed Square event")
+                    created = False
+                else:
+                    db.execute(
+                        "INSERT INTO food_live_signed_payment_events "
+                        "(event_id,body_sha256,order_id,payment_id,verified_at) "
+                        "VALUES (?,?,?,?,?)",
+                        (event_id, fingerprint, order_id, payment_id,
+                         int(time.time())),
+                    )
+                    created = True
+                db.execute("COMMIT")
+            except Exception:
+                if db.in_transaction:
+                    db.execute("ROLLBACK")
+                raise
+        return {"recorded_new_event": created}
+
+    def paid_notice_snapshot(self, order_id):
+        """Internal-only paid-order snapshot for a later *review*, not sending.
+
+        Returns only registered, immutable SKU lines and Square identifiers.
+        The caller must re-check fresh Square Payments AND Orders before
+        preparing a customer notice. No recipient, PII or credentials in DB.
+        This method is never exposed as an authenticated/public HTTP route.
+        """
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid order reference")
+        with closing(self._open()) as db:
+            exists = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_order_ledger'"
+            ).fetchone()
+            if not exists:
+                raise LiveOrderBlocked("No trusted paid order")
+            row = db.execute(
+                "SELECT * FROM food_live_order_ledger WHERE order_id=?",
+                (order_id,)
+            ).fetchone()
+        if (row is None or row["state"] != "paid_verified"
+                or not _valid_id(row["payment_id"])
+                or not _valid_id(row["square_order_id"])
+                or not _valid_id(row["square_location_id"])):
+            raise LiveOrderBlocked("Verified paid order required")
+        try:
+            lines = json.loads(row["cart_snapshot"])
+            if not isinstance(lines, list) or not 1 <= len(lines) <= 35:
+                raise ValueError()
+            amount = 0
+            seen = set()
+            for line in lines:
+                if not isinstance(line, dict) or set(line) != {
+                        "sku", "qty", "unit_yen", "name", "size"}:
+                    raise ValueError()
+                sku, qty, unit = line["sku"], line["qty"], line["unit_yen"]
+                if (not isinstance(sku, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,60}", sku)
+                        or sku in seen or type(qty) is not int or not 1 <= qty <= 10
+                        or type(unit) is not int or not 1 <= unit <= _MAX_TOTAL
+                        or not isinstance(line["name"], str)
+                        or not 1 <= len(line["name"]) <= 200
+                        or not isinstance(line["size"], str)
+                        or not 1 <= len(line["size"]) <= 60
+                        or any(x in line["name"] + line["size"] for x in ("\r", "\n"))):
+                    raise ValueError()
+                seen.add(sku)
+                amount += qty * unit
+            if amount != row["amount_yen"] or amount > _MAX_TOTAL:
+                raise ValueError()
+        except (TypeError, ValueError, KeyError):
+            raise LiveOrderBlocked("Paid-order snapshot integrity failure") from None
+        return {
+            "order_id": order_id,
+            "square_order_id": row["square_order_id"],
+            "location_id": row["square_location_id"],
+            "payment_id": row["payment_id"],
+            "amount_yen": amount,
+            "lines": lines,
+        }
+
+    def reconcile_payment(self, *, order_id, payment_id, api_key, opener=None,
+                          verifier=None, audit_actor_id=None):
+        """Verify with Square GET before a durable, once-only paid transition.
+
+        A future authenticated webhook/controller supplies payment_id, but the
+        stored order, location and price always come from this private journal.
+        The verifier is called OUTSIDE the SQLite write transaction. Neither
+        the fresh recipient nor any payment token is stored or returned.
+        """
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid order reference")
+        if not _valid_id(payment_id):
+            raise LiveOrderBlocked("Invalid Square payment reference")
+        if not isinstance(api_key, str) or not api_key.strip():
+            raise LiveOrderBlocked("Missing live Square credential")
+        if audit_actor_id is not None and (
+                not isinstance(audit_actor_id, str)
+                or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", audit_actor_id)):
+            raise LiveOrderBlocked("Invalid operator identity")
+        with closing(self._open()) as db:
+            exists = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_order_ledger'"
+            ).fetchone()
+            if not exists:
+                raise LiveOrderBlocked("No trusted checkout snapshot")
+            row = db.execute(
+                "SELECT * FROM food_live_order_ledger WHERE order_id=?",
+                (order_id,)
+            ).fetchone()
+        if row is None:
+            raise LiveOrderBlocked("No trusted checkout snapshot")
+        if row["state"] == "paid_verified":
+            if row["payment_id"] != payment_id:
+                raise LiveOrderBlocked("Different payment for a paid order")
+            # An old paid row is NOT evidence of the current Square state:
+            # the same payment may have since been refunded/reversed.
+            # Always re-fetch Payments AND Orders even for a replay.
+        elif row["state"] != "checkout_recorded":
+            raise LiveOrderBlocked("Unrecognized order state")
+
+        if verifier is None:
+            from .square_live_readonly import verify_paid_live_shipment
+            verifier = verify_paid_live_shipment
+        args = dict(payment_id=payment_id, square_order_id=row["square_order_id"],
+                    location_id=row["square_location_id"],
+                    amount_yen=row["amount_yen"], api_key=api_key)
+        if opener is not None:
+            args["opener"] = opener
+        # Fail closed. Never mark paid if the independent production GET fails.
+        evidence = verifier(**args)
+        if (not isinstance(evidence, dict)
+                or evidence.get("live_square_verified") is not True
+                or any(evidence.get(key) != expected for key, expected in (
+                    ("payment_id", payment_id),
+                    ("square_order_id", row["square_order_id"]),
+                    ("location_id", row["square_location_id"]),
+                    ("amount_yen", row["amount_yen"])))):
+            raise LiveOrderBlocked("Independent Square payment evidence mismatch")
+
+        with closing(self._open()) as db:
+            try:
+                db.execute("BEGIN IMMEDIATE")
+                current = db.execute(
+                    "SELECT * FROM food_live_order_ledger WHERE order_id=?",
+                    (order_id,)
+                ).fetchone()
+                if current is None or any(current[k] != row[k] for k in (
+                        "square_order_id", "square_location_id", "cart_snapshot",
+                        "amount_yen")):
+                    raise LiveOrderBlocked("Trusted checkout changed during verification")
+                if current["state"] == "paid_verified":
+                    if current["payment_id"] != payment_id:
+                        raise LiveOrderBlocked("Conflicting verified payment")
+                    new = False
+                elif current["state"] == "checkout_recorded":
+                    db.execute(
+                        "UPDATE food_live_order_ledger SET state='paid_verified',"
+                        "payment_id=?,paid_at=? WHERE order_id=? AND "
+                        "state='checkout_recorded'",
+                        (payment_id, int(time.time()), order_id),
+                    )
+                    new = True
+                else:
+                    raise LiveOrderBlocked("Invalid payment transition")
+                if audit_actor_id is not None:
+                    self._install_operator_audit(db)
+                    db.execute(
+                        "INSERT INTO food_live_operator_audit "
+                        "(order_id,actor_id,action,outcome,created_at) "
+                        "VALUES(?,?,'payment_reconciled',?,?)",
+                        (order_id, audit_actor_id,
+                         "newly_paid" if new else "already_paid", int(time.time())),
+                    )
+                db.execute("COMMIT")
+            except sqlite3.IntegrityError:
+                if db.in_transaction:
+                    db.execute("ROLLBACK")
+                raise LiveOrderBlocked("Payment already belongs to another order") from None
+            except Exception:
+                if db.in_transaction:
+                    db.execute("ROLLBACK")
+                raise
+        return {"state": "paid_verified", "new_transition": new}
+
+    def operator_audit_events(self, *, limit=100):
+        """Return bounded, PII-free operator reconciliation audit events."""
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise LiveOrderBlocked("Invalid audit limit")
+        path = Path(self.db_file)
+        if not path.is_file():
+            return []
+        from urllib.parse import quote
+        uri = "file:" + quote(str(path.resolve())) + "?mode=ro"
+        with closing(sqlite3.connect(uri, timeout=5, uri=True)) as db:
+            db.row_factory = sqlite3.Row
+            db.execute("PRAGMA query_only=ON")
+            exists = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='food_live_operator_audit'"
+            ).fetchone()
+            if not exists:
+                return []
+            rows = db.execute(
+                "SELECT order_id,actor_id,action,outcome,created_at "
+                "FROM food_live_operator_audit ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def record_operator_reconciliation_failure(self, *, order_id, actor_id):
+        """Record a failed authorized attempt without its payment reference."""
+        if not isinstance(order_id, str) or not _ORDER.fullmatch(order_id):
+            raise LiveOrderBlocked("Invalid order reference")
+        if (not isinstance(actor_id, str)
+                or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", actor_id)):
+            raise LiveOrderBlocked("Invalid operator identity")
+        if not Path(self.db_file).is_file():
+            raise LiveOrderBlocked("No private order journal")
+        with closing(self._open()) as db:
+            self._install_operator_audit(db)
+            db.execute(
+                "INSERT INTO food_live_operator_audit "
+                "(order_id,actor_id,action,outcome,created_at) "
+                "VALUES(?,?,'payment_reconciled','verification_failed',?)",
+                (order_id, actor_id, int(time.time())),
+            )

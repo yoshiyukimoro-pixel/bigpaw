@@ -1,0 +1,25 @@
+name: BIG PAW Square Sandbox disabled webhook key READ ONLY
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-square-webhook-key-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-sandbox-webhook-key:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test synthetic Square subscription retrieval, HMAC and fail-closed cases
+        run: PYTHONPATH=. python3 scripts/test-shop-square-webhook-key-readonly.py
+      - name: GET newly registered disabled Square Sandbox subscription, never reveal secret
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+        run: PYTHONPATH=. python3 scripts/audit-shop-square-webhook-key-readonly.py

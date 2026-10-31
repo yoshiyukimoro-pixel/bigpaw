@@ -1,0 +1,31 @@
+name: BIG PAW future live operator address view offline gate
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-live-shipping-address-offline.yml'
+      - 'shop_payments/live_shipping_address_view.py'
+      - 'shop_payments/live_operator_reconciliation.py'
+      - 'app/operator-shop-orders.html'
+      - 'scripts/test-shop-live-shipping-address-view.py'
+      - 'scripts/test-shop-live-shipping-operator-route.py'
+permissions:
+  contents: read
+jobs:
+  private-dormant-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile private, disabled-by-default production address files
+        run: |
+          python3 -m py_compile shop_payments/live_shipping_address_view.py shop_payments/live_operator_reconciliation.py
+      - name: Live Square GET-only fake-provider and validation tests
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-live-shipping-address-view.py
+          PYTHONPATH=. python3 scripts/test-shop-live-shipping-operator-route.py
+      - name: Parse operator page JS without browser or external API
+        run: |
+          node --check scripts/test-shop-operator-orders-page.cjs
+          node -e "const fs=require('fs');const vm=require('vm');const s=fs.readFileSync('app/operator-shop-orders.html','utf8');const m=s.match(/<script>([\\s\\S]*?)<\\/script>/);if(!m)throw Error('script not found');new vm.Script(m[1]);"

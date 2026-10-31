@@ -1,0 +1,28 @@
+name: BIG PAW Square uncertain fake refund GET-only audit
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-square-refund-readonly-audit.yml'
+      - 'scripts/test-shop-sandbox-refund-readonly.py'
+      - 'scripts/audit-shop-sandbox-refund-readonly.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readonly-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify audit cannot POST and only prints aggregate statuses
+        run: PYTHONPATH=. python3 scripts/test-shop-sandbox-refund-readonly.py
+      - name: GET recent Square Sandbox refunds ONLY, never retry prior refund
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/audit-shop-sandbox-refund-readonly.py

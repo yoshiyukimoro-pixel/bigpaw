@@ -1,0 +1,3 @@
+# Controlled isolated preview HTTPS quote-only audit
+
+This one-time test may use the newly deployed, temporarily password-gated NEW Square Sandbox-only webhook service to verify no anonymous access, authenticated `GET /shop.html`/`GET /api/shop/sandbox/config`, JPY 21450 one-SKU server quote, CSRF enforcement and price-tampering rejection. Only previously provisioned staging Railway Project Token and preview credentials are read in private GitHub Actions memory. Absolutely no valid checkout creation request, Square charge, email, or subscription mutation. After verification, explicitly restore `BIGPAW_SHOP_STAGE_PREVIEW_ENABLED=0` and re-deploy the SAME service build. No production/service changes.

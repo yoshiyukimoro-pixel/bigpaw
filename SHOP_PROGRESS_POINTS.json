@@ -1,0 +1,983 @@
+{
+  "schema_version": 1,
+  "updated_at_jst": "2026-10-31",
+  "purpose": "BIG PAW food shop remaining-work counter, baseline normalized to 100 on 2026-10-30",
+  "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
+  "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
+  "baseline_remaining": 100,
+  "remaining_points": 38,
+  "completed_points_since_baseline": 62,
+  "groups": [
+    {
+      "key": "purchase",
+      "label": "購入画面・Square本番接続",
+      "weight": 22,
+      "tasks": [
+        {
+          "id": "P01",
+          "weight": 4,
+          "title": "購入APIを本番サイトの認証・公開禁止ガードへ安全に配線",
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41051639761",
+            "tested_commit": "99a4beedd3357c2867f44137176614e8b6386dd6",
+            "scope": "Draft development branch: app/backend/server.py contains dormant /api/shop/checkout and /api/shop/checkout/config routes with buyer session, strict HTTPS Origin/Host, session HMAC CSRF, bounded request and rate limit. Live checkout controller is gated by all unchecked merchant approvals. Production Docker image builds with imported bridge; synthetic Square integration/denial tests, Chromium and WebKit checks succeed. No public production deployment or real payment.",
+            "limits": "P02 Square production credentials, P03 final disclosure approval, P04 production-equivalent payment/ship tests, R02 final E2E and R05 public deployment remain pending. API cannot be used while launch manifest is unapproved."
+          }
+        },
+        {
+          "id": "P02",
+          "weight": 4,
+          "title": "Square本番設定と接続先・権限を検証（実決済開始はしない）",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": {
+            "verified_at": "2026-10-31",
+            "scope": "Read-only Railway production variable-name inventory for BIG PAW/bigpaw-live, BigPaw/bigpaw-site, and both production bigpaw-web services. Values were redacted; no secret values were requested or printed. No Square API call, payment, or deployment.",
+            "missing_required_names": [
+              "BIGPAW_SQUARE_LIVE_ACCESS_TOKEN",
+              "BIGPAW_SQUARE_LIVE_LOCATION_ID",
+              "BIGPAW_SHOP_ORDER_HMAC_SECRET",
+              "BIGPAW_SHOP_APPROVED_TERMS_SHA256",
+              "BIGPAW_SHOP_OWNER_LAUNCH_APPROVED",
+              "BIGPAW_SHOP_PUBLIC_LIVE_ENABLED"
+            ],
+            "missing_webhook_names": [
+              "BIGPAW_SHOP_SQUARE_LIVE_WEBHOOK_ENABLED",
+              "BIGPAW_SQUARE_LIVE_WEBHOOK_URL",
+              "BIGPAW_SQUARE_LIVE_WEBHOOK_SIGNATURE_KEY"
+            ],
+            "result": "blocked_pending_owner_configuration; production location access and OAuth permissions not verified; no point deduction",
+            "latest_variable_names_20261031": {
+              "result": "Railway connected read-only production name inventory; RESEND_API_KEY exists by name on BIG PAW/bigpaw-live and BigPaw/bigpaw-site. No BIGPAW_SQUARE_LIVE_ACCESS_TOKEN, BIGPAW_SQUARE_LIVE_LOCATION_ID, shop live approval, HMAC or live webhook variable names on those two production web services.",
+              "values_redacted": true,
+              "permissions_not_verified": true,
+              "point_change": 0
+            }
+          }
+        },
+        {
+          "id": "P03",
+          "weight": 4,
+          "title": "注文確定画面の販売条件とサーバー金額を完全一致させる",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": {
+            "reviewed_at": "2026-10-31",
+            "scope": "Source review only. Public preview explicitly says sales are not open and returns/cancellation terms remain unapproved. Live controller requires approved terms digest and owner launch gate, and derives the charge from server-side SKU/quantity pricebook rather than browser totals.",
+            "result": "pending_final_seller_terms_and_end_to_end_price_match; no point deduction",
+            "isolated_real_https_quote": {
+              "outcome": "A02 price JPY 21450 incl tax; shipping 0; server price authority and rejection of tampered client price proven in one authenticated isolated HTTPS quote",
+              "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152234708",
+              "result": "SUCCESS, no checkout started or payment link created",
+              "remaining": "Formal seller-approved returns/shipping/consumer terms and final checkout confirmation page terms digest unapproved; P03 remains pending."
+            },
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Must bind approved terms digest and exact server-priced cart at final checkout",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
+            },
+            "server_authoritative_readonly_quote_20261031": {
+              "tested_branch": "feature/dogfood-shop-staging-20261028",
+              "tested_commit": "fa8f51ca2eb4f0be9b5ba75e28600593397b6861",
+              "github_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41165540280",
+              "result": "SUCCESS: 35 SKU server-side pricebook quote; JPY tax-included totals, additional shipping=0, mixed cart, stale seller terms rejection, unauthorized/CSRF/Origin/tamper rejection. Python tests, 2 Docker builds and Chromium/WebKit tests passed.",
+              "source": "POST /api/shop/checkout/quote in app/backend/shop_live_checkout_bridge.py and app/backend/server.py, scripts/test-shop-live-quote.py",
+              "protections": "Actual merchant launch manifest remains off, so endpoint returns 404 in current deployment. Does not create Square link, payment, order, SQLite, email, fulfillment, or refund.",
+              "still_missing": "Actual future checkout page must compare this server quote against displayed amount and enforce approved final seller terms/receipt before Square. Merchant policy confirmation and production-equivalent E2E remain unverified.",
+              "point_change": 0
+            },
+            "preview_cart_integrity_ci_20261031": {
+              "date": "2026-10-31",
+              "code_commit": "92d2af836d0c20a64a30ce624e544c6d0eaf4271",
+              "actions_run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41175402368",
+              "result": "SUCCESS: offline Python safety; both Docker builds; Chromium and iPhone Safari/WebKit equivalent browser regressions.",
+              "scope": "Preview-only review page now fails closed on unknown/invalid SKU or quantity; a silent cart mutation after agreement forces reconfirmation. Browser test verifies invalid JSON and values, stale approval, price and shipping display. No payment/API POST.",
+              "remaining": "P03 still pending seller-approved terms and final browser-to-server authoritative quote match before actual Square checkout. No real iPhone purchase, live payment or production deployment.",
+              "point_change": 0
+            },
+            "browser_server_quote_client_20261031": {
+              "result": "SUCCESS",
+              "actions_run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41175976694",
+              "commit": "66af8e34f5eb39bfba7e8b66fb9fabe3a9767372",
+              "files": [
+                "app/shop-review-quote-check.js",
+                "app/shop.html",
+                "scripts/test-shop-review-quote-check.cjs",
+                "scripts/test-shop-staging.py"
+              ],
+              "scope": "Dormant browser quote client validates exact SKU, qty, displayed tax-inclusive line price and total, shipping 0, and caller-supplied merchant-approved terms digest against a read-only server quote. Chromium/WebKit tests mocked GET config and POST quote; invalid carts, stale terms and tampered Square-free quotes fail closed; no real Square, order, payment or delivery.",
+              "guard": "Module does not run automatically and current preview checkout stays disabled; the actual launch manifest returns 404, and approval digest is not configured.",
+              "still_missing": "Owner-approved legal seller/returns terms displayed in actual checkout; trustworthy binding of the approved text to the digest; production-equivalent checkout/server quote E2E before real Square; physical iPhone testing.",
+              "points_deducted": 0
+            },
+            "client_quote_name_size_safety_20261031": {
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41176303265",
+              "tested_code_commit": "f8fdb9aea5eade4a90e596994939ea533e6332ec",
+              "result": "SUCCESS",
+              "scope": "35 storefront SKU, product name, package size and tax-included retail price equal server 35-SKU pricebook; dormant client quote checker compares server status, approved terms digest, exact SKU/name/size/quantity/unit/line/total, additional shipping JPY 0. Negative Chromium and WebKit cases for wrong name/pack size, unapproved terms, stale quote, manipulated totals; Python offline safety and two Docker images succeeded.",
+              "limits": "Verification is synthetically mocked browser quote and static full catalog parity. No merchant-approved legal terms; quote API launch guard remains OFF. No real Square Production, iPhone hardware, card payment, delivery address, customer mail, or deployment.",
+              "point_change": 0
+            },
+            "midflight_cart_terms_revalidation_20261031": {
+              "result": "SUCCESS",
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41176604888",
+              "code_commit": "d596365ee5790b6dfb2e15ac9e7b25eea61c6ae0",
+              "scope": "Future-only read-only quote verifyCurrentReview rejects valid cart quantity/name changes, changed displayed terms digest, unchecked buyer confirmation, and invalid cart occurring while the authenticated price quote is in flight. 8 synthetic success/fail cases in Chromium and iPhone Safari/WebKit. Static check, Square safety unit suite and both Docker builds successful.",
+              "publication": "Draft PR #175 only; no real buyer checkout, Square payment, order creation, customer email or Railway deployment.",
+              "still_missing": "Formal seller-approved and actually displayed return/consumer terms, authentic binding to final order screen and production-equivalent purchase/fulfillment E2E. P03 remains pending.",
+              "points_deducted": 0
+            },
+            "actual_preview_dom_shared_quote_validator_20261031": {
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41176879636",
+              "tested_commit": "c39fe42caf4d5940804f4c52762c838fa0ba9eac",
+              "result": "SUCCESS",
+              "scope": "The real preview order review UI now uses BigPawShopQuote.snapshot (same validation module as future authenticated read-only server quote) to compare currently rendered product name, package size, unit/line prices, quantity, subtotal and total against session cart. Browser tests reject tampered customer-visible total and item title; original preview remains enabled only for nonpayment confirmation. Python unit safety, two Docker builds, Chromium and iPhone Safari/WebKit regressions all passed.",
+              "limitations": "This is a local nonpayment preview integrity binding, not actual approved seller terms nor actual authenticated server quote on the final commerce page. Real payment, customer shipping and owner legal terms approvals remain pending. No production release.",
+              "points_deducted": 0
+            }
+          }
+        },
+        {
+          "id": "P04",
+          "weight": 4,
+          "title": "Square本番相当のJPY決済・配送情報を端から端まで検証",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": {
+            "reviewed_at": "2026-10-31",
+            "railway_service": "BigPaw/bigpaw-test is live from Dockerfile.shop-staging with command shop_payments.staging_https_webhook and /healthz healthcheck; Sandbox variables are present by name only.",
+            "observed_blocker": "The shop preview path returns an HTTP Basic Auth challenge in the browser; credentials are not available to this read-only session. No Square API request or Sandbox payment was made.",
+            "workflow_observation": "GitHub Actions run 41119928985 deployed-test-browser failed because this webhook-only service returned 404 for /api/health. This shows the current regression target is not the full app service.",
+            "result": "pending_safe_full_app_sandbox_origin_and_owner-approved_environment; no point deduction",
+            "railway_inventory_at": "2026-10-31",
+            "inventory": "Read-only Railway review found BigPaw/bigpaw-test is the only Sandbox shop service and runs Dockerfile.shop-staging webhook-only with /healthz in its production environment. BigPaw/bigpaw-site deploys main and owns www.bigpaw.site; the separate bigpaw-web image has no domain. No isolated full-app Sandbox service or separate Railway nonproduction environment is available.",
+            "safety_decision": "Did not target public www.bigpaw.site or the production app for test payments/browser mutation. No service/config/variable/deployment was changed.",
+            "latest_real_sandbox_evidence": {
+              "hosted_checkout_actions_run": "41130318842 SUCCESS; Square official Sandbox Testing Panel only; fake JPY 21450 single item shipping 0",
+              "independent_confirmation": "Square Orders OPEN, one tender, Payments COMPLETED same order/location/amount; synthetic local signed event moved journal pending to paid",
+              "shipping_gap": "No actual shopper shipping-address entry / recipient details confirmed",
+              "webhook_gap": "No real Square-to-Railway signed HTTPS webhook delivered; new Sandbox receiver remains in 503 standby",
+              "decision": "partial evidence, P04 remains pending"
+            },
+            "real_sandbox_fake_paid_order": {
+              "date": "2026-10-31",
+              "isolated_service": "bigpaw-square-sandbox-staging in NEW BIG PAW App Staging / staging only; no prod/main changes",
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153434759",
+              "result": "SUCCESS. Private authenticated NEW staging preview created one durable Square Sandbox hosted Checkout link for A02 x1 JPY 21,450 incl tax, shipping JPY 0. Square official Sandbox Testing Panel completed fake payment. Independently re-read Square Checkout PaymentLink, Orders and Payments: COMPLETED, Square order and location exact match, JPY 21450, no refund. HMAC-signed hint with real new staging subscription key posted by test (NOT Square-delivered). NEW isolated SQLite order status changed payment_pending to paid. Same signed event id replayed once, HTTP 200 and idempotent. No real card charge or mail.",
+              "post_test_preview_off": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153735766",
+              "post_test_status": "SUCCESS: private preview OFF, /shop.html 404, /healthz ready, both isolated services Online, issues 0",
+              "must_not_claim": "Square-originated automatic payment webhook delivery NOT tested (disabled new subscriber). Shipping details NOT verified, no customer email/fulfillment/refund, no production E2E.",
+              "point_change": 0
+            },
+            "real_square_sandbox_shipping_readonly_20261031": {
+              "result": "SUCCESS API safety audit, but actual prior fake-paid Square Sandbox order shipping is INCOMPLETE_BLOCK_DISPATCH.",
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41155860279",
+              "inspected": "Previously paid A02 1x JPY 21450 Square Sandbox order. Square Orders GET only; new/old subscription reads only; no payment/refund/shipment/customer email or personal data logged.",
+              "external_provider_docs": "https://developer.squareup.com/docs/checkout-api/optional-checkout-configurations",
+              "interpretation": "The official Sandbox Testing Panel payment succeeded but the corresponding Order recipient did NOT contain a complete Japanese shipping destination. Checkout ask_for_shipping_address=true exists, but Square Sandbox Testing Panel simulation did not prove real buyer shipping capture. Provider's Preview Link cannot complete a payment.",
+              "operator_ui_fix": "shop_payments/staging_orders_dashboard.py always shows '入金済みと配送先確認済みは別です' in private Sandbox order admin view. Existing backend refuses shipped status unless it GET-verifies Square delivery recipient and currently nonrefunded paid status.",
+              "full_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41156026965",
+              "full_ci_result": "SUCCESS Python+Docker+Chromium+WebKit regression on development branch",
+              "gap": "P04 not completed: actual buyer shipping fields and customer fulfillment delivery/return end-to-end not verified. No owner-approved commercial shipping SLA/terms and no production checkout.",
+              "point_change": 0
+            },
+            "staging_operator_shipping_recheck_20261031": {
+              "commit": "943bc3369c66cdf387e2406a0c49e157f6547690",
+              "private_dashboard_commit": "ffe402a70d75c577bf3c77d9772ae7a997f5ad1e",
+              "test_commit": "a19a84f6ce7f74571b6fcff76080f9d925a7c763",
+              "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41157419053",
+              "ci_result": "SUCCESS: 2 Docker images build, offline authenticated loopback Square mocks, Chromium & Safari WebKit UI regressions",
+              "safety": "Per-order POST /api/shop/sandbox/operator/check-current-shipping; operator Basic credentials, exact legacy Sandbox service, HTTPS Origin+CSRF, explicit read-only confirmation. Requires fresh Square Payments/Orders match and no refund. Japanese recipient missing -> shipping blocked. Personal recipient/address/phone not written or returned. Does not trigger real shipping, merchant email, Square write, or consumer payment.",
+              "actual_square_shipping": "The earlier genuine hosted Square Sandbox test has incomplete shipping. This new path is offline-integrated only; has NOT made a true Square GET from authenticated operator UI or resolved that test recipient.",
+              "deployment": "Branch-only. No changes to existing bigpaw-test or main/live service.",
+              "point_change": 0
+            },
+            "operator_transient_delivery_label_20261031": {
+              "stage": "Feature branch only, not deployed to BIG PAW production or old sandbox",
+              "commit_family": [
+                "64d02ccecf9f0fb0e06944fd96cf0b7adb7530d0",
+                "df3764b58bdfbd84f8468527faf1da3a21bbf49f",
+                "653557a5d80e4fc0a8a2fe77718849443975bedf",
+                "997b7fa1fff622193eacdab46f944cbe7755f844"
+              ],
+              "latest_verified_head": "26e7af5a195ae70abc17292878d18beb8e299d58",
+              "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41160951509",
+              "result": "SUCCESS: offline Square mock integration Python tests, both Docker builds, Chromium and WebKit/Safari equivalent checks.",
+              "behavior": "Order-specific operator-only POST CSRF action retrieves in-memory recipient shipping name, phone, JP zip, prefecture, city, street and optional building/address lines from Square GET after independent current completed unrefunded Square Payment and matched Square Order. Separate auth credentials from shopper, exact staging host, explicit consent checkbox, HTML escaped PII, no-cache/no-store and no-referrer frame denial. No PII in order list, SQLite journal or logs. No shipping/real mail/charge/refund.",
+              "remaining": "Actual Square Sandbox paid test order has an incomplete recipient. Real ordinary checkout shipping-entry -> square order -> operator UI -> eventual shipping paperwork not verified end-to-end, P04 pending (4 points). Full production legal conditions and owner approval outstanding.",
+              "points_change": 0
+            },
+            "operator_delivery_label_private_preview_20261031": {
+              "date": "2026-10-31",
+              "scope": "Feature branch only, PR #175 draft/unmerged. No production checkout or production shipping API called. Both new isolated Railway services remain as before.",
+              "sandbox_private_view": "Per-paid-order CSRF-protected POST /api/shop/sandbox/operator/view-shipping-address in existing operator-only Sandbox. Always rechecks Square Payments/Orders; label only displayed with exact one valid JP recipient, name/phone/postal/prefecture/city/street; no PII in order list or SQLite. Refund or missing address refused.",
+              "sandbox_test": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41161519770",
+              "sandbox_test_result": "SUCCESS: compile, Square offline read-only validation, operator auth, CSRF/Origin, name HTML escaping, PII no-store and no DB-write tests.",
+              "dormant_production_backend": "shop_payments/live_shipping_address_view.py and live_operator_reconciliation.py, POST /api/operator/shop-orders/shipping-address. Requires production operator session, production reconciliation switch AND separate BIGPAW_SHOP_LIVE_ADDRESS_VIEW_ENABLED=1 (OFF by default), exact HTTPS Origin and CSRF. Uses immutable paid snapshot from private LiveOrderLedger, independent Square Production GET of Payments and Orders plus latest single JP destination. Never creates payment, refunds, shipment, supplier order, mail or DB PII.",
+              "dormant_production_ui": "app/operator-shop-orders.html button shown for paid-history entries; on explicit click fetches current verified recipient to DOM using textContent, no localStorage, automatically clears after 60 seconds; no shipping action.",
+              "integration_fast_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162046381",
+              "integration_full_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162012735",
+              "test_result": "SUCCESS: isolated fake provider, operator route auth/CSRF/default OFF, syntax validation, comprehensive Python tests, both Docker builds, Chromium and iPhone Safari/WebKit; no Square Production traffic",
+              "acceptance_gap": "P04 remains pending: real customer's shipping address capture through actual Square checkout + provider shipment return and seller-approved shipping/returns/conditions have NOT been demonstrated, no production go-live. Zero points deducted.",
+              "point_change": 0
+            },
+            "isolated_shipping_label_after_checkout_off_20261031": {
+              "scope": "NEW isolated BIG PAW App Staging -> staging -> bigpaw-square-sandbox-staging only; old Sandbox and production unchanged",
+              "feature": "Private operator-only display of Square buyer-designated Japanese shipping recipient, only after fresh paid/unrefunded Square Payments+Orders validation, valid JP prefecture/city/postal/name/phone and explicit operator CSRF. PII only in one response; no journal persistence, no customer mail or automatic shipment.",
+              "checkout_off": "New isolated service may independently allow operator order review after customer checkout OFF only if BIGPAW_SHOP_STAGE_OPERATOR_AFTER_STOP_ENABLED=1 and distinct strong operator credentials/flag valid. Legacy service still requires purchase preview gate. New service explicit operator-after-stop flag configured 0; operator credentials absent; not publicly accessible.",
+              "tested_commit": "f6bf3b4e520b289f7c5d80dcd5ca015dcb9e1153",
+              "full_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162040264",
+              "ci_result": "SUCCESS Python mocked loopback paid/unrefunded, operator auth/CSRF, PII-safe label with HTML escaping and no-store; checkout OFF still allows authorized operator-only read; both Docker builds and Chromium/WebKit tests passed",
+              "isolated_deployment": "17344f36-e22d-4406-a8f0-e7d0f71752e8",
+              "deployment_status": "SUCCESS, new isolated Railway service Online, 0 warnings. Legacy main and production unaffected.",
+              "public_boundary": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162391828",
+              "public_result": "SUCCESS: NEW staging /healthz 200 ready; /shop.html, /shop-test-orders.html and /api/shop/sandbox/operator/view-shipping-address all HTTP 404 without auth.",
+              "pending": "Operator credentials not yet provisioned; admin PII display remains intentionally disabled. Earlier real fake-paid Square Sandbox test Order lacked shipping recipient; full actual buyer shipping input-to-fulfillment E2E still unverified. P04 4 points remain pending.",
+              "points_changed": 0
+            },
+            "shipping_label_browser_privacy_20261031": {
+              "commit": "b3a8c1951957e2f3ad38b9b7bf0ffde9d402fe19",
+              "result": "SUCCESS",
+              "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162476351",
+              "scope": "Feature branch only. Operator delivery-label view now cancels stale 60-second expiry on manual hide/reveal, immediately purges visible recipient PII on pagehide or hidden tab and before list refresh, and rejects delayed responses after page navigation or list removal.",
+              "tests": "Automated Chromium and WebKit/iPhone-equivalent tests, Python Square safety regressions and 2 Docker builds all succeeded. Synthetic recipient only, no real provider PII, payment, shipment, email or deploy.",
+              "remains": "Actual Square Sandbox buyer-entered shipment and fulfillment full E2E remain unverified; P04 not done, 0 points deducted."
+            },
+            "operator_live_sandbox_login_20261031": {
+              "environment": "BIG PAW App Staging / staging; bigpaw-square-sandbox-staging only",
+              "change": "Dedicated operator Basic Auth user/password configured via Railway variables (secret value never committed) and post-purchase administrative operator view remains available while shopper preview OFF. Public/live checkout owner approval explicitly 0.",
+              "railway_variable_names": [
+                "BIGPAW_SHOP_STAGE_OPERATOR_USER",
+                "BIGPAW_SHOP_STAGE_OPERATOR_PASSWORD",
+                "BIGPAW_SHOP_STAGE_OPERATOR_ENABLED",
+                "BIGPAW_SHOP_STAGE_OPERATOR_AFTER_STOP_ENABLED"
+              ],
+              "deployment_result": "Railway environment_status: isolated Square Sandbox and app staging both Online, 0 criticals, 0 warnings after isolated Sandbox service redeploy",
+              "limitations": "Only Rails/Railway deployment health and variable-name existence verified; HTTP login + request of true Square recipient fields from real paid shipment not independently executed. Historical fake-paid Square order still lacks complete shipping details. Do not mark P04 complete or charge/refund/send.",
+              "point_change": 0
+            },
+            "sandbox_shipping_label_auto_return_20261031": {
+              "result": "SUCCESS",
+              "commit": "0155c3eda9d90458d34c5e0783c5ab7c221b8b72",
+              "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162990049",
+              "scope": "Sandbox operator-only transient delivery label HTML now provides HTTP Refresh after 60 seconds to return to the authenticated test order page; no-store, no-referrer and restrictive CSP maintained. Dedicated HTTP regression asserts Refresh header and notice.",
+              "tests": "GitHub Actions SUCCESS: Square/Python safety tests, sandbox and app Docker builds, PC Chromium and Safari/WebKit browser regressions.",
+              "limits": "Browser-specific real-time refresh reliability not independently tested. Real Square Checkout shipment address entry, real consumer receipt, production dispatch and final P04 E2E remain unverified.",
+              "point_change": 0
+            }
+          }
+        },
+        {
+          "id": "P05",
+          "weight": 3,
+          "title": "通信断・二重クリック・再試行の重複決済防止を確認",
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41049980115",
+            "verified_commit": "458d81e70ba29c9f37b67d8b98fa2c9bd3ae128c",
+            "scope": "Pythonの架空Square POST/GET・12件の並列購入・通信断・再試行・手動確認復旧と、Chromium/WebKitの12連打ブラウザーテストがすべて合格。Square本番実決済は未実施でP04/R02に残す。",
+            "additional_manual_sandbox_double_link_guard": {
+              "verified_at_jst": "2026-10-31",
+              "scope": "Sandbox-only test-order CLI and hosted Sandbox Testing Panel. No production checkout, Square credential update, user mail, or service deployment.",
+              "changes": [
+                "shop_payments/staging_seed_order.py: durable atomic one-shot checkout claim before external CreatePaymentLink",
+                "scripts/smoke-shop-square-hosted-panel.py: same claim before hosted panel link issuance",
+                "scripts/test-shop-staging-seed-order.py: uncertain provider result and concurrent same-order requests",
+                "scripts/test-shop-square-hosted-panel.py: ensures claim precedes Square POST"
+              ],
+              "verified_head_commit": "9ee42c1e3c819a59ba628f1bcb29b337eafbb22d",
+              "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41150167282",
+              "result": "SUCCESS: all Python Sandbox integration tests, both Docker builds, Chromium and WebKit/iPhone-equivalent browser checks",
+              "point_decision": "P05 already done, so no additional points subtracted; T03/P04 remain pending real isolated Sandbox paid order and fulfillment proof."
+            }
+          }
+        },
+        {
+          "id": "P06",
+          "weight": 3,
+          "title": "購入停止スイッチと安全なロールバックの実機確認",
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "scope": "New BIG PAW App Staging / staging / bigpaw-app-staging ONLY. Does not apply or assert production checkout rollback.",
+            "live_test_window": "2026-10-31 JST",
+            "public_checkout_switch": "BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0 set explicitly on isolated staging app with skipDeploys=true before code deployment; confirmed by Railway scoped Project Token GET variables",
+            "scope_proof": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41151151683",
+            "authenticated_result": "SUCCESS: scoped project/environment matched; BIGPAW_ENV=staging, checkout public flag 0, owner launch not authorized; staging Basic Auth works, GET /shop.html=200, GET /api/shop/checkout/config=404, POST /api/shop/checkout=404; unauthenticated storefront=401",
+            "external_anonymous_probe": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41150983521",
+            "rehearsal_release": {
+              "tested_commit": "9ee42c1e3c819a59ba628f1bcb29b337eafbb22d",
+              "railway_deployment": "26e29e25-5501-41d3-8a17-0cad7b4eae58",
+              "result": "SUCCESS, healthy, still unauthenticated 401"
+            },
+            "verified_rollback": {
+              "original_stable_commit": "361ff926b8834ef099b85046610c61fb4a29eed7",
+              "railway_deployment": "acba6bd1-ad8c-432c-8f04-eaa5c5bf41c7",
+              "result": "SUCCESS; source commit restored; protected staging app and isolated webhook Online, warnings=0, criticals=0, pendingWork=0"
+            },
+            "payment_safety": "No Square Production, no real charge, no mail, no public launch, no production deployment. Existing Square links are NOT cancelled merely by switching off purchases; separate manual Square review required at live launch.",
+            "completion_scope": "Completed for isolated staging operational drill only; public production checkout rollback still requires authorized go-live and is excluded.",
+            "point_decision": "Completed after full real fake-paid order preservation and post-off webhook verification, staged rollback; 3 points now deducted.",
+            "isolated_checkout_preview_on_off_real_https": {
+              "date": "2026-10-31",
+              "scope": "NEW isolated bigpaw-square-sandbox-staging ONLY; old Sandbox and BIG PAW production untouched",
+              "private_credentials_setup": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41151822093",
+              "env_secret_setup": "SUCCESS; strong random HTTP Basic Auth preview username/password written to NEW staging webhook service with flag OFF and no deployment",
+              "new_preview_code": "037cbe2d8638e14fd70210781a40fee0c6fba8f1",
+              "offline_integration": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41151682864",
+              "offline_result": "SUCCESS; authenticated sandbox checkout -> mock Square link/order -> toggle preview OFF -> new checkout HTTP 404 -> existing signed synthetic paid event verified -> duplicate idempotent",
+              "full_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41151652189",
+              "full_ci_result": "SUCCESS; Python unit and integration, both Docker builds, Chromium and WebKit UI",
+              "actual_preview_quote": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152234708",
+              "quote_result": "SUCCESS; real HTTPS: anonymous 401, private authenticated 200, GET Sandbox config with CSRF, A02 x1 JPY 21450 shipping 0 authoritative quote, extra browser-supplied price 400 and no-CSRF checkout 403; no real checkout/payment link",
+              "off_redeploy": "809bfbf3-3c8e-4c2c-87f8-eb07337ad3bd",
+              "off_https_probe": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152335282",
+              "off_result": "SUCCESS; new webhook health ready but preview /shop.html 404 and private routes remain closed; both services online, zero warnings",
+              "gaps": "No real Square checkout link or matching completed Sandbox JPY Payment in isolated durable order DB; no real transaction after pause; no verified existing link/paid event in same deployment; no proof of payment journal surviving rollback. Keep P06 pending."
+            },
+            "webhook_after_stop_live_https": {
+              "ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152404532",
+              "result": "SUCCESS: after preview flag OFF/redeploy, NEW webhook HMAC operates over public HTTPS: correct signed synthetic unknown order HTTP 503 awaiting confirmation; wrong URL HMAC HTTP 403; wrong environment HTTP 403. Synthetic unknown order, not actual paid Square Payment.",
+              "closed_preview_audit": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41152335282",
+              "no_money": "No hosted real checkout, real payment, subscription mutation, actual customer email or production change",
+              "gap": "Full P06 needs real preexisting Square link/paid event with durable order across stop and rollback; point stays pending."
+            },
+            "real_order_and_preview_shutdown": {
+              "date": "2026-10-31",
+              "isolated_service": "bigpaw-square-sandbox-staging in NEW BIG PAW App Staging / staging only; no prod/main changes",
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153434759",
+              "result": "SUCCESS. Private authenticated NEW staging preview created one durable Square Sandbox hosted Checkout link for A02 x1 JPY 21,450 incl tax, shipping JPY 0. Square official Sandbox Testing Panel completed fake payment. Independently re-read Square Checkout PaymentLink, Orders and Payments: COMPLETED, Square order and location exact match, JPY 21450, no refund. HMAC-signed hint with real new staging subscription key posted by test (NOT Square-delivered). NEW isolated SQLite order status changed payment_pending to paid. Same signed event id replayed once, HTTP 200 and idempotent. No real card charge or mail.",
+              "post_test_preview_off": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153735766",
+              "post_test_status": "SUCCESS: private preview OFF, /shop.html 404, /healthz ready, both isolated services Online, issues 0",
+              "must_not_claim": "Square-originated automatic payment webhook delivery NOT tested (disabled new subscriber). Shipping details NOT verified, no customer email/fulfillment/refund, no production E2E.",
+              "point_change": 0
+            },
+            "final_verified_staging_stop_rollback": {
+              "date": "2026-10-31",
+              "scope": "P06 completed ONLY for isolated staging control drill and runbook; not real public Square Production incident",
+              "purchase_stop": "New Sandbox password-gated checkout preview enabled for actual JPY 21450 Square Sandbox fake payment, then explicitly OFF and redeployed. Authenticated active checkout quote JPY 21450 shipping 0 and unsafe purchase rejected; after OFF /shop.html 404 independently; staging full app live checkout GET/POST 404 while BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0.",
+              "rollback": "Actual BIG PAW isolated app staged build 26e29e25-5501-41d3-8a17-0cad7b4eae58 SUCCESS then restored to original known commit 361ff926b8834ef099b85046610c61fb4a29eed7 via  acba6bd1-ad8c-432c-8f04-eaa5c5bf41c7 SUCCESS, underlying private volume retained.",
+              "real_square_origin": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154207823 (Square-authored payment.updated to NEW isolated staging, SQLite pending=>paid, Square Orders/Payments JPY 21450 matched, no customer/supplier mail, production charge zero).",
+              "after_pause_durability": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154781086",
+              "after_pause_result": "SUCCESS, same earlier Square Sandbox paid PaymentLink found by unique created-at and payment_note, independent Square GET Orders/Payments verifies original completed JPY payment and not refunded; exact NEW Railway staged flag OFF and original Square subscriber active/new disabled; signed artificial recheck to NEW webhook returned 200 received, meaning stored matching paid journal survived OFF and service redeploy. No new Square payment or Checkout link created; no additional mail/fulfillment.",
+              "independent_railway": "BIG PAW App Staging two services Online, zero warnings/critical; separate volumes 500 MB each; no staged changes.",
+              "operational_limits": "Stopping new checkouts does NOT cancel previously created Square links; manual link status/cancellation and pre-existing funds must be reviewed separately. True production incident recovery, legal conditions, refunds/shipment, and owner go-live remain under P04/R02/R04/R05, not implied by P06.",
+              "outcome": "P06 verified staging operational stop and safe version rollback with real Sandbox provider payment journal preservation",
+              "points_deducted": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "payment",
+      "label": "決済通知・運営注文管理",
+      "weight": 20,
+      "tasks": [
+        {
+          "id": "O01",
+          "weight": 4,
+          "title": "正式Webhookの署名/URL/権限を保護した入口に接続",
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41054761005",
+            "commit": "dc97aefd62384e17780d74fdc7dba0d18b26a4b0",
+            "scope": "Draft branch: app/backend/server.py safely routes future POST /api/shop/square-webhook via shop_live_webhook_bridge. Before body/DB/Square, entire merchant launch status and exact canonical HTTPS URL, live webhook enabled, signing key checked; no buyer cookies/Origin accepted. Raw body HMAC verified; unknown or refunded payment rejected; verified signed event always independently GETs Square Payments/Orders and updates idempotent private ledger. Fake HTTP positive and negative tests plus real BIG PAW Docker and Chromium/WebKit CI all passed.",
+            "limits": "Square production signing key, actual webhook URL registration, live merchant permissions and production deployment NOT configured or verified. O02/P02/P04/R02/R05 remain pending. This completion is the protected code-route integration, not production receipt of real webhook."
+          }
+        },
+        {
+          "id": "O02",
+          "weight": 4,
+          "title": "Square Payments/Ordersの最新照合と実注文台帳を接続",
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41056307267",
+            "validated_commit": "302531ca9a1e8f2dda1e69a437cc9f1a1a80fce2",
+            "scope": "開発ブランチの購入者セッション/CSRF購入API→架空Square Payment Link POST→架空Orders GET→同一非公開SQLite注文台帳記録→署名付きPayment通知→架空Payments+Orders独立再照合→paid_verified 1件/監査イベント1件までの全工程を統合テスト。購入停止後も以前発行したリンクの有効な通知を受信し、再通知を冪等処理。返金/改ざん署名は拒否。Python/両Docker/Chromium/WebKit CI全成功。",
+            "limits": "Square本番API/実商用注文/Webhookアカウントの実接続は未実施でP02/P04/R02/R05に残す。P06本番購入停止スイッチの実機切り戻しも未実施。"
+          }
+        },
+        {
+          "id": "O03",
+          "weight": 3,
+          "title": "重複通知・返金後・金額不一致・処理断の復旧を結合テスト",
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41053562985",
+            "commit": "6bd8461284bf40f48166df777f48571dd510b8dd",
+            "scope": "オフライン結合：署名付きSquare Webhook→既存台帳→Square Payments+Ordersの2GET→入金履歴・監査記録。8通の同時同一イベントで入金遷移1件/監査1件、入金コミット後監査記録前クラッシュの再送復旧、後日返金・金額不一致・異なるイベント本文/署名の拒否を検証。全CI成功。",
+            "limits": "Square本番実Webhook/実決済接続は未実施。O01/O02/P04/R02等で今後実環境検証する。"
+          }
+        },
+        {
+          "id": "O04",
+          "weight": 4,
+          "title": "実運営者認証付き注文一覧・詳細画面を接続",
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41064941987",
+            "verified_commit": "5808701eaec83dce5a1a109189563135ab963f49",
+            "scope": "運営者role認証後のみGET /api/operator/shop-ordersを提供。私有注文台帳をread-onlyで最大100件参照し、個人情報を出さない注文一覧/詳細を運営画面に接続。GitHub Actionsで本体Docker、注文/決済のオフラインチェック、Chromium/iPhone Safari(WebKit)画面確認に成功。"
+          }
+        },
+        {
+          "id": "O05",
+          "weight": 3,
+          "title": "確認不能注文の手動復旧と監査運用を完成",
+          "status": "done",
+          "completed_at": "2026-10-30",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41067343990",
+            "verified_commit": "af4970bdf65fc86636deed93c2356bb8204a13a1",
+            "scope": "Draft PR: operator-only manual Square payment recheck with strict production Origin/Host, CSRF, explicit live feature flag and dedicated live token. Server trusts amount/order/location from the private ledger and confirms the current payment with Square Payments and Orders GET before updating. Successful and failed authorized attempts are audited without payment IDs or personal data; missing journals are not created. Local fake-Square tests and Docker/Chromium/WebKit CI passed; no live Square request or deployment."
+          }
+        },
+        {
+          "id": "O06",
+          "weight": 2,
+          "title": "配送先など個人情報の必要最小限アクセスを検証",
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554",
+            "verified_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
+            "scope": "Draft PR: synthetic PII tracing across Square read-only shipment verification, paid ledger, operator overview, customer notice preview, review approval and audit. Full name/email/address/postal/phone and API/review keys remain only in verifier memory and are absent from HTTP-oriented outputs and SQLite. The operator order and audit routes authenticate before opening the journal. No real customer data or production Square requests."
+          }
+        }
+      ]
+    },
+    {
+      "key": "fulfillment",
+      "label": "通知・仕入れ・発送",
+      "weight": 21,
+      "tasks": [
+        {
+          "id": "F01",
+          "weight": 3,
+          "title": "本番メールの送信ドメイン・送信元・送信許可を検証",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": {
+            "domain_readonly_audit": "GitHub Actions 41130651834, offline tests succeeded, provider GET /domains returned 401/403. No messages sent.",
+            "interpretation": "API key may be sending-access only; read permission unavailable DOES NOT prove domain verification is false or sending disallowed",
+            "from_config": "noreply@bigpaw.site in source; reply-to info@bigpaw.site. Actual sender/domain verified delivery and permission not confirmed",
+            "status": "pending, no point deduction",
+            "resend_domain_readonly_20261031": {
+              "result": "PENDING: read_permission_unavailable",
+              "actions_run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41176042857",
+              "scope": "Read-only Resend GET /domains audit with GitHub Actions secret. Synthetic domain checker unit tests passed; provider returned 401/403 for domains metadata. No email sent or secrets exposed.",
+              "still_missing": "Domain verified and sending-enabled state cannot be confirmed with current read-permission scope. Actual noreply@bigpaw.site sender permission and delivery remain unverified.",
+              "points_deducted": 0
+            },
+            "disclosure_sender_related_20261031": {
+              "note": "Even though offline verified-disclosure bridge exists, Resend sender/domain read scopes and real noreply@bigpaw.site deliverability remain unverified, so F01 is still pending.",
+              "points_deducted": 0
+            }
+          }
+        },
+        {
+          "id": "F02",
+          "weight": 3,
+          "title": "お客様への注文確認と必要な連絡文面を承認",
+          "status": "completed",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Merchant must review exact five customer notices and send timing",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
+            },
+            "editorial_approval_delegated_20261031": {
+              "authorization": "Owner expressly delegated item 3 (customer notice drafting/selection) to assistant in conversation on 2026-10-31; no authorization for sending or launch.",
+              "scope": "All five Japanese customer notice templates finalized with explicit verified payment, supplier shortage, verified delay, actual shipment and Square COMPLETED refund conditions; no unresolved customer placeholders may be sent. Existing paid-order review-only preview updated with accepted no-change-of-mind-return language.",
+              "files": [
+                "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+                "shop_payments/live_customer_notice_preview.py",
+                "scripts/test-shop-owner-approval-pack.py",
+                "scripts/test-shop-live-customer-notice-preview.py"
+              ],
+              "manual_source_verification": "Five numbered notice headings, five explicit send conditions, delegated editorial approval, privacy and no live checkout flags verified on 2026-10-31.",
+              "verified_source_commit": "238ec3f765497898eb1b576c612154e947cd3e49",
+              "points_deducted": 3,
+              "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41199324978",
+              "github_actions_conclusion": "SUCCESS",
+              "verified_scope": "Offline policy/owner approval tests and live customer preview test passed; two Docker builds and Chromium/WebKit browser regressions passed; actual email never sent.",
+              "caveat": "Owner-delegated notification copy only. Return exclusion separately approved, cancellation/merchant identity publication still pending. F01 provider-domain permissions, real email delivery and R02 paid-order E2E remain pending. No emails sent, production checkout OFF."
+            }
+          }
+        },
+        {
+          "id": "F03",
+          "weight": 3,
+          "title": "メールの1回だけ送信・失敗時再送の安全性を検証",
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554",
+            "tested_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
+            "local_tests": "customer_email_transport (6 tests) plus related notification tests in 30-test offline batch",
+            "scope": "Offline fake-provider tests verify durable one-send reservation, duplicate suppression, timeout/crash safety, content validation, and no PII/API key in SQLite. No real email sent.",
+            "limits": "Provider/domain authorization and real one-time delivery remain under F01/R02; transport remains unwired."
+          }
+        },
+        {
+          "id": "F04",
+          "weight": 4,
+          "title": "トランペッツへの発注/欠品/入荷/検品フローを運用可能に",
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554",
+            "tested_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
+            "local_tests": "scripts/test-shop-sandbox-procurement.py (4 tests passed); procurement and notification flow coverage passed in the full CI batch",
+            "scope": "Private authenticated Sandbox operator dashboard supports supplier-order recorded, backorder, received/inspection recorded and dispatch-status tracking. Only a Square-verified paid order can advance; transitions are validated/idempotent and notification drafts are queued. Supplier contact itself is a manual operator action; no external order or message is sent.",
+            "limits": "Workflow is implemented and tested on the development/Sandbox side; production deployment, real supplier operation and approved customer terms remain pending."
+          }
+        },
+        {
+          "id": "F05",
+          "weight": 3,
+          "title": "配送先照合・発送/追跡情報の管理を完成",
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554",
+            "tested_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
+            "local_test": "scripts/test-shop-sandbox-tracking.py (3 tests passed)",
+            "scope": "The Sandbox tracking journal requires a Square-verified paid order and verified shipped stage, validates carrier/reference, accepts an identical retry once, rejects silent overwrite, and stores no recipient PII. Existing operator POST requires operator auth, strict form, CSRF/Origin and record_only confirmation. No actual shipment or customer message.",
+            "limits": "Sandbox/manual reference only; no carrier booking, live delivery, customer tracking message or live order workflow."
+          }
+        },
+        {
+          "id": "F06",
+          "weight": 3,
+          "title": "キャンセル/不良品/返品・返金確認の管理を完成",
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554",
+            "tested_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
+            "local_tests": "test-shop-staging-checkout-preview.py (17), sandbox notifications (3), fulfillment (4), returns policy guard (3); 27 tests reported OK",
+            "scope": "Authenticated Sandbox operator service-case workflow records pre-shipment cancellation, return request, damage/wrong item, stockout and delay cases against Square-verified paid orders. Status/history are idempotently updated; no free-text PII, customer message or refund is sent. Refund confirmation requires fresh matching full-refund status from Square Sandbox.",
+            "limits": "Merchant return/refund terms remain unapproved; real customer contact/refund and production integration remain pending under L03/R02."
+          }
+        },
+        {
+          "id": "F07",
+          "weight": 2,
+          "title": "配送不能・在庫切れ・通知障害時の例外処理を検証",
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554",
+            "tested_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
+            "local_tests": "fulfillment (4), notifications (3), procurement (4), auto-notify (6), returns (3), delivery terms (4); 24 related cases passed",
+            "scope": "Offline Sandbox exercises incomplete address, out-of-stock, notification retry/idempotency, supplier backorder/refund review, verified full refund/stock release, and shipping transitions across all 35 SKUs. No real supplier order, dispatch, email or refund.",
+            "limits": "Real supplier, courier and customer communication are not connected."
+          }
+        }
+      ]
+    },
+    {
+      "key": "legal",
+      "label": "販売者情報・特商法・返品条件",
+      "weight": 15,
+      "tasks": [
+        {
+          "id": "L01",
+          "weight": 4,
+          "title": "販売者の正式情報と連絡手段の確定・承認",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": {
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Merchant must confirm legal name and real contact method without exposing secrets on GitHub",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
+            },
+            "private_seller_contact_supplied_20261031": {
+              "confirmed": "Owner supplied legal seller name, postal code, address and phone in conversation; no values committed publicly.",
+              "limits": "Publication choice, real contact operation, compliant statutory notice, store display and verification remain incomplete.",
+              "points_deducted": 0
+            },
+            "shop_seller_disclosure_intake_20261031": {
+              "date_jst": "2026-10-31",
+              "proprietor_decision": "Legal proprietor name is approved for publication. Private postal address and phone must be disclosed without delay on request; never embed address or phone in public Git or customer-facing assets.",
+              "workflow": "app/shop-commerce.html links to contact.html?topic=shop-legal-disclosure. Existing /api/support records numbered ticket, operator notifications and store support email alert; admin page highlights legal requests; manually approved operator reply remains necessary.",
+              "validation": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41205448474",
+              "validation_result": "SUCCESS: static policy and privacy checks, Square safety checks, two Docker images, real mocked-PC/Chromium and iPhone Safari/WebKit form submission, number display, no external POST/customer payment, non-disclosure of private phone/address.",
+              "gmail_readonly": "Connected Gmail has past received test email examples addressed to info@bigpaw.site; no new live disclosure message was sent.",
+              "ops": "SHOP_SELLER_DISCLOSURE_OPERATION.md",
+              "blockers": "Draft PR has not been merged or deployed. Real inbound public form, provider alert delivery, administrator reply to real test address and reply audit not yet verified. No automatic release of private details. Square payment OFF.",
+              "points_deducted": 0
+            },
+            "owner_auto_approval_and_dormant_module_20261031": {
+              "owner_directive": "Owner specifically authorized email-verified, no-per-request-owner-approval seller contact disclosure upon lawful request; no blanket public publication of private address or phone.",
+              "implementation": "A dormant module shop_payments/seller_disclosure_automation.py plus app/shop-disclosure-confirm.html, category-prefilled form and operation guide; payment and public release remain blocked.",
+              "static_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41207970796",
+              "static_ci_result": "SUCCESS on source tree with tests of no secrets, email verification token expiry, one-time response and no accidental repeat, plus builds and Chromium/WebKit UI coverage.",
+              "mail_provider_prod_readonly": "Railway bigpaw-live has RESEND_API_KEY and BIGPAW_SUPPORT_EMAIL variable names, but NO dedicated seller legal address/phone env variable names found; values not accessed or published.",
+              "safety_fix": "Provider accepted does not mean delivered: contact request status remains reviewing and no private details stored in support ticket/audit. New tests passed.",
+              "major_blockers": "Automated module is not connected to production backend due to an explicit tool safety block; not deployed. Private seller envs and signed/delivered notification verification not configured; direct incoming info mailbox requests not auto processed. Owner approval of customer emails or contact disclosure does not equal authorization to activate live sales.",
+              "progress_points_deducted": 0
+            },
+            "development_auto_disclosure_bridge_20261031": {
+              "scope": "Draft branch: source app/backend/shop_seller_disclosure_bridge.py, existing /api/support post-commit challenge and POST /api/shop/seller-disclosure/confirm implemented. Merchant name/address/phone remain runtime-only; no private seller data embedded in source.",
+              "request_safety": "Recipient must verify a one-time challenge token first. Strict browser Host/Origin/Content-Type/body limits/rate limiting on confirm; provider-accepted is not delivery-confirmed; support ticket stays open for operator review.",
+              "tests": "GitHub Actions 41210953380 SUCCESS, tested code commit 45c7a000ffdc78156c5846606115c42ee3ed47d0. Offline security/unit integration, independent Sandbox Docker image, dormant production-equivalent Docker image, Chromium and WebKit/iPhone equivalent browser tests all succeeded; no external mail sent.",
+              "disabled": "No private BIGPAW_SHOP_SELLER_* settings or public live deploy provisioned. Default OFF, no live emails or legal disclosure sent.",
+              "remaining": "Complete isolated integration CI, domain sender authorization, private secret setup, verified real email delivery, support ticket operator workflow and direct info@ mailbox fallback before L01 can be completed.",
+              "progress_points_deducted": 0,
+              "ci_url": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41210953380",
+              "point_change": 0
+            }
+          }
+        },
+        {
+          "id": "L02",
+          "weight": 4,
+          "title": "特定商取引法の表示を最終確認して確定",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": {
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Publish-ready statutory disclosure needs merchant-confirmed identity/contact, returns and legally correct display",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
+            },
+            "shop_statutory_disclosure_link_20261031": {
+              "date_jst": "2026-10-31",
+              "proprietor_decision": "Legal proprietor name is approved for publication. Private postal address and phone must be disclosed without delay on request; never embed address or phone in public Git or customer-facing assets.",
+              "workflow": "app/shop-commerce.html links to contact.html?topic=shop-legal-disclosure. Existing /api/support records numbered ticket, operator notifications and store support email alert; admin page highlights legal requests; manually approved operator reply remains necessary.",
+              "validation": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41205448474",
+              "validation_result": "SUCCESS: static policy and privacy checks, Square safety checks, two Docker images, real mocked-PC/Chromium and iPhone Safari/WebKit form submission, number display, no external POST/customer payment, non-disclosure of private phone/address.",
+              "gmail_readonly": "Connected Gmail has past received test email examples addressed to info@bigpaw.site; no new live disclosure message was sent.",
+              "ops": "SHOP_SELLER_DISCLOSURE_OPERATION.md",
+              "blockers": "Draft PR has not been merged or deployed. Real inbound public form, provider alert delivery, administrator reply to real test address and reply audit not yet verified. No automatic release of private details. Square payment OFF.",
+              "points_deducted": 0,
+              "legal_disclosure_final_confirmed": false
+            }
+          }
+        },
+        {
+          "id": "L03",
+          "weight": 4,
+          "title": "返品送料/不良品/欠品/配送目安の条件を承認",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": {
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Cancellation after supplier order, return eligibility, refund timing and seller-paid defects require explicit choices",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
+            },
+            "change_of_mind_return_confirmed_20261031": {
+              "approved": "Change-of-mind dog food returns/exchanges denied even unopened; defects, wrong item and statutory rights excluded.",
+              "scope": "Only change-of-mind return/exchange agreed; cancellations, defects/refunds, shortage/delays and full legal display unapproved.",
+              "source": "shop_payments/returns_policy_review.json",
+              "points_deducted": 0
+            }
+          }
+        },
+        {
+          "id": "L04",
+          "weight": 3,
+          "title": "最終購入確認画面に承認済み条件を反映・検証",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": {
+            "owner_approval_materials_20261031": {
+              "date": "2026-10-31",
+              "seller_approval_packet": "SHOP_SELLER_APPROVAL_PACK_20261031.md",
+              "customer_email_packet": "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+              "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
+              "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
+              "points_deducted": 0,
+              "dependency": "Final checkout page must display approved terms with accurate totals and be verified",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "testing",
+      "label": "Railway環境分離",
+      "weight": 9,
+      "tasks": [
+        {
+          "id": "T01",
+          "weight": 2,
+          "title": "追加Railwayサービスの費用と設定を所有者が承認",
+          "status": "completed",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "owner_authorization": "2026-10-31: owner expressly approved additional Railway charges and creation of required test resources",
+            "project": "BIG PAW App Staging / 91215e46-028b-4280-90f4-8d192c687164",
+            "environment": "staging / d0dacfcc-781b-4360-b539-461783ad47e2",
+            "service": "bigpaw-app-staging / 26c225af-d7d3-41b3-86e3-347d22146312",
+            "volume": "bigpaw-app-staging-data / 929f1017-f474-45af-9fe1-c40e11d72801; 500MB isolated",
+            "resource_cap": "1 replica, 1 vCPU, 1GB RAM; metered usage, exact bill unknown",
+            "protected_deployment": "3bb941c3-7f20-451e-9f50-77ea2e92ef56 SUCCESS and Railway service Online, 0 warnings",
+            "safety": "No production credentials/data copied, live checkout and mail disabled, Draft PR retained. This approval does not authorize Square live payments or public commerce launch."
+          }
+        },
+        {
+          "id": "T02",
+          "weight": 3,
+          "title": "既存テストとショップSandboxを別環境に構築",
+          "status": "completed",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "verified_at": "2026-10-31",
+            "environment_design": "Dedicated full-app BIG PAW App Staging project/environment, separate from existing BigPaw/bigpaw-test Square Sandbox webhook service. Reversed service-name assignment from original plan but functionally isolates the complete test app and Sandbox webhook.",
+            "full_app_project": "BIG PAW App Staging 91215e46-028b-4280-90f4-8d192c687164; staging d0dacfcc-781b-4360-b539-461783ad47e2",
+            "service": "bigpaw-app-staging 26c225af-d7d3-41b3-86e3-347d22146312",
+            "deployment": "3bb941c3-7f20-451e-9f50-77ea2e92ef56 SUCCESS; separate persistent 500MB volume; no production data or live Square credentials",
+            "protected_origin": "https://bigpaw-app-staging-staging.up.railway.app",
+            "external_ci": "GitHub Actions 41127629968 SUCCESS: /healthz=200; /shop.html, /, /api/shop/checkout/config anonymous=401",
+            "health": "full-app staging online no alerts; existing BigPaw/bigpaw-test online no alerts; production bigpaw-site and bigpaw-web online no alerts",
+            "remaining_limits": "Shop Sandbox webhook is still physically in the original BigPaw project production environment, isolated from full-app staging project. No Square Sandbox webhook URL/key was migrated; integration, authenticated browser regressions, existing-data preservation and E2E verification belong to T03/T04/P04."
+          }
+        },
+        {
+          "id": "T03",
+          "weight": 2,
+          "title": "SandboxのWebhook署名URL/環境変数を安全に移行",
+          "status": "completed",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "reviewed_at": "2026-10-31",
+            "scope": "Read-only name-only inventory of the existing BigPaw/bigpaw-test Railway service. It contains Sandbox payment and webhook variable names and no live Square variable names. Values, including the webhook URL/key, were redacted and not requested.",
+            "result": "Sandbox configuration presence observed; safe migration, URL match and webhook delivery remain unverified; pending; no point deduction",
+            "staging_credential_phase": {
+              "verified_at": "2026-10-31",
+              "scope": "New isolated BIG PAW App Staging/staging/bigpaw-square-sandbox-staging only. Exactly three Sandbox credential variable names present; OAuth returns names not plaintext.",
+              "token_sync_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41147733135",
+              "token_sync_result": "SUCCESS; only_new_webhook_secrets_configured_no_deploy, subscription disabled, no mail or payment",
+              "secure_code_commit": "55b96d0c8c29bd43c24cf4fc73eeebb7a20dc2a4",
+              "isolated_railway_deployment": "2cfec67f-c594-46c5-92a7-45f53bd0b8a7",
+              "deployment_status": "SUCCESS, Online, warning 0",
+              "external_readonly_proof": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148046554",
+              "external_result": "SUCCESS, /healthz sandbox_webhook_ready; admin/shopping routes 404; no POST or actual Square delivery in probe",
+              "dual_non_destructive_regression": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148074669",
+              "dual_result": "SUCCESS; old sandbox, full app and new webhook tested; unsigned event rejected",
+              "remaining": "Square Sandbox subscription remains disabled; no real Square signed HTTPS event and independent Payments/Orders match yet. T03 pending and zero point reduction."
+            },
+            "square_generated_webhook_transport_test": {
+              "date_jst": "2026-10-31",
+              "scope": "Isolated disabled Square SANDBOX subscription alone. No production credentials, real payment, refund, customer email, or activation.",
+              "action": "Exactly one POST /v2/webhooks/subscriptions/{id}/test for payment.updated; no retry",
+              "github_job": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148480314",
+              "github_result": "Failure of response-format expectation: square_test_api_response_unrecognized (Square API returned HTTP 200). Offline destination/isolation/no-retry preflight succeeded.",
+              "railway_independent_evidence": "2026-10-31T00:08:40.461552374Z; POST /api/shop/sandbox/webhook; clientUa='Square Connect v2'; HTTP 503; isolated webhook service only",
+              "interpretation": "Real Square-issued synthetic test notification reached new HTTPS receiver; 503 is rejection of a synthetic nonmatching/unverified order, not successful verification of a paid transaction. Exact processing branch not independently confirmed from body.",
+              "after_event_square_subscription_check": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148632306",
+              "after_event_result": "SUCCESS read-only: old_enabled_payment_updated__new_disabled_payment_updated__read_only",
+              "current_gap": "No isolated genuine completed Square Sandbox JPY order registered and independently matched in NEW DB. Do not score T03 until matching paid order and idempotency verified.",
+              "points_change": 0
+            },
+            "real_https_hmac_boundary": {
+              "date": "2026-10-31",
+              "url": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41149733077",
+              "workflow": "SUCCESS; offline mock contract and real isolated HTTPS HMAC edge tests",
+              "evidence": "Private signature key retrieved in ephemeral GitHub job from exact disabled Square Sandbox subscription. No secret logged. Exactly 3 controlled synthetic POSTs to new isolated Railway webhook: correct HMAC with unmatched fake order yields HTTP 503 awaiting_square_confirmation, wrong notification URL HMAC yields HTTP 403 invalid_signature_or_event, wrong Square environment yields HTTP 403 invalid_environment. Independent Railway HTTP log at 2026-10-31T00:22:16Z confirms [503,403,403].",
+              "no_payment": "No Square payment, test card checkout, refund, mail, subscription activation or mutation.",
+              "scoring": "T03 remains pending. Genuine completed Square Sandbox JPY payment, matching isolated persisted order, provider Payments/Orders verification and deduplication not yet shown."
+            },
+            "preview_retained_webhook": {
+              "status": "No Square subscription changed, and webhook health ready after preview toggles; no genuine completed Square Payment event in NEW durable store; T03 pending.",
+              "new_service_deploy": "809bfbf3-3c8e-4c2c-87f8-eb07337ad3bd"
+            },
+            "real_sandbox_paid_hmac_new_db": {
+              "date": "2026-10-31",
+              "isolated_service": "bigpaw-square-sandbox-staging in NEW BIG PAW App Staging / staging only; no prod/main changes",
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153434759",
+              "result": "SUCCESS. Private authenticated NEW staging preview created one durable Square Sandbox hosted Checkout link for A02 x1 JPY 21,450 incl tax, shipping JPY 0. Square official Sandbox Testing Panel completed fake payment. Independently re-read Square Checkout PaymentLink, Orders and Payments: COMPLETED, Square order and location exact match, JPY 21450, no refund. HMAC-signed hint with real new staging subscription key posted by test (NOT Square-delivered). NEW isolated SQLite order status changed payment_pending to paid. Same signed event id replayed once, HTTP 200 and idempotent. No real card charge or mail.",
+              "post_test_preview_off": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41153735766",
+              "post_test_status": "SUCCESS: private preview OFF, /shop.html 404, /healthz ready, both isolated services Online, issues 0",
+              "must_not_claim": "Square-originated automatic payment webhook delivery NOT tested (disabled new subscriber). Shipping details NOT verified, no customer email/fulfillment/refund, no production E2E.",
+              "point_change": 0
+            },
+            "square_origin_live_sandbox_webhook_completion": {
+              "date": "2026-10-31",
+              "action": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154207823",
+              "action_result": "SUCCESS: exactly one Square Sandbox official hosted fake card payment under new isolated Railway order; NEW subscriber temporarily enabled only while event test ran, old active Sandbox subscriber left unchanged. Square-originated payment.updated validated by new live receiver; new private durable SQLite order transitioned pending=>paid by actual Square delivery, not manual HMAC; Square GET Payment/Orders independently verified same local order/store/location and JPY 21450 COMPLETED without refund. New subscriber disabled via always() and GET reconfirmed; no emails, no Square Production or real money.",
+              "independent_railway_http_log": "2026-10-31T01:13:51.579942568Z and 2026-10-31T01:13:54.489390990Z: POST /api/shop/sandbox/webhook, clientUa=Square Connect v2, HTTP 200 (new isolated service). No payment URL or customer data extracted.",
+              "independent_square_subscription_audit": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41154464365",
+              "audit_result": "SUCCESS, old_enabled_payment_updated__new_disabled_payment_updated__read_only; mutations zero",
+              "close_preview_redeploy": "5afc9929-645b-475d-a005-dcbd6f749e09",
+              "close_preview_deployment_status": "SUCCESS, 2 isolated Railway services Online, warnings 0",
+              "completion": "T03 fulfilled: credentials, exact HMAC signing URL, real Square-origin delivery with new private store, and post-test restoration verified",
+              "does_not_complete": "P04 shipping/production-equivalent fulfilled customer details; P06 existing unpaid link while stopped and post-rollback ledger; R02 full fulfillment/refunds; P02 Square Live."
+            }
+          }
+        },
+        {
+          "id": "T04",
+          "weight": 2,
+          "title": "既存データを保全し双方の回帰テストを実施",
+          "status": "completed",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "verified_at": "2026-10-31",
+            "scope": "Non-destructive regression on original Square Sandbox and newly separate full-app + Sandbox webhook staging services; synthetic local checks and external HTTPS probes only, no real customer data or card payments.",
+            "synthetic_ci": "GitHub Actions 41129261203: 7 webhook HTTP/unit tests and 6 emergency stop audit tests passed using only local temporary stores",
+            "remote_ci": "GitHub Actions 41129261203 SUCCESS: old bigpaw-test /healthz 200; full-app staging /healthz 200 and anonymous shop & checkout config 401; new Sandbox webhook /healthz 200, / 404, deliberately unsigned POST 503",
+            "source_preservation": "Original BigPaw project untouched: bigpaw-test deployment 8a73fd3a-3b73-43d4-ac70-a0274993d44c SUCCESS with old volume 1bc0db0b-aa31-4039-97e6-393550320a36; production bigpaw-site deployment ad34900d-a890-442b-9d07-6434bd447818 SUCCESS and volume 39261bfb-ba40-48de-8429-0d9e957e375c unchanged. No read or write of customer data; no data restoration exercise claimed.",
+            "isolated_volumes": "New full-app volume 929f1017-f474-45af-9fe1-c40e11d72801 and new webhook volume 75266e34-b0bf-4bb4-8e7c-2743fbbb3d78 both separate 500 MB",
+            "remaining": "No real signed Square event dispatched, no credential migration or real sandbox payment. T03/P04 remain pending; this task covers non-destructive separation and regression only."
+          }
+        }
+      ]
+    },
+    {
+      "key": "release",
+      "label": "最終確認・本番公開",
+      "weight": 13,
+      "tasks": [
+        {
+          "id": "R01",
+          "weight": 2,
+          "title": "公開前バックアップとロールバック手順を確認",
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "verified_at_jst": "2026-10-31",
+            "drive_backup": "BIG PAW Backups / bigpaw-weekly-2026-W44.sqlite3; created 2026-10-26T06:05:45Z; 1,249,280 bytes",
+            "integrity_check": "SQLite PRAGMA integrity_check returned ok; 55 tables; opened read-only copy; no row contents inspected or printed",
+            "railway_rollback": "Latest successful production deployments for BIG PAW/bigpaw-live and BigPaw/bigpaw-site both reported canRollback=true; each has its own persistent volume",
+            "limits": "No restore rehearsal performed. App rollback does not revert or restore volume data; backup integrity was verified separately."
+          }
+        },
+        {
+          "id": "R02",
+          "weight": 4,
+          "title": "決済→注文→通知→発送→返金の最終E2E検証",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": {
+            "sandbox_payment": "GitHub Actions 41130318842 SUCCESS confirmed fake hosted Checkout Square Orders + Payments",
+            "sandbox_refund_try": "GitHub Actions 41130886408: fake payment verified, refund confirmer errored after provider call; DO NOT RETRY",
+            "refund_readonly_reconciliation": "GitHub Actions 41131191985 SUCCESS: GET-only ListPaymentRefunds found exactly one matching reason, Sandbox location, JPY 21450 in 2026-10-30T21:24-21:27Z window with status COMPLETED; zero refund POSTs during audit",
+            "gaps": "Live Square->Railway signed webhook, approved transactional email, physical dispatch and fulfillment updates, full refunds in published shop flow unverified",
+            "status": "pending; partial Sandbox payment + refund provider evidence only"
+          }
+        },
+        {
+          "id": "R03",
+          "weight": 3,
+          "title": "iPhone/PC/セキュリティ・既存サイトの総回帰テスト",
+          "status": "done",
+          "completed_at": "2026-10-31",
+          "evidence": {
+            "shop_github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41118129554",
+            "full_app_github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41119928985",
+            "tested_commit": "810011d51545ed597e5c6f21b45ed6799309b367",
+            "scope": "Shop-specific Docker build, offline security/integration cases, Chromium desktop and iPhone Safari-equivalent WebKit passed; separate full-app isolated browser regression passed for operator/breeder login, role/ownership boundaries, save/readback, themes and mobile layout. No production data used.",
+            "limits": "A separate deployed-test-browser check failed because bigpaw-test is a Sandbox webhook-only service and returned 404 for /api/health. This deployment target issue is recorded under P04/T02; production remains untouched.",
+            "additional_sandbox_runtime_hardening": {
+              "confirmed_at": "2026-10-31",
+              "purpose": "New and old named Sandbox Railway services remain valid; unrecognized self-declared Railway project IDs are rejected, preventing accidental webhook activation outside the approved runtime IDs.",
+              "source_commit": "935ef41c71e225d236629d58381d13856b8c0db6",
+              "test_commit": "cea4c1ee3535cb45bb55ec6043fbb41a046f1c3d",
+              "github_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41144642134",
+              "result": "SUCCESS, Python/static, isolated Docker builds, Chromium and iPhone WebKit simulation",
+              "limits": "Does not include an actual signed Square HTTPS webhook, actual iPhone physical-device testing, or production release. R03 was already done; no new point deduction."
+            }
+          }
+        },
+        {
+          "id": "R04",
+          "weight": 2,
+          "title": "販売条件と本番公開について所有者が明示的に承認",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": null
+        },
+        {
+          "id": "R05",
+          "weight": 2,
+          "title": "承認後だけ本番公開し監視・初期動作確認",
+          "status": "pending",
+          "completed_at": null,
+          "evidence": null
+        }
+      ]
+    }
+  ],
+  "constraints": [
+    "本番Square接続・実メール・本番公開はオーナー明示承認まで停止",
+    "Railway追加課金サービスは費用承認まで作成しない",
+    "mainへのPRマージは本番公開承認まで保留"
+  ]
+}

@@ -1,0 +1,134 @@
+# BIG PAW Shop — 本番販売開始前の確認表
+
+更新：2026-10-30。**公開許可ではない**。GitHub Draft PR #175 の開発状況であり、mainへのマージ、本番Squareのキー登録、公開、実購入・実発送・実メール送信は未実施。
+
+## 検証済み・テスト段階の実装
+
+- [x] ACANA 14・ORIJEN 8・ZIWI 9・CHARM 4＝35商品。詳細用WebP画像63枚、商品別画像対応。現行の価格表は税込・追加送料0円でサーバー側に持ち、ブラウザからの販売単価改ざんを拒否。
+- [x] Square **Sandbox** 決済リンク・署名付きWebhook・Square Payments APIによる入金再照合、重複決済通知の安全対策。
+- [x] **将来の本番用・未接続の注文台帳** `shop_payments/live_order_ledger.py` を追加。既存35SKUの税込・送料込み価格から注文時スナップショットを作り、注文番号/Square注文ID/店舗ID/金額を固定。Square本番 Payments/Orders の読み取り照合に成功した場合だけ、支払確定を一度だけ記録する。個人情報・メール・本番キーは保存しない。現在のWebアプリ、Square本番Webhook、送信処理とは**未接続**。`scripts/test-shop-live-order-ledger.py`は偽のSquare応答による検証であり、実注文・課金・送信はない。
+- [x] **本番注文メールの送信前プレビュー（未接続）**：`shop_payments/live_customer_notice_preview.py`は入金記録済みの注文のみ対象に、Square Payments/Ordersを毎回再照合し、注文時のSKU・名称・容量・数量・税込単価スナップショットから注文確認文を生成。購入者のメールアドレスはマスクのみ表示し、別の私有鍵で宛先・決済情報・本文に対応するレビュー指紋を作成。**送信先の実アドレスは返さず、メール送信・SQL保存・配達結果登録はしない**。返品後、配送先不備、入金金額・店舗・注文番号不一致は停止。店主の正式規約承認・送信認可・実本番購入を経るまで有効化不可。
+- [x] **送信前の運営承認記録（未接続・送信禁止）**：`shop_payments/live_notice_approval.py`に、運営者が確認したメールプレビューのHMAC照合値だけを私有SQLiteに登録する機構を追加。承認には将来の運営ログイン/CSRFで認証済みの明示的操作が必要（現在その画面と認証連携は**未実装**）。承認は15分で失効し、運営側の明示的な取り消しを受け付ける。照合のたびにSquare Payments/Ordersを読み直し、入金・配送先・本文変更や返金があれば一致せず停止する。**実顧客宛メール・仕入先連絡・支払・返金・運用開始はしない**。レビュー済み判定はResendへの送信許可ではない。
+- [x] Sandbox注文一覧、運営専用ログイン、仕入先発注・欠品・入荷/検品・発送の**手動テスト記録**。実際の仕入れ発注や発送はしない。
+- [x] Square Sandbox Ordersで配送先要件を再確認した後の発送テスト記録と、運送会社・追跡番号のテスト台帳。実配送はしない。
+- [x] 運営/仕入先/お客様向け通知の未送信下書き。Square Sandbox注文のメールアドレスを照合し、レビュー・変更検出・送信直前の模擬記録を追加。顧客宛メール送信は無効。
+- [x] Square Sandbox Paymentsを**読み取るだけ**で全額返金を照合する内部処理。返金実行APIは未接続。
+
+## 個人事業としての販売者形態（事業者確認済み）
+
+- [x] BIG PAWドッグフードショップは個人事業で販売する方針を事業者が確認済み（2026-10-30）。
+- [ ] 個人事業者の戸籍上の氏名または登記された商号は未確認。屋号「BIG PAW」だけでは代用できない（消費者庁Q&A）。
+- [ ] 住所・電話番号は、実際に対応できる情報の掲載か、特商法の省略要件を満たす「請求により遅滞なく提供」する運用を確定する。省略する旨の広告表示と現実の問い合わせ対応が必須で、メールアドレスを載せるだけでは足りない。ユーザーの個人住所・電話等をGitHubへ推測で書き込まない。
+- [ ] 返品条件・返送料の負担・不良品交換/返金・欠品の扱いを事業者と確定。**未確定のまま返品不可とは記載しない**。
+- [ ] `shop_payments/retail_launch_status.json`は `individual_proprietor` だけを確定し、必要な項目は未確認（false）に保つ。確認表は「公開を許可するスイッチ」ではなく、独立した本番停止ガードと正式な公開承認が別途必要。
+
+参照：消費者庁 https://www.no-trouble.caa.go.jp/qa/advertising.html （Q15–17）、https://www.no-trouble.caa.go.jp/what/mailorder/ （通販広告・最終確認画面）。
+
+## 本番公開の必須ゲート（未達）
+
+- [ ] **ショップの販売事業者表示**：現在の `app/legal-notice.html` は子犬マッチングサービスの表記であり、ドッグフードの販売事業者としての条件を別途整える。販売者・販売責任者、所在地/連絡先の適法な表示方法、問い合わせ方法などを事業者が確認。情報が確定するまで架空の住所・電話番号は登録しない。
+- [ ] **返品・キャンセル・不良品・欠品時の確定ルール**：受注後の取消し、顧客都合の返品可否・期限・費用、不良品・誤配送時の対応、連絡方法、返金方法と時期を事業者が決定し、商品ページ・最終確認画面と矛盾しない形で掲載。現在の子犬売買契約の返品規約を流用しない。
+- [ ] **最終確認画面の表記確認**：購入品目・数量、商品合計（送料・税を含む）、決済の時期/方法、届く時期、返品/キャンセル条件、申込期間制限の有無をSquare画面へ遷移する前に明確に確認できるようにする。通信販売についての消費者庁の説明：https://www.no-trouble.caa.go.jp/what/mailorder/
+- [ ] **配送・仕入れ運用の実証**：九州仕入先→埼玉の当店→購入者という受注発注方式。表示中の「通常4〜7日程度」が実際の取寄せ・検品・配送事情に照らし合理的か確認し、欠品/入荷遅延時の連絡・返金担当を決める。
+- [x] **送信処理の実装・オフライン試験**：\`shop_payments/customer_email_transport.py\`にResend API向けの顧客通知送信アダプターを用意。live承認フラグが全て揃わない限り停止し、SQLに先行予約して実行結果不明を自動再送しない。連絡先・本文・APIキーはDBに保存しない。\`scripts/test-shop-customer-email-transport.py\`で送信なしの疑似試験済み。ただし本番Square照合・規約承認・実顧客送信は未接続。\n- [ ] **実顧客向け通知**：Squareの正規決済注文からの宛先取得、送信内容の承認、配信事業者との安全な接続、権限、冪等性/結果不明時の再送禁止、送信失敗と配達状況の運用、個人情報の取扱い。現在は実メール送信のコードパスを有効化しない。
+- [ ] **実返品/返金フロー**：Square本番環境の返金処理は権限と明示的確認を分離。現状はSandboxにおける読取照合・テスト記録のみで、実返金機能はない。
+- [ ] **環境分離・料金確認**：現在の `bigpaw-test` を本体サイトの総合検証用に復旧し、`bigpaw-shop-test` をSquare Sandbox/ショップ専用として作成する。既存テストボリュームを消さず、新Webhook署名URLへ安全に移行。追加料金はサービス作成前にユーザーの確認を得る。
+- [ ] **本番鍵・Webhook・全体E2E試験と事業者の公開承認**：本番Square設定はSandboxと厳密に分ける。特定取引の決済・重複請求、入金後の通知、仕入れ、発送、返品・返金、異常時に停止できることを確認。mainマージ・販売開始は最後に明示承認を得る。
+
+## 2026-10-30：既存Sandbox運営画面の送信前チェック改善（本番未反映）
+
+- `shop_payments/sandbox_customer_review.py`：運営によるSandboxの「送信前チェック済み」記録を**15分で失効**させ、注文/メール本文/宛先が変わった場合だけでなく期限超過・取り消し時も「再確認が必要」とする。古いDBからは機密情報を移さず既存記録の安全な移行を行う。
+- `shop_payments/staging_operator_actions.py`：既存のBasic認証付きSandbox運営画面から「送信前チェックを取り消す（送信しない）」ボタンで操作できる。**運営ログイン、HTTPS Origin、CookieとCSRF照合、明示チェック**を強制。顧客やResendへのメール送信、Square課金、仕入れ、発送、返金はゼロ。
+- `shop_payments/staging_orders_dashboard.py`：過去の確認履歴を「現在も有効」と誤認させない表示へ変更。**この画面は本番の運営画面ではなく、隔離した既存`bigpaw-test`のSandbox専用機能**。フード本番注文/顧客メールの許可・接続・正式規約承認を意味しない。
+- GitHub自動テストは認証なし・不正Origin・CSRF不一致・二重取り消し・期限超過・明示的な再承認・個人情報非保存と全既存ショップ回帰を対象とする。実iPhone端末の手動確認は別途必要。
+
+### 同日：Railwayテストサービスへの適用結果
+
+- GitHub Actions [41031612883](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41031612883)：Python、独立Dockerビルド、Chromium、iPhone Safari/WebKit模擬テストは **SUCCESS**。
+- Railway既存`BigPaw`プロジェクトの **`bigpaw-test`サービスのみ** 開発コミット`3d036d00d02f29c94dd4bffdb69a1b39bfbb5c21`へ更新。デプロイ`0c71a59a-b5a9-4f2c-8611-e5b97787e41d`は **SUCCESS**、起動ログは`BIGPAW_SANDBOX_WEBHOOK_READY`。保管中のSandbox SQLite用500MB `bigpaw-shop-test-data`は`/data`に引き続き接続。
+- `bigpaw-site`/`bigpaw-web`と別プロジェクト`bigpaw-live`はOnline、警告0。既存の購入ボタンは引き続き本番無効、ユーザーの実メール送信やSquare本番決済の設定・販売開始は行っていない。
+- **注意**：ここで完成したのはSandbox用運営画面の「承認記録」の期限・取消操作。実顧客宛メール送信の認証付き運営画面、真正な本番発送/返金フロー、法定販売者情報、特商法条件、独立ショップ用テストサービス、公開前E2Eは依然未完成。
+
+## 2026-10-30：Square本番の署名付き決済通知から注文台帳への安全な接続部品（未公開）
+
+- `shop_payments/live_payment_intake.py`を追加。将来の**本番用Square通知を署名検証**して種類・金額・店舗/注文/決済IDを確認。署名だけでは入金を確定せず、**すでにサーバー側で作成した注文台帳**から注文を引いて、Square ProductionのPayments/Ordersを読み取り再照合した場合のみ、台帳を一度だけ`paid_verified`へ遷移させる。
+- Square通知の注文番号や顧客に由来する数量・金額をそのまま台帳に保存せず、**注文登録済みの金額・Square注文ID・店舗ID**と照合する。重複受信時は`already_recorded`（現在の入金保証ではない）、未確定なら`awaiting_square`、対象外イベントは`ignored`として区別する。
+- `scripts/test-shop-live-payment-intake.py`で偽HMAC署名・偽Square GETを用いた連携を試験。署名改ざん、HTTPS URL変更、注文/金額/店舗不一致、返金済み・未入金、配送情報不備、重複受信、DB未登録注文を拒否。**外部課金・返金・メール送信・実顧客アクセスは実行しない。**
+- このコードは将来の**内部ライブラリ**であり、実際にリクエストを受ける本番HTTPS Webhookルート・認証/イベント重複保管・運営注文画面・顧客メール送信・公開スイッチには**未接続**。通知先URL・署名鍵・Production決済キーは未設定。公開前のSquare実機接続試験、合法的な販売条件、店主承認が必要。
+
+## 2026-10-30：本番用Square決済リンク作成の安全な準備（アプリ未接続）
+
+- `shop_payments/live_checkout_intent.py`を追加。店側価格表から商品の数量・名称・税込単価・送料0円を固定した`CreatePaymentLink`リクエストを**Squareに送る前に**専用SQLiteへ保存する。注文が同一なら再利用・内容が変われば拒否。発行前に15分経過または現行価格との不一致を検出すると処理を止める。
+- リンク発行の直前に注文を`attempt_unknown`状態へ一度だけ変更。通信断や結果不明でも同じ注文を**自動再送・新しいIDで再発行しない**。運営者がSquare側の結果を照合してから復旧する運用が必要。
+- `shop_payments/square_live_checkout_adapter.py`を追加。将来Square Productionへ`POST /v2/online-checkout/payment-links`を**一回だけ**発行するサーバー部品。固定URL、注文ID由来の冪等キー、税込JPY価格、配送先取得とチップ禁止の構造を検証する。**現在のBIG PAW / Railway / 起動処理 / 公開HTTPルートには一切接続しておらず、外部Square APIは実行していない。**
+- Squareの作成応答だけでは受注確定とせず、`GET /v2/orders/{id}`で店舗・通貨・金額を再確認後、リンク発行結果と既存入金台帳を**同じSQLiteトランザクションで一括保存**。別注文へのリンク重複登録もロールバックする。発行後の価格表変更があっても確定した注文当時の価格を保持する。
+- `scripts/test-shop-live-checkout-intent.py`と`scripts/test-shop-square-live-checkout-adapter.py`で、偽Square POST/GET、改ざん商品・金額・URL、タイムアウト、15分経過、二重リンク、途中停止、台帳への一括登録を無通信テスト。実際の購入、実Square本番通信、カード課金、購入者へのメールは発生しない。
+- **未完了**：運営承認済みの最終確認画面から本番Checkoutを呼ぶ認証/レート制限付き公開ルート、Square通知先/本番秘密鍵、決済後の注文管理画面とメール配送、正式特商法表示・返品規約、店主の公開承認、2系統のRailwayテスト環境への分離、実機E2E。
+
+## 2026-10-30：購入処理の一連の疑似接続（公開開始ではない）
+
+- `shop_payments/live_checkout_flow.py` を追加。将来の本番購入フローに使う既存モジュールを、**明示されたテスト実行と注入した偽Squareアダプターだけ**で接続するオフライン試験用ヘルパー。`shop_payments/live_checkout_intent.py`（販売価格・注文番号固定）→`square_live_checkout_adapter.py`（Square決済リンクPOSTの形式）→Square注文GET照合→SQLite注文台帳への一括登録、の一連の通過を確認できる。
+- `scripts/test-shop-live-checkout-flow.py` で疑似POST×1回・GET×1回、注文番号・税/送料・重複試行拒否、途中通信断は`attempt_unknown`に保存して自動再試行しないこと、改ざんしたリンク拒否を確認。画面上のSquare Sandbox購入テストは既存`review_sandbox_checkout.js`とブラウザー回帰テストを継続。
+- **現時点では本番の`app/shop.html`から呼び出す決済APIルートはない。** `live_checkout_flow.py` は運用経路から一切呼ばれず、ブラウザーの購入ボタンも無効。本番用の認可、秘密鍵、決済先との接続、法定販売条件、事業者承認が揃うまでは実注文不可。実Square決済、実メール、実配送なし。
+- 工程カウントの目安：①購入UI/Square試験接続は**Sandboxと疑似本番部品の検証まで**。実際の本番連携と公開は別の未完ゲート。完了工程のカウントは「本番未接続」を明示して扱う。
+
+## 2026-10-30：購入画面のSandbox決済リンクを一回だけ発行する保護（本番未公開）
+
+- 既存のShop Sandbox購買APIでは、決済リンク作成の通信が失敗・応答不明になった場合に、同じ注文で再送できる余地があった。**`sandbox_connector.py`の追加テーブル`checkout_link_claims`へ事前予約を保存**し、`staging_checkout_preview.py`でSquareへのPOST直前に1回だけ獲得するように変更した。
+- Square結果不明時は`attempt_unknown`を維持し、同じ注文からの自動POSTを拒否（HTTP409）。過去のDBの`created`で請求結果不明なレコードは新しい`ready`を自動付与せず、手動照合扱いで拒否。Squareリンクが既に検証・保存されている場合は同じリンクを返し、**二重作成をしない**。
+- カートおよび注文確認テスト画面には「再実行しないで運営に確認する」表示を追加。HTTPテストで偽Square通信エラー→再試行拒否→運営側の手動リンク復旧、旧DBの未確定注文拒否、およびSQLite並列8操作からの一回限りの発行権取得を検証する。
+- 既存`orders`・`square_events`・永続SQLiteボリューム・Square Sandboxトークンを削除・再作成しない。**本番Square、本番BIG PAWのCheckout、実メール送信はすべて未接続で禁止**。
+
+## 2026-10-30：購入画面から本番決済を行う前のサーバー境界（未公開）
+
+- `live_checkout_controller.py`は将来の購入リクエストを取り込むための**未接続**コントローラー。ブラウザーのSKU/数量/試行ID/承認済み利用条件ハッシュを検証し、金額・送料は事業者価格表からのみ生成。CSRF・HTTPS Origin・サーバーセッションとHMAC署名・JSON重複キー・件数を検査する。
+- **デフォルトで本番不可**：`retail_launch_status.json`に未承認が一つでもあると、Square/注文台帳アクセス前に停止。仮に事業者が全条件を承認しても`BIGPAW_ENV=live`、公開販売許可、オーナー承認、最終販売条件ハッシュ、Square本番資格情報のすべてが別途必要。現在はこの条件を満たしていない。
+- `scripts/test-shop-live-checkout-controller.py`は完全に偽の環境とSquare POST/GETだけで、通常は遮断され、**人工的な承認テスト時だけ**注文固定→Squareリンク照合→台帳への原子的登録に至ることを確認。実商用カード請求・Square実API・実メールはゼロ。
+- さらに必要：実際の本番HTTPSハンドラーの適切な認証/セッション管理/レート制限、決済条件の法務確認、Square実商用E2E、ショップ専用テスト環境分離、オーナーの最終承認。**現段階で本番購入ボタンは有効化しない。**
+
+## 2026-10-30：Square決済後の注文監査と注文一覧（未公開部品）
+
+- `live_order_ledger.py`：重複する「決済完了」通知でも古い`paid_verified`の履歴をそのまま通さず、**Square Production Payments/Ordersの最新GETを再照合**する。後日返金された場合、再通知の独立確認は失敗し、現在も入金済みと表示しない。過去の台帳履歴自体は監査用として保持する。
+- `live_payment_intake.py`：署名検証済み通知のイベントIDと原本文のSHA-256を照合し、Square GETで入金・未返金を確認してから`food_live_signed_payment_events`に監査履歴を記録。同一通知IDは1件だけ、本文が違う同一IDは拒否。DB内にお客様のメール/住所・通知原文・トークンを保存しない。クラッシュ時は同じ通知を新たなSquare GETで再確認した後に再記録できる。
+- `live_order_overview.py`：将来の運営専用注文管理のための**SQLite完全読取専用、最大100件**の一覧データ。注文SKU・数量・税込額・過去の入金記録・署名付き通知数を出せる。`paid_verified`は過去の確認履歴であり、**現在の返金状況は必ず`not_checked`と表示**する。顧客PII・Squareトークンは含めない。
+- `test-shop-live-payment-intake.py`、`test-shop-live-order-ledger.py`、`test-shop-live-order-overview.py`をGitHub CIで無通信検証。現在のサイト・運営画面・Square本番・購入者へのメール送信へはまだ**未接続**。正式販売承認が完了するまで有効化しない。
+
+## 2026-10-30：将来の注文管理画面を実際に閲覧できるSandbox専用ページに接続
+
+- `shop_payments/staging_live_overview_page.py`が`live_order_overview.py`の**SQLite読み取り専用**注文一覧をスマホ対応HTMLに変換。表示するのはSKU・数量・商品名・確定金額・過去の入金確認記録・署名付き通知数のみ。最新の返金/入金状態は`未確認`と明示。顧客PII・Squareトークン・決済IDは表示しない。
+- `staging_checkout_preview.py`に既存`bigpaw-test`の**運営者ログインだけ**でアクセスできる`GET /shop-live-orders-preview.html`を追加。購入者用のプレビューログインでは表示できない。既存`shop-test-orders.html`からのリンクを追加。該当する将来の台帳が空なら`DEMO-ORDER-001/002`という**架空の見本のみ**を表示し、実注文・売上の件数に算入しない。
+- HTTPテストに認証失敗（未ログイン/購入者/Host違い/機能無効）、データ更新ゼロ・不正HTMLのエスケープ・noindex/iframe拒否、画面の架空データ区別を追加。Chromium/iPhone Safariの画面表示と横スクロールなしもCIで確認。
+- **テスト専用表示であり、本番の運営管理画面や実Square決済・返金・発送・メールに接続していない。** 本番利用はオーナーの法定表示・公開/運用の承認後に別途行う。
+
+## 2026-10-30：Square本番の接続準備・決済通知復旧の再検証
+
+- 接続済みRailwayサービスの**変数名のみ**を調査。実サイト`bigpaw-live`、`bigpaw-site`に`BIGPAW_SQUARE_LIVE_ACCESS_TOKEN`と`BIGPAW_SQUARE_LIVE_LOCATION_ID`が存在しないことを確認。Sandbox`bigpaw-test`は専用の`BIGPAW_SQUARE_SANDBOX_*`で隔離。本番の認証値は参照/保存/登録/送信していない。
+- `shop_payments/square_live_preflight.py`：変数名だけから不足を安全に確認。本番用の情報がオーナー承認後に別途提供された場合だけ、**GET /v2/locations/{id}**でJPY/JP/ACTIVE・カード処理対応を確認する準備関数を追加。テストでは偽Square応答だけを使う。**本番アカウントへの通信はまだない。** Square Checkout CreatePaymentLinkに必要な`ORDERS_READ`、`ORDERS_WRITE`、`PAYMENTS_WRITE`、追加の決済照合`PAYMENTS_READ`・店舗参照`MERCHANT_PROFILE_READ`は、実際の本番権限を別途確認しない限り「承認済み」とみなさない。
+- `shop_live_checkout_bridge.py`：Sandbox用トークンまたはSandbox店舗IDを本番用変数として誤流用した場合、購入処理開始前に拒否。Square本番キー/承認なしで販売可能になることはない。
+- `scripts/test-shop-live-payment-intake.py`を拡充。**同一署名付き通知8件の同時到着**で入金確認遷移1回/イベント監査1件。入金コミット後、イベント記録前の模擬クラッシュでは再送時にSquare PaymentsとOrdersを再照合して復旧。既存の返金後/金額不一致/署名無効/イベントID衝突も検証。
+- [CI 41053562985](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41053562985)：両Docker・Python・Chromium・iPhone WebKitすべて成功。**P02は本番設定未登録につき未完了。O03（模擬決済通知の結合テスト）のみ3ポイント完了、全体残り90ポイント。**
+- 本番Squareキー登録・本番API GET・Square POST・Webhook公開、mainマージ、本番デプロイ、実メール送信、Railway追加サービスへの変更はなし。
+
+## 2026-10-30：本番用Square署名付きWebhook受信口の安全接続（開発ブランチのみ）
+
+- `app/backend/shop_live_webhook_bridge.py`を追加し、BIG PAW本体の`POST /api/shop/square-webhook`へ配線した。ただし**現在の未承認マニフェストと未登録の本番資格情報では404で全面拒否**。本番サイトやテストサイトへのデプロイ・Square通知先登録・課金は**行っていない**。
+- 正式運用の条件がすべて揃った将来に限り、Square署名（正規HTTPS URL+受信本文HMAC）を検証。無効/不明な本文、別Host/通知URL、ブラウザCookie、未承認環境・不正Content-Length・不正Content-Typeを遮断。顧客情報や秘密鍵を出力しない。
+- 署名が正しくても入金は信用せず、既存の非公開注文台帳から店舗・JPY金額・注文を特定し**Square Payments/Ordersの最新GETを独立照合した場合だけ**入金済みの遷移を記録。同一通知の再配信も冪等に処理、返金・金額差・未知の注文は失敗。
+- 購入API側にも、Square正式Webhook URL/署名鍵/受信有効化が整っていない場合は**本番購入を拒否**する追加ガードを実装した。
+- [CI 41054761005](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41054761005)はPython、BIG PAW本体Docker、Sandbox Docker、Chromium、iPhone Safari/WebKitすべて合格。テストは偽Square通知・通信のみ。本番SquareへのAPIアクセスはしていない。
+- `SHOP_PROGRESS_POINTS.json`のO01（本体への保護されたWebhookルート配線）を4ポイント完了、**残り86ポイント**。実Square本番接続・実Webhook受信・運営管理等はまだ未完了。
+
+## 2026-10-30：購入停止と入金確認の独立・注文台帳の全結合検証
+
+- **販売停止中も、停止前に作られた決済リンクの入金通知は必要**。新規購入は`BIGPAW_SHOP_PUBLIC_LIVE_ENABLED=0`で即時停止し、入金確認用Webhookは独立して`BIGPAW_SHOP_SQUARE_LIVE_WEBHOOK_ENABLED=1`、正しいSquare本番署名鍵/URL、店舗・トークン、運営承認が揃った場合だけ継続可能にする修正。
+- `shop_live_webhook_bridge.py`の署名認証を**注文台帳確認より前**に実行。署名が間違っていれば401、正しい署名でも既存の注文台帳がなければ503で停止。Webhooks経由で新規DBや注文、リンク、返金、メール、配送を作成しない。
+- `scripts/test-shop-live-order-full-pipeline.py`に、新規購入認証→架空SquareのLink POST/Orders GET→同一私有SQLite注文記録→販売停止→署名付きSquare入金通知→Payments/Orders GET→入金記録→重複通知の冪等な再処理までを追加。返金・偽署名・未登録通知は入金としない。
+- [CI 41056307267](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41056307267)：Python・両Dockerビルド・Chromium・iPhone WebKitの全チェックSUCCESS。**実際のSquare API/販売・実顧客情報は一切使っていない。**
+- O02「Square Payments/Ordersと私有注文台帳の配線・結合検証」を開発ブランチで完了して4ポイント減算、**残り82ポイント**。実Square本番・法定条件・実送信・実デプロイ・緊急停止の運用実機確認は引き続き未完了。
+
+## 今の運用上の注意
+
+- ショップ公開用の `app/shop.html` は「販売準備中」で、決済ボタンが無効。現行の `bigpaw-test` は専用Sandbox Dockerサービスであり、公開用BIG PAW全体の変更を試すサービスではない。
+- 運営画面の「発注済み」「発送済み」「返金済み」「メール模擬受付」は**Sandboxの手動記録**であり、仕入先・配送会社・顧客への実アクションを示さない。
+- 外部へバックアップする際は取引データと認証秘密情報の取扱いを分け、テストデータも勝手に初期化しない。
+- ここまでの開発進捗についての「約85%」は機能の概算であり、法令適合性・実運用・本番決済の承認が済んだことを意味しない。

@@ -1,0 +1,14 @@
+# Dedicated HTTPS-terminated Square SANDBOX webhook service ONLY.
+# Never use this Dockerfile for BIG PAW's main/production website.
+FROM python:3.13-slim
+WORKDIR /srv
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+COPY shop_payments/ /srv/shop_payments/
+COPY app/ /srv/app/
+RUN python3 -m py_compile /srv/shop_payments/staging_https_webhook.py \
+    /srv/shop_payments/sandbox_auto_notify.py \
+    /srv/shop_payments/sandbox_connector.py \
+    /srv/shop_payments/sandbox_operator_email.py \
+    /srv/shop_payments/staging_checkout_preview.py
+EXPOSE 8080
+CMD ["python3", "-m", "shop_payments.staging_https_webhook"]

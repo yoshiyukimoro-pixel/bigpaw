@@ -1,0 +1,18 @@
+{
+  "business_structure": "individual_proprietor",
+  "sandbox_only": true,
+  "public_live_checkout_enabled": false,
+  "launch_checks": {
+    "seller_identity": false,
+    "statutory_contact": false,
+    "return_policy": false,
+    "checkout_disclosure": false,
+    "fulfillment_sla": false,
+    "customer_email_delivery": false,
+    "square_live_readiness": false,
+    "environment_separation": false,
+    "production_e2e_tests": false,
+    "proprietor_approval": false
+  },
+  "notes": "Individual proprietor: explicit 2026-10-31 owner decision to show official seller name on draft legal page; address and phone available privately and provided on request without delay via info@bigpaw.site. Never commit private postal address or telephone to Git. Real incoming request and private reply, statutory terms, live payment and launch approval remain incomplete. All checks FALSE and live checkout OFF."
+}

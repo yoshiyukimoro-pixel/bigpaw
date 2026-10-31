@@ -1,0 +1,115 @@
+name: BIG PAW Square Sandbox connection smoke (opt-in only)
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+  workflow_dispatch:
+    inputs:
+      run_sandbox_smoke:
+        description: "Create a test checkout link in Square Sandbox (no payment)"
+        required: true
+        type: boolean
+        default: false
+      run_sandbox_card_smoke:
+        description: "Verify unsupported linked-card API probe is blocked (offline, no Square calls)"
+        required: true
+        type: boolean
+        default: false
+      run_sandbox_api_smoke:
+        description: "Check standalone Square Sandbox Payments API with fake card; no Checkout order"
+        required: true
+        type: boolean
+        default: false
+      run_sandbox_panel_smoke:
+        description: "Simulate hosted Checkout via Square official Sandbox Testing Panel"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  square-sandbox-smoke:
+    # No Square network calls on normal pushes. Opt-in only on the isolated feature branch:
+    # push requires the marker; manual dispatch requires the explicit checkbox.
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[square-smoke]')) || (github.event_name == 'workflow_dispatch' && inputs.run_sandbox_smoke == true))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test 35-product retail pricebook before touching Square
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-retail-pricebook.py
+          PYTHONPATH=. python3 scripts/test-shop-square.py
+      - name: Square Sandbox link-creation smoke test (no charge)
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-sandbox.py
+
+  square-sandbox-linked-card-safety:
+    # This is an OFFLINE fail-closed check, not a fake payment attempt.
+    # Payment Links DRAFT orders must use Square-hosted Sandbox Testing Panel.
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[square-card-smoke]')) || (github.event_name == 'workflow_dispatch' && inputs.run_sandbox_card_smoke == true))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm deprecated direct linked-card probe cannot call Square
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-square-card-smoke.py
+          PYTHONPATH=. python3 scripts/test-shop-retail-pricebook.py
+          set +e
+          PYTHONPATH=. python3 scripts/smoke-shop-square-card-payment.py
+          status=$?
+          set -e
+          test "$status" -eq 2
+          echo "Unsupported linked-card direct payment safely blocked; hosted Sandbox Panel remains separately opt-in."
+
+  square-sandbox-standalone-card-api:
+    # Explicit opt-in, fake Sandbox card source only, not a hosted Checkout order.
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[square-api-smoke]')) || (github.event_name == 'workflow_dispatch' && inputs.run_sandbox_api_smoke == true))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate standalone API fake-card test without real network
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-square-standalone-smoke.py
+          PYTHONPATH=. python3 scripts/test-shop-square-card-smoke.py
+      - name: Verify standalone Square Sandbox fake-card payment (no hosted checkout)
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-standalone-payment.py
+
+  square-sandbox-hosted-panel:
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[square-panel-smoke]')) || (github.event_name == 'workflow_dispatch' && inputs.run_sandbox_panel_smoke == true))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static safety checks before Square network access
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-square-hosted-panel.py
+          node --check scripts/smoke-shop-square-hosted-panel.cjs
+          PYTHONPATH=. python3 scripts/test-shop-retail-pricebook.py
+      - name: Create original Square Sandbox hosted checkout link
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-hosted-panel.py setup
+      - name: Complete Square Sandbox Testing Panel (fake payment only)
+        run: |
+          timeout 180s docker run --rm \
+            -v "$PWD:/work" -v "$RUNNER_TEMP:/sandbox-tmp" \
+            -e SHOP_PANEL_JSON=/sandbox-tmp/bigpaw-panel.json \
+            -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/smoke-shop-square-hosted-panel.cjs'
+      - name: Verify same Square order and actual Sandbox payment via APIs
+        env:
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-square-hosted-panel.py verify

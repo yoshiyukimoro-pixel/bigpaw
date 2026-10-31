@@ -11,6 +11,8 @@ and use durable/off-site storage appropriate to the hosting environment.
 """
 from __future__ import annotations
 import planned_litters as bp_planned_litters
+import shop_live_checkout_bridge as bp_shop_checkout
+import shop_live_webhook_bridge as bp_shop_webhook
 
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote, urlencode
@@ -927,6 +929,8 @@ class Handler(SimpleHTTPRequestHandler):
         if not urlparse(self.path).path.startswith('/api/') and self.static_blocked(self.path):
             self.send_error(404); return
         parsed=urlparse(self.path); path=parsed.path; q=parse_qs(parsed.query)
+        if path == '/api/shop/checkout/config':
+            return bp_shop_checkout.handle_get(self, env=dict(os.environ), base_url=PUBLIC_BASE_URL)
         if bp_planned_litters.handle(self, 'GET', path, q, { 'db':db, 'now':now, 'make_id':make_id, 'audit':audit, 'send_mail':send_mail, 'public_profile_has_direct_contact':public_profile_has_direct_contact, 'public_url':PUBLIC_BASE_URL }): return
         # Authenticated preview readiness: a persisted Stream UID is not proof
         # that Cloudflare has finished transcoding and can play an iframe.
@@ -1224,6 +1228,36 @@ class Handler(SimpleHTTPRequestHandler):
             u=self.require(['operator']);
             if not u:return
             con=db(); rows=con.execute('SELECT * FROM puppies ORDER BY created_at DESC').fetchall(); con.close(); return self.send_json([puppy_json(r) for r in rows])
+        if path=='/api/operator/shop-orders':
+            u=self.require(['operator'])
+            if not u:return
+            # The retail journal is deliberately separate from BIG PAW's
+            # breeder database. Open it only in read-only mode and never
+            # expose recipient or payment credentials in this list endpoint.
+            from shop_payments.live_order_ledger import LiveOrderLedger
+            from shop_payments.live_order_overview import read_order_management_snapshot
+            try:
+                ledger = LiveOrderLedger(DATA_DIR / 'bigpaw-shop-live-orders.sqlite3')
+                snapshot = read_order_management_snapshot(ledger=ledger, limit=100)
+            except Exception:
+                # Keep filesystem and journal details out of the response.
+                return self.send_json({'error':'shop_orders_unavailable'},503)
+            return self.send_json(snapshot,extra={'Cache-Control':'private, no-store'})
+        if path=='/api/operator/shop-orders/audit':
+            u=self.require(['operator'])
+            if not u:return
+            from shop_payments.live_order_ledger import LiveOrderLedger
+            try:
+                ledger = LiveOrderLedger(DATA_DIR / 'bigpaw-shop-live-orders.sqlite3')
+                return self.send_json({'events':ledger.operator_audit_events(limit=100)},
+                                      extra={'Cache-Control':'private, no-store'})
+            except Exception:
+                return self.send_json({'error':'shop_audit_unavailable'},503)
+        import shop_payments.live_operator_reconciliation as bp_live_reconcile
+        if bp_live_reconcile.issue_csrf(self, env=dict(os.environ),
+                                        is_production=IS_PRODUCTION,
+                                        base_url=PUBLIC_BASE_URL):
+            return
         if path=='/api/operator/support':
             u=self.require(['operator'])
             if not u:return
@@ -1362,6 +1396,29 @@ https://www.bigpaw.site/'''
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
         path=urlparse(self.path).path
         m=re.fullmatch(r'/api/inquiries/([^/]+)/messages',path)
+        if path == '/api/shop/seller-disclosure/confirm':
+            from shop_seller_disclosure_bridge import handle_confirm
+            return handle_confirm(
+                self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
+                db_factory=db, rate_limited=rate_limited)
+        if path in ('/api/shop/checkout', '/api/shop/checkout/quote'):
+            return bp_shop_checkout.handle_post(
+                self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
+                data_dir=DATA_DIR, rate_limited=rate_limited)
+        if path == '/api/shop/square-webhook':
+            return bp_shop_webhook.handle_post(
+                self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
+                data_dir=DATA_DIR)
+        # Import retail-only dependencies only for retail operator POST routes.
+        # Regular login and breeder inquiry requests must work without the
+        # shop_payments package on the legacy unpatched standalone server.
+        if path in ('/api/operator/shop-orders/reconcile',
+                    '/api/operator/shop-orders/shipping-address'):
+            import shop_payments.live_operator_reconciliation as bp_live_reconcile
+            if bp_live_reconcile.handle_post(
+                    self, env=dict(os.environ), is_production=IS_PRODUCTION,
+                    base_url=PUBLIC_BASE_URL, data_dir=DATA_DIR):
+                return
         if m:
             u=self.require();
             if not u:return
@@ -1579,8 +1636,30 @@ https://www.bigpaw.site/'''
             u=self.current_user(); con=db(); tid=make_id('sup_'); t=now(); con.execute('INSERT INTO support_tickets VALUES(?,?,?,?,?,?,?,?,?,?,?)',(tid,u['id'] if u else None,name,email,category,subject,message,'open','',t,t)); audit(con,u['id'] if u else None,'support_ticket_created','support_ticket',tid,category)
             ops=con.execute("SELECT id,email FROM users WHERE role='operator'").fetchall()
             for op in ops: con.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',(make_id('n_'),op['id'],'support','運営への問い合わせが届きました',f'{category} / {subject}',0,t))
-            con.commit(); con.close()
-            for op in ops: send_mail(op['email'],'BIG PAW 運営問い合わせ',f"受付番号: {tid}\nカテゴリ: {category}\n件名: {subject}\n送信者: {name} <{email}>\n\n{message}\n\n{PUBLIC_BASE_URL}/operator-support.html")
+            con.commit()
+            # A request email challenge contains no seller address or phone.
+            # It is separate from, and does not activate, the checkout switch.
+            # When not explicitly configured, keep ordinary manual tickets.
+            if (category=='ドッグフードショップ販売者情報の開示請求'
+                    and IS_PRODUCTION
+                    and os.environ.get('BIGPAW_SHOP_SELLER_DISCLOSURE_AUTO_ENABLED')=='1'):
+                try:
+                    from shop_seller_disclosure_bridge import request_challenge
+                    request_challenge(con, tid, email, env=dict(os.environ))
+                except Exception:
+                    # The saved support ticket must remain actionable on error.
+                    # Never write private details or email verification tokens to logs.
+                    pass
+            con.close()
+            # A food-shop statutory disclosure request must also alert the
+            # shop's contact mailbox if there are no operator accounts.
+            # This is a REQUEST notification only: NEVER automatically send
+            # the proprietor's private address or phone to the requester.
+            notify_targets={str(op['email']).strip().lower() for op in ops if str(op['email']).strip()}
+            if category=='ドッグフードショップ販売者情報の開示請求':
+                notify_targets.add('info@bigpaw.site')
+            for notify_to in sorted(notify_targets):
+                send_mail(notify_to,'BIG PAW 運営問い合わせ',f"受付番号: {tid}\nカテゴリ: {category}\n件名: {subject}\n送信者: {name} <{email}>\n\n{message}\n\n{PUBLIC_BASE_URL}/operator-support.html")
             return self.send_json({'id':tid,'status':'open'},201)
         if path=='/api/reports':
             u=self.require();

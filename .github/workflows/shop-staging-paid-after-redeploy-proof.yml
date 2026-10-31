@@ -1,0 +1,27 @@
+name: BIG PAW isolated paid order survives Railway redeploy READ ONLY
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-staging-paid-after-redeploy-proof.yml'
+      - 'scripts/audit-shop-new-isolated-paid-durability.py'
+permissions:
+  contents: read
+jobs:
+  private-paid-status-after-redeploy:
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Offline strict unique-payment safety
+        run: PYTHONPATH=. python3 scripts/test-shop-new-isolated-paid-durability.py
+      - name: Read isolated paid order after service redeploy using Square payment note and protected Basic Auth
+        env:
+          BIGPAW_STAGING_PAID_RECOVERY_READONLY_OPT_IN: '1'
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+          BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN: ${{ secrets.BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN }}
+        run: PYTHONPATH=. python3 scripts/audit-shop-new-isolated-paid-durability.py paid
+# Verified stable-preview redeploy one-time read; no Square POST or payment creation.

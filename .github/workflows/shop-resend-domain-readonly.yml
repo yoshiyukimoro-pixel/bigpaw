@@ -1,0 +1,27 @@
+name: BIG PAW Resend sender domain READ ONLY
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-resend-domain-readonly.yml'
+      - 'scripts/audit-shop-resend-domain-readonly.py'
+      - 'scripts/test-shop-resend-domain-readonly.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resend-domain-read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test domain status audit with synthetic responses
+        run: PYTHONPATH=. python3 scripts/test-shop-resend-domain-readonly.py
+      - name: Get only registered domain verification and sender permission, never send
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: PYTHONPATH=. python3 scripts/audit-shop-resend-domain-readonly.py

@@ -1,0 +1,29 @@
+name: BIG PAW food shop owner mail READ-ONLY delivery audit
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+
+permissions:
+  contents: read
+
+jobs:
+  audit-only:
+    # The one permitted one-time send was attempted on 2026-10-29 UTC.
+    # Verify the corrected secret binding with GET-only checks; never send.
+    # Its result was ambiguous. This workflow is PERMANENTLY read-only:
+    # it never runs the original send script, even on rerun.
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && github.event_name == 'push' && contains(github.event.head_commit.message, '[shop-operator-mail-audit]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify read-only mail audit makes no POST (offline)
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-operator-resend-audit.py
+          PYTHONPATH=. python3 scripts/test-shop-operator-resend-once.py
+      - name: Read Resend sent-event and API log status (NEVER resend)
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: PYTHONPATH=. python3 scripts/audit-shop-operator-resend-attempt.py

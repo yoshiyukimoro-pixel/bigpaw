@@ -1,0 +1,52 @@
+name: BIG PAW explicit single info mailbox test
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bigpaw-info-test-only-once-20261030
+  cancel-in-progress: false
+
+jobs:
+  key-format-check:
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && github.event_name == 'push' && contains(github.event.head_commit.message, '[shop-info-key-check]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check secret presence and format without network or email
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          raw = os.environ.get("RESEND_API_KEY", "")
+          if not raw:
+              print("SHOP_RESEND_KEY=NOT_CONFIGURED")
+              sys.exit(2)
+          if raw != raw.strip() or not re.fullmatch(r"re_[A-Za-z0-9_-]{8,256}", raw):
+              print("SHOP_RESEND_KEY=INVALID_FORMAT")
+              sys.exit(2)
+          print("SHOP_RESEND_KEY=CONFIGURED_FORMAT_OK; NO_NETWORK; NO_EMAIL")
+          PY
+
+  authorized-once:
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && github.event_name == 'push' && contains(github.event.head_commit.message, '[single-info-mail-send]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # One approved test recipient only; no Square, no real orders, no production deploy.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate tests (NO network, NO email)
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-info-mail-simple.py
+          PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-email.py
+      - name: Authorized single test email to info@bigpaw.site ONLY
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          BIGPAW_SINGLE_INFO_EMAIL_TEST: '1'
+        run: PYTHONPATH=. python3 scripts/smoke-shop-info-mail-simple.py
