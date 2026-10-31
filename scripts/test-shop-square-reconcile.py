@@ -217,7 +217,7 @@ class TestSandboxVerification(unittest.TestCase):
             retrieve_sandbox_shipping_recipient(
                 ORDER_ID, token="FAKE_SANDBOX_ONLY", opener=fake)
         original["address"]["address_line_2"] = "テストビル2F"
-        original["display_name"] = "Synthetic\\nBcc: recipient"
+        original["display_name"] = "Synthetic" + chr(10) + "Bcc: recipient"
         with self.assertRaises(SquareSandboxError):
             retrieve_sandbox_shipping_recipient(
                 ORDER_ID, token="FAKE_SANDBOX_ONLY", opener=fake)
