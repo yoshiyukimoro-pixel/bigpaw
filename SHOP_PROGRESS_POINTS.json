@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 41,
-  "completed_points_since_baseline": 59,
+  "remaining_points": 38,
+  "completed_points_since_baseline": 62,
   "groups": [
     {
       "key": "purchase",
@@ -494,8 +494,8 @@
           "id": "F02",
           "weight": 3,
           "title": "お客様への注文確認と必要な連絡文面を承認",
-          "status": "pending",
-          "completed_at": null,
+          "status": "completed",
+          "completed_at": "2026-10-31",
           "evidence": {
             "owner_approval_materials_20261031": {
               "date": "2026-10-31",
@@ -512,6 +512,20 @@
                 "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
                 "point_change": 0
               }
+            },
+            "editorial_approval_delegated_20261031": {
+              "authorization": "Owner expressly delegated item 3 (customer notice drafting/selection) to assistant in conversation on 2026-10-31; no authorization for sending or launch.",
+              "scope": "All five Japanese customer notice templates finalized with explicit verified payment, supplier shortage, verified delay, actual shipment and Square COMPLETED refund conditions; no unresolved customer placeholders may be sent. Existing paid-order review-only preview updated with accepted no-change-of-mind-return language.",
+              "files": [
+                "SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md",
+                "shop_payments/live_customer_notice_preview.py",
+                "scripts/test-shop-owner-approval-pack.py",
+                "scripts/test-shop-live-customer-notice-preview.py"
+              ],
+              "manual_source_verification": "Five numbered notice headings, five explicit send conditions, delegated editorial approval, privacy and no live checkout flags verified on 2026-10-31.",
+              "caveat": "F02 completed for owner-delegated final copy only. F01 mail sender domain/delivery and R02 real end-to-end remain pending; full seller legal disclosure and cancellations pending. NO customer email has been sent. GitHub Actions comprehensive regression run queued at time of this progress record.",
+              "verified_source_commit": "238ec3f765497898eb1b576c612154e947cd3e49",
+              "points_deducted": 3
             }
           }
         },
@@ -614,6 +628,11 @@
                 "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
                 "point_change": 0
               }
+            },
+            "private_seller_contact_supplied_20261031": {
+              "confirmed": "Owner supplied legal seller name, postal code, address and phone in conversation; no values committed publicly.",
+              "limits": "Publication choice, real contact operation, compliant statutory notice, store display and verification remain incomplete.",
+              "points_deducted": 0
             }
           }
         },
@@ -664,6 +683,12 @@
                 "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
                 "point_change": 0
               }
+            },
+            "change_of_mind_return_confirmed_20261031": {
+              "approved": "Change-of-mind dog food returns/exchanges denied even unopened; defects, wrong item and statutory rights excluded.",
+              "scope": "Only change-of-mind return/exchange agreed; cancellations, defects/refunds, shortage/delays and full legal display unapproved.",
+              "source": "shop_payments/returns_policy_review.json",
+              "points_deducted": 0
             }
           }
         },
