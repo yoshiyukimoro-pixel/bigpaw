@@ -40,3 +40,11 @@ P04は**4ポイント未完了のまま**。今回の検査結果を根拠なく
 - 「配送先の必須項目を確認しました（Sandbox）」「配送先情報が不足しています・発送禁止」「Squareの最新情報を確認できません」の3種類のみ表示。宛名/電話/住所はレスポンス、ログ、SQLiteに保存・表示しない。確認不能時は発送禁止。
 - 既存の `shop-test-orders.html` の入金済み注文ごとに「配送先が揃っているか確認する（Sandbox）」ボタンを用意。**ステージング管理画面の開発ブランチ上の実装で、まだユーザーに公開されていない**。実際の出荷登録では再度Square情報を確認するため、この画面の結果は発送の最終許可ではない。
 - ローカルHTTPの結合テスト（全外部通信はモック）で、運営未認証、CSRF・Origin不一致、配送先不備、正しいJP配送先、返金済み状態、個人情報非表示、SQLite非更新を確認。GitHub総合CIがSUCCESS後に回帰保証となる。Square公式の `ask_for_shipping_address=true` は通常の決済画面で配送情報を取得できる設計（公式：https://developer.squareup.com/docs/checkout-api/optional-checkout-configurations）だが、Square Sandbox Testing Panelが実入力を再現するという意味ではない。
+
+## 追加開発：実販売の運営注文画面でのお届け先表示（2026-10-31）
+
+- 開発ブランチ（未公開）の`app/operator-shop-orders.html`に、運営者が**入金履歴のある該当注文だけ**「お届け先を一時表示」できるボタンを追加。初期状態ではデータを表示せず、表示後60秒で画面から自動的に消す。氏名などをJavaScriptの`textContent`として挿入し、HTMLとして実行させない。
+- `POST /api/operator/shop-orders/shipping-address`は運営セッション＋HTTPS同一Origin＋CSRF＋**本番用の2つの明示スイッチ**を必要とする。別スイッチ`BIGPAW_SHOP_LIVE_ADDRESS_VIEW_ENABLED=1`は初期状態OFFのため、現行本番サイトでは使えない。既存のSquare本番手動照合スイッチも同時に有効でなければ使えない。
+- バックエンドは、運営者指定注文IDから**信頼できる入金済み台帳**を参照し、Square Productionへ読み取り専用の最新`Payments`・`Orders`照会で決済金額、通貨JPY、店舗、返金なし、国内配送先1件を確認。宛名・電話番号・郵便番号・都道府県・市区町村・番地・任意の建物名を**このリクエストのメモリでのみ**扱う。DB保存・メール送信・発送・返金は行わない。
+- 独立したコード検証 [41162046381](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162046381) **SUCCESS**。総合CI [41162012735](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41162012735) **SUCCESS**（Python回帰、2つのDockerビルド、PC Chromium / iPhone Safari相当WebKit）。
+- **重要**：この実装とテストは模擬Square応答によるソース検証。本番Square APIへの接続や、購入者本人による配送先入力から伝票作成までの実試験は未実施。P04（4ポイント）は引き続き未完了、本番販売・運営住所表示はOFFのまま。
