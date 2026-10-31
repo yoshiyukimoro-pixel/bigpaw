@@ -220,9 +220,31 @@ def verify():
         raise ValueError("Remote durable order not pending")
     # Caller is permitted to read only the unique sandbox checkout created in
     # this job. Fetch the correct order ID through the bound CheckoutLink API.
-    links=_square_get(SQUARE+"/online-checkout/payment-links?limit=100",conf["square_token"])
-    items=links.get("payment_links",[])
-    matches=[item for item in items if isinstance(item,dict) and item.get("url")==url]
+    # Read-only paginated lookup: old test runs may have produced >100 links.
+    # Refuse partial listing or missing/ambiguous matches; never POST another.
+    cursor=None
+    matches=[]
+    seen=set()
+    for _ in range(20):
+        from urllib.parse import urlencode
+        query={"limit":100}
+        if cursor:
+            query["cursor"]=cursor
+        links=_square_get(SQUARE+"/online-checkout/payment-links?"+urlencode(query),
+                          conf["square_token"])
+        items=links.get("payment_links",[])
+        if not isinstance(items,list):
+            raise ValueError("Square link listing invalid")
+        matches.extend(item for item in items
+                       if isinstance(item,dict) and item.get("url")==url)
+        cursor=links.get("cursor")
+        if not cursor:
+            break
+        if not isinstance(cursor,str) or cursor in seen:
+            raise ValueError("Square link pagination invalid")
+        seen.add(cursor)
+    else:
+        raise ValueError("Square link pagination incomplete")
     if len(matches)!=1:
         raise ValueError("Exactly one Square link not found; safe stop")
     link=matches[0]
