@@ -24,6 +24,10 @@ on:
       - 'shop_payments/**'
       - 'scripts/test-shop-customer-email-transport.py'
       - 'scripts/test-shop-square-live-readonly.py'
+      - 'shop_payments/live_shipping_address_view.py'
+      - 'scripts/test-shop-live-shipping-address-view.py'
+      - 'scripts/test-shop-live-shipping-operator-route.py'
+      - 'shop_payments/live_operator_reconciliation.py'
       - 'scripts/test-shop-live-order-ledger.py'
       - 'scripts/test-shop-live-operator-reconciliation.py'
       - 'scripts/test-shop-live-payment-intake.py'
@@ -151,6 +155,8 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-customer-mail-preflight.py
           PYTHONPATH=. python3 scripts/test-shop-customer-email-transport.py
           PYTHONPATH=. python3 scripts/test-shop-square-live-readonly.py
+          PYTHONPATH=. python3 scripts/test-shop-live-shipping-address-view.py
+          PYTHONPATH=. python3 scripts/test-shop-live-shipping-operator-route.py
           PYTHONPATH=. python3 scripts/test-shop-live-order-ledger.py
           PYTHONPATH=. python3 scripts/test-shop-live-operator-reconciliation.py
           PYTHONPATH=. python3 scripts/test-shop-live-payment-intake.py
