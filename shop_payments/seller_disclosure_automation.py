@@ -175,9 +175,12 @@ def confirm_request(db, token, *, env=None, clock=time.time,
         return "delivery_unknown"
     _record(db,ticket_id,"provider_accepted",int(clock()),receipt)
     # No private street address/phone in operator reply history or audit logs.
-    db.execute("""UPDATE support_tickets SET status='resolved',
+    # Provider acceptance is NOT proof of delivery. Keep the ticket in the
+    # operator's active queue until delivered or manually resolved; this prevents
+    # statutory requests from disappearing while bounce monitoring is incomplete.
+    db.execute("""UPDATE support_tickets SET status='reviewing',
          operator_note=?,updated_at=? WHERE id=?""",
-         ("メールアドレス確認済み・販売者情報の自動回答を送信サービスが受け付けました（到達未確認）。",
+         ("メールアドレス確認済み・販売者情報の送信を配信サービスが受理（到達未確認）。配達状況を確認してください。",
           int(clock()),ticket_id))
     db.execute("""INSERT INTO audit_logs
         (id,user_id,action,target_type,target_id,detail,created_at)
