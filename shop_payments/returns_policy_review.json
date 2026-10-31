@@ -48,8 +48,13 @@
     "seller_identity_contact": {
       "confirmed_information_received_in_private_conversation": true,
       "confidential_values_committed": false,
-      "statutory_publication_method": "pending owner choice: publish details or compliant timely disclosure on request",
-      "public_site_published": false
+      "statutory_publication_method": "on_request_without_delay_before_purchase",
+      "public_site_published": false,
+      "method_chosen_by_owner_at_jst": "2026-10-31",
+      "request_contact": "info@bigpaw.site",
+      "method_owner_approved": true,
+      "request_response_operational_tested": false,
+      "legal_disclosure_final_approved": false
     }
   }
 }
