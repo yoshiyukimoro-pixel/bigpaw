@@ -148,6 +148,77 @@ async function attempt(page,overrides={}){
           assert.equal(result.reason,'server_quote_mismatch');
         }
         mockQuote=quote();
+
+        // The future final review must reject even valid changes to the
+        // displayed cart/terms while the asynchronous price quote is pending.
+        // All responses below are local JS objects (NO server or Square calls).
+        for (const scenario of [
+          ['unchanged',true,null],
+          ['qty_changed',false,'review_changed_during_quote'],
+          ['name_changed',false,'review_changed_during_quote'],
+          ['terms_changed',false,'review_changed_during_quote'],
+          ['agreement_removed',false,'review_changed_during_quote'],
+          ['before_unapproved',false,'review_not_confirmed'],
+          ['digest_missing',false,'seller_terms_not_approved'],
+          ['invalid_after',false,'review_changed_during_quote']
+        ]) {
+          const [kind,expectedSuccess,expectedReason]=scenario;
+          const verdict=await page.evaluate(async ({kind,terms,csrf})=>{
+            const product={sku:'A02',name:'パピーラージブリードレシピ',
+              size:'11.4kg',quantity:1,unitYen:21450,lineYen:21450};
+            const state={
+              rows:[product],displayedAmountYen:21450,
+              displayedTermsSha256:terms,agreed:kind!=='before_unapproved'
+            };
+            let networkCalls=0;
+            const response=data=>({status:200,json:async()=>data});
+            const fetchImpl=async url=>{
+              networkCalls++;
+              if(url==='/api/shop/checkout/config'){
+                return response({ready:true,shipping_included:true,
+                  approved_terms_sha256:terms,csrf_token:csrf});
+              }
+              if(url!=='/api/shop/checkout/quote')throw Error('unexpected_endpoint');
+              if(kind==='qty_changed'){
+                state.rows=[{...product,quantity:2,lineYen:42900}];
+                state.displayedAmountYen=42900;
+              }
+              if(kind==='name_changed'){
+                state.rows=[{...product,name:'変更後の商品名'}];
+              }
+              if(kind==='terms_changed')state.displayedTermsSha256='c'.repeat(64);
+              if(kind==='agreement_removed')state.agreed=false;
+              if(kind==='invalid_after')state.rows=[{...product,quantity:0}];
+              return response({
+                server_verified:true,payment_link_created:false,
+                currency:'JPY',terms_sha256:terms,
+                line_items:[{sku:'A02',name:product.name,size:product.size,
+                  quantity:1,unit_yen:21450,line_yen:21450}],
+                subtotal_yen:21450,shipping_yen:0,amount_yen:21450
+              });
+            };
+            try{
+              const proof=await window.BigPawShopQuote.verifyCurrentReview({
+                readCurrent:()=>state,
+                approvedTermsSha256:kind==='digest_missing'?'':terms,
+                fetchImpl
+              });
+              return {ok:true,proof,networkCalls};
+            }catch(e){
+              return {ok:false,reason:e.message,networkCalls};
+            }
+          },{kind,terms:TERMS,csrf:CSRF});
+          assert.equal(verdict.ok,expectedSuccess,
+            label+' / '+kind+' / '+JSON.stringify(verdict));
+          if(expectedReason)assert.equal(verdict.reason,expectedReason);
+          if(kind==='unchanged') {
+            assert.equal(verdict.proof.verified,true);
+            assert.equal(verdict.networkCalls,2);
+          }
+          if(kind==='before_unapproved'||kind==='digest_missing')
+            assert.equal(verdict.networkCalls,0,
+              'unapproved seller terms must block network calls');
+        }
         assert.equal(await page.locator('#previewCheckout').isDisabled(),true);
         assert.deepEqual(jsErrors,[]);
         console.log('SHOP_QUOTE_BROWSER_OK|'+label+
