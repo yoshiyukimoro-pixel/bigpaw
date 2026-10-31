@@ -647,6 +647,16 @@
               "ops": "SHOP_SELLER_DISCLOSURE_OPERATION.md",
               "blockers": "Draft PR has not been merged or deployed. Real inbound public form, provider alert delivery, administrator reply to real test address and reply audit not yet verified. No automatic release of private details. Square payment OFF.",
               "points_deducted": 0
+            },
+            "owner_auto_approval_and_dormant_module_20261031": {
+              "owner_directive": "Owner specifically authorized email-verified, no-per-request-owner-approval seller contact disclosure upon lawful request; no blanket public publication of private address or phone.",
+              "implementation": "A dormant module shop_payments/seller_disclosure_automation.py plus app/shop-disclosure-confirm.html, category-prefilled form and operation guide; payment and public release remain blocked.",
+              "static_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41207970796",
+              "static_ci_result": "SUCCESS on source tree with tests of no secrets, email verification token expiry, one-time response and no accidental repeat, plus builds and Chromium/WebKit UI coverage.",
+              "mail_provider_prod_readonly": "Railway bigpaw-live has RESEND_API_KEY and BIGPAW_SUPPORT_EMAIL variable names, but NO dedicated seller legal address/phone env variable names found; values not accessed or published.",
+              "safety_fix": "Provider accepted does not mean delivered: contact request status remains reviewing and no private details stored in support ticket/audit. New tests passed.",
+              "major_blockers": "Automated module is not connected to production backend due to an explicit tool safety block; not deployed. Private seller envs and signed/delivered notification verification not configured; direct incoming info mailbox requests not auto processed. Owner approval of customer emails or contact disclosure does not equal authorization to activate live sales.",
+              "progress_points_deducted": 0
             }
           }
         },
