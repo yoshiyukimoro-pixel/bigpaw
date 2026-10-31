@@ -57,7 +57,7 @@ class ReadOnlyTests(unittest.TestCase):
             self.fail("Unexpected API path")
         with tempfile.TemporaryDirectory() as folder:
             state=Path(folder)/"run.json"
-            with patch.object(m,"_scope",return_value=CONF),patch.object(m,"_http",side_effect=fake),patch.object(m,"_file",return_value=state),patch.object(m.uuid,"uuid4",return_value=ORDER_UUID):
+            with patch.object(m,"_scope",return_value=CONF),patch.object(m,"_assert_square_subscription_safety",return_value=True),patch.object(m,"_http",side_effect=fake),patch.object(m,"_file",return_value=state),patch.object(m.uuid,"uuid4",return_value=ORDER_UUID):
                 m.prepare()
             self.assertEqual([c for c in calls if c[1]=="POST"],
                              [("/api/shop/sandbox/checkout","POST")])
@@ -100,7 +100,7 @@ class ReadOnlyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             f=Path(folder)/"state.json"
             f.write_text(json.dumps(state))
-            with patch.object(m,"_scope",return_value=CONF),patch.object(m,"_square_get",side_effect=square),patch.object(m,"_http",side_effect=fake),patch.object(m,"_file",return_value=f):
+            with patch.object(m,"_scope",return_value=CONF),patch.object(m,"_assert_square_subscription_safety",return_value=True),patch.object(m,"_square_get",side_effect=square),patch.object(m,"_http",side_effect=fake),patch.object(m,"_file",return_value=f):
                 m.verify()
         self.assertEqual(len(sqget),3)
         self.assertEqual([c[1] for c in calls if c[1]=="POST"],["POST","POST"])
