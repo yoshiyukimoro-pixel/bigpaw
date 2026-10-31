@@ -22,6 +22,7 @@ on:
       - 'app/shop-order-review.js'
       - 'app/shop-review-quote-check.js'
       - 'scripts/test-shop-review-quote-check.cjs'
+      - 'scripts/test-shop-staging.py'
       - 'scripts/test-shop-order-review.cjs'
       - 'app/shop-order-review.css'
       - 'app/shop-detail-images.js'
