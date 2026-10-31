@@ -26,7 +26,8 @@ IDENTITY = re.compile(r"[A-Za-z0-9_-]{8,96}\Z")
 def read_json(url, *, headers, body=None, opener=urlopen):
     req = Request(url, method="POST" if body is not None else "GET",
         data=json.dumps(body).encode() if body is not None else None,
-        headers={**headers, **({"Content-Type":"application/json"} if body is not None else {})})
+        headers={"User-Agent":"BIGPAW-Shop-StagingSync/1.0", "Accept":"application/json",
+                 **headers, **({"Content-Type":"application/json"} if body is not None else {})})
     with opener(req, timeout=12) as response:
         if response.status not in ((200,201) if body is not None else (200,)):
             raise ValueError("Unexpected upstream status")
