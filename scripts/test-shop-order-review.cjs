@@ -79,6 +79,34 @@ const server = http.createServer((req,res) => {
         await page.locator('#previewCartContinue').click();
         await page.locator('#orderConfirmChecked').check();
         assert.equal(await page.locator('#orderConfirmPreview').isEnabled(),true);
+
+        // A storage write without the cart-updated event must invalidate the
+        // previously checked agreement, even if the button was enabled.
+        await page.evaluate(() => {
+          const cart=JSON.parse(sessionStorage.getItem('bigpaw_shop_preview_cart_v1'));
+          cart.A02=3;
+          sessionStorage.setItem('bigpaw_shop_preview_cart_v1',JSON.stringify(cart));
+        });
+        await page.locator('#orderConfirmPreview').click();
+        assert.equal(await page.locator('#orderConfirmPreview').isDisabled(),true);
+        assert.match(await page.locator('#orderReviewLimit').innerText(),/もう一度確認/);
+        assert.match(await page.locator('#orderReviewTotal').innerText(),/64,350円/);
+
+        // Never silently drop a malformed/unknown SKU or invalid quantity.
+        for(const invalid of [{A02:1,X99:1},{A02:0},{A02:1.5},['A02']]){
+          await page.evaluate(value=>sessionStorage.setItem(
+            'bigpaw_shop_preview_cart_v1',JSON.stringify(value)),invalid);
+          await page.reload();
+          assert.equal(await page.locator('#orderReviewLimit').isVisible(),true);
+          assert.match(await page.locator('#orderReviewLimit').innerText(),/問題があります/);
+          assert.equal(await page.locator('#orderConfirmPreview').isDisabled(),true);
+        }
+        await page.evaluate(()=>sessionStorage.setItem(
+          'bigpaw_shop_preview_cart_v1','{broken-json'));
+        await page.reload();
+        assert.match(await page.locator('#orderReviewLimit').innerText(),/問題があります/);
+        assert.equal(await page.locator('#orderConfirmPreview').isDisabled(),true);
+
         const horizontal=await page.evaluate(()=>
           document.documentElement.scrollWidth - document.documentElement.clientWidth);
         assert(horizontal<=2,name+' has unwanted horizontal scrolling: '+horizontal);
