@@ -130,6 +130,15 @@
               "scope": "35 storefront SKU, product name, package size and tax-included retail price equal server 35-SKU pricebook; dormant client quote checker compares server status, approved terms digest, exact SKU/name/size/quantity/unit/line/total, additional shipping JPY 0. Negative Chromium and WebKit cases for wrong name/pack size, unapproved terms, stale quote, manipulated totals; Python offline safety and two Docker images succeeded.",
               "limits": "Verification is synthetically mocked browser quote and static full catalog parity. No merchant-approved legal terms; quote API launch guard remains OFF. No real Square Production, iPhone hardware, card payment, delivery address, customer mail, or deployment.",
               "point_change": 0
+            },
+            "midflight_cart_terms_revalidation_20261031": {
+              "result": "SUCCESS",
+              "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41176604888",
+              "code_commit": "d596365ee5790b6dfb2e15ac9e7b25eea61c6ae0",
+              "scope": "Future-only read-only quote verifyCurrentReview rejects valid cart quantity/name changes, changed displayed terms digest, unchecked buyer confirmation, and invalid cart occurring while the authenticated price quote is in flight. 8 synthetic success/fail cases in Chromium and iPhone Safari/WebKit. Static check, Square safety unit suite and both Docker builds successful.",
+              "publication": "Draft PR #175 only; no real buyer checkout, Square payment, order creation, customer email or Railway deployment.",
+              "still_missing": "Formal seller-approved and actually displayed return/consumer terms, authentic binding to final order screen and production-equivalent purchase/fulfillment E2E. P03 remains pending.",
+              "points_deducted": 0
             }
           }
         },
