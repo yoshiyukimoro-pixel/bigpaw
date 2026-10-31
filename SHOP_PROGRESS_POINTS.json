@@ -107,6 +107,21 @@
               "scope": "Preview-only review page now fails closed on unknown/invalid SKU or quantity; a silent cart mutation after agreement forces reconfirmation. Browser test verifies invalid JSON and values, stale approval, price and shipping display. No payment/API POST.",
               "remaining": "P03 still pending seller-approved terms and final browser-to-server authoritative quote match before actual Square checkout. No real iPhone purchase, live payment or production deployment.",
               "point_change": 0
+            },
+            "browser_server_quote_client_20261031": {
+              "result": "SUCCESS",
+              "actions_run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41175976694",
+              "commit": "66af8e34f5eb39bfba7e8b66fb9fabe3a9767372",
+              "files": [
+                "app/shop-review-quote-check.js",
+                "app/shop.html",
+                "scripts/test-shop-review-quote-check.cjs",
+                "scripts/test-shop-staging.py"
+              ],
+              "scope": "Dormant browser quote client validates exact SKU, qty, displayed tax-inclusive line price and total, shipping 0, and caller-supplied merchant-approved terms digest against a read-only server quote. Chromium/WebKit tests mocked GET config and POST quote; invalid carts, stale terms and tampered Square-free quotes fail closed; no real Square, order, payment or delivery.",
+              "guard": "Module does not run automatically and current preview checkout stays disabled; the actual launch manifest returns 404, and approval digest is not configured.",
+              "still_missing": "Owner-approved legal seller/returns terms displayed in actual checkout; trustworthy binding of the approved text to the digest; production-equivalent checkout/server quote E2E before real Square; physical iPhone testing.",
+              "points_deducted": 0
             }
           }
         },
@@ -440,7 +455,14 @@
             "domain_readonly_audit": "GitHub Actions 41130651834, offline tests succeeded, provider GET /domains returned 401/403. No messages sent.",
             "interpretation": "API key may be sending-access only; read permission unavailable DOES NOT prove domain verification is false or sending disallowed",
             "from_config": "noreply@bigpaw.site in source; reply-to info@bigpaw.site. Actual sender/domain verified delivery and permission not confirmed",
-            "status": "pending, no point deduction"
+            "status": "pending, no point deduction",
+            "resend_domain_readonly_20261031": {
+              "result": "PENDING: read_permission_unavailable",
+              "actions_run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41176042857",
+              "scope": "Read-only Resend GET /domains audit with GitHub Actions secret. Synthetic domain checker unit tests passed; provider returned 401/403 for domains metadata. No email sent or secrets exposed.",
+              "still_missing": "Domain verified and sending-enabled state cannot be confirmed with current read-permission scope. Actual noreply@bigpaw.site sender permission and delivery remain unverified.",
+              "points_deducted": 0
+            }
           }
         },
         {
