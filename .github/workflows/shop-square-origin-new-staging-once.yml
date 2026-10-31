@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
 
+# One approved real Square-originated fake paid test; disable the NEW subscription in always() cleanup.
 concurrency:
   group: bigpaw-new-staging-square-origin-sandbox-one-time
   cancel-in-progress: false
