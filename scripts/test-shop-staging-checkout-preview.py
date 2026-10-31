@@ -387,6 +387,8 @@ class CheckoutPreviewTests(unittest.TestCase):
             self.assertNotIn(b"<script>alert", escaped_label[2])
             state["recipient_name"] = "PRIVATE TEST PERSON"
             self.assertEqual(displayed[1]["Cache-Control"], "no-store")
+            self.assertEqual(displayed[1]["Refresh"], "60; url=/shop-test-orders.html")
+            self.assertIn("60秒後に自動で注文管理へ戻ります".encode(), displayed[2])
             self.assertEqual(displayed[1]["Referrer-Policy"], "no-referrer")
             self.assertIn("frame-ancestors 'none'", displayed[1]["Content-Security-Policy"])
             self.assertNotIn(b"PRIVATE TEST PERSON", page[2])
