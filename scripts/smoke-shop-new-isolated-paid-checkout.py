@@ -47,6 +47,10 @@ def _scope(secrets_map):
         raise ValueError("Wrong environment")
     if os.environ.get("BIGPAW_ISOLATED_REAL_SANDBOX_PAYMENT_OPT_IN")!="1":
         raise ValueError("No explicit single test opt-in")
+    # A GitHub Actions job re-run must never make another payment-link or
+    # complete another hosted panel payment for the same approved test.
+    if os.environ.get("GITHUB_RUN_ATTEMPT")!="1":
+        raise ValueError("Re-runs of payment workflow prohibited")
     token=os.environ.get("BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN","")
     if len(token)<16:raise ValueError("Scoped Railway token missing")
     query={"query":"query{projectToken{projectId environmentId}}"}
