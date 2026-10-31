@@ -2,6 +2,9 @@
 from pathlib import Path
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+
+from shop_payments.sandbox_connector import SandboxOrderStore, SquareSandboxError
 
 from shop_payments.staging_seed_order import prepare_test_checkout, main
 from shop_payments.staging_https_webhook import WEBHOOK_PATH
@@ -67,6 +70,59 @@ class SeedOrderTests(unittest.TestCase):
                 prepare_test_checkout(env=env,db_path=db,order_id=ORDER,
                                       sku=sku,quantity=qty,creator=self.fake_creator)
         self.assertEqual(self.calls,[])
+
+    def test_uncertain_square_result_never_posts_second_link(self):
+        calls = []
+        def uncertain(payload, *, token):
+            calls.append(payload["idempotency_key"])
+            raise SquareSandboxError("Synthetic timeout after unknown Square request")
+        with self.assertRaises(SquareSandboxError):
+            prepare_test_checkout(
+                env=self.env, db_path=self.db, order_id=ORDER,
+                sku="A02", quantity=1, creator=uncertain)
+        store=SandboxOrderStore(self.db)
+        self.assertEqual(store.status(ORDER), "created")
+        with self.assertRaises(SquareSandboxError):
+            self.make()
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(len(self.calls), 0)
+        with store._open() as db:
+            claim=db.execute(
+                "SELECT state FROM checkout_link_claims WHERE order_id=?", (ORDER,)
+            ).fetchone()
+        self.assertEqual(claim["state"], "attempt_unknown")
+
+    def test_concurrent_cli_calls_allow_only_one_square_post(self):
+        import threading
+        calls=[]
+        entered=threading.Event()
+        release=threading.Event()
+        def blocking_creator(payload, *, token):
+            calls.append(payload["idempotency_key"])
+            entered.set()
+            self.assertTrue(release.wait(timeout=5))
+            return {"url":"https://sandbox.square.link/u/only-test",
+                    "square_order_id":"SQUARE_ORDER_STAGE_TEST",
+                    "square_link_id":"SQUARE_LINK_STAGE_TEST"}
+        def try_create():
+            try:
+                return prepare_test_checkout(
+                    env=self.env, db_path=self.db, order_id=ORDER,
+                    sku="A02", quantity=1, creator=blocking_creator)
+            except SquareSandboxError:
+                return "blocked"
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first=pool.submit(try_create)
+            self.assertTrue(entered.wait(timeout=5))
+            second=pool.submit(try_create)
+            try:
+                self.assertEqual(second.result(timeout=5), "blocked")
+            finally:
+                release.set()
+            self.assertFalse(first.result(timeout=5)["reused"])
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(self.make()["reused"])
+        self.assertEqual(self.calls, [])
 
     def test_explicit_confirmation_required_by_cli(self):
         self.assertEqual(main(["--sku","A02"],env=self.env),2)
