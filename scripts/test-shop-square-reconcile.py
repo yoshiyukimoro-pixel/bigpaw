@@ -212,7 +212,7 @@ class TestSandboxVerification(unittest.TestCase):
                     ORDER_ID, token="FAKE_SANDBOX_ONLY", opener=fake)
             original["address"][field] = ("東京都" if field ==
                 "administrative_district_level_1" else "千代田区")
-        original["address"]["address_line_2"] = "TEST\\nBcc:"
+        original["address"]["address_line_2"] = "TEST" + chr(10) + "Bcc:"
         with self.assertRaises(SquareSandboxError):
             retrieve_sandbox_shipping_recipient(
                 ORDER_ID, token="FAKE_SANDBOX_ONLY", opener=fake)
