@@ -80,7 +80,14 @@
               "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
               "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
               "points_deducted": 0,
-              "dependency": "Must bind approved terms digest and exact server-priced cart at final checkout"
+              "dependency": "Must bind approved terms digest and exact server-priced cart at final checkout",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
             }
           }
         },
@@ -431,7 +438,14 @@
               "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
               "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
               "points_deducted": 0,
-              "dependency": "Merchant must review exact five customer notices and send timing"
+              "dependency": "Merchant must review exact five customer notices and send timing",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
             }
           }
         },
@@ -526,7 +540,14 @@
               "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
               "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
               "points_deducted": 0,
-              "dependency": "Merchant must confirm legal name and real contact method without exposing secrets on GitHub"
+              "dependency": "Merchant must confirm legal name and real contact method without exposing secrets on GitHub",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
             }
           }
         },
@@ -544,7 +565,14 @@
               "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
               "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
               "points_deducted": 0,
-              "dependency": "Publish-ready statutory disclosure needs merchant-confirmed identity/contact, returns and legally correct display"
+              "dependency": "Publish-ready statutory disclosure needs merchant-confirmed identity/contact, returns and legally correct display",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
             }
           }
         },
@@ -562,7 +590,14 @@
               "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
               "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
               "points_deducted": 0,
-              "dependency": "Cancellation after supplier order, return eligibility, refund timing and seller-paid defects require explicit choices"
+              "dependency": "Cancellation after supplier order, return eligibility, refund timing and seller-paid defects require explicit choices",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
             }
           }
         },
@@ -580,7 +615,14 @@
               "owner_decision_index": "SHOP_OWNER_DECISIONS.md",
               "status": "DRAFT_ONLY: merchant authorization absent; no customer email or commercial checkout was enabled",
               "points_deducted": 0,
-              "dependency": "Final checkout page must display approved terms with accurate totals and be verified"
+              "dependency": "Final checkout page must display approved terms with accurate totals and be verified",
+              "offline_gate_test": {
+                "run": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41163940903",
+                "result": "SUCCESS",
+                "tested_commit": "c84991f1872d5ea231e95cdbfb17cb8832313cd0",
+                "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
+                "point_change": 0
+              }
             }
           }
         }
