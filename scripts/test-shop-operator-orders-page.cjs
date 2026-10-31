@@ -59,6 +59,8 @@ const server = http.createServer((req,res)=>{
     const browser=await type.launch({headless:true});
     try{
       const page=await browser.newPage({viewport});
+      // Use browser-native simulated time; no 60-second CI wait.
+      await page.clock.install();
       await page.goto(base+'/operator-shop-orders.html');
       await page.getByText('運営アカウントでログインしてください。').waitFor();
       authorized=true;
@@ -83,6 +85,27 @@ const server = http.createServer((req,res)=>{
       assert.equal(await delivery.locator('script').count(),0,
         'Untrusted buyer name must be text, not script markup');
       await page.getByRole('button',{name:'配送先を隠す'}).click();
+      assert.equal(await delivery.innerText(),'');
+      assert.equal(await page.locator('.delivery-label:not([hidden])').count(),0);
+      // A second reveal must get its own 60 seconds. The first timer must not
+      // blank it early after a manual hide and re-open.
+      await address.click();
+      await delivery.getByText('PRIVATE <Buyer>').waitFor();
+      await page.clock.fastForward(20000);
+      await page.getByRole('button',{name:'配送先を隠す'}).click();
+      await address.click();
+      await delivery.getByText('PRIVATE <Buyer>').waitFor();
+      await page.clock.fastForward(40001);
+      assert.match(await delivery.innerText(),/PRIVATE <Buyer>/,
+        'An old expiry timer must not hide a newly revealed label');
+      await page.clock.fastForward(20000);
+      assert.equal(await delivery.innerText(),'',
+        'Private shipping data must expire after 60 seconds');
+      assert.equal(await page.locator('.delivery-label:not([hidden])').count(),0);
+      // Navigating away or putting the page out of view clears PII immediately.
+      await address.click();
+      await delivery.getByText('PRIVATE <Buyer>').waitFor();
+      await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));
       assert.equal(await delivery.innerText(),'');
       assert.equal(await page.locator('.delivery-label:not([hidden])').count(),0);
       await page.locator('input[name="payment_id"]').fill('SYNTHETICPAYMENT123456');
