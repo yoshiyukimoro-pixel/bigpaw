@@ -88,6 +88,16 @@
                 "scope": "Owner approval drafts present and launch guards remain false; Python safety, 2 Docker builds and Chromium/WebKit regressions passed. Does not indicate owner approval.",
                 "point_change": 0
               }
+            },
+            "server_authoritative_readonly_quote_20261031": {
+              "tested_branch": "feature/dogfood-shop-staging-20261028",
+              "tested_commit": "fa8f51ca2eb4f0be9b5ba75e28600593397b6861",
+              "github_ci": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41165540280",
+              "result": "SUCCESS: 35 SKU server-side pricebook quote; JPY tax-included totals, additional shipping=0, mixed cart, stale seller terms rejection, unauthorized/CSRF/Origin/tamper rejection. Python tests, 2 Docker builds and Chromium/WebKit tests passed.",
+              "source": "POST /api/shop/checkout/quote in app/backend/shop_live_checkout_bridge.py and app/backend/server.py, scripts/test-shop-live-quote.py",
+              "protections": "Actual merchant launch manifest remains off, so endpoint returns 404 in current deployment. Does not create Square link, payment, order, SQLite, email, fulfillment, or refund.",
+              "still_missing": "Actual future checkout page must compare this server quote against displayed amount and enforce approved final seller terms/receipt before Square. Merchant policy confirmation and production-equivalent E2E remain unverified.",
+              "point_change": 0
             }
           }
         },
