@@ -51,7 +51,17 @@ assert '"brand-card"' in shop and 'id="clearFilters"' in shop
 assert 'ACANA:[\'アカナドッグ\',\'ハイエストプロテイン\',\'シングル\']' in shop
 assert 'ZIWI:[\'エアドライ\',\'スチームドライ\']' in shop
 
-assert shop.count("<script>") == 1 and shop.count("</script>") == 5, "Catalog script plus cart, image and order review scripts"
+assert shop.count("<script>") == 1 and shop.count("</script>") == 6, "Catalog script plus cart, image, quote verifier and order review scripts"
+assert 'shop-review-quote-check.js' in shop, "Read-only quote module must be present for future approved checkout"
+quote_script = Path("app/shop-review-quote-check.js").read_text(encoding="utf-8")
+assert "'/api/shop/checkout/config'" in quote_script and "'/api/shop/checkout/quote'" in quote_script
+assert "Square" in quote_script and "payment_link_created !== false" in quote_script
+assert "window.open" not in quote_script and "localStorage" not in quote_script
+assert "BigPawShopQuote.verify" not in Path("app/shop-order-review.js").read_text(encoding="utf-8"), "Actual preview must not call backend quote"
+with tempfile.TemporaryDirectory() as tmp:
+    path = Path(tmp) / "quote.js"
+    path.write_text(quote_script, encoding="utf-8")
+    subprocess.run(["node", "--check", str(path)], check=True)
 assert 'shop-detail-images.js' in shop and 'shop-detail-gallery.js' in shop and 'shop-detail-gallery.css' in shop
 assert 'shop-order-review.js' in shop and 'shop-order-review.css' in shop
 assert 'id="orderReview" hidden' in shop and 'shop.html?order=review' in shop
