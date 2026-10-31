@@ -28,6 +28,7 @@ DRYRUN_PATH = "/api/shop/sandbox/operator/simulate-customer-notice"
 MAIL_MOCK_PATH = "/api/shop/sandbox/operator/mock-customer-mail"
 REFUND_VERIFY_PATH = "/api/shop/sandbox/operator/verify-full-refund"
 CURRENT_PAYMENT_PATH = "/api/shop/sandbox/operator/check-current-payment"
+CURRENT_SHIPPING_PATH = "/api/shop/sandbox/operator/check-current-shipping"
 SERVICE_CASE_PATH = "/api/shop/sandbox/operator/service-case"
 STAGES = frozenset(("supplier_ordered", "supplier_backorder",
                     "received_at_shop", "refund_review", "shipped"))
@@ -854,6 +855,116 @@ def handle_current_payment_check_post(handler) -> bool:
     return True
 
 
+def handle_current_shipping_check_post(handler) -> bool:
+    """Read-only, operator-authenticated fresh Square shipping eligibility.
+
+    This view intentionally does NOT expose name/address/phone or persist any
+    recipient information. No shipment, supplier order, email or refund.
+    Requires *both* fresh paid/unrefunded Square verification and one
+    unambiguous valid Japanese shipping recipient. Result is advisory only:
+    the shipping action independently verifies again at the time of use.
+    """
+    from .staging_checkout_preview import _send
+    from .sandbox_reconcile import (
+        verify_current_sandbox_payment, retrieve_sandbox_shipment_status,
+    )
+    from .sandbox_runtime_guard import is_allowed_sandbox_runtime
+    if handler.path != CURRENT_SHIPPING_PATH:
+        return False
+    if not authenticate(handler):
+        return True
+    if not is_allowed_sandbox_runtime(handler.server.env):
+        _send(handler, 404, {"error": "operator_unavailable"})
+        return True
+    if handler.headers.get("Transfer-Encoding"):
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    if handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/x-www-form-urlencoded":
+        _send(handler, 415, {"error": "invalid_type"})
+        return True
+    try:
+        length = int(handler.headers.get("Content-Length", ""))
+    except ValueError:
+        length = 0
+    if not 1 <= length <= 500:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    raw = handler.rfile.read(length)
+    if len(raw) != length:
+        _send(handler, 400, {"error": "invalid_body"})
+        return True
+    try:
+        form = parse_qs(raw.decode("ascii"), keep_blank_values=True,
+                        strict_parsing=True, max_num_fields=3)
+        if set(form) != {"order_id", "csrf", "confirm"} or any(
+            len(items) != 1 for items in form.values()
+        ):
+            raise ValueError("invalid form")
+        values = {k: v[0] for k, v in form.items()}
+    except (UnicodeError, ValueError):
+        _send(handler, 400, {"error": "invalid_form"})
+        return True
+    if not _csrf_ok(handler, values["csrf"]):
+        _send(handler, 403, {"error": "invalid_origin_or_csrf"})
+        return True
+    if not ORDER.fullmatch(values["order_id"]) or values["confirm"] != "read_only":
+        _send(handler, 400, {"error": "invalid_shipping_check"})
+        return True
+    try:
+        paid = handler.server.store.paid_order_snapshot(values["order_id"])
+    except (ValueError, OSError):
+        _send(handler, 503, {"error": "private_order_read_unavailable"})
+        return True
+    if paid is None:
+        _send(handler, 409, {"error": "verified_paid_order_required"})
+        return True
+    options = {"token": handler.server.env["BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN"]}
+    if handler.server.shipping_opener is not None:
+        options["opener"] = handler.server.shipping_opener
+    try:
+        verified = verify_current_sandbox_payment(snapshot=paid, **options)
+        shipment = retrieve_sandbox_shipment_status(
+            paid["square_order_id"], **options
+        )
+        if verified.get("current_payment_verified") is not True or (
+            shipment.get("square_order_id") != paid["square_order_id"]
+        ) or type(shipment.get("shipment_details_complete")) is not bool:
+            raise SquareSandboxError("unverified Square result")
+    except (SquareSandboxError, ValueError, KeyError, TypeError, OSError):
+        result_code = 503
+        headline = "Squareの最新情報を確認できません"
+        instruction = ("入金・未返金と配送先が確認できないため、発送禁止です。"
+                       "Square Sandboxの管理画面で個別にご確認ください。")
+    else:
+        result_code = 200
+        if shipment["shipment_details_complete"]:
+            headline = "配送先の必須項目を確認しました（Sandbox）"
+            instruction = ("Squareの最新注文情報に、日本国内の氏名・電話番号・"
+                           "郵便番号・住所が1件揃っています。"
+                           "この画面は発送を実行せず、発送時には再確認が必要です。")
+        else:
+            headline = "配送先情報が不足しています・発送禁止"
+            instruction = ("Squareの注文に必要な配送先が確認できません。"
+                           "入金済みでも発送の操作は進めないでください。")
+    html = (
+        '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="robots" content="noindex,nofollow,noarchive">'
+        '<title>BIG PAW｜配送先再確認（Sandbox）</title>'
+        '</head><body style="font:16px/1.7 -apple-system,sans-serif;'
+        'max-width:720px;margin:28px auto;padding:0 16px">'
+        '<main><h1>' + headline + '</h1><p>' + instruction + '</p>'
+        '<p>確認結果はこの時点のSandbox情報です。氏名・住所・電話番号は'
+        '画面に表示せず、保存もしていません。</p>'
+        '<p>実際の発送、仕入れ発注、メール送信、返金は行いません。</p>'
+        '<a href="/shop-test-orders.html">テスト注文管理へ戻る</a>'
+        '</main></body></html>'
+    )
+    _send(handler, result_code, html.encode("utf-8"),
+          "text/html; charset=utf-8")
+    return True
+
+
 def handle_post(handler) -> bool:
     """Operator-only Sandbox stage update, or independent tracking record."""
     if handler.path == TRACKING_PATH:
@@ -870,6 +981,8 @@ def handle_post(handler) -> bool:
         return handle_refund_verify_post(handler)
     if handler.path == CURRENT_PAYMENT_PATH:
         return handle_current_payment_check_post(handler)
+    if handler.path == CURRENT_SHIPPING_PATH:
+        return handle_current_shipping_check_post(handler)
     if handler.path == SERVICE_CASE_PATH:
         return handle_service_case_post(handler)
     from .staging_checkout_preview import _send
