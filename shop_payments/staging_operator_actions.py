@@ -1105,7 +1105,8 @@ def handle_shipping_address_view_post(handler) -> bool:
         '<p class="warning">これは購入者が指定した配送先です。'
         '表示された情報を発送伝票に転記する前に本人確認・郵便番号・'
         '住所の整合性を確認してください。Squareは発送をしません。'
-        'この画面は発送を確定するものではありません。</p>'
+        'この画面は発送を確定するものではありません。'
+        '個人情報保護のため、60秒後に自動で注文管理へ戻ります。'</p>'
         '<dl>' + fields_html + '</dl>'
         '<p>個人情報を注文一覧・SQLiteに追加保存しません。'
         '共有端末・スクリーンショット・印刷物の取扱いに注意してください。</p>'
@@ -1116,7 +1117,8 @@ def handle_shipping_address_view_post(handler) -> bool:
           extra={"Content-Security-Policy":
                  "default-src 'none'; style-src 'unsafe-inline'; "
                  "form-action 'none'; frame-ancestors 'none'; base-uri 'none'",
-                 "Expires": "0"})
+                 "Expires": "0",
+                 "Refresh": "60; url=/shop-test-orders.html"})
     return True
 
 
