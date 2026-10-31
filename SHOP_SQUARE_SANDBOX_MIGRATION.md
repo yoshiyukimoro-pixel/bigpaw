@@ -79,3 +79,14 @@ T03（Square実Webhook鍵とURL移行、受信検証）、P04（決済JPY・配�
 - GitHubのテスト用Sandbox認証情報は既存の`BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN`と`BIGPAW_SQUARE_SANDBOX_LOCATION_ID`（いずれもActions Secrets）を使用する。
 - 機密値が設定されても、**新Webhookはまだ無効**。別途確認してデプロイし、Square側の試験配信時だけ制御付きで有効にする必要がある。T03やP04は現時点では未完了、**残り46ポイント**。
 - Square公式資料： https://developer.squareup.com/reference/square/webhook-subscriptions-api/retrieve-webhook-subscription / https://docs.railway.com/integrations/api/manage-variables / https://docs.railway.com/integrations/api
+
+
+## 2026-10-31：新Railway認証情報の安全な移送・外部受信準備確認
+
+- 運営者が新 `BIG PAW App Staging` / `staging` の Project Token をGitHub Actions Secret `BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN` に登録。トークン値はGitHubコード・チャット・ログに記録しない。
+- 初回の自動移送はRailway GraphQLでHTTP 403。Ray IDや機密情報をログに出さず、原因区分の診断を追加。GitHub ActionsのPython urllibデフォルトUser-AgentによるCloudflare拒否の可能性を踏まえ、明示的な `BIGPAW-Shop-StagingSync/1.0` ヘッダーを採用。修正後の一回限りの自動同期が [Actions 41147733135](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41147733135) で**SUCCESS**。
+- 新WebhookサービスにだけSquare Sandbox Access Token・Location ID・当該無効サブスクリプション専用署名鍵の**変数名3点**が存在することをRailwayの値非表示一覧で確認。同期時は `skipDeploys=true`、Square通知先は引き続き `enabled=false`、旧Sandbox・本番・メールは無変更。
+- 新Webhookサービスのみ既知のデプロイ成果物を再利用して再起動：`2cfec67f-c594-46c5-92a7-45f53bd0b8a7` が**SUCCESS / Online**。新アプリ側サービスへの変更なし。
+- 外部HTTPS読み取りだけの [Actions 41148046554](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148046554) が **SUCCESS**。`/healthz` が `sandbox_webhook_ready`、注文/運営などの非公開画面が404であることを確認。
+- 旧Sandbox・新アプリ・新Webhookの非破壊総回帰 [Actions 41148074669](https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148074669) も **SUCCESS**。署名なしWebhook要求が受理されないことを確認。
+- **T03未完**：Square Sandbox側の新通知先購読は無効のまま。実Square署名付き `payment.updated` の配送、Webhook Logs、Square Payments/Ordersの最新再取得、店舗・JPY・注文ID・金額一致はまだ確認できていない。既存の有効なSandbox通知先を巻き込まない実イベント範囲と試験順序を確定してから実施。**残り46ポイント（完了54/100）を維持。**
