@@ -28,7 +28,7 @@ class TestApprovedRetailPricebook(unittest.TestCase):
         # Prevent a title or pack-size drift between the actual catalog
         # shown to buyers and the authoritative Square checkout pricebook.
         displayed = re.findall(
-            r"^'([A-Z]\\d{2})\\|([A-Z]+)\\|([^|]+)\\|([^|]+)\\|",
+            r"^'([A-Z]\d{2})\|([A-Z]+)\|([^|]+)\|([^|]+)\|",
             html, re.M)
         self.assertEqual(len(displayed), 35)
         by_id = {row[0]: row for row in displayed}
