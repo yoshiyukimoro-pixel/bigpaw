@@ -41,7 +41,7 @@ def shipment_opener(order_id, *, payment=None):
             "fulfillments":[{"type":"SHIPMENT","shipment_details":{
                 "recipient":{"display_name":"PRIVATE NAME",
                     "phone_number":"09012345678",
-                    "address":{"country":"JP","postal_code":"100-0001",
+                    "address":{"country":"JP","administrative_district_level_1":"東京都","locality":"千代田区","postal_code":"100-0001",
                                "address_line_1":"PRIVATE ADDRESS"}}
             }}]}})
     return opener
