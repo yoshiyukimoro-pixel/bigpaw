@@ -19,7 +19,7 @@ ALLOWED_HOSTS = {"bigpaw.site", "www.bigpaw.site"}
 MAX_CONFIRM_BYTES = 512
 
 
-def request_challenge(conn, ticket_id, recipient, *, env=None, sender=None):
+def request_challenge(conn, ticket_id, recipient, *, env=None, sender=None, token_factory=None):
     """Run after ticket COMMIT. Never expose private seller contact in HTTP."""
     env = dict(os.environ if env is None else env)
     if not disclosure.ready(env):
@@ -27,6 +27,8 @@ def request_challenge(conn, ticket_id, recipient, *, env=None, sender=None):
     args = {"env": env}
     if sender is not None:
         args["sender"] = sender
+    if token_factory is not None:
+        args["token_factory"] = token_factory
     return disclosure.request_for_ticket(conn, ticket_id, recipient, **args)
 
 
