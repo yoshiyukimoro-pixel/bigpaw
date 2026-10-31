@@ -67,6 +67,8 @@ on:
       - 'shop_payments/sandbox_runtime_guard.py'
       - 'scripts/test-shop-https-webhook.py'
       - 'scripts/test-shop-staging-checkout-preview.py'
+      - 'scripts/test-shop-new-staging-preview-stop.py'
+      - 'scripts/test-shop-isolated-preview-credential-setup.py'
       - 'shop_payments/customer_mail_preflight.py'
       - 'scripts/test-shop-customer-mail-preflight.py'
       - 'shop_payments/staging_seed_order.py'
