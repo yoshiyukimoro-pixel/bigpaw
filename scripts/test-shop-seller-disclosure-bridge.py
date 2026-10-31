@@ -97,10 +97,9 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual(to, "buyer@example.invalid")
             outbox.append((subject, body))
             return "mail_TEST12345"
-        with patch.object(bridge.disclosure.secrets, "token_urlsafe", return_value=TOKEN):
-            self.assertEqual(bridge.request_challenge(
-                db, "sup_TEST", "buyer@example.invalid", env=ENV, sender=mail),
-                "verification_sent")
+        self.assertEqual(bridge.request_challenge(
+            db, "sup_TEST", "buyer@example.invalid", env=ENV, sender=mail,
+            token_factory=lambda size: TOKEN), "verification_sent")
         self.assertEqual(len(outbox), 1)
         self.assertNotIn(PRIVATE_ADDRESS, outbox[0][1])
         self.assertNotIn(PRIVATE_PHONE, outbox[0][1])
