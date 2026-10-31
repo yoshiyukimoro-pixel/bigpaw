@@ -137,6 +137,56 @@ def retrieve_sandbox_shipment_status(
     return {"square_order_id": square_order_id, "shipment_details_complete": valid}
 
 
+def retrieve_sandbox_shipping_recipient(
+    square_order_id: str, *, token: str, opener=urlopen
+) -> dict:
+    """Return ONLY dispatch-label fields for an explicitly authorized operator.
+
+    Call only after fresh Square paid/unrefunded verification and operator
+    authentication + POST CSRF. No logging, caching, journal writes or emails.
+    A missing/ambiguous/incomplete shipping recipient is never returned.
+    """
+    if not isinstance(square_order_id, str) or not _SQUARE_ID.fullmatch(square_order_id):
+        raise SquareSandboxError("Invalid Square order ID")
+    data = _fetch_square_sandbox_resource(
+        "/orders/" + square_order_id, token=token, opener=opener
+    )
+    order = data.get("order")
+    if not isinstance(order, dict) or order.get("id") != square_order_id:
+        raise SquareSandboxError("Square Sandbox order mismatch")
+    fulfillments = order.get("fulfillments")
+    if (not isinstance(fulfillments, list) or len(fulfillments) != 1
+            or not isinstance(fulfillments[0], dict)
+            or fulfillments[0].get("type") != "SHIPMENT"):
+        raise SquareSandboxError("Shipping recipient missing or ambiguous")
+    details = fulfillments[0].get("shipment_details")
+    recipient = details.get("recipient") if isinstance(details, dict) else None
+    if not _valid_japanese_shipping_recipient(recipient):
+        raise SquareSandboxError("Japanese shipping recipient incomplete")
+    address = recipient["address"]
+    # Additional lines are optional in Japan. Refuse control characters and
+    # oversized content rather than displaying or silently truncating it.
+    extra = {}
+    for field in ("address_line_2", "address_line_3"):
+        value = address.get(field)
+        if value is None or value == "":
+            extra[field] = ""
+        elif (not isinstance(value, str) or len(value.strip()) > 200
+              or any(ord(ch) < 32 or ord(ch) == 127 for ch in value)):
+            raise SquareSandboxError("Unverified optional address line")
+        else:
+            extra[field] = value.strip()
+    return {
+        "name": recipient["display_name"].strip(),
+        "phone": recipient["phone_number"].strip(),
+        "postal": address["postal_code"],
+        "prefecture": address["administrative_district_level_1"].strip(),
+        "city": address["locality"].strip(),
+        "line1": address["address_line_1"].strip(),
+        **extra,
+    }
+
+
 def verify_current_sandbox_payment(*, snapshot: dict, token: str, opener=urlopen) -> dict:
     """Fresh READ-ONLY Square Sandbox Payments + Orders reconciliation.
 
