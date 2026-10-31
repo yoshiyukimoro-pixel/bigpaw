@@ -420,6 +420,10 @@ ul{padding-left:21px;margin:8px 0}.status{font-size:13px;background:#f1f6fa;bord
 <div class="stats"><div><strong>""" + str(len(records)) + """</strong><span>注文件数</span></div>
 <div><strong>""" + str(paid) + """</strong><span>入金確認済み（テスト）</span></div>
 <div><strong>""" + str(pending) + """</strong><span>決済待ち・準備中</span></div></div>
+<p class="warning" role="status"><strong>📦 入金済みと配送先確認済みは別です。</strong>
+Square Sandboxのテスト決済画面は配送先が未入力のまま完了する場合があります。
+注文が入金済みでも、氏名・電話番号・郵便番号・住所をSquare Ordersから最新確認できない場合は、発送済みの操作は拒否されます。
+この画面の入金済み表示だけで、住所確認・発送手配を進めないでください。</p>
 <section aria-label="注文一覧"><h2>注文一覧（直近100件）</h2>""" + (
         "".join(cards) if cards else '<p class="empty">テスト注文の記録はありません。</p>'
     ) + """</section>
