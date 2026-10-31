@@ -20,6 +20,8 @@ on:
       - 'scripts/test-shop-retail-launch-guard.py'
       - 'app/shop-cart-preview.js'
       - 'app/shop-order-review.js'
+      - 'app/shop-review-quote-check.js'
+      - 'scripts/test-shop-review-quote-check.cjs'
       - 'scripts/test-shop-order-review.cjs'
       - 'app/shop-order-review.css'
       - 'app/shop-detail-images.js'
@@ -220,4 +222,4 @@ jobs:
       - name: Test Chromium and iPhone Safari/WebKit with no production requests
         run: |
           timeout 600s docker run --rm -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
-            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs && node scripts/test-shop-detail-gallery.cjs && node scripts/test-shop-order-review.cjs && node scripts/test-shop-review-square-browser.cjs && node scripts/test-shop-live-order-preview-browser.cjs && node scripts/test-shop-operator-orders-page.cjs'
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/test-shop-staging.cjs && node scripts/test-shop-square-browser.cjs && node scripts/test-shop-detail-gallery.cjs && node scripts/test-shop-order-review.cjs && node scripts/test-shop-review-quote-check.cjs && node scripts/test-shop-review-square-browser.cjs && node scripts/test-shop-live-order-preview-browser.cjs && node scripts/test-shop-operator-orders-page.cjs'
