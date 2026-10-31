@@ -65,6 +65,7 @@ const server=http.createServer((req,res)=>{
         await page.locator('#name').fill('TEST ONLY');
         await page.locator('#email').fill('customer@example.invalid');
         await page.locator('button[type="submit"]').click();
+        await page.locator('#result .notice').waitFor({state:'visible',timeout:10000});
         assert.match(await page.locator('#result').innerText(),/受付番号：sup_TEST123456/);
         assert.equal(posted.length,1);
         const request=posted[0];
