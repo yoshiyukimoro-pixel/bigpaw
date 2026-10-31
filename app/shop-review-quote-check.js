@@ -21,7 +21,9 @@
     const clean = [];
     for (const r of rows) {
       if (!r || typeof r !== 'object' || !SKU.test(r.sku) ||
-          seen.has(r.sku) || !whole(r.quantity) || r.quantity < 1 ||
+          seen.has(r.sku) || typeof r.name !== 'string' ||
+          !r.name.trim() || typeof r.size !== 'string' ||
+          !r.size.trim() || !whole(r.quantity) || r.quantity < 1 ||
           r.quantity > 10 || !whole(r.unitYen) || r.unitYen < 1 ||
           !whole(r.lineYen) || r.lineYen !== r.unitYen * r.quantity) {
         throw Error('invalid_cart');
@@ -29,8 +31,9 @@
       seen.add(r.sku);
       amount += r.lineYen;
       cart[r.sku] = r.quantity;
-      clean.push({sku:r.sku, quantity:r.quantity,
-                  unitYen:r.unitYen, lineYen:r.lineYen});
+      clean.push({sku:r.sku, name:r.name, size:r.size,
+                  quantity:r.quantity, unitYen:r.unitYen,
+                  lineYen:r.lineYen});
     }
     if (!whole(amount) || amount > MAX_YEN ||
         !whole(displayedAmountYen) || displayedAmountYen !== amount) {
@@ -63,8 +66,9 @@
     }
     for (const r of snap.rows) {
       const v = remote.get(r.sku);
-      if (!v || v.quantity !== r.quantity ||
-          v.unit_yen !== r.unitYen || v.line_yen !== r.lineYen) {
+      if (!v || v.name !== r.name || v.size !== r.size ||
+          v.quantity !== r.quantity || v.unit_yen !== r.unitYen ||
+          v.line_yen !== r.lineYen) {
         throw Error('server_quote_mismatch');
       }
     }
@@ -72,7 +76,8 @@
       verified:true, amountYen:snap.amount, shippingYen:0,
       termsSha256:approvedTermsSha256,
       // The caller must recheck the live cart and displayed total after await.
-      cartFingerprint:JSON.stringify(snap.rows.map(r=>[r.sku,r.quantity,r.unitYen]))
+      cartFingerprint:JSON.stringify(snap.rows.map(
+        r=>[r.sku,r.name,r.size,r.quantity,r.unitYen]))
     });
   }
 
