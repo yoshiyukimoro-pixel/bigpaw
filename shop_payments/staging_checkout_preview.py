@@ -1,4 +1,4 @@
-"""Password-protected, Sandbox-only shopper-to-Square preview for bigpaw-test.
+"""Password-protected, Sandbox-only shopper-to-Square preview on approved test services.
 
 This route module is never used by the BIG PAW production website. It is
 disabled by default. A random, staging-specific Basic Auth password, HTTPS
@@ -23,10 +23,16 @@ from .retail_catalog import load_sale_catalog
 from .square_checkout import build_square_link_payload
 from .sandbox_connector import SquareSandboxError, create_square_sandbox_payment_link
 from .staging_https_webhook import stage_ready
+from .sandbox_runtime_guard import (EXISTING_TEST_SERVICE, NEW_SANDBOX_WEBHOOK_SERVICE)
 
 ROOT = Path(__file__).resolve().parents[1]
 HOST = "bigpaw-test-production.up.railway.app"
-ORIGIN = "https://" + HOST
+NEW_STAGING_HOST = "bigpaw-square-sandbox-staging-staging.up.railway.app"
+
+
+def _preview_host(env):
+    """Hostname is fixed by exact Railway service identity, never user input."""
+    return NEW_STAGING_HOST if env.get("RAILWAY_SERVICE_ID") == NEW_SANDBOX_WEBHOOK_SERVICE else HOST
 CSRF = re.compile(r"^[A-Za-z0-9_-]{32,128}$")
 ORDER = re.compile(r"^/api/shop/sandbox/order/(FOOD[0-9a-f]{32})$")
 ASSETS = re.compile(
@@ -57,7 +63,7 @@ def enabled(env):
         and isinstance(password, str) and len(password) >= 32
         and len(password) <= 128
         and all(ch.isalnum() or ch in "_-" for ch in password)
-        and env.get("RAILWAY_SERVICE_ID") == "1a1a32bd-e885-4848-a6b5-fde5ef9ac902"
+        and env.get("RAILWAY_SERVICE_ID") in (EXISTING_TEST_SERVICE, NEW_SANDBOX_WEBHOOK_SERVICE)
     )
 
 def _send(handler, code, payload, mime="application/json; charset=utf-8", extra=None):
@@ -88,7 +94,8 @@ def _authenticated(handler):
     if not enabled(env):
         _send(handler, 404, {"error": "preview_unavailable"})
         return False
-    if handler.headers.get("Host", "").lower() not in (HOST, HOST + ":443"):
+    host = _preview_host(env)
+    if handler.headers.get("Host", "").lower() not in (host, host + ":443"):
         _send(handler, 400, {"error": "wrong_host"})
         return False
     raw = handler.headers.get("Authorization", "")
@@ -118,7 +125,7 @@ def _get_cookie(handler):
         return ""
 
 def _csrf_valid(handler):
-    if handler.headers.get("Origin", "") != ORIGIN:
+    if handler.headers.get("Origin", "") != "https://" + _preview_host(handler.server.env):
         return False
     if handler.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
         return False
