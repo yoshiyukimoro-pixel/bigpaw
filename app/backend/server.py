@@ -1384,6 +1384,11 @@ https://www.bigpaw.site/'''
     def do_POST(self):
         if not self.mutation_origin_allowed(): return self.send_json({'error':'invalid_origin'},403)
         path=urlparse(self.path).path
+        if path == '/api/shop/seller-disclosure/confirm':
+            from shop_seller_disclosure_bridge import handle_confirm
+            return handle_confirm(
+                self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
+                db_factory=db, rate_limited=rate_limited)
         if path in ('/api/shop/checkout', '/api/shop/checkout/quote'):
             return bp_shop_checkout.handle_post(
                 self, env=dict(os.environ), base_url=PUBLIC_BASE_URL,
@@ -1613,7 +1618,21 @@ https://www.bigpaw.site/'''
             u=self.current_user(); con=db(); tid=make_id('sup_'); t=now(); con.execute('INSERT INTO support_tickets VALUES(?,?,?,?,?,?,?,?,?,?,?)',(tid,u['id'] if u else None,name,email,category,subject,message,'open','',t,t)); audit(con,u['id'] if u else None,'support_ticket_created','support_ticket',tid,category)
             ops=con.execute("SELECT id,email FROM users WHERE role='operator'").fetchall()
             for op in ops: con.execute('INSERT INTO notifications VALUES(?,?,?,?,?,?,?)',(make_id('n_'),op['id'],'support','運営への問い合わせが届きました',f'{category} / {subject}',0,t))
-            con.commit(); con.close()
+            con.commit()
+            # A request email challenge contains no seller address or phone.
+            # It is separate from, and does not activate, the checkout switch.
+            # When not explicitly configured, keep ordinary manual tickets.
+            if (category=='ドッグフードショップ販売者情報の開示請求'
+                    and IS_PRODUCTION
+                    and os.environ.get('BIGPAW_SHOP_SELLER_DISCLOSURE_AUTO_ENABLED')=='1'):
+                try:
+                    from shop_seller_disclosure_bridge import request_challenge
+                    request_challenge(con, tid, email, env=dict(os.environ))
+                except Exception:
+                    # The saved support ticket must remain actionable on error.
+                    # Never write private details or email verification tokens to logs.
+                    pass
+            con.close()
             # A food-shop statutory disclosure request must also alert the
             # shop's contact mailbox if there are no operator accounts.
             # This is a REQUEST notification only: NEVER automatically send
