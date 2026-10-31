@@ -16,7 +16,7 @@
     if(heading)heading.textContent='フードショップ｜販売者情報の開示請求';
     const explanation=document.createElement('p');
     explanation.className='notice';
-    explanation.textContent='お名前と返信用メールアドレスをご記入ください。送信後に受付番号を表示します。運営者が確認して住所・電話番号を個別に回答します。即時自動開示ではありません。';
+    explanation.textContent='お名前と返信用メールアドレスをご記入ください。送信後に受付番号を表示します。自動開示が利用可能な場合は、メールアドレス確認後に個別の自動回答を行います。準備中や送信できない場合は、運営の確認が必要です。受付番号の発行は開示の完了ではありません。';
     formEl.insertBefore(explanation,formEl.querySelector('.form-grid'));
   }
   formEl.addEventListener('submit',async e=>{
@@ -32,7 +32,7 @@
         subject:subjectEl.value.trim(),
         message:messageEl.value.trim()
       });
-      resultEl.innerHTML=`<div class="notice">お問い合わせを受け付けました。受付番号：<b>${String(r.id).replace(/[&<>"']/g,'')}</b></div>`;
+      resultEl.innerHTML=`<div class="notice">お問い合わせを受け付けました。受付番号：<b>${String(r.id).replace(/[&<>"']/g,'')}</b>${shopDisclosure?(r.disclosureStatus==='verification_sent'?'<p>メールアドレス確認のメールをお送りしました。メール内のリンクから確認すると、自動で開示情報をお送りします。</p>':'<p>現在、自動開示の確認メールは送信されていません。運営からの回答をご確認ください。</p>'):''}</div>`;
       formEl.reset();
       if(shopDisclosure){categoryEl.value='ドッグフードショップ販売者情報の開示請求';subjectEl.value='BIG PAWフードショップ：販売者住所・電話番号の開示請求';messageEl.value='BIG PAWフードショップの販売者住所と電話番号の開示を希望します。'}
     }catch(x){
