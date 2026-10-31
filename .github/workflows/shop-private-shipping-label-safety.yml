@@ -1,0 +1,28 @@
+name: BIG PAW private dispatch-label shipping safety
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-private-shipping-label-safety.yml'
+      - 'shop_payments/sandbox_reconcile.py'
+      - 'shop_payments/staging_operator_actions.py'
+      - 'shop_payments/staging_orders_dashboard.py'
+      - 'shop_payments/staging_checkout_preview.py'
+      - 'scripts/test-shop-square-reconcile.py'
+      - 'scripts/test-shop-staging-checkout-preview.py'
+permissions:
+  contents: read
+jobs:
+  no-network-shipping-label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile private shipping and dashboard handlers
+        run: |
+          python3 -m py_compile shop_payments/sandbox_reconcile.py shop_payments/staging_operator_actions.py shop_payments/staging_orders_dashboard.py shop_payments/staging_checkout_preview.py
+      - name: Offline Square recipient field/host contract
+        run: PYTHONPATH=. python3 scripts/test-shop-square-reconcile.py
+      - name: Local-only private HTTP, auth, CSRF, no-store and PII escaping
+        run: PYTHONPATH=. python3 scripts/test-shop-staging-checkout-preview.py
