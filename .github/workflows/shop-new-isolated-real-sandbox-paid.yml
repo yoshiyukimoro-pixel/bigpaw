@@ -1,0 +1,59 @@
+name: BIG PAW NEW isolated one-shot real Square Sandbox hosted payment
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+    paths:
+      - '.github/workflows/shop-new-isolated-real-sandbox-paid.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bigpaw-new-isolated-one-shot-real-sandbox-paid
+  cancel-in-progress: false
+
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check no-network scope, unique link, ledger and HMAC contract
+        run: |
+          PYTHONPATH=. python3 scripts/test-shop-new-isolated-real-paid.py
+          python3 -m py_compile scripts/smoke-shop-new-isolated-paid-checkout.py
+          node --check scripts/smoke-shop-square-hosted-panel.cjs
+  one-shot-real-sandbox:
+    needs: offline-contract
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && contains(github.event.head_commit.message, '[isolated-sandbox-paid-one-shot-opt-in]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create exactly one Square Sandbox link persisted in NEW protected Railway DB
+        env:
+          BIGPAW_ISOLATED_REAL_SANDBOX_PAYMENT_OPT_IN: '1'
+          BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN: ${{ secrets.BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-new-isolated-paid-checkout.py prepare
+      - name: One Sandbox Testing Panel fake payment only, no real card
+        run: |
+          timeout 180s docker run --rm \
+            -v "$PWD:/work" -v "$RUNNER_TEMP:/sandbox-tmp" \
+            -e SHOP_PANEL_JSON=/sandbox-tmp/bigpaw-new-stage-checkout.json \
+            -w /work mcr.microsoft.com/playwright:v1.55.0-noble \
+            bash -lc 'npm install --no-save playwright@1.55.0 >/dev/null 2>&1 && node scripts/smoke-shop-square-hosted-panel.cjs'
+      - name: Independently verify Square's payment and NEW Railway durable order via signed HMAC hint
+        env:
+          BIGPAW_ISOLATED_REAL_SANDBOX_PAYMENT_OPT_IN: '1'
+          BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN: ${{ secrets.BIGPAW_SHOP_STAGING_RAILWAY_PROJECT_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+          BIGPAW_SQUARE_SANDBOX_LOCATION_ID: ${{ secrets.BIGPAW_SQUARE_SANDBOX_LOCATION_ID }}
+        run: PYTHONPATH=. python3 scripts/smoke-shop-new-isolated-paid-checkout.py verify
+      - name: Always remove ephemeral test link and order references
+        if: always()
+        run: rm -f "$RUNNER_TEMP/bigpaw-new-stage-checkout.json"
