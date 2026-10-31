@@ -122,10 +122,12 @@ class Tests(unittest.TestCase):
         self.assertEqual(h.code,400)
         self.assert_no_mutations()
     def test_extra_browser_amount_rejected(self):
-        h=self.quote({"A02":1},mutate=lambda h:setattr(
-            h,"rfile",io.BytesIO(json.dumps({
-                "cart":{"A02":1},"terms_sha256":TERMS,"amount_yen":1,
-            }).encode())))
+        def inject_client_total(h):
+            raw=json.dumps({"cart":{"A02":1},
+                            "terms_sha256":TERMS,"amount_yen":1}).encode()
+            h.rfile=io.BytesIO(raw)
+            h.headers["Content-Length"]=str(len(raw))
+        h=self.quote({"A02":1},mutate=inject_client_total)
         self.assertEqual(h.code,400)
         self.assert_no_mutations()
     def test_live_route_is_present_but_unapproved(self):
