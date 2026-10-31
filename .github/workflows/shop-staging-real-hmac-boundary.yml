@@ -1,0 +1,24 @@
+name: BIG PAW isolated Square Sandbox HTTPS HMAC proof
+
+on:
+  push:
+    branches:
+      - feature/dogfood-shop-staging-20261028
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-sandbox-hmac:
+    if: github.ref == 'refs/heads/feature/dogfood-shop-staging-20261028' && contains(github.event.head_commit.message, '[square-hmac-boundary-opt-in]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Offline mock contract and no-network scope verification
+        run: PYTHONPATH=. python3 scripts/test-shop-staging-real-hmac-boundary.py
+      - name: Verify new Sandbox HTTPS signature and fail-closed behavior only
+        env:
+          BIGPAW_SANDBOX_HMAC_BOUNDARY_OPT_IN: '1'
+          BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN: ${{ secrets.BIGPAW_SQUARE_SANDBOX_ACCESS_TOKEN }}
+        run: PYTHONPATH=. python3 scripts/check-shop-staging-real-hmac-boundary.py
