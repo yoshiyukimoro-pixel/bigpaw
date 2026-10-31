@@ -146,7 +146,7 @@ class CheckoutPreviewTests(unittest.TestCase):
                     "display_name": "PRIVATE TEST PERSON",
                     "phone_number": "09012345678",
                     "address": {
-                        "country": "JP",
+                        "country": "JP", "administrative_district_level_1": "東京都", "locality": "千代田区",
                         "postal_code": "100-0001",
                         "address_line_1": "PRIVATE MOCK ADDRESS",
                     }
@@ -825,7 +825,7 @@ class CheckoutPreviewTests(unittest.TestCase):
             status = 200
             def __init__(self, complete):
                 recipient = {"display_name": "PRIVATE", "phone_number": "09012345678", "address": {
-                    "country": "JP", "address_line_1": "PRIVATE STREET" if complete else "",
+                    "country": "JP", "administrative_district_level_1": "東京都", "locality": "千代田区", "address_line_1": "PRIVATE STREET" if complete else "",
                     "postal_code": "000-0000"}}
                 self.payload = json.dumps({"order": {
                     "id": square_order,
@@ -999,7 +999,7 @@ class CheckoutPreviewTests(unittest.TestCase):
                             "display_name": "PRIVATE NAME",
                             "phone_number": "09012345678",
                             "email_address": address,
-                            "address": {"country": "JP", "postal_code": "123-4567",
+                            "address": {"country": "JP", "administrative_district_level_1": "東京都", "locality": "千代田区", "postal_code": "123-4567",
                                         "address_line_1": "PRIVATE ADDRESS"}
                         }
                     }}]}}).encode()
