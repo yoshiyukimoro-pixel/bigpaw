@@ -85,6 +85,7 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
         admin = (path.startswith("/shop-test-orders.html") or
                  path.startswith("/shop-live-orders-preview.html") or
                  path == "/api/shop/sandbox/operator/check-current-payment" or
+                 path == "/api/shop/sandbox/operator/check-current-shipping" or
                  path.startswith("/api/shop/sandbox/operator/draft?") or
                  path in ("/api/shop/sandbox/operator/transition",
                           "/api/shop/sandbox/operator/tracking",
@@ -113,6 +114,106 @@ def json_data(response):
 
 
 class CheckoutPreviewTests(unittest.TestCase):
+    def test_operator_readonly_shipping_status_with_payment_and_csrf(self):
+        """Shipping is a fresh Square GET only; paid alone never permits shipment."""
+        from shop_payments.retail_catalog import load_sale_catalog
+        payment_id = "MOCK_SHIP_PAYMENT_1234"
+        square_order = "MOCK_SHIP_ORDER_1234"
+        state = {"recipient_complete": False, "refund": 0}
+        seen = []
+        class Reply:
+            status = 200
+            def __init__(self, obj):
+                self.data = json.dumps(obj).encode()
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, size): return self.data[:size]
+        def fake_square(req, timeout):
+            self.assertEqual(req.get_method(), "GET")
+            self.assertTrue(req.full_url.startswith(
+                "https://connect.squareupsandbox.com/v2/"))
+            seen.append(req.full_url)
+            if req.full_url.endswith("/payments/" + payment_id):
+                return Reply({"payment": {
+                    "id": payment_id, "order_id": square_order,
+                    "location_id": "SANDBOX_LOCATION_12345",
+                    "status": "COMPLETED",
+                    "amount_money": {"amount": 21450, "currency": "JPY"},
+                    "refunded_money": {"amount": state["refund"], "currency": "JPY"},
+                }})
+            if req.full_url.endswith("/orders/" + square_order):
+                recipient = {
+                    "display_name": "PRIVATE TEST PERSON",
+                    "phone_number": "09012345678",
+                    "address": {
+                        "country": "JP",
+                        "postal_code": "100-0001",
+                        "address_line_1": "PRIVATE MOCK ADDRESS",
+                    }
+                }
+                return Reply({"order": {
+                    "id": square_order, "location_id": "SANDBOX_LOCATION_12345",
+                    "state": "OPEN",
+                    "total_money": {"amount": 21450, "currency": "JPY"},
+                    "fulfillments": ([{"type": "SHIPMENT",
+                                     "shipment_details": {"recipient": recipient}}]
+                                     if state["recipient_complete"] else []),
+                }})
+            self.fail("Unexpected sandbox Square URL")
+        with server_with_env(shipping_opener=fake_square) as (srv, db, calls):
+            db.add_pending_order(order_id=ORDER, cart={"A02": 1},
+                verified_prices=load_sale_catalog(), shipping_yen=0,
+                location_id="SANDBOX_LOCATION_12345")
+            db.save_link(ORDER, {
+                "url": "https://sandbox.square.link/u/NO_REAL_CHARGE",
+                "square_order_id": square_order,
+                "square_link_id": "MOCK_SHIP_LINK_1234",
+            })
+            with sqlite3.connect(db.db_file) as conn:
+                conn.execute(
+                    "UPDATE orders SET state='paid', paid_at=1761780000, "
+                    "square_payment_id=? WHERE order_id=?",
+                    (payment_id, ORDER),
+                )
+            page = request(srv, "/shop-test-orders.html")
+            self.assertEqual(page[0], 200)
+            self.assertIn(b"/api/shop/sandbox/operator/check-current-shipping",
+                          page[2])
+            cookie = page[1]["Set-Cookie"].split(";", 1)[0]
+            csrf = cookie.split("=", 1)[1]
+            data = urlencode({"order_id": ORDER, "csrf": csrf,
+                              "confirm": "read_only"}).encode()
+            headers = {"Origin": ORIGIN, "Cookie": cookie,
+                       "Content-Type": "application/x-www-form-urlencoded"}
+            path = "/api/shop/sandbox/operator/check-current-shipping"
+            def audit(body=data, override=None, auth=True):
+                return request(srv, path, method="POST", data=body, auth=auth,
+                               headers={**headers, **(override or {})})
+            self.assertEqual(audit(auth=False)[0], 401)
+            self.assertEqual(audit(override={"Origin": "https://evil.invalid"})[0], 403)
+            self.assertEqual(audit(override={"Cookie": "bad=token"})[0], 403)
+            self.assertEqual(audit(urlencode({"order_id": ORDER,
+                "csrf": csrf, "confirm": "ship_now"}).encode())[0], 400)
+            self.assertEqual(seen, [], "bad sessions must never reach Square")
+            incomplete = audit()
+            self.assertEqual(incomplete[0], 200)
+            self.assertIn("配送先情報が不足しています・発送禁止".encode(),
+                          incomplete[2])
+            self.assertNotIn(b"PRIVATE TEST PERSON", incomplete[2])
+            self.assertNotIn(b"PRIVATE MOCK ADDRESS", incomplete[2])
+            state["recipient_complete"] = True
+            complete = audit()
+            self.assertEqual(complete[0], 200)
+            self.assertIn("配送先の必須項目を確認しました".encode(), complete[2])
+            self.assertNotIn(b"PRIVATE TEST PERSON", complete[2])
+            state["refund"] = 21450
+            rejected = audit()
+            self.assertEqual(rejected[0], 503)
+            self.assertIn("発送禁止".encode(), rejected[2])
+            self.assertEqual(db.status(ORDER), "paid", "read-only check must not alter journal")
+            self.assertEqual(calls, [], "check must not create a payment link")
+            self.assertTrue(all("/orders/" in path or "/payments/" in path for path in seen))
+
     def test_operator_current_square_payment_read_only_recheck(self):
         """Only operator CSRF can verify current Sandbox GET without DB changes."""
         from shop_payments.retail_catalog import load_sale_catalog
