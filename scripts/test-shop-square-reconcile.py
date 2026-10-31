@@ -175,6 +175,60 @@ class TestSandboxVerification(unittest.TestCase):
             **person, "address": {
                 **person["address"], "address_line_1": "  "}}))
 
+    def test_shipping_recipient_read_only_private_one_shipment_and_complete_jp_address(self):
+        from shop_payments.sandbox_reconcile import retrieve_sandbox_shipping_recipient
+        original = {
+            "display_name": "SYNTHETIC <Recipient>",
+            "phone_number": "090-1234-5678",
+            "address": {
+                "country": "JP",
+                "postal_code": "100-0001",
+                "administrative_district_level_1": "東京都",
+                "locality": "千代田区",
+                "address_line_1": "丸の内1-1-1",
+                "address_line_2": "テストビル2F",
+            }
+        }
+        calls = []
+        def fake(req,timeout):
+            self.assertEqual(req.get_method(), "GET")
+            self.assertEqual(req.full_url,
+                "https://connect.squareupsandbox.com/v2/orders/" + ORDER_ID)
+            calls.append(req.full_url)
+            return FakeResponse({"order": {"id": ORDER_ID,
+                "fulfillments": [{"type": "SHIPMENT",
+                    "shipment_details": {"recipient": original}}]}})
+        val = retrieve_sandbox_shipping_recipient(
+            ORDER_ID, token="FAKE_SANDBOX_ONLY", opener=fake)
+        self.assertEqual(val["name"], "SYNTHETIC <Recipient>")
+        self.assertEqual(val["city"], "千代田区")
+        self.assertEqual(val["address_line_2"], "テストビル2F")
+        self.assertEqual(len(calls), 1)
+        self.assertNotIn("square_payment_id", val)
+        for field in ("administrative_district_level_1","locality"):
+            original["address"][field] = " "
+            with self.subTest(field=field), self.assertRaises(SquareSandboxError):
+                retrieve_sandbox_shipping_recipient(
+                    ORDER_ID, token="FAKE_SANDBOX_ONLY", opener=fake)
+            original["address"][field] = ("東京都" if field ==
+                "administrative_district_level_1" else "千代田区")
+        original["address"]["address_line_2"] = "TEST\\nBcc:"
+        with self.assertRaises(SquareSandboxError):
+            retrieve_sandbox_shipping_recipient(
+                ORDER_ID, token="FAKE_SANDBOX_ONLY", opener=fake)
+        original["address"]["address_line_2"] = "テストビル2F"
+        original["address"]["locality"] = "千代田区"
+        for fulfills in ([], [{"type": "PICKUP"}], [
+            {"type": "SHIPMENT", "shipment_details": {"recipient": original}}
+        ] * 2):
+            with self.subTest(fulfillments=len(fulfills)):
+                def altered(req,timeout):
+                    return FakeResponse({"order": {
+                        "id": ORDER_ID, "fulfillments": fulfills}})
+                with self.assertRaises(SquareSandboxError):
+                    retrieve_sandbox_shipping_recipient(
+                        ORDER_ID, token="FAKE_SANDBOX_ONLY", opener=altered)
+
     def test_empty_or_overseas_shipment_is_not_complete(self):
         def missing(req, timeout):
             return FakeResponse({"order": {"id": ORDER_ID, "fulfillments": []}})
