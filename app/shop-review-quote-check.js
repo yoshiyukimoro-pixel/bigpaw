@@ -116,8 +116,60 @@
     }
     return compare(snap,await quoteResp.json(),approvedTermsSha256);
   }
+  // Future final-review orchestration. The caller must read the ACTUAL
+  // displayed seller terms and cart on every invocation, not a stale
+  // serialized cart or a digest provided by the checkout API.
+  function reviewedState(readCurrent, approvedTermsSha256) {
+    if (typeof readCurrent !== 'function') {
+      throw Error('review_not_confirmed');
+    }
+    const current = readCurrent();
+    if (!current || current.agreed !== true ||
+        current.displayedTermsSha256 !== approvedTermsSha256) {
+      throw Error('review_not_confirmed');
+    }
+    const snap = snapshot(current.rows, current.displayedAmountYen);
+    return {
+      snap,
+      fingerprint:JSON.stringify({
+        rows:snap.rows, amountYen:snap.amount, terms:approvedTermsSha256,
+        agreed:true
+      })
+    };
+  }
+
+  async function verifyCurrentReview({readCurrent, approvedTermsSha256,
+                                      fetchImpl} = {}) {
+    // An absent digest or unapproved terms must fail before touching the
+    // network. A validated shape alone is never merchant approval.
+    if (!DIGEST.test(approvedTermsSha256)) {
+      throw Error('seller_terms_not_approved');
+    }
+    const before = reviewedState(readCurrent, approvedTermsSha256);
+    const request = {
+      rows:before.snap.rows, displayedAmountYen:before.snap.amount,
+      approvedTermsSha256
+    };
+    if (fetchImpl !== undefined) request.fetchImpl = fetchImpl;
+    // The read-only server quote never creates orders or Square links.
+    const verifiedQuote = await verify(request);
+    let after;
+    try {
+      after = reviewedState(readCurrent, approvedTermsSha256);
+    } catch (_) {
+      throw Error('review_changed_during_quote');
+    }
+    if (before.fingerprint !== after.fingerprint) {
+      throw Error('review_changed_during_quote');
+    }
+    // No purchase is initiated by this return value. The caller must repeat
+    // this check immediately before any future checkout and enforce all
+    // independent server-side purchase/authorization gates.
+    return verifiedQuote;
+  }
+
   Object.defineProperty(global,'BigPawShopQuote',{
-    value:Object.freeze({snapshot,compare,verify}),
+    value:Object.freeze({snapshot,compare,verify,verifyCurrentReview}),
     configurable:false,writable:false
   });
 })(window);
