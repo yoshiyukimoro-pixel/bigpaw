@@ -86,6 +86,7 @@ def request(srv, path, *, method="GET", data=None, auth=True, headers=None):
                  path.startswith("/shop-live-orders-preview.html") or
                  path == "/api/shop/sandbox/operator/check-current-payment" or
                  path == "/api/shop/sandbox/operator/check-current-shipping" or
+                 path == "/api/shop/sandbox/operator/view-shipping-address" or
                  path.startswith("/api/shop/sandbox/operator/draft?") or
                  path in ("/api/shop/sandbox/operator/transition",
                           "/api/shop/sandbox/operator/tracking",
