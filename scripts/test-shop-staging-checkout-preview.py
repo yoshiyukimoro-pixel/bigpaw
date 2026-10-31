@@ -115,6 +115,34 @@ def json_data(response):
 
 
 class CheckoutPreviewTests(unittest.TestCase):
+    def test_operator_new_isolated_hostname_strict_and_off_by_default(self):
+        from shop_payments.sandbox_runtime_guard import (
+            NEW_STAGING_PROJECT, NEW_STAGING_ENVIRONMENT, NEW_SANDBOX_WEBHOOK_SERVICE,
+        )
+        host = "bigpaw-square-sandbox-staging-staging.up.railway.app"
+        config = {
+            "RAILWAY_PROJECT_ID": NEW_STAGING_PROJECT,
+            "RAILWAY_ENVIRONMENT_ID": NEW_STAGING_ENVIRONMENT,
+            "RAILWAY_SERVICE_ID": NEW_SANDBOX_WEBHOOK_SERVICE,
+            "BIGPAW_SHOP_STAGE_ALLOWED_PROJECT_ID": NEW_STAGING_PROJECT,
+            "BIGPAW_SQUARE_SANDBOX_WEBHOOK_URL": (
+                "https://" + host + WEBHOOK_PATH
+            ),
+        }
+        with server_with_env(config) as (srv, db, calls):
+            self.assertEqual(request(srv, "/shop-test-orders.html", headers={
+                "Host": HOST})[0], 400)
+            self.assertEqual(request(srv, "/shop-test-orders.html", headers={
+                "Host": host})[0], 200)
+            self.assertEqual(request(srv, "/shop-test-orders.html", auth=False,
+                                      headers={"Host": host})[0], 401)
+        with server_with_env({**config, "BIGPAW_SHOP_STAGE_OPERATOR_ENABLED": "0"}) as (srv, db, calls):
+            self.assertEqual(request(srv, "/shop-test-orders.html", headers={
+                "Host": host})[0], 404)
+        with server_with_env({**config, "BIGPAW_SHOP_STAGE_PREVIEW_ENABLED": "0"}) as (srv, db, calls):
+            self.assertEqual(request(srv, "/shop-test-orders.html", headers={
+                "Host": host})[0], 404)
+
     def test_operator_readonly_shipping_status_with_payment_and_csrf(self):
         """Shipping is a fresh Square GET only; paid alone never permits shipment."""
         from shop_payments.retail_catalog import load_sale_catalog
