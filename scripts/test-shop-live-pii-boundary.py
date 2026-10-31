@@ -65,6 +65,8 @@ class LivePiiBoundaryTests(unittest.TestCase):
                     "display_name": PII[0], "email_address": PII[1],
                     "phone_number": PII[4],
                     "address": {"country": "JP", "address_line_1": PII[2],
+                                "administrative_district_level_1": "東京都",
+                                "locality": "千代田区",
                                 "postal_code": PII[3]},
                 },
             }}],
