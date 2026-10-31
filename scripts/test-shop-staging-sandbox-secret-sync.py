@@ -29,6 +29,7 @@ class Response:
 
 def provider(*,calls,wrong_scope=False,enabled=False,fail_write=False):
     def reply(request,timeout):
+        assert request.get_header("User-agent") == "BIGPAW-Shop-StagingSync/1.0"
         payload=json.loads(request.data) if request.data else None
         calls.append((request.get_method(),request.full_url))
         if request.full_url==m.RAILWAY and "projectToken" in (payload or {}).get("query",""):
