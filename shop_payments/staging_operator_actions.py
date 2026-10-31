@@ -18,7 +18,12 @@ from .sandbox_procurement import SandboxProcurementOps, TRANSITIONS
 from .sandbox_connector import SquareSandboxError
 
 HOST = "bigpaw-test-production.up.railway.app"
-ORIGIN = "https://" + HOST
+# The NEW isolated Railway service may use operator-only tools only when
+# separate operator credentials and both explicit enable switches exist.
+def _operator_host(env) -> str:
+    from .staging_checkout_preview import _preview_host
+    return _preview_host(env)
+
 COOKIE = "__Host-bigpaw_shop_operator_csrf"
 PATH = "/api/shop/sandbox/operator/transition"
 TRACKING_PATH = "/api/shop/sandbox/operator/tracking"
@@ -61,7 +66,8 @@ def authenticate(handler) -> bool:
     if not enabled(env):
         _send(handler, 404, {"error": "operator_unavailable"})
         return False
-    if handler.headers.get("Host", "").lower() not in (HOST, HOST + ":443"):
+    expected_host = _operator_host(env)
+    if handler.headers.get("Host", "").lower() not in (expected_host, expected_host + ":443"):
         _send(handler, 400, {"error": "wrong_host"})
         return False
     raw = handler.headers.get("Authorization", "")
@@ -87,7 +93,7 @@ def new_csrf_cookie() -> tuple[str, str]:
 
 
 def _csrf_ok(handler, token: str) -> bool:
-    if handler.headers.get("Origin") != ORIGIN:
+    if handler.headers.get("Origin") != "https://" + _operator_host(handler.server.env):
         return False
     if not isinstance(token, str) or not TOKEN.fullmatch(token):
         return False
