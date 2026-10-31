@@ -33,6 +33,7 @@ on:
       - 'app/shop-detail-gallery.css'
       - 'app/assets/shop-details/**'
       - 'shop_payments/**'
+      - 'scripts/test-shop-seller-disclosure-automation.py'
       - 'scripts/test-shop-customer-email-transport.py'
       - 'scripts/test-shop-square-live-readonly.py'
       - 'shop_payments/live_shipping_address_view.py'
@@ -199,6 +200,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-retail-launch-guard.py
           python3 -m py_compile app/backend/support_contact_runtime_patch.py
           PYTHONPATH=. python3 scripts/test-shop-owner-approval-pack.py
+          PYTHONPATH=. python3 scripts/test-shop-seller-disclosure-automation.py
           PYTHONPATH=. python3 scripts/test-shop-returns-policy.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-report.py
           PYTHONPATH=. python3 scripts/test-shop-image-import.py
