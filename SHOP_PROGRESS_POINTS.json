@@ -377,7 +377,21 @@
           "evidence": {
             "reviewed_at": "2026-10-31",
             "scope": "Read-only name-only inventory of the existing BigPaw/bigpaw-test Railway service. It contains Sandbox payment and webhook variable names and no live Square variable names. Values, including the webhook URL/key, were redacted and not requested.",
-            "result": "Sandbox configuration presence observed; safe migration, URL match and webhook delivery remain unverified; pending; no point deduction"
+            "result": "Sandbox configuration presence observed; safe migration, URL match and webhook delivery remain unverified; pending; no point deduction",
+            "staging_credential_phase": {
+              "verified_at": "2026-10-31",
+              "scope": "New isolated BIG PAW App Staging/staging/bigpaw-square-sandbox-staging only. Exactly three Sandbox credential variable names present; OAuth returns names not plaintext.",
+              "token_sync_actions": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41147733135",
+              "token_sync_result": "SUCCESS; only_new_webhook_secrets_configured_no_deploy, subscription disabled, no mail or payment",
+              "secure_code_commit": "55b96d0c8c29bd43c24cf4fc73eeebb7a20dc2a4",
+              "isolated_railway_deployment": "2cfec67f-c594-46c5-92a7-45f53bd0b8a7",
+              "deployment_status": "SUCCESS, Online, warning 0",
+              "external_readonly_proof": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148046554",
+              "external_result": "SUCCESS, /healthz sandbox_webhook_ready; admin/shopping routes 404; no POST or actual Square delivery in probe",
+              "dual_non_destructive_regression": "https://github.com/yoshiyukimoro-pixel/bigpaw/actions/runs/41148074669",
+              "dual_result": "SUCCESS; old sandbox, full app and new webhook tested; unsigned event rejected",
+              "remaining": "Square Sandbox subscription remains disabled; no real Square signed HTTPS event and independent Payments/Orders match yet. T03 pending and zero point reduction."
+            }
           }
         },
         {
