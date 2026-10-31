@@ -21,6 +21,10 @@ class ApprovalPackTests(unittest.TestCase):
         self.assertIn("SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md", owner)
         self.assertIn("未承認", pack)
         self.assertIn("未承認", notices)
+        self.assertIn("店主から5種類の通知文面の編集・最終決定を委任済み", notices)
+        self.assertIn("未開封の場合も含めてお受けしておりません", notices)
+        self.assertIn("店主自身", notices)
+        self.assertIn("送信は禁止したまま", notices)
 
     def test_draft_docs_do_not_mutate_approval_or_go_live(self):
         status = json.loads(
@@ -34,8 +38,12 @@ class ApprovalPackTests(unittest.TestCase):
         self.assertEqual(set(status["launch_checks"].values()), {False})
         self.assertFalse(returns["accepted_by_proprietor"])
         self.assertEqual(returns["status"], "draft_not_approved")
-        for policy in returns["policies"].values():
-            self.assertIs(policy["approved"], False)
+        self.assertIs(returns["policies"]["customer_change_of_mind"]["approved"], True)
+        for key, policy in returns["policies"].items():
+            if key != "customer_change_of_mind":
+                self.assertIs(policy["approved"], False)
+        self.assertIn("未開封・未使用", returns["policies"]["customer_change_of_mind"]["policy_ja"])
+        self.assertFalse(returns["partial_owner_approvals"]["seller_identity_contact"]["confidential_values_committed"])
         from shop_payments.retail_launch_guard import check
         ready, missing = check(status)
         self.assertFalse(ready)
