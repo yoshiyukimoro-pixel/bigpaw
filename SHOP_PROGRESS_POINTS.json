@@ -5,8 +5,8 @@
   "baseline_scope": "未完了作業を2026-10-30時点で100ポイントに正規化。全体の完成率0%を意味しない。",
   "method": "タスクの完了条件が検証済み・記録済みのときだけweightを引く。進行中は減らさない。既存の模擬テストは実販売完了と数えない。",
   "baseline_remaining": 100,
-  "remaining_points": 43,
-  "completed_points_since_baseline": 57,
+  "remaining_points": 46,
+  "completed_points_since_baseline": 54,
   "groups": [
     {
       "key": "purchase",
@@ -117,8 +117,8 @@
           "id": "P06",
           "weight": 3,
           "title": "購入停止スイッチと安全なロールバックの実機確認",
-          "status": "done",
-          "completed_at": "2026-10-31",
+          "status": "pending",
+          "completed_at": null,
           "evidence": {
             "scope": "New BIG PAW App Staging / staging / bigpaw-app-staging ONLY. Does not apply or assert production checkout rollback.",
             "live_test_window": "2026-10-31 JST",
@@ -137,7 +137,8 @@
               "result": "SUCCESS; source commit restored; protected staging app and isolated webhook Online, warnings=0, criticals=0, pendingWork=0"
             },
             "payment_safety": "No Square Production, no real charge, no mail, no public launch, no production deployment. Existing Square links are NOT cancelled merely by switching off purchases; separate manual Square review required at live launch.",
-            "completion_scope": "P06 staging operational stop+rollback completed. Real production go-live/rollback observation and owner approval remain blocked under R04/R05."
+            "completion_scope": "PARTIAL staging operational OFF and version rollback proven. P06 acceptance still needs enabled Sandbox checkout to OFF verification, checks for pre-existing payment links, receipt processing despite stop, and retained order journal across the rollback. Never imply previously issued Square links were cancelled.",
+            "point_decision": "NOT COMPLETED. Zero points deducted; other P06 gates unverified."
           }
         }
       ]
