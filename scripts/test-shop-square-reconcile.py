@@ -112,7 +112,7 @@ class TestSandboxVerification(unittest.TestCase):
                     "shipment_details": {"recipient": {
                         "display_name": "PRIVATE_TEST_CUSTOMER",
                         "phone_number": "09012345678",
-                        "address": {"country": "JP", "postal_code": "111-2222",
+                        "address": {"country": "JP", "administrative_district_level_1": "東京都", "locality": "千代田区", "postal_code": "111-2222",
                                     "address_line_1": "PRIVATE_TEST_ADDRESS"}
                     }}
                 }]
@@ -125,7 +125,7 @@ class TestSandboxVerification(unittest.TestCase):
     def test_multiple_square_shipments_require_manual_address_review(self):
         recipient = {
             "display_name": "SYNTHETIC",
-            "address": {"country": "JP", "postal_code": "111-2222",
+            "address": {"country": "JP", "administrative_district_level_1": "東京都", "locality": "千代田区", "postal_code": "111-2222",
                         "address_line_1": "TEST ONLY"},
         }
         one = {"type": "SHIPMENT", "shipment_details": {
@@ -151,7 +151,7 @@ class TestSandboxVerification(unittest.TestCase):
             "display_name": "SYNTHETIC",
             "phone_number": "090-1234-5678",
             "address": {
-                "country": "JP",
+                "country": "JP", "administrative_district_level_1": "東京都", "locality": "千代田区",
                 "postal_code": "100-0001",
                 "address_line_1": "TEST ADDRESS ONLY",
             },
