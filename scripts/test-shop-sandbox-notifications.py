@@ -46,7 +46,7 @@ def square_recipient(req,timeout):
         "total_money":{"amount":21450,"currency":"JPY"},
         "fulfillments":[{"type":"SHIPMENT",
         "shipment_details":{"recipient":{"display_name":"PRIVATE CUSTOMER","phone_number":"09012345678",
-        "address":{"country":"JP","postal_code":"100-0001",
+        "address":{"country":"JP","administrative_district_level_1":"東京都", "locality":"千代田区", "postal_code":"100-0001",
                    "address_line_1":"PRIVATE CUSTOMER ADDRESS"}}}}]}})
 
 
