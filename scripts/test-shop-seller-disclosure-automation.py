@@ -65,10 +65,12 @@ class DisclosureTests(unittest.TestCase):
         self.assertEqual(len(out),2)
         self.assertIn(ENV["BIGPAW_SHOP_SELLER_ADDRESS"],out[1][2])
         self.assertIn(ENV["BIGPAW_SHOP_SELLER_PHONE"],out[1][2])
-        self.assertEqual(db.execute("SELECT status FROM support_tickets").fetchone()[0],"resolved")
+        self.assertEqual(db.execute("SELECT status FROM support_tickets").fetchone()[0],"reviewing")
+        self.assertIn("到達未確認",db.execute("SELECT operator_note FROM support_tickets").fetchone()[0])
         self.assertEqual(a.confirm_request(db,token,env=ENV,clock=lambda:121,
                          sender=fake_outbox(out)),"invalid_or_expired")
         self.assertEqual(len(out),2,"No second disclosure email")
+        self.assertEqual(db.execute("SELECT status FROM food_seller_disclosure").fetchone()[0], "provider_accepted")
         dump=str(list(db.execute("SELECT * FROM food_seller_disclosure")))+str(list(
             db.execute("SELECT * FROM audit_logs")))+str(list(db.execute("SELECT * FROM support_tickets")))
         self.assertNotIn(ENV["BIGPAW_SHOP_SELLER_ADDRESS"],dump)
