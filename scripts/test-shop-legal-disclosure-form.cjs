@@ -61,7 +61,7 @@ const server=http.createServer((req,res)=>{
           'ドッグフードショップ販売者情報の開示請求');
         assert.match(await page.locator('#subject').inputValue(),/販売者住所・電話番号/);
         assert.match(await page.locator('#message').inputValue(),/開示を希望/);
-        assert.match(await page.locator('form .notice').last().innerText(),/自動開示ではありません/);
+        assert.match(await page.locator('form .notice').last().innerText(),/受付番号の発行は開示の完了ではありません/);
         await page.locator('#name').fill('TEST ONLY');
         await page.locator('#email').fill('customer@example.invalid');
         await page.locator('button[type="submit"]').click();
