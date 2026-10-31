@@ -11,6 +11,10 @@ on:
       - 'shop_payments/returns_policy_review.json'
       - 'scripts/test-shop-returns-policy.py'
       - 'SHOP_LAUNCH_READINESS.md'
+      - 'SHOP_SELLER_APPROVAL_PACK_20261031.md'
+      - 'SHOP_CUSTOMER_NOTICES_FOR_APPROVAL_20261031.md'
+      - 'SHOP_OWNER_DECISIONS.md'
+      - 'scripts/test-shop-owner-approval-pack.py'
       - 'shop_payments/retail_launch_guard.py'
       - 'shop_payments/retail_launch_status.json'
       - 'scripts/test-shop-retail-launch-guard.py'
@@ -183,6 +187,7 @@ jobs:
           PYTHONPATH=. python3 scripts/test-shop-info-mail-simple.py
           PYTHONPATH=. python3 scripts/test-shop-delivery-terms.py
           PYTHONPATH=. python3 scripts/test-shop-retail-launch-guard.py
+          PYTHONPATH=. python3 scripts/test-shop-owner-approval-pack.py
           PYTHONPATH=. python3 scripts/test-shop-returns-policy.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-report.py
           PYTHONPATH=. python3 scripts/test-shop-image-import.py
