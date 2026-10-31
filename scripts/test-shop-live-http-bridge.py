@@ -272,6 +272,19 @@ class DormantCheckoutRouteTests(unittest.TestCase):
         self.assertIn("import shop_live_checkout_bridge as bp_shop_checkout",s)
         self.assertIn("bp_shop_checkout.handle_post(",s)
         self.assertIn("bp_shop_checkout.handle_get(",s)
+        # Checkout/quote and Square webhook must be under do_POST only.
+        # A bare substring test would miss an accidental insertion into
+        # do_GET, leaving the real POST API unreachable.
+        assert s.count("    def do_GET(self):") == 1
+        assert s.count("    def do_POST(self):") == 1
+        get_routes = s.split("    def do_GET(self):", 1)[1].split("    def do_POST(self):", 1)[0]
+        post_routes = s.split("    def do_POST(self):", 1)[1]
+        self.assertNotIn("bp_shop_checkout.handle_post(", get_routes)
+        self.assertNotIn("bp_shop_webhook.handle_post(", get_routes)
+        self.assertIn("if path in ('/api/shop/checkout', '/api/shop/checkout/quote'):", post_routes)
+        self.assertIn("if path == '/api/shop/square-webhook':", post_routes)
+        self.assertIn("bp_shop_checkout.handle_post(", post_routes)
+        self.assertIn("bp_shop_webhook.handle_post(", post_routes)
         self.assertIn("COPY shop_payments/ /app/shop_payments/",docker)
         self.assertIn("ENV PYTHONPATH=/app:/app/backend",docker)
         self.assertNotIn('shop-sandbox-checkout.js',(
