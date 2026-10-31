@@ -34,6 +34,8 @@ on:
       - 'app/assets/shop-details/**'
       - 'shop_payments/**'
       - 'scripts/test-shop-seller-disclosure-automation.py'
+      - 'scripts/test-shop-seller-disclosure-bridge.py'
+      - 'app/backend/shop_seller_disclosure_bridge.py'
       - 'scripts/test-shop-customer-email-transport.py'
       - 'scripts/test-shop-square-live-readonly.py'
       - 'shop_payments/live_shipping_address_view.py'
@@ -201,6 +203,7 @@ jobs:
           python3 -m py_compile app/backend/support_contact_runtime_patch.py
           PYTHONPATH=. python3 scripts/test-shop-owner-approval-pack.py
           PYTHONPATH=. python3 scripts/test-shop-seller-disclosure-automation.py
+          PYTHONPATH=. python3 scripts/test-shop-seller-disclosure-bridge.py
           PYTHONPATH=. python3 scripts/test-shop-returns-policy.py
           PYTHONPATH=. python3 scripts/test-shop-sandbox-operator-report.py
           PYTHONPATH=. python3 scripts/test-shop-image-import.py
