@@ -45,10 +45,29 @@ USERNAME = re.compile(r"^[A-Za-z0-9_-]{4,32}$")
 
 def enabled(env) -> bool:
     from .staging_checkout_preview import enabled as preview_enabled
+    from .staging_https_webhook import stage_ready
+    from .sandbox_runtime_guard import (
+        NEW_STAGING_PROJECT, NEW_STAGING_ENVIRONMENT,
+        NEW_SANDBOX_WEBHOOK_SERVICE, is_allowed_sandbox_runtime,
+    )
     username = env.get("BIGPAW_SHOP_STAGE_OPERATOR_USER", "")
     password = env.get("BIGPAW_SHOP_STAGE_OPERATOR_PASSWORD", "")
+    # Purchase stop must not prevent handling an already-paid order.
+    # Only the NEW, dedicated webhook service may opt in to an operator-only
+    # dashboard while shopper checkout remains OFF. No new checkout becomes
+    # reachable as a side-effect of this operator setting.
+    paused_operator = bool(
+        env.get("RAILWAY_PROJECT_ID") == NEW_STAGING_PROJECT
+        and env.get("RAILWAY_ENVIRONMENT_ID") == NEW_STAGING_ENVIRONMENT
+        and env.get("RAILWAY_SERVICE_ID") == NEW_SANDBOX_WEBHOOK_SERVICE
+        and env.get("BIGPAW_ENV") == "sandbox"
+        and env.get("BIGPAW_SHOP_STAGE_PREVIEW_ENABLED") == "0"
+        and env.get("BIGPAW_SHOP_STAGE_OPERATOR_AFTER_STOP_ENABLED") == "1"
+        and stage_ready(env)
+        and is_allowed_sandbox_runtime(env)
+    )
     return bool(
-        preview_enabled(env) and
+        (preview_enabled(env) or paused_operator) and
         env.get("BIGPAW_SHOP_STAGE_OPERATOR_ENABLED") == "1" and
         isinstance(username, str) and USERNAME.fullmatch(username) and
         isinstance(password, str) and 32 <= len(password) <= 128 and
